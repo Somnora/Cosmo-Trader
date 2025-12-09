@@ -101,6 +101,11 @@ class PortfolioViewModel {
         holdings.count
     }
 
+    /// Holdings grouped by zodiac element (for ZodiacWheelView)
+    var holdingsByElement: [ZodiacSign.Element: [Stock]] {
+        Dictionary(grouping: holdings) { $0.zodiacSign.element }
+    }
+
     // MARK: - Element Breakdown
 
     /// Calculate the percentage breakdown by element

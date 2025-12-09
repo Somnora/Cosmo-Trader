@@ -6,7 +6,7 @@ import SwiftUI
 //
 // STRUCTURE:
 // 1. PortfolioHeaderView - Greeting, sun sign, total value, daily change
-// 2. CosmicBalanceCard - Element breakdown with insight
+// 2. Visualization toggle - Switch between Zodiac Wheel and Cosmic Balance card
 // 3. Holdings List - Scrollable list of owned stocks
 //
 // DESIGN PHILOSOPHY:
@@ -25,6 +25,9 @@ struct PortfolioView: View {
     /// Track if we're showing a selected stock detail
     @State private var selectedStock: Stock?
 
+    /// Toggle between wheel view and simple card view
+    @State private var showWheelView: Bool = true
+
     // MARK: - Body
 
     var body: some View {
@@ -39,10 +42,13 @@ struct PortfolioView: View {
                         // 1. Header with greeting and portfolio value
                         headerSection
 
-                        // 2. Cosmic Balance card
+                        // 2. Visualization toggle
+                        visualizationToggle
+
+                        // 3. Cosmic Balance visualization (wheel or card)
                         cosmicBalanceSection
 
-                        // 3. Holdings list
+                        // 4. Holdings list
                         holdingsSection
                     }
                     .padding(.horizontal, 16)
@@ -107,14 +113,92 @@ struct PortfolioView: View {
         )
     }
 
+    // MARK: - Visualization Toggle
+
+    /// Toggle between wheel and card view
+    private var visualizationToggle: some View {
+        HStack(spacing: 0) {
+            // Wheel view button
+            toggleButton(
+                title: "Wheel",
+                icon: "circle.hexagongrid.fill",
+                isSelected: showWheelView
+            ) {
+                withAnimation(.spring(response: 0.3)) {
+                    showWheelView = true
+                }
+            }
+
+            // Card view button
+            toggleButton(
+                title: "Card",
+                icon: "rectangle.fill",
+                isSelected: !showWheelView
+            ) {
+                withAnimation(.spring(response: 0.3)) {
+                    showWheelView = false
+                }
+            }
+        }
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(CosmicTheme.cardBackground)
+        )
+    }
+
+    private func toggleButton(
+        title: String,
+        icon: String,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.caption)
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+            }
+            .foregroundColor(isSelected ? CosmicTheme.background : CosmicTheme.textSecondary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected ? CosmicTheme.gold : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Cosmic Balance Section
 
-    /// The elemental breakdown card
+    /// The elemental breakdown visualization (wheel or card)
+    @ViewBuilder
     private var cosmicBalanceSection: some View {
-        CosmicBalanceCard(
-            breakdown: viewModel.elementBreakdown,
-            insight: viewModel.elementInsight
-        )
+        if showWheelView {
+            // Interactive zodiac wheel
+            ZodiacWheelView(
+                breakdown: viewModel.elementBreakdown,
+                stocksByElement: viewModel.holdingsByElement,
+                totalValue: viewModel.formattedPortfolioValue
+            )
+            .transition(.asymmetric(
+                insertion: .scale(scale: 0.9).combined(with: .opacity),
+                removal: .scale(scale: 0.9).combined(with: .opacity)
+            ))
+        } else {
+            // Simple card view
+            CosmicBalanceCard(
+                breakdown: viewModel.elementBreakdown,
+                insight: viewModel.elementInsight
+            )
+            .transition(.asymmetric(
+                insertion: .scale(scale: 0.9).combined(with: .opacity),
+                removal: .scale(scale: 0.9).combined(with: .opacity)
+            ))
+        }
     }
 
     // MARK: - Holdings Section
@@ -217,7 +301,7 @@ struct PortfolioView: View {
 
 // MARK: - Preview
 
-#Preview("Portfolio View") {
+#Preview("Portfolio View - Wheel") {
     PortfolioView()
         .preferredColorScheme(.dark)
 }
