@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - ZodiacSign Enum
 // =======================
@@ -325,6 +326,16 @@ extension ZodiacSign {
             case .earth: return "green"
             case .air:   return "yellow"
             case .water: return "blue"
+            }
+        }
+
+        /// SwiftUI Color for this element
+        var color: Color {
+            switch self {
+            case .fire:  return Color(red: 1.0, green: 0.4, blue: 0.3)   // Warm orange-red
+            case .earth: return Color(red: 0.4, green: 0.8, blue: 0.4)   // Forest green
+            case .air:   return Color(red: 0.9, green: 0.85, blue: 0.4)  // Golden yellow
+            case .water: return Color(red: 0.4, green: 0.6, blue: 0.9)   // Ocean blue
             }
         }
 

@@ -199,7 +199,7 @@ struct StockDetailView: View {
                     Image(systemName: stock.isPositive ? "arrow.up.right" : "arrow.down.right")
                         .font(.headline)
 
-                    Text(stock.formattedDailyChange)
+                    Text(stock.formattedPriceChange)
                         .font(.headline)
                         .fontWeight(.semibold)
                 }

@@ -136,7 +136,7 @@ struct CosmicBalanceCard: View {
 
             Text(insight)
                 .font(.subheadline)
-                .fontStyle(.italic)
+                .italic()
                 .foregroundColor(CosmicTheme.textSecondary)
                 .lineSpacing(4)
                 .fixedSize(horizontal: false, vertical: true)

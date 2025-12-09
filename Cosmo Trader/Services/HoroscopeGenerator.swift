@@ -69,8 +69,8 @@ struct HoroscopeGenerator {
             )
         }
 
-        let gainers = holdings.filter { $0.dailyChange > 0 }
-        let losers = holdings.filter { $0.dailyChange < 0 }
+        let gainers = holdings.filter { $0.priceChange > 0 }
+        let losers = holdings.filter { $0.priceChange < 0 }
 
         let topGainer = holdings.max(by: { $0.percentageChange < $1.percentageChange })
         let topLoser = holdings.min(by: { $0.percentageChange < $1.percentageChange })
