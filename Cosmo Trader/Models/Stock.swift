@@ -17,7 +17,7 @@ import Foundation
 // - Codable: Allows encoding/decoding to JSON for persistence or API calls
 // - Equatable: Lets us compare two stocks (stock1 == stock2)
 
-struct Stock: Identifiable, Codable, Equatable {
+struct Stock: Identifiable, Codable, Equatable, Hashable {
 
     // MARK: - Identity Properties
     // ===========================

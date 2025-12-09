@@ -94,6 +94,9 @@ struct DiscoverView: View {
             .sheet(isPresented: $viewModel.showingFilters) {
                 filterSheet
             }
+            .navigationDestination(item: $viewModel.detailStock) { stock in
+                StockDetailView(stock: stock, user: viewModel.user)
+            }
         }
     }
 

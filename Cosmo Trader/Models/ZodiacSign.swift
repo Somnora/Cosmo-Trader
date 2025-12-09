@@ -395,6 +395,118 @@ extension ZodiacSign {
     }
 }
 
+// MARK: - Modality
+// =================
+// Each sign has a modality that describes how they approach action.
+
+extension ZodiacSign {
+
+    /// The three modalities in astrology
+    enum Modality: String, CaseIterable, Identifiable, Codable {
+        case cardinal  // Initiators - start things
+        case fixed     // Stabilizers - maintain things
+        case mutable   // Adapters - change things
+
+        var id: String { rawValue }
+
+        var displayName: String { rawValue.capitalized }
+
+        var description: String {
+            switch self {
+            case .cardinal:
+                return "Initiators who start new ventures and lead the way"
+            case .fixed:
+                return "Stabilizers who maintain and build upon foundations"
+            case .mutable:
+                return "Adapters who embrace change and flexibility"
+            }
+        }
+
+        var tradingImplication: String {
+            switch self {
+            case .cardinal:
+                return "First-mover companies that pioneer new markets"
+            case .fixed:
+                return "Established companies with staying power"
+            case .mutable:
+                return "Adaptive companies that pivot with market trends"
+            }
+        }
+    }
+
+    /// The modality of this sign
+    var modality: Modality {
+        switch self {
+        case .aries, .cancer, .libra, .capricorn:
+            return .cardinal
+        case .taurus, .leo, .scorpio, .aquarius:
+            return .fixed
+        case .gemini, .virgo, .sagittarius, .pisces:
+            return .mutable
+        }
+    }
+
+    /// Full description of this sign's personality
+    var personalityDescription: String {
+        switch self {
+        case .aries:
+            return "Bold, ambitious, and unafraid to dive headfirst into challenging situations. Aries leads with confidence and thrives on competition."
+        case .taurus:
+            return "Grounded, patient, and devoted to building lasting value. Taurus appreciates quality and takes a steady, reliable approach."
+        case .gemini:
+            return "Curious, adaptable, and intellectually agile. Gemini thrives on variety and excels at communication and quick thinking."
+        case .cancer:
+            return "Intuitive, protective, and deeply connected to emotional currents. Cancer nurtures growth and values security above all."
+        case .leo:
+            return "Charismatic, creative, and born to lead. Leo commands attention and brings warmth and generosity to everything they touch."
+        case .virgo:
+            return "Analytical, practical, and detail-oriented. Virgo excels at optimization and brings order to chaos through careful planning."
+        case .libra:
+            return "Harmonious, diplomatic, and aesthetically inclined. Libra seeks balance and creates partnerships built on fairness."
+        case .scorpio:
+            return "Intense, strategic, and deeply perceptive. Scorpio sees beneath the surface and transforms everything they commit to."
+        case .sagittarius:
+            return "Adventurous, optimistic, and philosophically minded. Sagittarius aims for expansion and embraces bold possibilities."
+        case .capricorn:
+            return "Ambitious, disciplined, and built for the long game. Capricorn climbs steadily toward success through hard work and patience."
+        case .aquarius:
+            return "Innovative, independent, and future-focused. Aquarius breaks conventions and champions progressive ideas."
+        case .pisces:
+            return "Empathic, creative, and spiritually attuned. Pisces flows with intuition and connects deeply with the intangible."
+        }
+    }
+
+    /// How this sign operates as a company/investment
+    var corporatePersonality: String {
+        switch self {
+        case .aries:
+            return "A pioneer that moves fast and breaks things. This company leads markets rather than follows them, favoring bold innovation over careful iteration."
+        case .taurus:
+            return "A steady accumulator of value that prioritizes sustainable growth over quick wins. This company builds empires brick by brick."
+        case .gemini:
+            return "A versatile communicator that adapts quickly to market shifts. This company excels at pivoting and maintaining multiple revenue streams."
+        case .cancer:
+            return "A protector of stakeholders that prioritizes security and loyalty. This company nurtures long-term relationships over short-term gains."
+        case .leo:
+            return "A bold brand builder that commands market attention. This company leads with vision and isn't afraid to make dramatic moves."
+        case .virgo:
+            return "A meticulous optimizer focused on efficiency and quality. This company sweats the details that others overlook."
+        case .libra:
+            return "A partnership-oriented entity that thrives on collaboration. This company builds value through strategic alliances and fair dealing."
+        case .scorpio:
+            return "A transformative force that reinvents industries. This company operates with intensity and isn't afraid of creative destruction."
+        case .sagittarius:
+            return "An expansionist with global ambitions. This company thinks big, takes risks, and isn't satisfied with incremental growth."
+        case .capricorn:
+            return "A disciplined institution built for generational success. This company values tradition, hierarchy, and proven strategies."
+        case .aquarius:
+            return "A disruptor that challenges industry norms. This company prioritizes innovation and social impact over conventional metrics."
+        case .pisces:
+            return "An intuitive creator that operates on vision rather than spreadsheets. This company connects emotionally with its audience."
+        }
+    }
+}
+
 // MARK: - Usage Examples
 // ======================
 // Here's how to use the zodiac calculation in practice:

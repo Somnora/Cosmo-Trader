@@ -81,6 +81,9 @@ struct PortfolioView: View {
             }
             .toolbarBackground(CosmicTheme.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
+            .navigationDestination(item: $selectedStock) { stock in
+                StockDetailView(stock: stock, user: viewModel.user)
+            }
         }
     }
 
