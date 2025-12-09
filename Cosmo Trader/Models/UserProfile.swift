@@ -73,6 +73,14 @@ struct UserProfile: Identifiable, Codable, Equatable {
     /// NOTE: This is var because it changes as they buy/sell
     var portfolio: [Stock]
 
+    /// Watchlist of stock symbols the user is interested in
+    /// WHY: "Dating app for stocks" - stocks they've swiped right on
+    var watchlist: [String]
+
+    /// Symbols of stocks the user has dismissed/skipped
+    /// WHY: Don't show them the same stocks again
+    var skippedStocks: [String]
+
     // MARK: - Account Info
     // ====================
 
@@ -179,6 +187,8 @@ struct UserProfile: Identifiable, Codable, Equatable {
         email: String,
         birthDate: Date,
         portfolio: [Stock] = [],
+        watchlist: [String] = [],
+        skippedStocks: [String] = [],
         memberSince: Date = Date(),
         preferredCurrency: String = "USD"
     ) {
@@ -187,6 +197,8 @@ struct UserProfile: Identifiable, Codable, Equatable {
         self.email = email
         self.birthDate = birthDate
         self.portfolio = portfolio
+        self.watchlist = watchlist
+        self.skippedStocks = skippedStocks
         self.memberSince = memberSince
         self.preferredCurrency = preferredCurrency
     }
@@ -201,6 +213,8 @@ struct UserProfile: Identifiable, Codable, Equatable {
         birthDay: Int,
         birthYear: Int,
         portfolio: [Stock] = [],
+        watchlist: [String] = [],
+        skippedStocks: [String] = [],
         memberSince: Date = Date(),
         preferredCurrency: String = "USD"
     ) {
@@ -208,6 +222,8 @@ struct UserProfile: Identifiable, Codable, Equatable {
         self.displayName = displayName
         self.email = email
         self.portfolio = portfolio
+        self.watchlist = watchlist
+        self.skippedStocks = skippedStocks
         self.memberSince = memberSince
         self.preferredCurrency = preferredCurrency
 
@@ -307,6 +323,44 @@ extension UserProfile {
     /// WHY: For sign-based portfolio views
     var portfolioBySign: [ZodiacSign: [Stock]] {
         Dictionary(grouping: portfolio) { $0.zodiacSign }
+    }
+
+    // MARK: - Watchlist Management
+
+    /// Add a stock to the watchlist
+    mutating func addToWatchlist(_ symbol: String) {
+        guard !watchlist.contains(symbol) else { return }
+        watchlist.append(symbol)
+        // Remove from skipped if it was there
+        skippedStocks.removeAll { $0 == symbol }
+    }
+
+    /// Remove a stock from the watchlist
+    mutating func removeFromWatchlist(_ symbol: String) {
+        watchlist.removeAll { $0 == symbol }
+    }
+
+    /// Skip/dismiss a stock
+    mutating func skipStock(_ symbol: String) {
+        guard !skippedStocks.contains(symbol) else { return }
+        skippedStocks.append(symbol)
+        // Remove from watchlist if it was there
+        watchlist.removeAll { $0 == symbol }
+    }
+
+    /// Check if a stock is in the watchlist
+    func isInWatchlist(_ symbol: String) -> Bool {
+        watchlist.contains(symbol)
+    }
+
+    /// Check if a stock has been skipped
+    func isSkipped(_ symbol: String) -> Bool {
+        skippedStocks.contains(symbol)
+    }
+
+    /// Reset skipped stocks to see them again
+    mutating func resetSkippedStocks() {
+        skippedStocks.removeAll()
     }
 }
 
