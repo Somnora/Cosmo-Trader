@@ -28,12 +28,12 @@ struct ContentView: View {
                 }
                 .tag(Tab.discover)
 
-            // Horoscope Tab
-            HoroscopeView()
+            // Cosmos Tab
+            CosmosView()
                 .tabItem {
-                    Label("Horoscope", systemImage: "sparkles")
+                    Label("Cosmos", systemImage: "sparkles")
                 }
-                .tag(Tab.horoscope)
+                .tag(Tab.cosmos)
 
             // Profile Tab
             ProfileView()
@@ -80,7 +80,7 @@ struct ContentView: View {
 enum Tab: Hashable {
     case portfolio
     case discover
-    case horoscope
+    case cosmos
     case profile
 }
 
