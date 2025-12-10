@@ -17,16 +17,116 @@ import SwiftUI
 
 struct PortfolioView: View {
 
-    // MARK: - Properties
+    // MARK: - Environment
 
-    /// The ViewModel containing all portfolio data and logic
-    @State private var viewModel = PortfolioViewModel()
+    @Environment(AppState.self) private var appState
+
+    // MARK: - State
 
     /// Track if we're showing a selected stock detail
     @State private var selectedStock: Stock?
 
     /// Toggle between wheel view and simple card view
     @State private var showWheelView: Bool = true
+
+    /// Is data refreshing?
+    @State private var isRefreshing: Bool = false
+
+    // MARK: - Computed Properties
+
+    /// Get current user from app state
+    private var user: UserProfile {
+        appState.currentUser ?? .sampleWithHoldings
+    }
+
+    /// Stocks in portfolio that are owned
+    private var holdings: [Stock] {
+        user.portfolio.filter { $0.sharesOwned > 0 }
+    }
+
+    /// Holdings count
+    private var holdingsCount: Int {
+        holdings.count
+    }
+
+    /// Holdings grouped by element
+    private var holdingsByElement: [ZodiacSign.Element: [Stock]] {
+        Dictionary(grouping: holdings) { $0.zodiacSign.element }
+    }
+
+    /// Element breakdown for visualization
+    private var elementBreakdown: [ElementBreakdown] {
+        let totalValue = user.totalPortfolioValue
+        guard totalValue > 0 else {
+            return ZodiacSign.Element.allCases.map {
+                ElementBreakdown(element: $0, percentage: 0, value: 0)
+            }
+        }
+
+        var elementValues: [ZodiacSign.Element: Double] = [:]
+        for stock in holdings {
+            let element = stock.zodiacSign.element
+            elementValues[element, default: 0] += stock.totalValue
+        }
+
+        return ZodiacSign.Element.allCases.map { element in
+            let value = elementValues[element] ?? 0
+            let percentage = (value / totalValue) * 100
+            return ElementBreakdown(element: element, percentage: percentage, value: value)
+        }.sorted { $0.percentage > $1.percentage }
+    }
+
+    /// Dominant element
+    private var dominantElement: ZodiacSign.Element? {
+        elementBreakdown.first { $0.percentage > 0 }?.element
+    }
+
+    /// Element insight text
+    private var elementInsight: String {
+        guard let dominant = dominantElement else {
+            return "Add some holdings to see your cosmic balance."
+        }
+
+        let dominantPct = elementBreakdown.first?.percentage ?? 0
+
+        if dominantPct > 60 {
+            switch dominant {
+            case .fire:
+                return "Heavy in Fire energy - high growth potential, high volatility."
+            case .earth:
+                return "Grounded in Earth energy - stable and practical."
+            case .air:
+                return "Dominated by Air energy - intellectual picks, diversified."
+            case .water:
+                return "Deep in Water energy - intuitive choices, emotionally driven."
+            }
+        } else if dominantPct > 40 {
+            return "\(dominant.displayName) leads your portfolio with balanced risk."
+        } else {
+            return "Elementally balanced - diversified across cosmic energies."
+        }
+    }
+
+    /// Time-appropriate greeting
+    private var greeting: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 0..<12:  return "Good morning"
+        case 12..<17: return "Good afternoon"
+        case 17..<21: return "Good evening"
+        default:      return "Good night"
+        }
+    }
+
+    /// Personalized greeting
+    private var personalizedGreeting: String {
+        "\(greeting), \(user.displayName)"
+    }
+
+    /// Average portfolio compatibility
+    private var averageCompatibility: Int {
+        user.averagePortfolioCompatibility
+    }
 
     // MARK: - Body
 
@@ -43,25 +143,28 @@ struct PortfolioView: View {
                         headerSection
 
                         // 2. Visualization toggle
-                        visualizationToggle
+                        if !holdings.isEmpty {
+                            visualizationToggle
+                        }
 
                         // 3. Cosmic Balance visualization (wheel or card)
-                        cosmicBalanceSection
+                        if !holdings.isEmpty {
+                            cosmicBalanceSection
+                        }
 
                         // 4. Holdings list
                         holdingsSection
                     }
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 100) // Extra padding for tab bar
+                    .padding(.bottom, 100)
                 }
                 .refreshable {
-                    await viewModel.refreshPortfolio()
+                    await refreshPortfolio()
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    // Custom title in nav bar
                     HStack(spacing: 6) {
                         Image(systemName: "chart.pie.fill")
                             .foregroundColor(CosmicTheme.gold)
@@ -72,7 +175,6 @@ struct PortfolioView: View {
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    // Notification/Settings button
                     Button(action: {}) {
                         Image(systemName: "bell.badge")
                             .foregroundColor(CosmicTheme.textSecondary)
@@ -82,14 +184,13 @@ struct PortfolioView: View {
             .toolbarBackground(CosmicTheme.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .navigationDestination(item: $selectedStock) { stock in
-                StockDetailView(stock: stock, user: viewModel.user)
+                StockDetailView(stock: stock)
             }
         }
     }
 
     // MARK: - Background
 
-    /// Cosmic gradient background
     private var backgroundGradient: some View {
         LinearGradient(
             colors: [
@@ -104,24 +205,21 @@ struct PortfolioView: View {
 
     // MARK: - Header Section
 
-    /// The header showing greeting, sun sign, and portfolio value
     private var headerSection: some View {
         PortfolioHeaderView(
-            greeting: viewModel.personalizedGreeting,
-            sunSign: viewModel.user.sunSign,
-            portfolioValue: viewModel.formattedPortfolioValue,
-            dailyChange: viewModel.formattedDailyChange,
-            dailyChangePercent: viewModel.formattedDailyChangePercent,
-            isPositive: viewModel.isPortfolioPositive
+            greeting: personalizedGreeting,
+            sunSign: user.sunSign,
+            portfolioValue: user.formattedPortfolioValue,
+            dailyChange: user.formattedDailyChange,
+            dailyChangePercent: user.formattedDailyChangePercent,
+            isPositive: user.isPortfolioPositive
         )
     }
 
     // MARK: - Visualization Toggle
 
-    /// Toggle between wheel and card view
     private var visualizationToggle: some View {
         HStack(spacing: 0) {
-            // Wheel view button
             toggleButton(
                 title: "Wheel",
                 icon: "circle.hexagongrid.fill",
@@ -132,7 +230,6 @@ struct PortfolioView: View {
                 }
             }
 
-            // Card view button
             toggleButton(
                 title: "Card",
                 icon: "rectangle.fill",
@@ -177,25 +274,22 @@ struct PortfolioView: View {
 
     // MARK: - Cosmic Balance Section
 
-    /// The elemental breakdown visualization (wheel or card)
     @ViewBuilder
     private var cosmicBalanceSection: some View {
         if showWheelView {
-            // Interactive zodiac wheel
             ZodiacWheelView(
-                breakdown: viewModel.elementBreakdown,
-                stocksByElement: viewModel.holdingsByElement,
-                totalValue: viewModel.formattedPortfolioValue
+                breakdown: elementBreakdown,
+                stocksByElement: holdingsByElement,
+                totalValue: user.formattedPortfolioValue
             )
             .transition(.asymmetric(
                 insertion: .scale(scale: 0.9).combined(with: .opacity),
                 removal: .scale(scale: 0.9).combined(with: .opacity)
             ))
         } else {
-            // Simple card view
             CosmicBalanceCard(
-                breakdown: viewModel.elementBreakdown,
-                insight: viewModel.elementInsight
+                breakdown: elementBreakdown,
+                insight: elementInsight
             )
             .transition(.asymmetric(
                 insertion: .scale(scale: 0.9).combined(with: .opacity),
@@ -206,14 +300,11 @@ struct PortfolioView: View {
 
     // MARK: - Holdings Section
 
-    /// The list of stock holdings
     private var holdingsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Section header
             holdingsSectionHeader
 
-            // Stock rows
-            if viewModel.holdings.isEmpty {
+            if holdings.isEmpty {
                 emptyHoldingsView
             } else {
                 holdingsList
@@ -221,7 +312,6 @@ struct PortfolioView: View {
         }
     }
 
-    /// Holdings section header with count
     private var holdingsSectionHeader: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
@@ -230,30 +320,32 @@ struct PortfolioView: View {
                     .fontWeight(.bold)
                     .foregroundColor(CosmicTheme.textPrimary)
 
-                Text("\(viewModel.holdingsCount) positions · \(viewModel.averageCompatibility)% avg. compatibility")
-                    .font(.caption)
-                    .foregroundColor(CosmicTheme.textMuted)
+                if !holdings.isEmpty {
+                    Text("\(holdingsCount) positions - \(averageCompatibility)% avg. compatibility")
+                        .font(.caption)
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
             }
 
             Spacer()
 
-            // Sort/Filter button (placeholder for now)
-            Button(action: {}) {
-                Image(systemName: "line.3.horizontal.decrease.circle")
-                    .font(.title3)
-                    .foregroundColor(CosmicTheme.textSecondary)
+            if !holdings.isEmpty {
+                Button(action: {}) {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                        .font(.title3)
+                        .foregroundColor(CosmicTheme.textSecondary)
+                }
             }
         }
         .padding(.top, 8)
     }
 
-    /// List of holding rows
     private var holdingsList: some View {
         LazyVStack(spacing: 12) {
-            ForEach(viewModel.holdings) { stock in
+            ForEach(holdings) { stock in
                 HoldingRow(
                     stock: stock,
-                    compatibility: viewModel.compatibility(for: stock),
+                    compatibility: user.compatibility(with: stock),
                     onTap: {
                         selectedStock = stock
                     }
@@ -262,7 +354,6 @@ struct PortfolioView: View {
         }
     }
 
-    /// Empty state when no holdings
     private var emptyHoldingsView: some View {
         VStack(spacing: 16) {
             Image(systemName: "sparkles")
@@ -278,16 +369,10 @@ struct PortfolioView: View {
                 .foregroundColor(CosmicTheme.textSecondary)
                 .multilineTextAlignment(.center)
 
-            Button(action: {}) {
-                Text("Discover Stocks")
-                    .font(.headline)
-                    .foregroundColor(CosmicTheme.background)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(CosmicTheme.goldGradient)
-                    .cornerRadius(25)
-            }
-            .padding(.top, 8)
+            Text("Swipe right to the Discover tab to get started!")
+                .font(.caption)
+                .foregroundColor(CosmicTheme.textMuted)
+                .padding(.top, 4)
         }
         .frame(maxWidth: .infinity)
         .padding(40)
@@ -300,28 +385,26 @@ struct PortfolioView: View {
                 )
         )
     }
+
+    // MARK: - Actions
+
+    private func refreshPortfolio() async {
+        isRefreshing = true
+        try? await Task.sleep(nanoseconds: 500_000_000)
+        isRefreshing = false
+    }
 }
 
 // MARK: - Preview
 
-#Preview("Portfolio View - Wheel") {
+#Preview("Portfolio View") {
     PortfolioView()
+        .environment(AppState.preview)
         .preferredColorScheme(.dark)
 }
 
 #Preview("Portfolio View - Empty") {
-    let emptyUser = UserProfile(
-        displayName: "New User",
-        email: "new@test.com",
-        birthMonth: 3,
-        birthDay: 21,
-        birthYear: 1995,
-        portfolio: []
-    )
-
-    return PortfolioView()
+    PortfolioView()
+        .environment(AppState(user: .newUser))
         .preferredColorScheme(.dark)
-        .onAppear {
-            // Note: In a real app, you'd inject this via environment
-        }
 }

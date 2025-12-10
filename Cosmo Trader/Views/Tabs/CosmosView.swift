@@ -17,9 +17,13 @@ import SwiftUI
 
 struct CosmosView: View {
 
-    // MARK: - Properties
+    // MARK: - Environment
 
-    @State private var viewModel = HoroscopeViewModel()
+    @Environment(AppState.self) private var appState
+
+    // MARK: - State
+
+    @State private var viewModel: HoroscopeViewModel?
 
     /// Animation states
     @State private var cardOpacity: Double = 0
@@ -34,24 +38,29 @@ struct CosmosView: View {
                 // Cosmic background with stars
                 cosmicBackground
 
-                // Main content
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 28) {
-                        // 1. Date header with moon phase
-                        dateHeader
+                if let vm = viewModel {
+                    // Main content
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 28) {
+                            // 1. Date header with moon phase
+                            dateHeader
 
-                        // 2. Main horoscope card
-                        horoscopeCard
+                            // 2. Main horoscope card
+                            horoscopeCard
 
-                        // 3. Cosmic Weather section
-                        cosmicWeatherSection
+                            // 3. Cosmic Weather section
+                            cosmicWeatherSection
 
-                        // 4. Regenerate button
-                        regenerateButton
+                            // 4. Regenerate button
+                            regenerateButton
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
+                        .padding(.bottom, 100)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-                    .padding(.bottom, 100)
+                } else {
+                    ProgressView()
+                        .tint(CosmicTheme.gold)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -67,7 +76,7 @@ struct CosmosView: View {
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    Text(viewModel.moonPhase.emoji)
+                    Text(viewModel?.moonPhase.emoji ?? "🌙")
                         .font(.title2)
                 }
             }
@@ -75,6 +84,9 @@ struct CosmosView: View {
             .toolbarBackground(.visible, for: .navigationBar)
         }
         .onAppear {
+            if viewModel == nil {
+                viewModel = HoroscopeViewModel(appState: appState)
+            }
             animateAppearance()
         }
     }
@@ -109,28 +121,28 @@ struct CosmosView: View {
         VStack(spacing: 12) {
             // Moon phase display
             HStack(spacing: 8) {
-                Image(systemName: viewModel.moonPhaseIcon)
+                Image(systemName: viewModel?.moonPhaseIcon ?? "moon")
                     .font(.system(size: 24))
                     .foregroundStyle(CosmicTheme.goldGradient)
 
-                Text(viewModel.moonPhase.rawValue)
+                Text(viewModel?.moonPhase.rawValue ?? "Moon Phase")
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundColor(CosmicTheme.textSecondary)
             }
 
             // Date
-            Text(viewModel.formattedDate)
+            Text(viewModel?.formattedDate ?? "")
                 .font(.title2)
                 .fontWeight(.bold)
                 .foregroundColor(CosmicTheme.textPrimary)
 
             // User sign badge
             HStack(spacing: 6) {
-                Text(viewModel.user.sunSign.symbol)
+                Text(viewModel?.user.sunSign.symbol ?? "")
                     .font(.title3)
 
-                Text(viewModel.user.sunSign.displayName)
+                Text(viewModel?.user.sunSign.displayName ?? "")
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(CosmicTheme.gold)
@@ -166,15 +178,15 @@ struct CosmosView: View {
                             .font(.caption)
                             .foregroundColor(CosmicTheme.textSecondary)
 
-                        Text(viewModel.performanceSentiment)
+                        Text(viewModel?.performanceSentiment ?? "")
                             .font(.caption)
                             .fontWeight(.semibold)
-                            .foregroundColor(viewModel.performanceColor)
+                            .foregroundColor(viewModel?.performanceColor ?? CosmicTheme.textMuted)
 
-                        Text(viewModel.overallChangePercent)
+                        Text(viewModel?.overallChangePercent ?? "")
                             .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(viewModel.performanceColor)
+                            .foregroundColor(viewModel?.performanceColor ?? CosmicTheme.textMuted)
                     }
                 }
 
@@ -186,7 +198,7 @@ struct CosmosView: View {
                         .fill(CosmicTheme.gold.opacity(0.15))
                         .frame(width: 60, height: 60)
 
-                    Text(viewModel.user.sunSign.symbol)
+                    Text(viewModel?.user.sunSign.symbol ?? "")
                         .font(.system(size: 36))
                 }
             }
@@ -208,10 +220,10 @@ struct CosmosView: View {
 
             // The reading itself
             VStack(alignment: .leading, spacing: 16) {
-                if viewModel.isLoading {
+                if viewModel?.isLoading == true {
                     loadingView
                 } else {
-                    Text(viewModel.readingText)
+                    Text(viewModel?.readingText ?? "")
                         .font(.body)
                         .fontWeight(.regular)
                         .foregroundColor(CosmicTheme.textPrimary)
@@ -222,7 +234,7 @@ struct CosmosView: View {
             }
 
             // Dominant element badge (if applicable)
-            if let element = viewModel.dominantElement {
+            if let element = viewModel?.dominantElement {
                 dominantElementBadge(element)
             }
         }
@@ -285,7 +297,7 @@ struct CosmosView: View {
                         .fill(energyColor)
                         .frame(width: 8, height: 8)
 
-                    Text(viewModel.cosmicWeather.overallEnergy.rawValue)
+                    Text(viewModel?.cosmicWeather.overallEnergy.rawValue ?? "")
                         .font(.caption)
                         .fontWeight(.medium)
                         .foregroundColor(CosmicTheme.textSecondary)
@@ -293,14 +305,14 @@ struct CosmosView: View {
             }
 
             // Weather advice
-            Text(viewModel.cosmicWeather.advice)
+            Text(viewModel?.cosmicWeather.advice ?? "")
                 .font(.subheadline)
                 .foregroundColor(CosmicTheme.textSecondary)
                 .italic()
 
             // Planetary events
             VStack(spacing: 12) {
-                ForEach(viewModel.planetaryEvents) { event in
+                ForEach(viewModel?.planetaryEvents ?? []) { event in
                     planetaryEventRow(event)
                 }
             }
@@ -352,14 +364,14 @@ struct CosmosView: View {
     private var regenerateButton: some View {
         Button(action: {
             withAnimation(.spring(response: 0.4)) {
-                viewModel.regenerateHoroscope()
+                viewModel?.regenerateHoroscope()
             }
         }) {
             HStack(spacing: 10) {
                 Image(systemName: "arrow.triangle.2.circlepath")
                     .font(.headline)
-                    .rotationEffect(.degrees(viewModel.refreshTrigger ? 360 : 0))
-                    .animation(.easeInOut(duration: 0.5), value: viewModel.refreshTrigger)
+                    .rotationEffect(.degrees(viewModel?.refreshTrigger == true ? 360 : 0))
+                    .animation(.easeInOut(duration: 0.5), value: viewModel?.refreshTrigger)
 
                 Text("Consult the Stars Again")
                     .font(.headline)
@@ -372,8 +384,8 @@ struct CosmosView: View {
             .cornerRadius(25)
             .shadow(color: CosmicTheme.gold.opacity(0.3), radius: 8, x: 0, y: 4)
         }
-        .disabled(viewModel.isLoading)
-        .opacity(viewModel.isLoading ? 0.6 : 1.0)
+        .disabled(viewModel?.isLoading == true)
+        .opacity(viewModel?.isLoading == true ? 0.6 : 1.0)
     }
 
     // MARK: - Card Background
@@ -401,7 +413,8 @@ struct CosmosView: View {
     // MARK: - Helpers
 
     private var energyColor: Color {
-        switch viewModel.cosmicWeather.overallEnergy {
+        guard let energy = viewModel?.cosmicWeather.overallEnergy else { return .gray }
+        switch energy {
         case .intense: return .red
         case .active: return .orange
         case .balanced: return .green
@@ -481,11 +494,6 @@ struct StarsOverlay: View {
 
 #Preview("Cosmos View") {
     CosmosView()
-        .preferredColorScheme(.dark)
-}
-
-#Preview("Cosmos View - Loading") {
-    let view = CosmosView()
-    return view
+        .environment(AppState.preview)
         .preferredColorScheme(.dark)
 }

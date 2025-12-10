@@ -10,14 +10,16 @@ import SwiftUI
 // - Provide current cosmic weather data
 // - Handle refresh/regenerate actions
 // - Format dates and manage animation states
+//
+// Now works with AppState for shared user data.
 
 @Observable
 class HoroscopeViewModel {
 
     // MARK: - Properties
 
-    /// The current user's profile
-    var user: UserProfile
+    /// Reference to shared app state
+    private var appState: AppState
 
     /// The generated daily horoscope
     var horoscope: DailyHoroscope?
@@ -36,16 +38,22 @@ class HoroscopeViewModel {
 
     // MARK: - Initialization
 
-    init(user: UserProfile = .sampleWithHoldings) {
-        self.user = user
+    init(appState: AppState = AppState.shared) {
+        self.appState = appState
         self.cosmicWeather = CosmicWeather.current
         self.planetaryEvents = PlanetaryEvent.featuredEvents
 
         // Generate initial horoscope
-        self.horoscope = HoroscopeGenerator.generate(for: user)
+        let currentUser = appState.currentUser ?? .sampleWithHoldings
+        self.horoscope = HoroscopeGenerator.generate(for: currentUser)
     }
 
     // MARK: - Computed Properties
+
+    /// Current user from app state
+    var user: UserProfile {
+        appState.currentUser ?? .sampleWithHoldings
+    }
 
     /// Today's date formatted nicely
     var formattedDate: String {
@@ -61,7 +69,6 @@ class HoroscopeViewModel {
 
     /// Moon phase icon (SF Symbol name)
     var moonPhaseIcon: String {
-        // Custom mapping to better SF Symbols
         switch moonPhase {
         case .newMoon: return "moon"
         case .waxingCrescent: return "moon.fill"

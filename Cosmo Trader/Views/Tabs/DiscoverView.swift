@@ -15,9 +15,13 @@ import SwiftUI
 
 struct DiscoverView: View {
 
-    // MARK: - Properties
+    // MARK: - Environment
 
-    @State private var viewModel = DiscoverViewModel()
+    @Environment(AppState.self) private var appState
+
+    // MARK: - State
+
+    @State private var viewModel: DiscoverViewModel?
 
     /// Current drag offset for top card
     @State private var dragOffset: CGSize = .zero
@@ -30,37 +34,47 @@ struct DiscoverView: View {
 
     // MARK: - Body
 
+    /// Get the active view model (create if needed)
+    private var vm: DiscoverViewModel {
+        viewModel ?? DiscoverViewModel(appState: appState)
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
                 // Background
                 CosmicTheme.background.ignoresSafeArea()
 
-                VStack(spacing: 0) {
-                    // Filter controls
-                    filterBar
+                if let viewModel = viewModel {
+                    VStack(spacing: 0) {
+                        // Filter controls
+                        filterBar
 
-                    // Card stack area
-                    ZStack {
-                        if viewModel.isDeckEmpty {
-                            emptyStateView
-                        } else {
-                            cardStack
+                        // Card stack area
+                        ZStack {
+                            if viewModel.isDeckEmpty {
+                                emptyStateView
+                            } else {
+                                cardStack
+                            }
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                        // Action buttons
+                        if !viewModel.isDeckEmpty {
+                            actionButtons
                         }
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                    // Action buttons
-                    if !viewModel.isDeckEmpty {
-                        actionButtons
-                    }
+                } else {
+                    ProgressView()
+                        .tint(CosmicTheme.gold)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     HStack(spacing: 6) {
-                        Image(systemName: "magnifyingglass")
+                        Image(systemName: "safari.fill")
                             .foregroundColor(CosmicTheme.gold)
                         Text("Discover")
                             .font(.headline)
@@ -75,7 +89,7 @@ struct DiscoverView: View {
                             Image(systemName: "heart.fill")
                                 .font(.caption)
 
-                            Text("\(viewModel.watchlistCount)")
+                            Text("\(viewModel?.watchlistCount ?? 0)")
                                 .font(.caption)
                                 .fontWeight(.semibold)
                         }
@@ -91,13 +105,33 @@ struct DiscoverView: View {
             }
             .toolbarBackground(CosmicTheme.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            .sheet(isPresented: $viewModel.showingFilters) {
+            .sheet(isPresented: showingFiltersBinding) {
                 filterSheet
             }
-            .navigationDestination(item: $viewModel.detailStock) { stock in
-                StockDetailView(stock: stock, user: viewModel.user)
+            .navigationDestination(item: detailStockBinding) { stock in
+                StockDetailView(stock: stock)
+            }
+            .onAppear {
+                if viewModel == nil {
+                    viewModel = DiscoverViewModel(appState: appState)
+                }
             }
         }
+    }
+
+    // Bindings for optional viewModel
+    private var showingFiltersBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel?.showingFilters ?? false },
+            set: { viewModel?.showingFilters = $0 }
+        )
+    }
+
+    private var detailStockBinding: Binding<Stock?> {
+        Binding(
+            get: { viewModel?.detailStock },
+            set: { viewModel?.detailStock = $0 }
+        )
     }
 
     // MARK: - Filter Bar
@@ -123,7 +157,7 @@ struct DiscoverView: View {
     }
 
     private var filterButton: some View {
-        Button(action: { viewModel.showingFilters = true }) {
+        Button(action: { viewModel?.showingFilters = true }) {
             HStack(spacing: 6) {
                 Image(systemName: "slider.horizontal.3")
                     .font(.caption)
@@ -143,11 +177,11 @@ struct DiscoverView: View {
     }
 
     private func elementFilterChip(_ element: ZodiacSign.Element) -> some View {
-        let isSelected = viewModel.selectedElement == element
+        let isSelected = viewModel?.selectedElement == element
 
         return Button(action: {
             withAnimation(.spring(response: 0.3)) {
-                viewModel.setElementFilter(isSelected ? nil : element)
+                viewModel?.setElementFilter(isSelected ? nil : element)
             }
         }) {
             HStack(spacing: 4) {
@@ -173,7 +207,7 @@ struct DiscoverView: View {
             ForEach(SortOption.allCases) { option in
                 Button(action: {
                     withAnimation(.spring(response: 0.3)) {
-                        viewModel.setSortOption(option)
+                        viewModel?.setSortOption(option)
                     }
                 }) {
                     Label(option.rawValue, systemImage: option.icon)
@@ -181,10 +215,10 @@ struct DiscoverView: View {
             }
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: viewModel.sortOption.icon)
+                Image(systemName: viewModel?.sortOption.icon ?? "sparkles")
                     .font(.caption)
 
-                Text(viewModel.sortOption.rawValue)
+                Text(viewModel?.sortOption.rawValue ?? "Cosmic Match")
                     .font(.caption)
                     .fontWeight(.medium)
 
@@ -202,18 +236,19 @@ struct DiscoverView: View {
     }
 
     private var hasActiveFilters: Bool {
-        viewModel.selectedElement != nil || viewModel.selectedSector != nil
+        viewModel?.selectedElement != nil || viewModel?.selectedSector != nil
     }
 
     // MARK: - Card Stack
 
     private var cardStack: some View {
-        ZStack {
+        let deck = viewModel?.cardDeck ?? []
+        return ZStack {
             // Show up to 3 cards stacked
-            ForEach(Array(viewModel.cardDeck.prefix(3).reversed().enumerated()), id: \.element.id) { index, card in
-                let isTop = index == viewModel.cardDeck.prefix(3).count - 1
-                let offset = CGFloat(viewModel.cardDeck.prefix(3).count - 1 - index) * 8
-                let scale = 1.0 - CGFloat(viewModel.cardDeck.prefix(3).count - 1 - index) * 0.05
+            ForEach(Array(deck.prefix(3).reversed().enumerated()), id: \.element.id) { index, card in
+                let isTop = index == deck.prefix(3).count - 1
+                let offset = CGFloat(deck.prefix(3).count - 1 - index) * 8
+                let scale = 1.0 - CGFloat(deck.prefix(3).count - 1 - index) * 0.05
 
                 StockCardView(
                     card: card,
@@ -252,7 +287,7 @@ struct DiscoverView: View {
                         dragOffset = CGSize(width: 0, height: -600)
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        viewModel.viewDetail(card.stock)
+                        viewModel?.viewDetail(card.stock)
                         resetCard()
                     }
                 }
@@ -263,7 +298,7 @@ struct DiscoverView: View {
                         dragRotation = 15
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        viewModel.likeStock(card.stock)
+                        viewModel?.likeStock(card.stock)
                         resetCard()
                     }
                 }
@@ -274,7 +309,7 @@ struct DiscoverView: View {
                         dragRotation = -15
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        viewModel.skipStock(card.stock)
+                        viewModel?.skipStock(card.stock)
                         resetCard()
                     }
                 }
@@ -302,13 +337,13 @@ struct DiscoverView: View {
                 color: CosmicTheme.negative,
                 size: 54
             ) {
-                if let card = viewModel.topCard {
+                if let card = viewModel?.topCard {
                     withAnimation(.spring(response: 0.4)) {
                         dragOffset = CGSize(width: -500, height: 0)
                         dragRotation = -15
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        viewModel.skipStock(card.stock)
+                        viewModel?.skipStock(card.stock)
                         resetCard()
                     }
                 }
@@ -320,12 +355,12 @@ struct DiscoverView: View {
                 color: CosmicTheme.gold,
                 size: 64
             ) {
-                if let card = viewModel.topCard {
+                if let card = viewModel?.topCard {
                     withAnimation(.spring(response: 0.4)) {
                         dragOffset = CGSize(width: 0, height: -600)
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        viewModel.viewDetail(card.stock)
+                        viewModel?.viewDetail(card.stock)
                         resetCard()
                     }
                 }
@@ -337,13 +372,13 @@ struct DiscoverView: View {
                 color: CosmicTheme.positive,
                 size: 54
             ) {
-                if let card = viewModel.topCard {
+                if let card = viewModel?.topCard {
                     withAnimation(.spring(response: 0.4)) {
                         dragOffset = CGSize(width: 500, height: 0)
                         dragRotation = 15
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        viewModel.likeStock(card.stock)
+                        viewModel?.likeStock(card.stock)
                         resetCard()
                     }
                 }
@@ -400,7 +435,7 @@ struct DiscoverView: View {
             HStack(spacing: 16) {
                 Button(action: {
                     withAnimation {
-                        viewModel.clearFilters()
+                        viewModel?.clearFilters()
                     }
                 }) {
                     Text("Clear Filters")
@@ -416,7 +451,7 @@ struct DiscoverView: View {
 
                 Button(action: {
                     withAnimation {
-                        viewModel.resetSkipped()
+                        viewModel?.resetSkipped()
                     }
                 }) {
                     Text("Reset Skipped")
@@ -455,7 +490,7 @@ struct DiscoverView: View {
                         // Sector filter section
                         filterSection(title: "Filter by Sector") {
                             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                                ForEach(viewModel.availableSectors, id: \.self) { sector in
+                                ForEach(viewModel?.availableSectors ?? [], id: \.self) { sector in
                                     sectorFilterOption(sector)
                                 }
                             }
@@ -473,7 +508,7 @@ struct DiscoverView: View {
                         // Reset actions
                         VStack(spacing: 12) {
                             Button(action: {
-                                viewModel.clearFilters()
+                                viewModel?.clearFilters()
                             }) {
                                 HStack {
                                     Image(systemName: "arrow.counterclockwise")
@@ -490,11 +525,11 @@ struct DiscoverView: View {
                             }
 
                             Button(action: {
-                                viewModel.resetSkipped()
+                                viewModel?.resetSkipped()
                             }) {
                                 HStack {
                                     Image(systemName: "arrow.uturn.backward")
-                                    Text("Reset Skipped Stocks (\(viewModel.user.skippedStocks.count))")
+                                    Text("Reset Skipped Stocks (\(viewModel?.skippedCount ?? 0))")
                                 }
                                 .font(.headline)
                                 .foregroundColor(CosmicTheme.background)
@@ -516,7 +551,7 @@ struct DiscoverView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") {
-                        viewModel.showingFilters = false
+                        viewModel?.showingFilters = false
                     }
                     .foregroundColor(CosmicTheme.gold)
                 }
@@ -538,11 +573,11 @@ struct DiscoverView: View {
     }
 
     private func elementFilterOption(_ element: ZodiacSign.Element) -> some View {
-        let isSelected = viewModel.selectedElement == element
+        let isSelected = viewModel?.selectedElement == element
 
         return Button(action: {
             withAnimation(.spring(response: 0.3)) {
-                viewModel.setElementFilter(isSelected ? nil : element)
+                viewModel?.setElementFilter(isSelected ? nil : element)
             }
         }) {
             HStack {
@@ -574,11 +609,11 @@ struct DiscoverView: View {
     }
 
     private func sectorFilterOption(_ sector: String) -> some View {
-        let isSelected = viewModel.selectedSector == sector
+        let isSelected = viewModel?.selectedSector == sector
 
         return Button(action: {
             withAnimation(.spring(response: 0.3)) {
-                viewModel.setSectorFilter(isSelected ? nil : sector)
+                viewModel?.setSectorFilter(isSelected ? nil : sector)
             }
         }) {
             HStack {
@@ -607,11 +642,11 @@ struct DiscoverView: View {
     }
 
     private func sortOptionRow(_ option: SortOption) -> some View {
-        let isSelected = viewModel.sortOption == option
+        let isSelected = viewModel?.sortOption == option
 
         return Button(action: {
             withAnimation(.spring(response: 0.3)) {
-                viewModel.setSortOption(option)
+                viewModel?.setSortOption(option)
             }
         }) {
             HStack {
@@ -656,12 +691,6 @@ struct DiscoverView: View {
 
 #Preview("Discover View") {
     DiscoverView()
-        .preferredColorScheme(.dark)
-}
-
-#Preview("Discover View - Empty") {
-    var vm = DiscoverViewModel()
-    // Would need to skip all stocks to see empty state
-    return DiscoverView()
+        .environment(AppState.preview)
         .preferredColorScheme(.dark)
 }

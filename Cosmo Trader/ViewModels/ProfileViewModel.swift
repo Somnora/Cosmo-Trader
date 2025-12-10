@@ -10,14 +10,16 @@ import SwiftUI
 // - Portfolio stats calculations
 // - Settings management
 // - Share profile functionality
+//
+// Now works with AppState for shared user data.
 
 @Observable
 class ProfileViewModel {
 
     // MARK: - Properties
 
-    /// The current user's profile
-    var user: UserProfile
+    /// Reference to shared app state
+    private var appState: AppState
 
     /// Is the user editing their profile?
     var isEditing: Bool = false
@@ -39,10 +41,18 @@ class ProfileViewModel {
 
     // MARK: - Initialization
 
-    init(user: UserProfile = .sampleWithHoldings) {
-        self.user = user
-        self.editingName = user.displayName
-        self.editingBirthDate = user.birthDate
+    init(appState: AppState = AppState.shared) {
+        self.appState = appState
+        let currentUser = appState.currentUser ?? .sampleWithHoldings
+        self.editingName = currentUser.displayName
+        self.editingBirthDate = currentUser.birthDate
+    }
+
+    // MARK: - User Access
+
+    /// The current user's profile
+    var user: UserProfile {
+        appState.currentUser ?? .sampleWithHoldings
     }
 
     // MARK: - User Display Properties
@@ -161,7 +171,6 @@ class ProfileViewModel {
 
     /// Challenging stock sign matches
     var challengingMatches: [ZodiacSign] {
-        // Signs that are traditionally challenging
         let allSigns = ZodiacSign.allCases
         let compatible = Set(user.sunSign.compatibleSigns)
         return allSigns.filter { !compatible.contains($0) && $0 != user.sunSign }.prefix(4).map { $0 }
@@ -247,8 +256,13 @@ class ProfileViewModel {
 
     /// Save profile changes
     func saveProfile() {
-        user.displayName = editingName
-        // Note: birthDate is let, so in a real app you'd need a mutable version
+        appState.updateDisplayName(editingName)
+
+        // Check if birth date changed (this will recalculate sun sign)
+        if editingBirthDate != user.birthDate {
+            appState.updateBirthDate(editingBirthDate)
+        }
+
         isEditing = false
     }
 
@@ -288,8 +302,7 @@ class ProfileViewModel {
 
     /// Sign out the user
     func signOut() {
-        // In real app, would clear auth tokens, navigate to login
-        print("User signed out")
+        appState.resetOnboarding()
     }
 
     // MARK: - Private Helpers

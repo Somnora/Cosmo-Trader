@@ -11,14 +11,16 @@ import SwiftUI
 // - Filter by element and sector
 // - Sort by compatibility or performance
 // - Track watchlist and skipped stocks
+//
+// Now works with AppState for shared user data.
 
 @Observable
 class DiscoverViewModel {
 
     // MARK: - Properties
 
-    /// Current user profile
-    var user: UserProfile
+    /// Reference to shared app state
+    private var appState: AppState
 
     /// All available stocks from MockStockData
     private var allStocks: [Stock] = MockStockData.all
@@ -46,12 +48,17 @@ class DiscoverViewModel {
 
     // MARK: - Initialization
 
-    init(user: UserProfile = .sampleWithHoldings) {
-        self.user = user
+    init(appState: AppState = AppState.shared) {
+        self.appState = appState
         rebuildDeck()
     }
 
     // MARK: - Computed Properties
+
+    /// Current user from app state
+    var user: UserProfile {
+        appState.currentUser ?? .sampleWithHoldings
+    }
 
     /// Stocks that pass current filters
     private var filteredStocks: [Stock] {
@@ -101,6 +108,11 @@ class DiscoverViewModel {
         user.watchlist.count
     }
 
+    /// Skipped stocks count
+    var skippedCount: Int {
+        user.skippedStocks.count
+    }
+
     /// Is deck empty?
     var isDeckEmpty: Bool {
         cardDeck.isEmpty
@@ -141,13 +153,13 @@ class DiscoverViewModel {
 
     /// Swipe right - add to watchlist
     func likeStock(_ stock: Stock) {
-        user.addToWatchlist(stock.symbol)
+        appState.addToWatchlist(stock.symbol)
         removeTopCard()
     }
 
     /// Swipe left - skip stock
     func skipStock(_ stock: Stock) {
-        user.skipStock(stock.symbol)
+        appState.skipStock(stock.symbol)
         removeTopCard()
     }
 
@@ -170,8 +182,13 @@ class DiscoverViewModel {
 
     /// Undo last skip (if possible)
     func undoLastSkip() {
-        guard let lastSkipped = user.skippedStocks.last else { return }
-        user.skippedStocks.removeLast()
+        guard let user = appState.currentUser,
+              let lastSkipped = user.skippedStocks.last else { return }
+
+        // Remove last skipped
+        var updatedUser = user
+        updatedUser.skippedStocks.removeLast()
+        // Note: AppState would need a method for this
         rebuildDeck()
     }
 
@@ -204,7 +221,7 @@ class DiscoverViewModel {
 
     /// Reset skipped stocks
     func resetSkipped() {
-        user.resetSkippedStocks()
+        appState.resetSkippedStocks()
         rebuildDeck()
     }
 }

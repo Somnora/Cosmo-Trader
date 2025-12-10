@@ -1,72 +1,86 @@
 import SwiftUI
 
-/// ContentView
-/// -----------
-/// The main container view that holds our tab navigation.
-///
-/// TabView is SwiftUI's built-in way to create a tab bar at the bottom
-/// of the screen. Each tab shows a different View when selected.
+// MARK: - ContentView (Main Tab View)
+// ====================================
+// The main container view that holds our tab navigation.
+//
+// This is shown AFTER onboarding is complete.
+// Each tab receives the shared AppState via environment.
 
 struct ContentView: View {
 
-    /// Which tab is currently selected (stored so we can track it)
+    // MARK: - Environment
+
+    @Environment(AppState.self) private var appState
+
+    // MARK: - State
+
+    /// Which tab is currently selected
     @State private var selectedTab: Tab = .portfolio
+
+    // MARK: - Body
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            // Portfolio Tab
+            // Portfolio Tab - Home/main view
             PortfolioView()
                 .tabItem {
-                    Label("Portfolio", systemImage: "chart.pie.fill")
+                    Label("Portfolio", systemImage: selectedTab == .portfolio ? "house.fill" : "house")
                 }
                 .tag(Tab.portfolio)
 
-            // Discover Tab
+            // Discover Tab - Swipe on stocks
             DiscoverView()
                 .tabItem {
-                    Label("Discover", systemImage: "magnifyingglass")
+                    Label("Discover", systemImage: selectedTab == .discover ? "safari.fill" : "safari")
                 }
                 .tag(Tab.discover)
 
-            // Cosmos Tab
+            // Cosmos Tab - Daily horoscope
             CosmosView()
                 .tabItem {
-                    Label("Cosmos", systemImage: "sparkles")
+                    Label("Cosmos", systemImage: selectedTab == .cosmos ? "moon.stars.fill" : "moon.stars")
                 }
                 .tag(Tab.cosmos)
 
-            // Profile Tab
+            // Profile Tab - User settings
             ProfileView()
                 .tabItem {
-                    Label("Profile", systemImage: "person.fill")
+                    Label("Profile", systemImage: selectedTab == .profile ? "person.fill" : "person")
                 }
                 .tag(Tab.profile)
         }
-        .tint(CosmicTheme.gold) // Tab bar accent color
+        .tint(CosmicTheme.gold)
         .onAppear {
-            // Customize tab bar appearance
             configureTabBarAppearance()
         }
     }
+
+    // MARK: - Tab Bar Appearance
 
     /// Configure the UIKit tab bar appearance for our cosmic theme
     private func configureTabBarAppearance() {
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
 
-        // Background color
+        // Background color - darker for cosmic feel
         appearance.backgroundColor = UIColor(CosmicTheme.background)
+
+        // Add subtle top border
+        appearance.shadowColor = UIColor(CosmicTheme.gold.opacity(0.1))
 
         // Unselected items
         appearance.stackedLayoutAppearance.normal.iconColor = UIColor(CosmicTheme.textMuted)
         appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
-            .foregroundColor: UIColor(CosmicTheme.textMuted)
+            .foregroundColor: UIColor(CosmicTheme.textMuted),
+            .font: UIFont.systemFont(ofSize: 10, weight: .medium)
         ]
 
         // Selected items
         appearance.stackedLayoutAppearance.selected.iconColor = UIColor(CosmicTheme.gold)
         appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
-            .foregroundColor: UIColor(CosmicTheme.gold)
+            .foregroundColor: UIColor(CosmicTheme.gold),
+            .font: UIFont.systemFont(ofSize: 10, weight: .semibold)
         ]
 
         UITabBar.appearance().standardAppearance = appearance
@@ -76,7 +90,7 @@ struct ContentView: View {
 
 // MARK: - Tab Enum
 
-/// Enum for our tabs - makes it type-safe and easy to track
+/// Type-safe enum for our tabs
 enum Tab: Hashable {
     case portfolio
     case discover
@@ -88,5 +102,6 @@ enum Tab: Hashable {
 
 #Preview {
     ContentView()
+        .environment(AppState.preview)
         .preferredColorScheme(.dark)
 }

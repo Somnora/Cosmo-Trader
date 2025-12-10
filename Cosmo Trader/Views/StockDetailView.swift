@@ -18,19 +18,38 @@ struct StockDetailView: View {
     // MARK: - Properties
 
     let stock: Stock
-    let user: UserProfile
+
+    /// Shared app state
+    @Environment(AppState.self) private var appState
 
     /// Dismiss action for sheet presentation
     @Environment(\.dismiss) private var dismiss
+
+    /// User profile from app state
+    private var user: UserProfile {
+        appState.currentUser ?? .sampleWithHoldings
+    }
 
     /// Computed compatibility result
     private var compatibility: CompatibilityResult {
         user.compatibility(with: stock)
     }
 
+    /// Check if stock is already in portfolio
+    private var isInPortfolio: Bool {
+        user.portfolio.contains { $0.symbol == stock.symbol && $0.sharesOwned > 0 }
+    }
+
+    /// Check if stock is in watchlist
+    private var isInWatchlist: Bool {
+        user.watchlist.contains(stock.symbol)
+    }
+
     /// Animation states
     @State private var appearAnimation: Bool = false
     @State private var showShareSheet: Bool = false
+    @State private var showAddedConfirmation: Bool = false
+    @State private var confirmationMessage: String = ""
 
     // MARK: - Body
 
@@ -575,39 +594,45 @@ struct StockDetailView: View {
     private var actionButtons: some View {
         VStack(spacing: 12) {
             // Add to Portfolio button
-            Button(action: {
-                // TODO: Implement add to portfolio
-            }) {
+            Button(action: addToPortfolio) {
                 HStack {
-                    Image(systemName: "plus.circle.fill")
+                    Image(systemName: isInPortfolio ? "checkmark.circle.fill" : "plus.circle.fill")
 
-                    Text("Add to Portfolio")
+                    Text(isInPortfolio ? "In Portfolio" : "Add to Portfolio")
                         .fontWeight(.semibold)
                 }
-                .foregroundColor(CosmicTheme.background)
+                .foregroundColor(isInPortfolio ? CosmicTheme.positive : CosmicTheme.background)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(CosmicTheme.goldGradient)
+                .background(isInPortfolio ? CosmicTheme.positive.opacity(0.2) : nil)
+                .background(isInPortfolio ? nil : CosmicTheme.goldGradient)
                 .cornerRadius(14)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(isInPortfolio ? CosmicTheme.positive : Color.clear, lineWidth: 2)
+                )
             }
+            .disabled(isInPortfolio)
 
             HStack(spacing: 12) {
                 // Add to Watchlist
-                Button(action: {
-                    // TODO: Implement add to watchlist
-                }) {
+                Button(action: addToWatchlist) {
                     HStack {
-                        Image(systemName: "heart")
+                        Image(systemName: isInWatchlist ? "heart.fill" : "heart")
 
-                        Text("Watchlist")
+                        Text(isInWatchlist ? "Watching" : "Watchlist")
                             .fontWeight(.medium)
                     }
-                    .foregroundColor(CosmicTheme.textPrimary)
+                    .foregroundColor(isInWatchlist ? CosmicTheme.cosmicPurple : CosmicTheme.textPrimary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(CosmicTheme.textMuted, lineWidth: 1)
+                            .fill(isInWatchlist ? CosmicTheme.cosmicPurple.opacity(0.2) : Color.clear)
+                    )
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(isInWatchlist ? CosmicTheme.cosmicPurple : CosmicTheme.textMuted, lineWidth: 1)
                     )
                 }
 
@@ -628,12 +653,74 @@ struct StockDetailView: View {
                     )
                 }
             }
+
+            // Confirmation message
+            if showAddedConfirmation {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(CosmicTheme.positive)
+
+                    Text(confirmationMessage)
+                        .font(.subheadline)
+                        .foregroundColor(CosmicTheme.textPrimary)
+                }
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(CosmicTheme.positive.opacity(0.15))
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
         }
         .padding(20)
         .background(cardBackground)
         .opacity(appearAnimation ? 1 : 0)
         .offset(y: appearAnimation ? 0 : 20)
         .animation(.easeOut(duration: 0.5).delay(0.4), value: appearAnimation)
+    }
+
+    // MARK: - Actions
+
+    private func addToPortfolio() {
+        guard !isInPortfolio else { return }
+
+        appState.addToPortfolio(stock, shares: 1)
+
+        confirmationMessage = "\(stock.symbol) added to your portfolio!"
+        withAnimation(.spring(response: 0.4)) {
+            showAddedConfirmation = true
+        }
+
+        // Hide confirmation after delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            withAnimation(.easeOut) {
+                showAddedConfirmation = false
+            }
+        }
+    }
+
+    private func addToWatchlist() {
+        if isInWatchlist {
+            // Remove from watchlist
+            appState.removeFromWatchlist(stock.symbol)
+            confirmationMessage = "\(stock.symbol) removed from watchlist"
+        } else {
+            // Add to watchlist
+            appState.addToWatchlist(stock.symbol)
+            confirmationMessage = "\(stock.symbol) added to watchlist!"
+        }
+
+        withAnimation(.spring(response: 0.4)) {
+            showAddedConfirmation = true
+        }
+
+        // Hide confirmation after delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            withAnimation(.easeOut) {
+                showAddedConfirmation = false
+            }
+        }
     }
 
     // MARK: - Share Sheet
@@ -816,19 +903,19 @@ extension Stock {
 #Preview("Stock Detail - High Compatibility") {
     NavigationStack {
         StockDetailView(
-            stock: MockStockData.all.first { $0.symbol == "AAPL" }!,
-            user: .sampleWithHoldings
+            stock: MockStockData.all.first { $0.symbol == "AAPL" }!
         )
     }
+    .environment(AppState.preview)
     .preferredColorScheme(.dark)
 }
 
 #Preview("Stock Detail - Low Compatibility") {
     NavigationStack {
         StockDetailView(
-            stock: MockStockData.all.first { $0.symbol == "JPM" }!,
-            user: .sampleWithHoldings
+            stock: MockStockData.all.first { $0.symbol == "JPM" }!
         )
     }
+    .environment(AppState.preview)
     .preferredColorScheme(.dark)
 }

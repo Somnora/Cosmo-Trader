@@ -16,9 +16,20 @@ import SwiftUI
 
 struct ProfileView: View {
 
-    // MARK: - Properties
+    // MARK: - Environment
 
-    @State private var viewModel = ProfileViewModel()
+    @Environment(AppState.self) private var appState
+
+    // MARK: - State
+
+    @State private var viewModel: ProfileViewModel?
+
+    // MARK: - Computed Properties
+
+    /// Access user directly from appState for simpler bindings
+    private var user: UserProfile {
+        appState.currentUser ?? .sampleWithHoldings
+    }
 
     // MARK: - Body
 
@@ -28,30 +39,35 @@ struct ProfileView: View {
                 // Cosmic background gradient
                 backgroundGradient
 
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 24) {
-                        // 1. User header with zodiac prominently displayed
-                        userHeader
+                if let vm = viewModel {
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 24) {
+                            // 1. User header with zodiac prominently displayed
+                            userHeader
 
-                        // 2. Cosmic title badge
-                        cosmicTitleBadge
+                            // 2. Cosmic title badge
+                            cosmicTitleBadge
 
-                        // 3. Astrological investor profile card
-                        investorProfileCard
+                            // 3. Astrological investor profile card
+                            investorProfileCard
 
-                        // 4. Portfolio cosmic stats
-                        portfolioStatsCard
+                            // 4. Portfolio cosmic stats
+                            portfolioStatsCard
 
-                        // 5. Settings sections
-                        settingsSections
+                            // 5. Settings sections
+                            settingsSections
 
-                        // 6. Fun extras & sign out
-                        funExtrasSection
+                            // 6. Fun extras & sign out
+                            funExtrasSection
 
-                        signOutButton
+                            signOutButton
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 100)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 100)
+                } else {
+                    ProgressView()
+                        .tint(CosmicTheme.gold)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -67,7 +83,7 @@ struct ProfileView: View {
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { viewModel.startEditing() }) {
+                    Button(action: { viewModel?.startEditing() }) {
                         Text("Edit")
                             .foregroundColor(CosmicTheme.gold)
                     }
@@ -75,10 +91,24 @@ struct ProfileView: View {
             }
             .toolbarBackground(CosmicTheme.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            .sheet(isPresented: $viewModel.showingShareSheet) {
-                ShareSheet(text: viewModel.shareableProfileText)
+            .sheet(isPresented: showingShareSheetBinding) {
+                ShareSheet(text: viewModel?.shareableProfileText ?? "")
             }
         }
+        .onAppear {
+            if viewModel == nil {
+                viewModel = ProfileViewModel(appState: appState)
+            }
+        }
+    }
+
+    // MARK: - Bindings
+
+    private var showingShareSheetBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel?.showingShareSheet ?? false },
+            set: { viewModel?.showingShareSheet = $0 }
+        )
     }
 
     // MARK: - Background
@@ -106,8 +136,8 @@ struct ProfileView: View {
                     .stroke(
                         LinearGradient(
                             colors: [
-                                viewModel.user.sunSign.element.color,
-                                viewModel.user.sunSign.element.color.opacity(0.5)
+                                user.sunSign.element.color,
+                                user.sunSign.element.color.opacity(0.5)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -122,13 +152,13 @@ struct ProfileView: View {
                     .frame(width: 108, height: 108)
 
                 // Zodiac symbol
-                Text(viewModel.user.sunSign.symbol)
+                Text(user.sunSign.symbol)
                     .font(.system(size: 56))
             }
 
             // User name and info
             VStack(spacing: 8) {
-                Text(viewModel.user.displayName)
+                Text(user.displayName)
                     .font(.title)
                     .fontWeight(.bold)
                     .foregroundColor(CosmicTheme.textPrimary)
@@ -137,7 +167,7 @@ struct ProfileView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "birthday.cake")
                         .font(.caption)
-                    Text(viewModel.formattedBirthDate)
+                    Text(viewModel?.formattedBirthDate ?? "")
                 }
                 .font(.subheadline)
                 .foregroundColor(CosmicTheme.textSecondary)
@@ -146,8 +176,8 @@ struct ProfileView: View {
                 HStack(spacing: 12) {
                     // Sun sign
                     HStack(spacing: 4) {
-                        Text(viewModel.user.sunSign.symbol)
-                        Text(viewModel.user.sunSign.displayName)
+                        Text(user.sunSign.symbol)
+                        Text(user.sunSign.displayName)
                     }
                     .foregroundColor(CosmicTheme.gold)
 
@@ -156,16 +186,16 @@ struct ProfileView: View {
 
                     // Element
                     HStack(spacing: 4) {
-                        Text(viewModel.user.sunSign.element.emoji)
-                        Text(viewModel.user.sunSign.element.displayName)
+                        Text(user.sunSign.element.emoji)
+                        Text(user.sunSign.element.displayName)
                     }
-                    .foregroundColor(viewModel.user.sunSign.element.color)
+                    .foregroundColor(user.sunSign.element.color)
 
                     Text("·")
                         .foregroundColor(CosmicTheme.textMuted)
 
                     // Modality
-                    Text(viewModel.user.sunSign.modality.displayName)
+                    Text(user.sunSign.modality.displayName)
                         .foregroundColor(CosmicTheme.textSecondary)
                 }
                 .font(.caption)
@@ -180,7 +210,7 @@ struct ProfileView: View {
                 .fill(CosmicTheme.cardBackground)
                 .overlay(
                     RoundedRectangle(cornerRadius: 24)
-                        .stroke(viewModel.user.sunSign.element.color.opacity(0.3), lineWidth: 1)
+                        .stroke(user.sunSign.element.color.opacity(0.3), lineWidth: 1)
                 )
         )
     }
@@ -192,7 +222,7 @@ struct ProfileView: View {
             Image(systemName: "sparkles")
                 .foregroundStyle(CosmicTheme.goldGradient)
 
-            Text(viewModel.cosmicTitle)
+            Text(viewModel?.cosmicTitle ?? "")
                 .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundColor(CosmicTheme.textPrimary)
@@ -223,7 +253,7 @@ struct ProfileView: View {
                         .font(.headline)
                         .foregroundColor(CosmicTheme.textPrimary)
 
-                    Text("Based on your \(viewModel.user.sunSign.displayName) energy")
+                    Text("Based on your \(user.sunSign.displayName) energy")
                         .font(.caption)
                         .foregroundColor(CosmicTheme.textMuted)
                 }
@@ -231,17 +261,17 @@ struct ProfileView: View {
                 Spacer()
 
                 // Element badge
-                Text(viewModel.user.sunSign.element.emoji)
+                Text(user.sunSign.element.emoji)
                     .font(.title)
                     .padding(8)
                     .background(
                         Circle()
-                            .fill(viewModel.user.sunSign.element.color.opacity(0.2))
+                            .fill(user.sunSign.element.color.opacity(0.2))
                     )
             }
 
             // Personality quote
-            Text("\"\(viewModel.user.sunSign.corporatePersonality)\"")
+            Text("\"\(user.sunSign.corporatePersonality)\"")
                 .font(.subheadline)
                 .italic()
                 .foregroundColor(CosmicTheme.textSecondary)
@@ -250,7 +280,7 @@ struct ProfileView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(viewModel.user.sunSign.element.color.opacity(0.1))
+                        .fill(user.sunSign.element.color.opacity(0.1))
                 )
 
             // Strengths
@@ -284,7 +314,7 @@ struct ProfileView: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(viewModel.investorStrengths, id: \.self) { strength in
+                ForEach(viewModel?.investorStrengths ?? [], id: \.self) { strength in
                     HStack(spacing: 8) {
                         Circle()
                             .fill(CosmicTheme.positive)
@@ -311,7 +341,7 @@ struct ProfileView: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(viewModel.investorWeaknesses, id: \.self) { weakness in
+                ForEach(viewModel?.investorWeaknesses ?? [], id: \.self) { weakness in
                     HStack(spacing: 8) {
                         Circle()
                             .fill(CosmicTheme.negative)
@@ -336,7 +366,7 @@ struct ProfileView: View {
                     .foregroundColor(CosmicTheme.textMuted)
 
                 HStack(spacing: 4) {
-                    ForEach(viewModel.bestMatches.prefix(4), id: \.self) { sign in
+                    ForEach(viewModel?.bestMatches.prefix(4) ?? [], id: \.self) { sign in
                         Text(sign.symbol)
                             .font(.title3)
                             .padding(6)
@@ -356,7 +386,7 @@ struct ProfileView: View {
                     .foregroundColor(CosmicTheme.textMuted)
 
                 HStack(spacing: 4) {
-                    ForEach(viewModel.challengingMatches.prefix(4), id: \.self) { sign in
+                    ForEach(viewModel?.challengingMatches.prefix(4) ?? [], id: \.self) { sign in
                         Text(sign.symbol)
                             .font(.title3)
                             .padding(6)
@@ -384,7 +414,7 @@ struct ProfileView: View {
                 statItem(
                     icon: "dollarsign.circle.fill",
                     title: "Total Value",
-                    value: viewModel.formattedPortfolioValue,
+                    value: viewModel?.formattedPortfolioValue ?? "$0",
                     color: CosmicTheme.gold
                 )
 
@@ -393,10 +423,10 @@ struct ProfileView: View {
                     .background(CosmicTheme.textMuted.opacity(0.3))
 
                 statItem(
-                    icon: viewModel.isPositive ? "arrow.up.circle.fill" : "arrow.down.circle.fill",
+                    icon: (viewModel?.isPositive ?? true) ? "arrow.up.circle.fill" : "arrow.down.circle.fill",
                     title: "Today",
-                    value: "\(viewModel.formattedDailyChange) (\(viewModel.formattedDailyChangePercent))",
-                    color: viewModel.isPositive ? CosmicTheme.positive : CosmicTheme.negative
+                    value: "\(viewModel?.formattedDailyChange ?? "$0") (\(viewModel?.formattedDailyChangePercent ?? "0%"))",
+                    color: (viewModel?.isPositive ?? true) ? CosmicTheme.positive : CosmicTheme.negative
                 )
             }
 
@@ -405,7 +435,7 @@ struct ProfileView: View {
                 statItem(
                     icon: "chart.pie.fill",
                     title: "Holdings",
-                    value: "\(viewModel.holdingsCount) positions",
+                    value: "\(viewModel?.holdingsCount ?? 0) positions",
                     color: CosmicTheme.textSecondary
                 )
 
@@ -416,7 +446,7 @@ struct ProfileView: View {
                 statItem(
                     icon: "percent",
                     title: "Avg Compatibility",
-                    value: "\(viewModel.user.averagePortfolioCompatibility)%",
+                    value: "\(user.averagePortfolioCompatibility)%",
                     color: CosmicTheme.gold
                 )
             }
@@ -427,7 +457,7 @@ struct ProfileView: View {
             // Cosmic insights row
             HStack(spacing: 16) {
                 // Dominant element
-                if let element = viewModel.dominantElement {
+                if let element = viewModel?.dominantElement {
                     cosmicInsightItem(
                         emoji: element.emoji,
                         label: "Dominant Element",
@@ -436,14 +466,14 @@ struct ProfileView: View {
                     )
                 }
 
-                if viewModel.dominantElement != nil && viewModel.mostCompatibleStock != nil {
+                if viewModel?.dominantElement != nil && viewModel?.mostCompatibleStock != nil {
                     Divider()
                         .frame(height: 40)
                         .background(CosmicTheme.textMuted.opacity(0.3))
                 }
 
                 // Most compatible holding
-                if let stock = viewModel.mostCompatibleStock {
+                if let stock = viewModel?.mostCompatibleStock {
                     cosmicInsightItem(
                         emoji: stock.zodiacSign.symbol,
                         label: "Best Match Held",
@@ -457,13 +487,13 @@ struct ProfileView: View {
             HStack {
                 Image(systemName: "chart.line.uptrend.xyaxis")
                     .foregroundColor(CosmicTheme.textMuted)
-                Text("All-time: \(viewModel.formattedAllTimeGainLoss)")
+                Text("All-time: \(viewModel?.formattedAllTimeGainLoss ?? "$0")")
                     .font(.caption)
-                    .foregroundColor(viewModel.allTimeGainLoss >= 0 ? CosmicTheme.positive : CosmicTheme.negative)
+                    .foregroundColor((viewModel?.allTimeGainLoss ?? 0) >= 0 ? CosmicTheme.positive : CosmicTheme.negative)
 
                 Spacer()
 
-                Text("Member for \(viewModel.cosmicJourneyDuration)")
+                Text("Member for \(viewModel?.cosmicJourneyDuration ?? "")")
                     .font(.caption)
                     .foregroundColor(CosmicTheme.textMuted)
             }
@@ -530,21 +560,21 @@ struct ProfileView: View {
             settingsGroup(
                 title: "Notifications",
                 icon: "bell.fill",
-                settings: viewModel.settings.filter { $0.category == .notifications }
+                settings: viewModel?.settings.filter { $0.category == .notifications } ?? []
             )
 
             // Appearance
             settingsGroup(
                 title: "Appearance",
                 icon: "paintbrush.fill",
-                settings: viewModel.settings.filter { $0.category == .appearance }
+                settings: viewModel?.settings.filter { $0.category == .appearance } ?? []
             )
 
             // Preferences
             settingsGroup(
                 title: "Preferences",
                 icon: "slider.horizontal.3",
-                settings: viewModel.settings.filter { $0.category == .preferences }
+                settings: viewModel?.settings.filter { $0.category == .preferences } ?? []
             )
         }
     }
@@ -567,7 +597,7 @@ struct ProfileView: View {
                 ForEach(settings) { setting in
                     SettingRow(
                         setting: setting,
-                        onToggle: { viewModel.toggleSetting(setting) }
+                        onToggle: { viewModel?.toggleSetting(setting) }
                     )
 
                     if setting.id != settings.last?.id {
@@ -589,7 +619,7 @@ struct ProfileView: View {
     private var funExtrasSection: some View {
         VStack(spacing: 12) {
             // Share profile button
-            Button(action: { viewModel.showingShareSheet = true }) {
+            Button(action: { viewModel?.showingShareSheet = true }) {
                 HStack {
                     Image(systemName: "square.and.arrow.up")
                         .font(.title3)
@@ -623,19 +653,19 @@ struct ProfileView: View {
             HStack(spacing: 16) {
                 cosmicJourneyItem(
                     icon: "star.fill",
-                    value: "\(viewModel.holdingsCount)",
+                    value: "\(viewModel?.holdingsCount ?? 0)",
                     label: "Stocks Held"
                 )
 
                 cosmicJourneyItem(
                     icon: "calendar",
-                    value: viewModel.cosmicJourneyDuration,
+                    value: viewModel?.cosmicJourneyDuration ?? "",
                     label: "Cosmic Journey"
                 )
 
                 cosmicJourneyItem(
                     icon: "sparkles",
-                    value: "\(viewModel.user.sunSign.compatibleSigns.count)",
+                    value: "\(user.sunSign.compatibleSigns.count)",
                     label: "Compatible Signs"
                 )
             }
@@ -669,7 +699,7 @@ struct ProfileView: View {
     // MARK: - Sign Out
 
     private var signOutButton: some View {
-        Button(action: { viewModel.signOut() }) {
+        Button(action: { viewModel?.signOut() }) {
             HStack {
                 Image(systemName: "rectangle.portrait.and.arrow.right")
                 Text("Sign Out")
@@ -735,10 +765,12 @@ struct ShareSheet: UIViewControllerRepresentable {
 
 #Preview("Profile View") {
     ProfileView()
+        .environment(AppState.preview)
         .preferredColorScheme(.dark)
 }
 
 #Preview("Profile View - Light") {
     ProfileView()
+        .environment(AppState.preview)
         .preferredColorScheme(.light)
 }
