@@ -2,13 +2,15 @@ import SwiftUI
 
 // MARK: - CosmosView
 // ===================
-// The Cosmos tab - personalized daily portfolio horoscopes.
+// The Cosmos tab - personalized daily portfolio horoscopes and cosmic event tracking.
 //
 // STRUCTURE:
 // 1. Date header with moon phase icon
-// 2. Horoscope reading card (personalized based on portfolio)
-// 3. Current Cosmic Weather section
-// 4. Refresh button to generate new reading
+// 2. Active cosmic alerts banner (if any)
+// 3. Horoscope reading card (personalized based on portfolio)
+// 4. Current Cosmic Weather section
+// 5. Upcoming Events calendar/list
+// 6. Refresh button to generate new reading
 //
 // DESIGN PHILOSOPHY:
 // - Mystical and immersive atmosphere
@@ -24,6 +26,9 @@ struct CosmosView: View {
     // MARK: - State
 
     @State private var viewModel: HoroscopeViewModel?
+    @State private var astroService = AstroAlertService.shared
+    @State private var selectedEvent: CosmicEvent?
+    @State private var showAllEvents: Bool = false
 
     /// Animation states
     @State private var cardOpacity: Double = 0
@@ -38,25 +43,45 @@ struct CosmosView: View {
                 // Cosmic background with stars
                 cosmicBackground
 
-                if let vm = viewModel {
+                if viewModel != nil {
                     // Main content
                     ScrollView(showsIndicators: false) {
-                        VStack(spacing: 28) {
+                        VStack(spacing: 24) {
                             // 1. Date header with moon phase
                             dateHeader
 
-                            // 2. Main horoscope card
+                            // 2. Active cosmic alert (if any important events)
+                            if let alertEvent = astroService.activeAlertEvents.first {
+                                AstroAlertBanner(
+                                    event: alertEvent,
+                                    onDismiss: {
+                                        withAnimation(.spring(response: 0.3)) {
+                                            astroService.dismissAlert(alertEvent)
+                                        }
+                                    }
+                                )
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .top).combined(with: .opacity),
+                                    removal: .scale.combined(with: .opacity)
+                                ))
+                            }
+
+                            // 3. Main horoscope card
                             horoscopeCard
 
-                            // 3. Cosmic Weather section
+                            // 4. Cosmic Weather section (active events)
                             cosmicWeatherSection
 
-                            // 4. Regenerate button
+                            // 5. Upcoming Events
+                            upcomingEventsSection
+
+                            // 6. Regenerate button
                             regenerateButton
+
+                            Spacer(minLength: 80)
                         }
                         .padding(.horizontal, 20)
                         .padding(.top, 12)
-                        .padding(.bottom, 100)
                     }
                 } else {
                     ProgressView()
@@ -82,6 +107,14 @@ struct CosmosView: View {
             }
             .toolbarBackground(CosmicTheme.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
+            .sheet(item: $selectedEvent) { event in
+                CosmicEventDetailSheet(event: event)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showAllEvents) {
+                AllCosmicEventsSheet(astroService: astroService)
+            }
         }
         .onAppear {
             if viewModel == nil {
@@ -291,29 +324,66 @@ struct CosmosView: View {
 
                 Spacer()
 
-                // Energy indicator
+                // Weather severity indicator
+                let summary = astroService.todaySummary
                 HStack(spacing: 4) {
-                    Circle()
-                        .fill(energyColor)
-                        .frame(width: 8, height: 8)
-
-                    Text(viewModel?.cosmicWeather.overallEnergy.rawValue ?? "")
+                    Image(systemName: summary.severity.icon)
+                        .font(.caption)
+                    Text(summary.severity.rawValue)
                         .font(.caption)
                         .fontWeight(.medium)
-                        .foregroundColor(CosmicTheme.textSecondary)
                 }
+                .foregroundColor(summary.severity.color)
             }
 
             // Weather advice
-            Text(viewModel?.cosmicWeather.advice ?? "")
+            Text(astroService.todaySummary.advice)
                 .font(.subheadline)
                 .foregroundColor(CosmicTheme.textSecondary)
                 .italic()
 
-            // Planetary events
-            VStack(spacing: 12) {
-                ForEach(viewModel?.planetaryEvents ?? []) { event in
-                    planetaryEventRow(event)
+            // Active cosmic events
+            if !astroService.activeEvents.isEmpty {
+                VStack(spacing: 12) {
+                    ForEach(astroService.activeEvents.prefix(3)) { event in
+                        activeEventRow(event)
+                    }
+                }
+            } else {
+                // No active events - show calm message
+                HStack(spacing: 12) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.green)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Clear Cosmic Skies")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(CosmicTheme.textPrimary)
+
+                        Text("No major cosmic events affecting markets today")
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+                }
+                .padding(.vertical, 8)
+            }
+
+            // Legacy planetary events from HoroscopeViewModel
+            if let events = viewModel?.planetaryEvents, !events.isEmpty {
+                Divider()
+                    .background(CosmicTheme.textMuted.opacity(0.3))
+
+                Text("Planetary Transits")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(CosmicTheme.textMuted)
+
+                VStack(spacing: 10) {
+                    ForEach(events) { event in
+                        planetaryEventRow(event)
+                    }
                 }
             }
         }
@@ -328,13 +398,82 @@ struct CosmosView: View {
         )
     }
 
+    private func activeEventRow(_ event: CosmicEvent) -> some View {
+        Button(action: { selectedEvent = event }) {
+            HStack(spacing: 12) {
+                // Event icon with glow
+                ZStack {
+                    Circle()
+                        .fill(event.themeColor.opacity(0.2))
+                        .frame(width: 40, height: 40)
+
+                    Image(systemName: event.icon)
+                        .font(.system(size: 16))
+                        .foregroundColor(event.themeColor)
+                }
+
+                // Event info
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(event.title)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(CosmicTheme.textPrimary)
+
+                        if event.intensity == .intense {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 6, height: 6)
+                        }
+                    }
+
+                    Text(event.subtitle)
+                        .font(.caption)
+                        .foregroundColor(event.themeColor)
+                }
+
+                Spacer()
+
+                // Status
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(event.statusText)
+                        .font(.caption2)
+                        .foregroundColor(CosmicTheme.textMuted)
+
+                    // Intensity dots
+                    HStack(spacing: 2) {
+                        ForEach(0..<3, id: \.self) { i in
+                            Circle()
+                                .fill(i < intensityLevel(event) ? event.themeColor : CosmicTheme.textMuted.opacity(0.3))
+                                .frame(width: 4, height: 4)
+                        }
+                    }
+                }
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func intensityLevel(_ event: CosmicEvent) -> Int {
+        switch event.intensity {
+        case .mild: return 1
+        case .moderate: return 2
+        case .intense: return 3
+        }
+    }
+
     private func planetaryEventRow(_ event: PlanetaryEvent) -> some View {
         HStack(spacing: 12) {
             // Event icon
             ZStack {
                 Circle()
                     .fill(eventTypeColor(event.type).opacity(0.2))
-                    .frame(width: 36, height: 36)
+                    .frame(width: 32, height: 32)
 
                 Image(systemName: event.type.icon)
                     .font(.caption)
@@ -344,19 +483,131 @@ struct CosmosView: View {
             // Event info
             VStack(alignment: .leading, spacing: 2) {
                 Text(event.title)
-                    .font(.subheadline)
+                    .font(.caption)
                     .fontWeight(.medium)
                     .foregroundColor(CosmicTheme.textPrimary)
 
                 Text(event.description)
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundColor(CosmicTheme.textMuted)
-                    .lineLimit(2)
+                    .lineLimit(1)
             }
 
             Spacer()
         }
-        .padding(.vertical, 4)
+    }
+
+    // MARK: - Upcoming Events Section
+
+    private var upcomingEventsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Header
+            HStack {
+                Image(systemName: "calendar.badge.clock")
+                    .foregroundColor(CosmicTheme.gold)
+
+                Text("Upcoming Events")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(CosmicTheme.textPrimary)
+
+                Spacer()
+
+                Button(action: { showAllEvents = true }) {
+                    Text("See All")
+                        .font(.caption)
+                        .foregroundColor(CosmicTheme.gold)
+                }
+            }
+
+            // Next 7 days events
+            let upcoming = astroService.eventsNext7Days
+            if upcoming.isEmpty {
+                HStack(spacing: 12) {
+                    Image(systemName: "calendar")
+                        .font(.title2)
+                        .foregroundColor(CosmicTheme.textMuted)
+
+                    Text("No major cosmic events in the next 7 days")
+                        .font(.caption)
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
+                .padding(.vertical, 16)
+                .frame(maxWidth: .infinity)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(upcoming.prefix(4)) { event in
+                        Button(action: { selectedEvent = event }) {
+                            UpcomingEventRow(event: event)
+                        }
+                        .buttonStyle(.plain)
+
+                        if event.id != upcoming.prefix(4).last?.id {
+                            Divider()
+                                .background(CosmicTheme.textMuted.opacity(0.2))
+                        }
+                    }
+                }
+            }
+
+            // Next significant event highlight
+            if let nextBig = astroService.eventsNext30Days.first(where: { $0.type.isCautionEvent || $0.intensity == .intense }) {
+                nextSignificantEventCard(nextBig)
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(CosmicTheme.cardBackground)
+        )
+    }
+
+    private func nextSignificantEventCard(_ event: CosmicEvent) -> some View {
+        Button(action: { selectedEvent = event }) {
+            HStack(spacing: 14) {
+                // Icon
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(event.themeColor.opacity(0.2))
+                        .frame(width: 50, height: 50)
+
+                    Image(systemName: event.icon)
+                        .font(.title3)
+                        .foregroundColor(event.themeColor)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Next Major Event")
+                        .font(.caption2)
+                        .foregroundColor(CosmicTheme.textMuted)
+
+                    Text(event.title)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(CosmicTheme.textPrimary)
+
+                    Text("In \(event.daysUntilStart) days · \(event.intensity.rawValue)")
+                        .font(.caption)
+                        .foregroundColor(event.themeColor)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(event.themeColor.opacity(0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(event.themeColor.opacity(0.3), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Regenerate Button
@@ -412,17 +663,6 @@ struct CosmosView: View {
 
     // MARK: - Helpers
 
-    private var energyColor: Color {
-        guard let energy = viewModel?.cosmicWeather.overallEnergy else { return .gray }
-        switch energy {
-        case .intense: return .red
-        case .active: return .orange
-        case .balanced: return .green
-        case .calm: return .blue
-        case .turbulent: return .purple
-        }
-    }
-
     private func eventTypeColor(_ type: PlanetaryEventType) -> Color {
         switch type {
         case .retrograde: return .orange
@@ -442,6 +682,365 @@ struct CosmosView: View {
         withAnimation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.2)) {
             cardOpacity = 1
             cardOffset = 0
+        }
+    }
+}
+
+// MARK: - Cosmic Event Detail Sheet
+
+struct CosmicEventDetailSheet: View {
+    let event: CosmicEvent
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var pulseAnimation: Bool = false
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Hero section
+                    ZStack {
+                        // Glow background
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    colors: [
+                                        event.themeColor.opacity(0.4),
+                                        event.themeColor.opacity(0.1),
+                                        Color.clear
+                                    ],
+                                    center: .center,
+                                    startRadius: 30,
+                                    endRadius: 120
+                                )
+                            )
+                            .frame(width: 240, height: 240)
+                            .scaleEffect(pulseAnimation ? 1.05 : 1.0)
+
+                        // Icon
+                        Image(systemName: event.icon)
+                            .font(.system(size: 60))
+                            .foregroundColor(event.themeColor)
+                    }
+
+                    // Title and subtitle
+                    VStack(spacing: 8) {
+                        Text(event.title)
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .foregroundColor(CosmicTheme.textPrimary)
+
+                        Text(event.subtitle)
+                            .font(.headline)
+                            .foregroundColor(event.themeColor)
+
+                        // Status badge
+                        HStack(spacing: 8) {
+                            Text(event.isActive ? "ACTIVE" : "UPCOMING")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Capsule()
+                                        .fill(event.isActive ? event.themeColor : CosmicTheme.textMuted)
+                                )
+
+                            Text(event.intensity.rawValue)
+                                .font(.caption)
+                                .foregroundColor(CosmicTheme.textSecondary)
+                        }
+                    }
+
+                    // Date range
+                    HStack {
+                        Image(systemName: "calendar")
+                        Text(event.dateRangeFormatted)
+                        Text("·")
+                        Text(event.statusText)
+                            .fontWeight(.medium)
+                            .foregroundColor(event.themeColor)
+                    }
+                    .font(.subheadline)
+                    .foregroundColor(CosmicTheme.textSecondary)
+
+                    Divider()
+                        .background(CosmicTheme.textMuted.opacity(0.3))
+
+                    // Description
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("About This Event")
+                            .font(.headline)
+                            .foregroundColor(CosmicTheme.textPrimary)
+
+                        Text(event.description)
+                            .font(.body)
+                            .foregroundColor(CosmicTheme.textSecondary)
+                            .lineSpacing(6)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    // Warning (if present)
+                    if let warning = event.warningMessage {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.title3)
+                                .foregroundColor(.orange)
+
+                            Text(warning)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.orange)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.orange.opacity(0.1))
+                        )
+                    }
+
+                    // Advice
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "sparkles")
+                                .foregroundColor(CosmicTheme.gold)
+                            Text("Trading Advice")
+                                .font(.headline)
+                                .foregroundColor(CosmicTheme.gold)
+                        }
+
+                        Text(event.advice)
+                            .font(.body)
+                            .foregroundColor(CosmicTheme.textPrimary)
+                            .lineSpacing(6)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(CosmicTheme.gold.opacity(0.1))
+                    )
+
+                    // Affected areas
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Affected Areas")
+                            .font(.headline)
+                            .foregroundColor(CosmicTheme.textPrimary)
+
+                        // Elements
+                        if !event.affectedElements.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Elements")
+                                    .font(.caption)
+                                    .foregroundColor(CosmicTheme.textMuted)
+
+                                HStack(spacing: 12) {
+                                    ForEach(event.affectedElements, id: \.self) { element in
+                                        HStack(spacing: 6) {
+                                            Text(element.emoji)
+                                            Text(element.displayName)
+                                                .font(.subheadline)
+                                        }
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 8)
+                                        .background(
+                                            Capsule()
+                                                .fill(element.color.opacity(0.2))
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Sectors
+                        if !event.affectedSectors.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Market Sectors")
+                                    .font(.caption)
+                                    .foregroundColor(CosmicTheme.textMuted)
+
+                                FlowLayout(spacing: 8) {
+                                    ForEach(event.affectedSectors, id: \.self) { sector in
+                                        HStack(spacing: 6) {
+                                            Image(systemName: sector.icon)
+                                                .font(.caption)
+                                            Text(sector.rawValue)
+                                                .font(.caption)
+                                        }
+                                        .foregroundColor(CosmicTheme.textSecondary)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(
+                                            Capsule()
+                                                .fill(CosmicTheme.secondaryBackground)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(24)
+            }
+            .background(CosmicTheme.background)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .foregroundColor(CosmicTheme.gold)
+                }
+            }
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
+                pulseAnimation = true
+            }
+        }
+    }
+}
+
+// MARK: - All Cosmic Events Sheet
+
+struct AllCosmicEventsSheet: View {
+    let astroService: AstroAlertService
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var expandedEventId: UUID?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVStack(spacing: 16) {
+                    // Active events section
+                    if !astroService.activeEvents.isEmpty {
+                        sectionHeader("Active Now", icon: "bolt.fill", color: .orange)
+
+                        ForEach(astroService.activeEvents) { event in
+                            CosmicEventCard(
+                                event: event,
+                                isExpanded: expandedEventId == event.id,
+                                onTap: {
+                                    withAnimation(.spring(response: 0.3)) {
+                                        expandedEventId = expandedEventId == event.id ? nil : event.id
+                                    }
+                                }
+                            )
+                        }
+                    }
+
+                    // Upcoming events section
+                    let upcoming = astroService.eventsNext30Days
+                    if !upcoming.isEmpty {
+                        sectionHeader("Next 30 Days", icon: "calendar", color: CosmicTheme.gold)
+
+                        ForEach(upcoming) { event in
+                            CosmicEventCard(
+                                event: event,
+                                isExpanded: expandedEventId == event.id,
+                                onTap: {
+                                    withAnimation(.spring(response: 0.3)) {
+                                        expandedEventId = expandedEventId == event.id ? nil : event.id
+                                    }
+                                }
+                            )
+                        }
+                    }
+
+                    // Later events
+                    let later = astroService.allEvents.filter { event in
+                        !event.isActive && event.daysUntilStart > 30
+                    }.prefix(10)
+
+                    if !later.isEmpty {
+                        sectionHeader("Later", icon: "clock", color: CosmicTheme.textMuted)
+
+                        ForEach(Array(later)) { event in
+                            CosmicEventCard(
+                                event: event,
+                                isExpanded: expandedEventId == event.id,
+                                onTap: {
+                                    withAnimation(.spring(response: 0.3)) {
+                                        expandedEventId = expandedEventId == event.id ? nil : event.id
+                                    }
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(minLength: 40)
+                }
+                .padding(20)
+            }
+            .background(CosmicTheme.background)
+            .navigationTitle("Cosmic Calendar")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .foregroundColor(CosmicTheme.gold)
+                }
+            }
+        }
+    }
+
+    private func sectionHeader(_ title: String, icon: String, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundColor(color)
+            Text(title)
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(CosmicTheme.textPrimary)
+            Spacer()
+        }
+        .padding(.top, 8)
+    }
+}
+
+// MARK: - Flow Layout
+
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = FlowResult(in: proposal.width ?? 0, subviews: subviews, spacing: spacing)
+        return result.size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = FlowResult(in: bounds.width, subviews: subviews, spacing: spacing)
+        for (index, subview) in subviews.enumerated() {
+            subview.place(at: CGPoint(x: bounds.minX + result.positions[index].x,
+                                      y: bounds.minY + result.positions[index].y),
+                          proposal: .unspecified)
+        }
+    }
+
+    struct FlowResult {
+        var size: CGSize = .zero
+        var positions: [CGPoint] = []
+
+        init(in width: CGFloat, subviews: Subviews, spacing: CGFloat) {
+            var x: CGFloat = 0
+            var y: CGFloat = 0
+            var rowHeight: CGFloat = 0
+
+            for subview in subviews {
+                let size = subview.sizeThatFits(.unspecified)
+                if x + size.width > width, x > 0 {
+                    x = 0
+                    y += rowHeight + spacing
+                    rowHeight = 0
+                }
+                positions.append(CGPoint(x: x, y: y))
+                rowHeight = max(rowHeight, size.height)
+                x += size.width + spacing
+            }
+
+            self.size = CGSize(width: width, height: y + rowHeight)
         }
     }
 }

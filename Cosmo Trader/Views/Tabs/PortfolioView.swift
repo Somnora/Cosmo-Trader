@@ -32,6 +32,15 @@ struct PortfolioView: View {
     /// Is data refreshing?
     @State private var isRefreshing: Bool = false
 
+    /// Astro alert service for cosmic event tracking
+    @State private var astroService = AstroAlertService.shared
+
+    /// Show cosmic event detail sheet
+    @State private var selectedCosmicEvent: CosmicEvent?
+
+    /// Track dismissed alerts for this session
+    @State private var sessionDismissedAlerts: Set<UUID> = []
+
     // MARK: - Computed Properties
 
     /// Get current user from app state
@@ -128,6 +137,16 @@ struct PortfolioView: View {
         user.averagePortfolioCompatibility
     }
 
+    /// Alert events to show (caution events not dismissed this session)
+    private var visibleAlertEvents: [CosmicEvent] {
+        astroService.activeAlertEvents.filter { !sessionDismissedAlerts.contains($0.id) }
+    }
+
+    /// Primary alert event to show in banner
+    private var primaryAlertEvent: CosmicEvent? {
+        visibleAlertEvents.first
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -139,6 +158,11 @@ struct PortfolioView: View {
                 // Main content
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {
+                        // 0. Cosmic Alert Banner (if active events)
+                        if let alertEvent = primaryAlertEvent {
+                            cosmicAlertBanner(for: alertEvent)
+                        }
+
                         // 1. Header with greeting and portfolio value
                         headerSection
 
@@ -186,7 +210,249 @@ struct PortfolioView: View {
             .navigationDestination(item: $selectedStock) { stock in
                 StockDetailView(stock: stock)
             }
+            .sheet(item: $selectedCosmicEvent) { event in
+                cosmicEventDetailSheet(for: event)
+            }
         }
+    }
+
+    // MARK: - Cosmic Alert Banner
+
+    private func cosmicAlertBanner(for event: CosmicEvent) -> some View {
+        HStack(spacing: 12) {
+            // Pulsing icon
+            ZStack {
+                Circle()
+                    .fill(event.themeColor.opacity(0.2))
+                    .frame(width: 36, height: 36)
+
+                Image(systemName: event.icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(event.themeColor)
+            }
+
+            // Text content
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(event.title)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(CosmicTheme.textPrimary)
+
+                    if event.intensity == .intense {
+                        Text("!")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .frame(width: 16, height: 16)
+                            .background(Circle().fill(Color.red))
+                    }
+                }
+
+                Text(event.warningMessage ?? event.subtitle)
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            // More info button
+            Button(action: { selectedCosmicEvent = event }) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 18))
+                    .foregroundColor(event.themeColor)
+            }
+
+            // Dismiss button
+            Button(action: {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    _ = sessionDismissedAlerts.insert(event.id)
+                }
+            }) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .frame(width: 24, height: 24)
+                    .background(Circle().fill(CosmicTheme.cardBackground))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background {
+            let strokeColor: Color = event.themeColor.opacity(0.4)
+            let shadowColor: Color = event.themeColor.opacity(0.15)
+            RoundedRectangle(cornerRadius: 14)
+                .fill(CosmicTheme.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(strokeColor, lineWidth: 1)
+                )
+                .shadow(color: shadowColor, radius: 8, x: 0, y: 2)
+        }
+        .transition(.asymmetric(
+            insertion: .move(edge: .top).combined(with: .opacity),
+            removal: .opacity
+        ))
+    }
+
+    // MARK: - Cosmic Event Detail Sheet
+
+    private func cosmicEventDetailSheet(for event: CosmicEvent) -> some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // Header
+                    HStack(spacing: 16) {
+                        ZStack {
+                            Circle()
+                                .fill(event.themeColor.opacity(0.2))
+                                .frame(width: 60, height: 60)
+
+                            Image(systemName: event.icon)
+                                .font(.system(size: 28))
+                                .foregroundColor(event.themeColor)
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(event.title)
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(CosmicTheme.textPrimary)
+
+                            Text(event.subtitle)
+                                .font(.subheadline)
+                                .foregroundColor(event.themeColor)
+                        }
+                    }
+
+                    // Status badge
+                    HStack(spacing: 8) {
+                        Text(event.isActive ? "ACTIVE NOW" : event.statusText.uppercased())
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(event.isActive ? event.themeColor : CosmicTheme.textMuted))
+
+                        Text(event.dateRangeFormatted)
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textSecondary)
+                    }
+
+                    Divider()
+                        .background(CosmicTheme.textMuted.opacity(0.3))
+
+                    // Description
+                    Text(event.description)
+                        .font(.body)
+                        .foregroundColor(CosmicTheme.textSecondary)
+                        .lineSpacing(4)
+
+                    // Warning if present
+                    if let warning = event.warningMessage {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+
+                            Text(warning)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.orange)
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.orange.opacity(0.1))
+                        )
+                    }
+
+                    // Trading advice
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "sparkles")
+                                .foregroundColor(CosmicTheme.gold)
+                            Text("Trading Advice")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(CosmicTheme.gold)
+                        }
+
+                        Text(event.advice)
+                            .font(.subheadline)
+                            .foregroundColor(CosmicTheme.textPrimary)
+                            .lineSpacing(4)
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(CosmicTheme.gold.opacity(0.1))
+                    )
+
+                    // Affected areas
+                    if !event.affectedElements.isEmpty || !event.affectedSectors.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            if !event.affectedElements.isEmpty {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Affected Elements")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(CosmicTheme.textMuted)
+
+                                    HStack(spacing: 8) {
+                                        ForEach(event.affectedElements, id: \.self) { element in
+                                            HStack(spacing: 4) {
+                                                Text(element.emoji)
+                                                Text(element.displayName)
+                                                    .font(.caption)
+                                                    .foregroundColor(CosmicTheme.textSecondary)
+                                            }
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 6)
+                                            .background(
+                                                Capsule().fill(CosmicTheme.cardBackground)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            if !event.affectedSectors.isEmpty {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Affected Sectors")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(CosmicTheme.textMuted)
+
+                                    Text(event.affectedSectors.map { $0.rawValue }.joined(separator: ", "))
+                                        .font(.caption)
+                                        .foregroundColor(CosmicTheme.textSecondary)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(20)
+            }
+            .background(CosmicTheme.background)
+            .navigationTitle("Cosmic Event")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        selectedCosmicEvent = nil
+                    }
+                    .foregroundColor(CosmicTheme.gold)
+                }
+            }
+            .toolbarBackground(CosmicTheme.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 
     // MARK: - Background
