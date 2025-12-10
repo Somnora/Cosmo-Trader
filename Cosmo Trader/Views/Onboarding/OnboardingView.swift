@@ -2,13 +2,17 @@ import SwiftUI
 
 // MARK: - OnboardingView
 // ======================
-// Simple onboarding flow for first-time users.
+// A magical multi-step onboarding experience for first-time users.
 //
-// Collects:
-// 1. User's name
-// 2. User's birth date (to determine zodiac sign)
+// Steps:
+// 1. Welcome - App intro with cosmic animation
+// 2. Birth Date - Collect birth date, reveal zodiac sign
+// 3. Name Entry - Personalized welcome
+// 4. Element Explanation - Visual intro to their element
+// 5. First Stock Match - Pick a compatible stock
+// 6. Complete - Animated transition to main app
 //
-// Design: Mystical, welcoming, emphasizes the cosmic theme
+// Design: Mystical, welcoming, sets the cosmic tone
 
 struct OnboardingView: View {
 
@@ -22,6 +26,9 @@ struct OnboardingView: View {
     @State private var birthDate: Date = Calendar.current.date(byAdding: .year, value: -25, to: Date()) ?? Date()
     @State private var currentStep: OnboardingStep = .welcome
     @State private var isAnimating: Bool = false
+    @State private var selectedStock: Stock? = nil
+    @State private var showSignReveal: Bool = false
+    @State private var pulseAnimation: Bool = false
 
     // MARK: - Computed Properties
 
@@ -30,18 +37,43 @@ struct OnboardingView: View {
         ZodiacSign.from(date: birthDate)
     }
 
+    /// Top 3 compatible stocks for the user's sign
+    private var compatibleStocks: [Stock] {
+        let allStocks = MockStockData.all
+        let userSign = previewSign
+
+        // Sort by compatibility and take top 3
+        return allStocks
+            .map { (stock: Stock) -> (stock: Stock, score: Int) in
+                let result = userSign.compatibility(with: stock.zodiacSign)
+                return (stock: stock, score: result.score)
+            }
+            .sorted { $0.score > $1.score }
+            .prefix(3)
+            .map { $0.stock }
+    }
+
     /// Can the user proceed to the next step?
     private var canProceed: Bool {
         switch currentStep {
         case .welcome:
             return true
-        case .name:
-            return userName.trimmingCharacters(in: .whitespaces).count >= 2
         case .birthDate:
             return true
-        case .reveal:
+        case .name:
+            return userName.trimmingCharacters(in: .whitespaces).count >= 2
+        case .element:
+            return true
+        case .stockMatch:
+            return selectedStock != nil
+        case .complete:
             return true
         }
+    }
+
+    /// Progress value for page indicator
+    private var progress: CGFloat {
+        CGFloat(currentStep.rawValue + 1) / CGFloat(OnboardingStep.allCases.count)
     }
 
     // MARK: - Body
@@ -51,26 +83,50 @@ struct OnboardingView: View {
             // Cosmic background
             cosmicBackground
 
-            // Content based on current step
+            // Content
             VStack(spacing: 0) {
+                // Page indicator
+                if currentStep != .welcome && currentStep != .complete {
+                    pageIndicator
+                        .padding(.top, 20)
+                }
+
                 Spacer()
 
+                // Step content
                 stepContent
                     .padding(.horizontal, 32)
 
                 Spacer()
 
                 // Bottom button
-                bottomButton
-                    .padding(.horizontal, 32)
-                    .padding(.bottom, 50)
+                if currentStep != .complete {
+                    bottomButton
+                        .padding(.horizontal, 32)
+                        .padding(.bottom, 50)
+                }
             }
         }
         .onAppear {
-            withAnimation(.easeOut(duration: 0.8)) {
+            withAnimation(.easeOut(duration: 1.0)) {
                 isAnimating = true
             }
+            startPulseAnimation()
         }
+    }
+
+    // MARK: - Page Indicator
+
+    private var pageIndicator: some View {
+        HStack(spacing: 8) {
+            ForEach(OnboardingStep.allCases.filter { $0 != .welcome && $0 != .complete }, id: \.rawValue) { step in
+                Capsule()
+                    .fill(step.rawValue <= currentStep.rawValue ? CosmicTheme.gold : CosmicTheme.textMuted.opacity(0.3))
+                    .frame(width: step == currentStep ? 24 : 8, height: 8)
+                    .animation(.spring(response: 0.3), value: currentStep)
+            }
+        }
+        .padding(.vertical, 16)
     }
 
     // MARK: - Cosmic Background
@@ -89,9 +145,15 @@ struct OnboardingView: View {
             )
             .ignoresSafeArea()
 
-            // Stars
-            StarsBackground()
+            // Animated stars
+            AnimatedStarsBackground(isAnimating: isAnimating)
                 .opacity(isAnimating ? 1 : 0)
+
+            // Floating particles for magic effect
+            if currentStep == .welcome || currentStep == .complete {
+                FloatingParticles()
+                    .opacity(isAnimating ? 0.6 : 0)
+            }
         }
     }
 
@@ -107,13 +169,6 @@ struct OnboardingView: View {
                     removal: .opacity.combined(with: .scale(scale: 1.05))
                 ))
 
-        case .name:
-            nameContent
-                .transition(.asymmetric(
-                    insertion: .opacity.combined(with: .move(edge: .trailing)),
-                    removal: .opacity.combined(with: .move(edge: .leading))
-                ))
-
         case .birthDate:
             birthDateContent
                 .transition(.asymmetric(
@@ -121,10 +176,31 @@ struct OnboardingView: View {
                     removal: .opacity.combined(with: .move(edge: .leading))
                 ))
 
-        case .reveal:
-            revealContent
+        case .name:
+            nameContent
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .move(edge: .trailing)),
+                    removal: .opacity.combined(with: .move(edge: .leading))
+                ))
+
+        case .element:
+            elementContent
                 .transition(.asymmetric(
                     insertion: .opacity.combined(with: .scale(scale: 0.9)),
+                    removal: .opacity.combined(with: .move(edge: .leading))
+                ))
+
+        case .stockMatch:
+            stockMatchContent
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .move(edge: .trailing)),
+                    removal: .opacity.combined(with: .scale(scale: 0.95))
+                ))
+
+        case .complete:
+            completeContent
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .scale(scale: 0.8)),
                     removal: .opacity
                 ))
         }
@@ -133,14 +209,32 @@ struct OnboardingView: View {
     // MARK: - Welcome Step
 
     private var welcomeContent: some View {
-        VStack(spacing: 32) {
-            // App icon / zodiac wheel
+        VStack(spacing: 40) {
+            // Animated zodiac wheel
             ZStack {
+                // Outer glow rings
+                ForEach(0..<3, id: \.self) { ring in
+                    Circle()
+                        .stroke(
+                            CosmicTheme.gold.opacity(0.1 - Double(ring) * 0.03),
+                            lineWidth: 1
+                        )
+                        .frame(width: 200 + CGFloat(ring) * 40, height: 200 + CGFloat(ring) * 40)
+                        .scaleEffect(pulseAnimation ? 1.05 : 1.0)
+                        .animation(
+                            .easeInOut(duration: 2.0)
+                            .repeatForever(autoreverses: true)
+                            .delay(Double(ring) * 0.3),
+                            value: pulseAnimation
+                        )
+                }
+
+                // Core glow
                 Circle()
                     .fill(
                         RadialGradient(
                             colors: [
-                                CosmicTheme.gold.opacity(0.3),
+                                CosmicTheme.gold.opacity(0.4),
                                 CosmicTheme.cosmicPurple.opacity(0.2),
                                 Color.clear
                             ],
@@ -151,50 +245,166 @@ struct OnboardingView: View {
                     )
                     .frame(width: 200, height: 200)
 
-                // Zodiac symbols in a circle
+                // Zodiac symbols orbiting
                 ForEach(0..<12, id: \.self) { index in
                     let sign = ZodiacSign.allCases[index]
-                    let angle = Double(index) * (360.0 / 12.0) - 90
-                    let radians = angle * .pi / 180
+                    let baseAngle = Double(index) * (360.0 / 12.0) - 90
+                    let animatedAngle = baseAngle + (isAnimating ? 0 : -30)
+                    let radians = animatedAngle * .pi / 180
 
                     Text(sign.symbol)
-                        .font(.system(size: 24))
+                        .font(.system(size: 22))
                         .offset(
-                            x: cos(radians) * 70,
-                            y: sin(radians) * 70
+                            x: cos(radians) * 75,
+                            y: sin(radians) * 75
                         )
-                        .opacity(isAnimating ? 0.8 : 0)
-                        .animation(.easeOut(duration: 0.5).delay(Double(index) * 0.05), value: isAnimating)
+                        .opacity(isAnimating ? 0.9 : 0)
+                        .animation(
+                            .spring(response: 0.8, dampingFraction: 0.6)
+                            .delay(Double(index) * 0.05),
+                            value: isAnimating
+                        )
                 }
 
-                // Center star
+                // Center sparkle
                 Image(systemName: "sparkle")
-                    .font(.system(size: 40))
+                    .font(.system(size: 44))
                     .foregroundStyle(CosmicTheme.goldGradient)
-                    .scaleEffect(isAnimating ? 1 : 0.5)
+                    .scaleEffect(isAnimating ? 1 : 0.3)
+                    .rotationEffect(.degrees(isAnimating ? 0 : -180))
                     .opacity(isAnimating ? 1 : 0)
+                    .animation(.spring(response: 0.8, dampingFraction: 0.5), value: isAnimating)
+            }
+
+            // Title and tagline
+            VStack(spacing: 16) {
+                Text("Cosmo Trader")
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .foregroundColor(CosmicTheme.textPrimary)
+                    .opacity(isAnimating ? 1 : 0)
+                    .offset(y: isAnimating ? 0 : 20)
+                    .animation(.easeOut(duration: 0.6).delay(0.3), value: isAnimating)
+
+                Text("Where Wall Street Meets the Stars")
+                    .font(.title3)
+                    .fontWeight(.medium)
+                    .foregroundStyle(CosmicTheme.goldGradient)
+                    .opacity(isAnimating ? 1 : 0)
+                    .offset(y: isAnimating ? 0 : 20)
+                    .animation(.easeOut(duration: 0.6).delay(0.4), value: isAnimating)
+            }
+
+            // Description
+            Text("Discover stocks aligned with your cosmic energy.\nInvest with the wisdom of the universe.")
+                .font(.body)
+                .foregroundColor(CosmicTheme.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineSpacing(6)
+                .opacity(isAnimating ? 1 : 0)
+                .animation(.easeOut(duration: 0.6).delay(0.5), value: isAnimating)
+        }
+    }
+
+    // MARK: - Birth Date Step
+
+    private var birthDateContent: some View {
+        VStack(spacing: 28) {
+            // Animated sign preview
+            ZStack {
+                // Glow
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                previewSign.element.color.opacity(showSignReveal ? 0.4 : 0.1),
+                                Color.clear
+                            ],
+                            center: .center,
+                            startRadius: 20,
+                            endRadius: 80
+                        )
+                    )
+                    .frame(width: 160, height: 160)
+                    .animation(.easeInOut(duration: 0.5), value: showSignReveal)
+
+                // Circle background
+                Circle()
+                    .fill(CosmicTheme.cardBackground)
+                    .frame(width: 100, height: 100)
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                showSignReveal ? previewSign.element.color : CosmicTheme.textMuted.opacity(0.3),
+                                lineWidth: 2
+                            )
+                    )
+
+                // Sign symbol (revealed as date changes)
+                Text(previewSign.symbol)
+                    .font(.system(size: 50))
+                    .scaleEffect(showSignReveal ? 1 : 0.5)
+                    .opacity(showSignReveal ? 1 : 0.3)
+                    .animation(.spring(response: 0.4), value: showSignReveal)
             }
 
             // Title
-            VStack(spacing: 12) {
-                Text("Cosmo Trader")
-                    .font(.largeTitle)
+            VStack(spacing: 8) {
+                Text("When were you born?")
+                    .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(CosmicTheme.textPrimary)
 
-                Text("Where the Stars Guide Your Portfolio")
+                Text("Your birth date reveals your cosmic investor identity")
                     .font(.subheadline)
                     .foregroundColor(CosmicTheme.textSecondary)
                     .multilineTextAlignment(.center)
             }
 
-            // Tagline
-            Text("Discover stocks aligned with your cosmic energy. Trade with the wisdom of the universe.")
-                .font(.body)
-                .foregroundColor(CosmicTheme.textMuted)
-                .multilineTextAlignment(.center)
-                .lineSpacing(4)
-                .padding(.top, 8)
+            // Date picker
+            DatePicker(
+                "",
+                selection: $birthDate,
+                in: ...Date(),
+                displayedComponents: .date
+            )
+            .datePickerStyle(.wheel)
+            .labelsHidden()
+            .colorScheme(.dark)
+            .frame(maxHeight: 180)
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(CosmicTheme.cardBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(CosmicTheme.gold.opacity(0.2), lineWidth: 1)
+                    )
+            )
+            .onChange(of: birthDate) { _, _ in
+                withAnimation(.spring(response: 0.4)) {
+                    showSignReveal = true
+                }
+            }
+
+            // Sign reveal text
+            if showSignReveal {
+                HStack(spacing: 6) {
+                    Text(previewSign.symbol)
+                    Text("You're a \(previewSign.displayName)!")
+                        .fontWeight(.semibold)
+                }
+                .font(.headline)
+                .foregroundColor(previewSign.element.color)
+                .transition(.opacity.combined(with: .scale(scale: 0.9)))
+            }
+        }
+        .onAppear {
+            // Show sign reveal if date already selected
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                withAnimation {
+                    showSignReveal = true
+                }
+            }
         }
     }
 
@@ -202,10 +412,33 @@ struct OnboardingView: View {
 
     private var nameContent: some View {
         VStack(spacing: 32) {
-            // Icon
-            Image(systemName: "person.circle.fill")
-                .font(.system(size: 60))
-                .foregroundStyle(CosmicTheme.goldGradient)
+            // Preview avatar
+            ZStack {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                previewSign.element.color.opacity(0.3),
+                                Color.clear
+                            ],
+                            center: .center,
+                            startRadius: 20,
+                            endRadius: 70
+                        )
+                    )
+                    .frame(width: 140, height: 140)
+
+                Circle()
+                    .fill(CosmicTheme.cardBackground)
+                    .frame(width: 100, height: 100)
+                    .overlay(
+                        Circle()
+                            .stroke(previewSign.element.color, lineWidth: 2)
+                    )
+
+                Text(previewSign.symbol)
+                    .font(.system(size: 50))
+            }
 
             // Title
             VStack(spacing: 8) {
@@ -230,61 +463,45 @@ struct OnboardingView: View {
                         .fill(CosmicTheme.cardBackground)
                         .overlay(
                             RoundedRectangle(cornerRadius: 16)
-                                .stroke(CosmicTheme.gold.opacity(0.3), lineWidth: 1)
+                                .stroke(
+                                    userName.isEmpty ? CosmicTheme.textMuted.opacity(0.3) : CosmicTheme.gold.opacity(0.5),
+                                    lineWidth: 1
+                                )
                         )
                 )
                 .autocorrectionDisabled()
-        }
-    }
 
-    // MARK: - Birth Date Step
-
-    private var birthDateContent: some View {
-        VStack(spacing: 32) {
-            // Icon
-            Image(systemName: "calendar.badge.clock")
-                .font(.system(size: 60))
-                .foregroundStyle(CosmicTheme.goldGradient)
-
-            // Title
-            VStack(spacing: 8) {
-                Text("When were you born?")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(CosmicTheme.textPrimary)
-
-                Text("We'll use this to calculate your sun sign and cosmic compatibility")
-                    .font(.subheadline)
-                    .foregroundColor(CosmicTheme.textSecondary)
-                    .multilineTextAlignment(.center)
+            // Personalized preview
+            if !userName.isEmpty {
+                Text("Welcome, \(userName) the \(previewSign.displayName)")
+                    .font(.headline)
+                    .foregroundStyle(CosmicTheme.goldGradient)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    .animation(.spring(response: 0.3), value: userName)
             }
-
-            // Date picker
-            DatePicker(
-                "",
-                selection: $birthDate,
-                in: ...Date(),
-                displayedComponents: .date
-            )
-            .datePickerStyle(.wheel)
-            .labelsHidden()
-            .colorScheme(.dark)
-            .frame(maxHeight: 200)
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(CosmicTheme.cardBackground)
-            )
         }
     }
 
-    // MARK: - Reveal Step
+    // MARK: - Element Step
 
-    private var revealContent: some View {
-        VStack(spacing: 32) {
-            // Zodiac symbol reveal
+    private var elementContent: some View {
+        VStack(spacing: 28) {
+            // Large element display
             ZStack {
-                // Outer glow
+                // Glow rings
+                ForEach(0..<3, id: \.self) { ring in
+                    Circle()
+                        .stroke(previewSign.element.color.opacity(0.2 - Double(ring) * 0.05), lineWidth: 2)
+                        .frame(width: 140 + CGFloat(ring) * 30, height: 140 + CGFloat(ring) * 30)
+                        .scaleEffect(pulseAnimation ? 1.02 : 1.0)
+                        .animation(
+                            .easeInOut(duration: 1.5)
+                            .repeatForever(autoreverses: true)
+                            .delay(Double(ring) * 0.2),
+                            value: pulseAnimation
+                        )
+                }
+
                 Circle()
                     .fill(
                         RadialGradient(
@@ -294,64 +511,251 @@ struct OnboardingView: View {
                                 Color.clear
                             ],
                             center: .center,
-                            startRadius: 30,
-                            endRadius: 120
+                            startRadius: 20,
+                            endRadius: 70
                         )
                     )
-                    .frame(width: 240, height: 240)
+                    .frame(width: 140, height: 140)
 
-                // Inner circle
-                Circle()
-                    .fill(CosmicTheme.cardBackground)
-                    .frame(width: 160, height: 160)
-                    .overlay(
-                        Circle()
-                            .stroke(previewSign.element.color, lineWidth: 3)
-                    )
-
-                // Symbol
-                Text(previewSign.symbol)
-                    .font(.system(size: 80))
+                Text(previewSign.element.emoji)
+                    .font(.system(size: 60))
             }
 
-            // Sign reveal
-            VStack(spacing: 12) {
-                Text("Welcome, \(userName)!")
+            // Element explanation
+            VStack(spacing: 16) {
+                Text("Your \(previewSign.element.displayName) Energy")
                     .font(.title2)
-                    .fontWeight(.semibold)
+                    .fontWeight(.bold)
                     .foregroundColor(CosmicTheme.textPrimary)
 
-                HStack(spacing: 8) {
-                    Text("You are a")
-                        .font(.title3)
-                        .foregroundColor(CosmicTheme.textSecondary)
-
-                    Text(previewSign.displayName)
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .foregroundColor(previewSign.element.color)
-                }
-
-                // Element badge
-                HStack(spacing: 8) {
-                    Text(previewSign.element.emoji)
-                    Text("\(previewSign.element.displayName) Sign")
-                        .fontWeight(.medium)
-                    Text("·")
-                    Text(previewSign.modality.displayName)
-                }
-                .font(.subheadline)
-                .foregroundColor(CosmicTheme.textSecondary)
+                Text("As a \(previewSign.displayName), you're an \(previewSign.element.displayName) sign investor")
+                    .font(.headline)
+                    .foregroundColor(previewSign.element.color)
             }
 
-            // Personality snippet
-            Text("\"\(previewSign.corporatePersonality)\"")
+            // Element traits card
+            VStack(alignment: .leading, spacing: 16) {
+                Text(elementDescription)
+                    .font(.body)
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .lineSpacing(4)
+
+                Divider()
+                    .background(CosmicTheme.textMuted.opacity(0.3))
+
+                // Element traits
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Your Investing Style:")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(CosmicTheme.textMuted)
+
+                    ForEach(elementTraits, id: \.self) { trait in
+                        HStack(spacing: 10) {
+                            Circle()
+                                .fill(previewSign.element.color)
+                                .frame(width: 6, height: 6)
+                            Text(trait)
+                                .font(.subheadline)
+                                .foregroundColor(CosmicTheme.textPrimary)
+                        }
+                    }
+                }
+            }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(CosmicTheme.cardBackground)
+            )
+
+            // Other elements teaser
+            HStack(spacing: 20) {
+                ForEach(ZodiacSign.Element.allCases.filter { $0 != previewSign.element }, id: \.self) { element in
+                    VStack(spacing: 4) {
+                        Text(element.emoji)
+                            .font(.title2)
+                            .opacity(0.5)
+                        Text(element.displayName)
+                            .font(.caption2)
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+                }
+            }
+            .padding(.top, 8)
+        }
+    }
+
+    private var elementDescription: String {
+        switch previewSign.element {
+        case .fire:
+            return "Fire signs are bold, action-oriented investors. You thrive on momentum, embrace calculated risks, and have a natural instinct for spotting opportunities before others."
+        case .earth:
+            return "Earth signs are patient, value-focused investors. You excel at building long-term wealth through steady accumulation and have a keen eye for undervalued assets."
+        case .air:
+            return "Air signs are analytical, diversified investors. You process information quickly, adapt to market changes, and excel at portfolio balancing."
+        case .water:
+            return "Water signs are intuitive, protective investors. You sense market shifts before they happen and prioritize preserving gains over chasing trends."
+        }
+    }
+
+    private var elementTraits: [String] {
+        switch previewSign.element {
+        case .fire:
+            return ["Bold entry and exit timing", "High growth stock affinity", "Momentum trading instincts"]
+        case .earth:
+            return ["Value investing strength", "Dividend stock appreciation", "Long-term holding patience"]
+        case .air:
+            return ["Multi-sector diversification", "Tech and innovation focus", "Quick market adaptation"]
+        case .water:
+            return ["Risk management priority", "Defensive positioning", "Contrarian opportunity sense"]
+        }
+    }
+
+    // MARK: - Stock Match Step
+
+    private var stockMatchContent: some View {
+        VStack(spacing: 24) {
+            // Header
+            VStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 36))
+                    .foregroundStyle(CosmicTheme.goldGradient)
+
+                Text("Your First Cosmic Matches")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(CosmicTheme.textPrimary)
+
+                Text("These stocks align with your \(previewSign.displayName) energy")
+                    .font(.subheadline)
+                    .foregroundColor(CosmicTheme.textSecondary)
+            }
+
+            // Stock cards
+            VStack(spacing: 12) {
+                ForEach(compatibleStocks, id: \.symbol) { stock in
+                    StockMatchCard(
+                        stock: stock,
+                        userSign: previewSign,
+                        isSelected: selectedStock?.symbol == stock.symbol,
+                        onSelect: {
+                            withAnimation(.spring(response: 0.3)) {
+                                selectedStock = stock
+                            }
+                        }
+                    )
+                }
+            }
+
+            // Selection prompt
+            if selectedStock == nil {
+                Text("Tap a stock to add it to your starter portfolio")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.textMuted)
+            } else {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(CosmicTheme.positive)
+                    Text("\(selectedStock!.symbol) selected!")
+                        .fontWeight(.semibold)
+                }
                 .font(.subheadline)
-                .italic()
+                .foregroundColor(CosmicTheme.positive)
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+        }
+    }
+
+    // MARK: - Complete Step
+
+    private var completeContent: some View {
+        VStack(spacing: 40) {
+            // Success animation
+            ZStack {
+                // Expanding rings
+                ForEach(0..<4, id: \.self) { ring in
+                    Circle()
+                        .stroke(CosmicTheme.gold.opacity(0.3 - Double(ring) * 0.07), lineWidth: 2)
+                        .frame(width: 100 + CGFloat(ring) * 50, height: 100 + CGFloat(ring) * 50)
+                        .scaleEffect(pulseAnimation ? 1.1 : 0.9)
+                        .opacity(pulseAnimation ? 0.5 : 1)
+                        .animation(
+                            .easeInOut(duration: 1.5)
+                            .repeatForever(autoreverses: true)
+                            .delay(Double(ring) * 0.2),
+                            value: pulseAnimation
+                        )
+                }
+
+                // Core
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                CosmicTheme.gold.opacity(0.5),
+                                previewSign.element.color.opacity(0.3),
+                                Color.clear
+                            ],
+                            center: .center,
+                            startRadius: 20,
+                            endRadius: 80
+                        )
+                    )
+                    .frame(width: 160, height: 160)
+
+                // User sign
+                VStack(spacing: 4) {
+                    Text(previewSign.symbol)
+                        .font(.system(size: 60))
+                    Text(previewSign.element.emoji)
+                        .font(.title)
+                }
+            }
+
+            // Completion message
+            VStack(spacing: 16) {
+                Text("Your Cosmic Portfolio Awaits")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundColor(CosmicTheme.textPrimary)
+                    .multilineTextAlignment(.center)
+
+                Text("Welcome, \(userName)!")
+                    .font(.title3)
+                    .foregroundStyle(CosmicTheme.goldGradient)
+
+                if let stock = selectedStock {
+                    Text("\(stock.symbol) has been added to your portfolio")
+                        .font(.subheadline)
+                        .foregroundColor(CosmicTheme.textSecondary)
+                }
+            }
+
+            // Ready message
+            Text("The stars are aligned. Let's begin your cosmic trading journey.")
+                .font(.body)
                 .foregroundColor(CosmicTheme.textMuted)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
+                .padding(.horizontal, 20)
+
+            // Enter button
+            Button(action: completeOnboarding) {
+                HStack(spacing: 12) {
+                    Text("Enter the Cosmos")
+                        .font(.headline)
+                        .fontWeight(.bold)
+
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.title3)
+                }
+                .foregroundColor(CosmicTheme.background)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 18)
+                .background(CosmicTheme.goldGradient)
+                .cornerRadius(16)
+                .shadow(color: CosmicTheme.gold.opacity(0.4), radius: 15, x: 0, y: 8)
+            }
+            .padding(.top, 20)
         }
     }
 
@@ -364,10 +768,8 @@ struct OnboardingView: View {
                     .font(.headline)
                     .fontWeight(.semibold)
 
-                if currentStep != .reveal {
-                    Image(systemName: "arrow.right")
-                        .font(.headline)
-                }
+                Image(systemName: "arrow.right")
+                    .font(.headline)
             }
             .foregroundColor(CosmicTheme.background)
             .frame(maxWidth: .infinity)
@@ -385,61 +787,165 @@ struct OnboardingView: View {
     private var buttonTitle: String {
         switch currentStep {
         case .welcome: return "Begin Your Journey"
+        case .birthDate: return "Continue"
         case .name: return "Continue"
-        case .birthDate: return "Reveal My Sign"
-        case .reveal: return "Enter the Cosmos"
+        case .element: return "Find My First Match"
+        case .stockMatch: return "Complete Setup"
+        case .complete: return "Enter the Cosmos"
         }
     }
 
     // MARK: - Actions
 
     private func handleButtonTap() {
-        switch currentStep {
-        case .welcome:
-            withAnimation(.spring(response: 0.4)) {
-                currentStep = .name
+        let nextStep: OnboardingStep? = {
+            switch currentStep {
+            case .welcome: return .birthDate
+            case .birthDate: return .name
+            case .name: return .element
+            case .element: return .stockMatch
+            case .stockMatch: return .complete
+            case .complete: return nil
             }
+        }()
 
-        case .name:
-            withAnimation(.spring(response: 0.4)) {
-                currentStep = .birthDate
-            }
-
-        case .birthDate:
+        if let next = nextStep {
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                currentStep = .reveal
+                currentStep = next
             }
+        }
+    }
 
-        case .reveal:
-            // Complete onboarding
-            appState.completeOnboarding(
-                name: userName.trimmingCharacters(in: .whitespaces),
-                birthDate: birthDate
-            )
+    private func completeOnboarding() {
+        // Add selected stock to portfolio if chosen
+        appState.completeOnboarding(
+            name: userName.trimmingCharacters(in: .whitespaces),
+            birthDate: birthDate
+        )
+
+        // Add the selected stock after user is created
+        if let stock = selectedStock {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                appState.addToPortfolio(stock, shares: 1)
+            }
+        }
+    }
+
+    private func startPulseAnimation() {
+        withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
+            pulseAnimation = true
         }
     }
 }
 
-// MARK: - Onboarding Step
+// MARK: - Onboarding Step Enum
 
-enum OnboardingStep {
-    case welcome
-    case name
-    case birthDate
-    case reveal
+enum OnboardingStep: Int, CaseIterable {
+    case welcome = 0
+    case birthDate = 1
+    case name = 2
+    case element = 3
+    case stockMatch = 4
+    case complete = 5
 }
 
-// MARK: - Stars Background
+// MARK: - Stock Match Card
 
-struct StarsBackground: View {
+struct StockMatchCard: View {
+    let stock: Stock
+    let userSign: ZodiacSign
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    private var compatibilityScore: Int {
+        userSign.compatibility(with: stock.zodiacSign).score
+    }
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 14) {
+                // Stock zodiac symbol
+                ZStack {
+                    Circle()
+                        .fill(stock.zodiacSign.element.color.opacity(0.2))
+                        .frame(width: 50, height: 50)
+
+                    Text(stock.zodiacSign.symbol)
+                        .font(.title2)
+                }
+
+                // Stock info
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(stock.symbol)
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(CosmicTheme.textPrimary)
+
+                    Text(stock.name)
+                        .font(.caption)
+                        .foregroundColor(CosmicTheme.textSecondary)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                // Compatibility
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(compatibilityScore)%")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(CosmicTheme.gold)
+
+                    Text("match")
+                        .font(.caption2)
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
+
+                // Selection indicator
+                ZStack {
+                    Circle()
+                        .stroke(isSelected ? CosmicTheme.gold : CosmicTheme.textMuted.opacity(0.3), lineWidth: 2)
+                        .frame(width: 24, height: 24)
+
+                    if isSelected {
+                        Circle()
+                            .fill(CosmicTheme.gold)
+                            .frame(width: 16, height: 16)
+                    }
+                }
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(CosmicTheme.cardBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(
+                                isSelected ? CosmicTheme.gold : Color.clear,
+                                lineWidth: 2
+                            )
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Animated Stars Background
+
+struct AnimatedStarsBackground: View {
+    let isAnimating: Bool
+    @State private var twinkle: Bool = false
 
     var body: some View {
         Canvas { context, size in
-            for i in 0..<80 {
+            for i in 0..<100 {
                 let x = pseudoRandom(seed: i * 3) * size.width
                 let y = pseudoRandom(seed: i * 3 + 1) * size.height
                 let starSize = 1.0 + pseudoRandom(seed: i * 3 + 2) * 2.5
-                let brightness = 0.2 + pseudoRandom(seed: i * 3 + 3) * 0.6
+                let baseBrightness = 0.2 + pseudoRandom(seed: i * 3 + 3) * 0.5
+                let twinkleFactor = twinkle ? (0.7 + pseudoRandom(seed: i) * 0.3) : 1.0
+                let brightness = baseBrightness * twinkleFactor
 
                 let rect = CGRect(
                     x: x - starSize / 2,
@@ -452,6 +958,54 @@ struct StarsBackground: View {
                     Circle().path(in: rect),
                     with: .color(Color.white.opacity(brightness))
                 )
+            }
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true)) {
+                twinkle = true
+            }
+        }
+    }
+
+    private func pseudoRandom(seed: Int) -> CGFloat {
+        let x = sin(Double(seed) * 12.9898 + 78.233) * 43758.5453
+        return CGFloat(x - floor(x))
+    }
+}
+
+// MARK: - Floating Particles
+
+struct FloatingParticles: View {
+    @State private var animate: Bool = false
+
+    var body: some View {
+        Canvas { context, size in
+            for i in 0..<20 {
+                let baseX = pseudoRandom(seed: i * 4) * size.width
+                let baseY = pseudoRandom(seed: i * 4 + 1) * size.height
+                let particleSize = 2.0 + pseudoRandom(seed: i * 4 + 2) * 3.0
+                let floatOffset = animate ? pseudoRandom(seed: i * 4 + 3) * 20 : 0
+
+                let rect = CGRect(
+                    x: baseX - particleSize / 2,
+                    y: baseY - particleSize / 2 - floatOffset,
+                    width: particleSize,
+                    height: particleSize
+                )
+
+                context.fill(
+                    Circle().path(in: rect),
+                    with: .color(Color(
+                        red: 1.0,
+                        green: 0.85 + pseudoRandom(seed: i) * 0.15,
+                        blue: 0.4
+                    ).opacity(0.3 + pseudoRandom(seed: i * 2) * 0.3))
+                )
+            }
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) {
+                animate = true
             }
         }
     }
@@ -469,7 +1023,7 @@ struct StarsBackground: View {
         .environment(AppState.previewEmpty)
 }
 
-#Preview("Onboarding - Full Flow") {
+#Preview("Onboarding Flow") {
     OnboardingView()
         .environment(AppState.previewEmpty)
 }
