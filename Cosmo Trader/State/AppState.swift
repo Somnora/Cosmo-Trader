@@ -200,6 +200,22 @@ class AppState {
         return user.portfolio.contains { $0.symbol == symbol && $0.sharesOwned > 0 }
     }
 
+    /// Update portfolio prices from live API quotes
+    func updatePortfolioPrices(with quotes: [String: StockQuote]) {
+        guard var user = currentUser else { return }
+
+        for (index, stock) in user.portfolio.enumerated() {
+            if let quote = quotes[stock.symbol.uppercased()] {
+                user.portfolio[index].currentPrice = quote.currentPrice
+                user.portfolio[index].priceChange = quote.priceChange
+                user.portfolio[index].percentageChange = quote.percentageChange
+            }
+        }
+
+        currentUser = user
+        // Don't persist price updates - they're ephemeral
+    }
+
     // MARK: - Watchlist Management
 
     /// Add a stock to the watchlist

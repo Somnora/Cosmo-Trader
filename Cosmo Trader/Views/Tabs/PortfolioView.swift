@@ -47,6 +47,15 @@ struct PortfolioView: View {
     /// Current error to display
     @State private var currentError: NetworkError?
 
+    /// Stock API service for live quotes
+    @State private var stockAPI = StockAPIService.shared
+
+    /// Last update timestamp for display
+    @State private var lastPriceUpdate: Date?
+
+    /// Is currently fetching prices
+    @State private var isFetchingPrices: Bool = false
+
     // MARK: - Computed Properties
 
     /// Get current user from app state
@@ -212,6 +221,10 @@ struct PortfolioView: View {
                     if appState.didRecoverFromCorruption {
                         showDataRecoveryAlert = false
                     }
+                }
+                .task {
+                    // Fetch live prices on appear
+                    await fetchLivePrices()
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -500,14 +513,42 @@ struct PortfolioView: View {
     // MARK: - Header Section
 
     private var headerSection: some View {
-        PortfolioHeaderView(
-            greeting: personalizedGreeting,
-            sunSign: user.sunSign,
-            portfolioValue: user.formattedPortfolioValue,
-            dailyChange: user.formattedDailyChange,
-            dailyChangePercent: user.formattedDailyChangePercent,
-            isPositive: user.isPortfolioPositive
-        )
+        VStack(spacing: 8) {
+            PortfolioHeaderView(
+                greeting: personalizedGreeting,
+                sunSign: user.sunSign,
+                portfolioValue: user.formattedPortfolioValue,
+                dailyChange: user.formattedDailyChange,
+                dailyChangePercent: user.formattedDailyChangePercent,
+                isPositive: user.isPortfolioPositive
+            )
+
+            // Last update indicator
+            HStack(spacing: 6) {
+                if isFetchingPrices {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                        .tint(CosmicTheme.gold)
+                    Text("Updating prices...")
+                        .font(.caption2)
+                        .foregroundColor(CosmicTheme.textMuted)
+                } else if stockAPI.isOfflineMode {
+                    Image(systemName: "wifi.slash")
+                        .font(.caption2)
+                    Text("Prices may be delayed")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                } else if let updateText = lastUpdateText {
+                    Image(systemName: "clock")
+                        .font(.caption2)
+                    Text(updateText)
+                        .font(.caption2)
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .padding(.trailing, 4)
+        }
     }
 
     // MARK: - Visualization Toggle
@@ -742,19 +783,55 @@ struct PortfolioView: View {
 
     private func refreshPortfolio() async {
         isRefreshing = true
-        // Clear any previous errors
+        isFetchingPrices = true
         currentError = nil
 
-        do {
-            // Simulate network request - in real app this would fetch stock prices
-            try await Task.sleep(nanoseconds: 500_000_000)
-            // Success - data is refreshed
-        } catch {
-            // Show error if refresh fails
-            currentError = .timeout
-        }
+        await fetchLivePrices()
 
         isRefreshing = false
+        isFetchingPrices = false
+    }
+
+    /// Fetch live prices for all holdings
+    private func fetchLivePrices() async {
+        guard !holdings.isEmpty else { return }
+
+        let symbols = holdings.map { $0.symbol }
+
+        // Fetch quotes for all holdings
+        let quotes = await stockAPI.getMultipleQuotes(symbols: symbols)
+
+        // Update portfolio with live prices
+        if !quotes.isEmpty {
+            await MainActor.run {
+                appState.updatePortfolioPrices(with: quotes)
+                lastPriceUpdate = Date()
+
+                // Check for any errors
+                if let error = stockAPI.lastError {
+                    currentError = error
+                }
+            }
+        } else if let error = stockAPI.lastError {
+            currentError = error
+        }
+    }
+
+    /// Format the last update time
+    private var lastUpdateText: String? {
+        guard let lastUpdate = lastPriceUpdate else { return nil }
+        let age = Date().timeIntervalSince(lastUpdate)
+        let minutes = Int(age / 60)
+
+        if minutes < 1 {
+            return "Updated just now"
+        } else if minutes == 1 {
+            return "Updated 1 min ago"
+        } else if minutes < 60 {
+            return "Updated \(minutes) mins ago"
+        } else {
+            return "Updated \(minutes / 60)h ago"
+        }
     }
 }
 

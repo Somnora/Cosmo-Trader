@@ -29,9 +29,56 @@
 		23AC0A3B2EE875FC0094CE44 /* Cosmo TraderUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Cosmo TraderUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		23E313342EEA907F0025F506 /* Exceptions for "Cosmo Trader" folder in "Cosmo Trader" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			platformFiltersByRelativePath = {
+				CosmicTraderApp.swift = (ios, );
+				Models/Compatibility.swift = (ios, );
+				Models/CosmicEvent.swift = (ios, );
+				Models/Examples.swift = (ios, );
+				Models/MockStockData.swift = (ios, );
+				Models/PlanetaryEvent.swift = (ios, );
+				Models/Stock.swift = (ios, );
+				Models/UserProfile.swift = (ios, );
+				Models/ZodiacSign.swift = (ios, );
+				Services/APIConfig.swift = (ios, );
+				Services/Accessibility.swift = (ios, );
+				Services/AstroAlertService.swift = (ios, );
+				Services/ErrorHandling.swift = (ios, );
+				Services/HoroscopeGenerator.swift = (ios, );
+				Services/InputValidation.swift = (ios, );
+				State/AppState.swift = (ios, );
+				Theme/CosmicTheme.swift = (ios, );
+				ViewModels/DiscoverViewModel.swift = (ios, );
+				ViewModels/HoroscopeViewModel.swift = (ios, );
+				ViewModels/PortfolioViewModel.swift = (ios, );
+				ViewModels/ProfileViewModel.swift = (ios, );
+				Views/Components/AstroAlertBanner.swift = (ios, );
+				Views/Components/CosmicBalanceCard.swift = (ios, );
+				Views/Components/CosmicErrorView.swift = (ios, );
+				Views/Components/HoldingRow.swift = (ios, );
+				Views/Components/PortfolioHeaderView.swift = (ios, );
+				Views/Components/StockCardView.swift = (ios, );
+				Views/Components/ZodiacWheelView.swift = (ios, );
+				Views/ContentView.swift = (ios, );
+				Views/Onboarding/OnboardingView.swift = (ios, );
+				Views/StockDetailView.swift = (ios, );
+				Views/Tabs/CosmosView.swift = (ios, );
+				Views/Tabs/DiscoverView.swift = (ios, );
+				Views/Tabs/PortfolioView.swift = (ios, );
+				Views/Tabs/ProfileView.swift = (ios, );
+			};
+			target = 23AC0A232EE875F90094CE44 /* Cosmo Trader */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		23AC0A262EE875F90094CE44 /* Cosmo Trader */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				23E313342EEA907F0025F506 /* Exceptions for "Cosmo Trader" folder in "Cosmo Trader" target */,
+			);
 			path = "Cosmo Trader";
 			sourceTree = "<group>";
 		};

@@ -51,6 +51,19 @@ struct StockDetailView: View {
     @State private var showAddedConfirmation: Bool = false
     @State private var confirmationMessage: String = ""
 
+    /// Live price data
+    @State private var liveStock: Stock
+    @State private var isLoadingPrice: Bool = false
+    @State private var lastPriceUpdate: Date?
+    @State private var priceError: NetworkError?
+
+    // MARK: - Init
+
+    init(stock: Stock) {
+        self.stock = stock
+        self._liveStock = State(initialValue: stock)
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -98,8 +111,43 @@ struct StockDetailView: View {
                 appearAnimation = true
             }
         }
+        .task {
+            await fetchLivePrice()
+        }
         .sheet(isPresented: $showShareSheet) {
             shareSheet
+        }
+    }
+
+    // MARK: - Live Price Fetch
+
+    private func fetchLivePrice() async {
+        isLoadingPrice = true
+        priceError = nil
+
+        let result = await StockAPIService.shared.getQuoteWithFallback(symbol: stock.symbol)
+
+        await MainActor.run {
+            if let quote = result.quote {
+                liveStock = stock.withQuote(quote)
+                lastPriceUpdate = Date()
+            }
+            if let error = result.error {
+                priceError = error
+            }
+            isLoadingPrice = false
+        }
+    }
+
+    /// Format the last update time
+    private var lastUpdateText: String? {
+        guard let lastUpdate = lastPriceUpdate else { return nil }
+        let age = Date().timeIntervalSince(lastUpdate)
+        let minutes = Int(age / 60)
+        if minutes < 1 {
+            return "Live"
+        } else {
+            return "\(minutes)m ago"
         }
     }
 
@@ -194,39 +242,71 @@ struct StockDetailView: View {
     }
 
     private var priceDisplay: some View {
-        HStack(alignment: .bottom) {
-            // Current price
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Current Price")
-                    .font(.caption)
-                    .foregroundColor(CosmicTheme.textMuted)
+        VStack(spacing: 8) {
+            HStack(alignment: .bottom) {
+                // Current price
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 4) {
+                        Text("Current Price")
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textMuted)
 
-                Text(stock.formattedPrice)
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .foregroundColor(CosmicTheme.textPrimary)
+                        if isLoadingPrice {
+                            ProgressView()
+                                .scaleEffect(0.5)
+                                .tint(CosmicTheme.gold)
+                        } else if let updateText = lastUpdateText {
+                            Text("• \(updateText)")
+                                .font(.caption2)
+                                .foregroundColor(CosmicTheme.positive)
+                        }
+                    }
+
+                    if isLoadingPrice && lastPriceUpdate == nil {
+                        Text("Loading...")
+                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                            .foregroundColor(CosmicTheme.textMuted)
+                    } else {
+                        Text(liveStock.formattedPrice)
+                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                            .foregroundColor(CosmicTheme.textPrimary)
+                    }
+                }
+
+                Spacer()
+
+                // Daily change
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("Today")
+                        .font(.caption)
+                        .foregroundColor(CosmicTheme.textMuted)
+
+                    HStack(spacing: 6) {
+                        Image(systemName: liveStock.isPositive ? "arrow.up.right" : "arrow.down.right")
+                            .font(.headline)
+
+                        Text(liveStock.formattedPriceChange)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(liveStock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
+
+                    Text(liveStock.formattedPercentageChange)
+                        .font(.subheadline)
+                        .foregroundColor(liveStock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
+                }
             }
 
-            Spacer()
-
-            // Daily change
-            VStack(alignment: .trailing, spacing: 4) {
-                Text("Today")
-                    .font(.caption)
-                    .foregroundColor(CosmicTheme.textMuted)
-
-                HStack(spacing: 6) {
-                    Image(systemName: stock.isPositive ? "arrow.up.right" : "arrow.down.right")
-                        .font(.headline)
-
-                    Text(stock.formattedPriceChange)
-                        .font(.headline)
-                        .fontWeight(.semibold)
+            // Error indicator
+            if let error = priceError {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                    Text(error.suggestedAction)
+                        .font(.caption2)
                 }
-                .foregroundColor(stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
-
-                Text(stock.formattedPercentageChange)
-                    .font(.subheadline)
-                    .foregroundColor(stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
+                .foregroundColor(.orange)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(16)
