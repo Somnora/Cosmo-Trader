@@ -35,19 +35,40 @@ struct HoldingRow: View {
             HStack(spacing: 12) {
                 // Left: Zodiac badge
                 zodiacBadge
+                    .accessibilityHidden(true)
 
                 // Center: Stock info
                 stockInfo
+                    .accessibilityHidden(true)
 
                 Spacer()
 
                 // Right: Price and holdings
                 priceSection
+                    .accessibilityHidden(true)
             }
             .padding(16)
             .background(rowBackground)
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityValue(accessibilityValue)
+        .accessibilityHint("Double tap to view details")
+    }
+
+    // MARK: - Accessibility
+
+    private var accessibilityLabel: String {
+        "\(stock.name), ticker \(stock.symbol)"
+    }
+
+    private var accessibilityValue: String {
+        let direction = stock.isPositive ? "up" : "down"
+        var value = "Price \(stock.formattedPrice), \(direction) \(stock.formattedPercentageChange). "
+        value += "\(stock.formattedSharesOwned) shares worth \(stock.formattedTotalValue). "
+        value += "\(compatibility.score) percent compatibility"
+        return value
     }
 
     // MARK: - Subviews
@@ -214,6 +235,7 @@ struct CompactHoldingRow: View {
             Text(stock.zodiacSign.symbol)
                 .font(.title3)
                 .frame(width: 36)
+                .accessibilityHidden(true)
 
             // Stock info
             VStack(alignment: .leading, spacing: 2) {
@@ -227,6 +249,7 @@ struct CompactHoldingRow: View {
                     .foregroundColor(CosmicTheme.textMuted)
                     .lineLimit(1)
             }
+            .accessibilityHidden(true)
 
             Spacer()
 
@@ -241,6 +264,7 @@ struct CompactHoldingRow: View {
                     .font(.caption)
                     .foregroundColor(stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
             }
+            .accessibilityHidden(true)
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 14)
@@ -248,6 +272,9 @@ struct CompactHoldingRow: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(CosmicTheme.cardBackground)
         )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(stock.name), \(stock.symbol)")
+        .accessibilityValue("Price \(stock.formattedPrice), \(stock.isPositive ? "up" : "down") \(stock.formattedPercentageChange)")
     }
 }
 

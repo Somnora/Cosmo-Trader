@@ -11,6 +11,7 @@ import SwiftUI
 // - Watchlist management
 // - Profile editing (including birth date)
 // - Persistence to UserDefaults
+// - Error handling and state recovery
 //
 // Injected via .environmentObject so all views can access it.
 
@@ -35,10 +36,24 @@ class AppState {
     /// Is the app currently loading/saving?
     var isLoading: Bool = false
 
+    /// Current error state
+    var errorState: ErrorState = ErrorState()
+
+    /// Whether the app detected and recovered from data corruption
+    var didRecoverFromCorruption: Bool = false
+
+    /// Last successful save timestamp
+    var lastSaveTimestamp: Date?
+
+    /// Is the app in offline mode?
+    var isOfflineMode: Bool = false
+
     // MARK: - Storage Keys
 
     private let userProfileKey = "com.cosmotrader.userProfile"
     private let hasOnboardedKey = "com.cosmotrader.hasOnboarded"
+    private let lastSaveKey = "com.cosmotrader.lastSave"
+    private let backupProfileKey = "com.cosmotrader.backupProfile"
 
     // MARK: - Initialization
 
@@ -54,10 +69,27 @@ class AppState {
     // MARK: - Onboarding
 
     /// Complete onboarding with a new user
-    func completeOnboarding(name: String, birthDate: Date) {
+    /// Returns validation error if inputs are invalid
+    @discardableResult
+    func completeOnboarding(name: String, birthDate: Date) -> ValidationError? {
+        // Validate name
+        if let nameError = InputValidator.validateName(name) {
+            errorState.showValidation(nameError)
+            return nameError
+        }
+
+        // Validate birth date
+        if let dateError = InputValidator.validateBirthDate(birthDate) {
+            errorState.showValidation(dateError)
+            return dateError
+        }
+
+        // Sanitize name
+        let sanitizedName = InputValidator.sanitizeName(name)
+
         let newUser = UserProfile(
-            displayName: name,
-            email: "\(name.lowercased().replacingOccurrences(of: " ", with: "."))@cosmictrader.com",
+            displayName: sanitizedName,
+            email: "\(sanitizedName.lowercased().replacingOccurrences(of: " ", with: "."))@cosmictrader.com",
             birthDate: birthDate,
             portfolio: [], // Start with empty portfolio
             watchlist: [],
@@ -67,26 +99,49 @@ class AppState {
 
         currentUser = newUser
         saveUserToStorage()
+        return nil
     }
 
     /// Reset onboarding (for testing or logout)
     func resetOnboarding() {
         currentUser = nil
         UserDefaults.standard.removeObject(forKey: userProfileKey)
+        UserDefaults.standard.removeObject(forKey: backupProfileKey)
         UserDefaults.standard.set(false, forKey: hasOnboardedKey)
+        didRecoverFromCorruption = false
+        errorState.clear()
     }
 
     // MARK: - Profile Editing
 
     /// Update the user's display name
-    func updateDisplayName(_ name: String) {
-        currentUser?.displayName = name
+    /// Returns validation error if name is invalid
+    @discardableResult
+    func updateDisplayName(_ name: String) -> ValidationError? {
+        // Validate
+        if let error = InputValidator.validateName(name) {
+            errorState.showValidation(error)
+            return error
+        }
+
+        // Sanitize and update
+        let sanitized = InputValidator.sanitizeName(name)
+        currentUser?.displayName = sanitized
         saveUserToStorage()
+        return nil
     }
 
     /// Update the user's birth date (recalculates sun sign automatically)
-    func updateBirthDate(_ date: Date) {
-        guard var user = currentUser else { return }
+    /// Returns validation error if date is invalid
+    @discardableResult
+    func updateBirthDate(_ date: Date) -> ValidationError? {
+        guard let user = currentUser else { return nil }
+
+        // Validate
+        if let error = InputValidator.validateBirthDate(date) {
+            errorState.showValidation(error)
+            return error
+        }
 
         // Create a new user profile with updated birth date
         // Note: birthDate is `let` so we recreate the user
@@ -104,6 +159,7 @@ class AppState {
 
         currentUser = updatedUser
         saveUserToStorage()
+        return nil
     }
 
     // MARK: - Portfolio Management
@@ -184,20 +240,36 @@ class AppState {
 
     // MARK: - Persistence
 
-    /// Save user profile to UserDefaults
+    /// Save user profile to UserDefaults with backup
     private func saveUserToStorage() {
         guard let user = currentUser else { return }
 
+        // Validate before saving
+        if let dataError = DataValidator.validateUserProfile(user) {
+            errorState.showData(dataError)
+            return
+        }
+
         do {
             let encoded = try JSONEncoder().encode(user)
+
+            // Create backup before overwriting
+            if let existingData = UserDefaults.standard.data(forKey: userProfileKey) {
+                UserDefaults.standard.set(existingData, forKey: backupProfileKey)
+            }
+
             UserDefaults.standard.set(encoded, forKey: userProfileKey)
             UserDefaults.standard.set(true, forKey: hasOnboardedKey)
+            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastSaveKey)
+
+            lastSaveTimestamp = Date()
         } catch {
             print("Failed to save user profile: \(error)")
+            errorState.showData(.encodingFailed)
         }
     }
 
-    /// Load user profile from UserDefaults
+    /// Load user profile from UserDefaults with recovery
     private func loadUserFromStorage() {
         guard let data = UserDefaults.standard.data(forKey: userProfileKey) else {
             // No saved user - check if we should show demo data
@@ -209,11 +281,96 @@ class AppState {
         }
 
         do {
-            currentUser = try JSONDecoder().decode(UserProfile.self, from: data)
+            var user = try JSONDecoder().decode(UserProfile.self, from: data)
+
+            // Validate loaded data
+            if DataValidator.validateUserProfile(user) != nil {
+                // Try to repair
+                DataValidator.repairUserProfile(&user)
+
+                // Revalidate after repair
+                if DataValidator.validateUserProfile(user) != nil {
+                    throw DataError.corruptedData
+                }
+
+                // Save repaired data
+                currentUser = user
+                saveUserToStorage()
+                didRecoverFromCorruption = true
+            } else {
+                currentUser = user
+            }
+
+            // Load last save timestamp
+            if let timestamp = UserDefaults.standard.object(forKey: lastSaveKey) as? TimeInterval {
+                lastSaveTimestamp = Date(timeIntervalSince1970: timestamp)
+            }
+
         } catch {
             print("Failed to load user profile: \(error)")
-            // Clear corrupted data
-            UserDefaults.standard.removeObject(forKey: userProfileKey)
+
+            // Attempt recovery from backup
+            if attemptRecoveryFromBackup() {
+                didRecoverFromCorruption = true
+            } else {
+                // Clear corrupted data completely
+                UserDefaults.standard.removeObject(forKey: userProfileKey)
+                UserDefaults.standard.removeObject(forKey: backupProfileKey)
+                errorState.showData(.corruptedData)
+            }
+        }
+    }
+
+    /// Attempt to recover user profile from backup
+    private func attemptRecoveryFromBackup() -> Bool {
+        guard let backupData = UserDefaults.standard.data(forKey: backupProfileKey) else {
+            return false
+        }
+
+        do {
+            var user = try JSONDecoder().decode(UserProfile.self, from: backupData)
+
+            // Validate and repair if needed
+            if DataValidator.validateUserProfile(user) != nil {
+                DataValidator.repairUserProfile(&user)
+            }
+
+            currentUser = user
+
+            // Restore from backup to main storage
+            UserDefaults.standard.set(backupData, forKey: userProfileKey)
+            UserDefaults.standard.set(true, forKey: hasOnboardedKey)
+
+            print("Successfully recovered user profile from backup")
+            return true
+
+        } catch {
+            print("Failed to recover from backup: \(error)")
+            return false
+        }
+    }
+
+    /// Force save current state (useful before app terminates)
+    func forceSave() {
+        saveUserToStorage()
+    }
+
+    /// Check if critical data is missing and re-onboarding is needed
+    var needsReonboarding: Bool {
+        guard let user = currentUser else { return false }
+        return user.displayName.isEmpty || DataValidator.validateUserProfile(user) != nil
+    }
+
+    /// Export user data as JSON (for debugging/support)
+    func exportUserData() -> String? {
+        guard let user = currentUser else { return nil }
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let data = try encoder.encode(user)
+            return String(data: data, encoding: .utf8)
+        } catch {
+            return nil
         }
     }
 }

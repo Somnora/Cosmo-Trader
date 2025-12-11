@@ -41,6 +41,12 @@ struct PortfolioView: View {
     /// Track dismissed alerts for this session
     @State private var sessionDismissedAlerts: Set<UUID> = []
 
+    /// Track if data recovery alert was dismissed
+    @State private var showDataRecoveryAlert: Bool = false
+
+    /// Current error to display
+    @State private var currentError: NetworkError?
+
     // MARK: - Computed Properties
 
     /// Get current user from app state
@@ -158,7 +164,23 @@ struct PortfolioView: View {
                 // Main content
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 20) {
-                        // 0. Cosmic Alert Banner (if active events)
+                        // 0a. Data Recovery Alert (if recovered from corruption)
+                        if appState.didRecoverFromCorruption && !showDataRecoveryAlert {
+                            dataRecoveryBanner
+                        }
+
+                        // 0b. Error Banner (if there's a current error)
+                        if let error = currentError {
+                            CosmicErrorView(
+                                networkError: error,
+                                style: .banner,
+                                onRetry: { await refreshPortfolio() },
+                                onDismiss: { currentError = nil }
+                            )
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                        }
+
+                        // 0c. Cosmic Alert Banner (if active events)
                         if let alertEvent = primaryAlertEvent {
                             cosmicAlertBanner(for: alertEvent)
                         }
@@ -184,6 +206,12 @@ struct PortfolioView: View {
                 }
                 .refreshable {
                     await refreshPortfolio()
+                }
+                .onAppear {
+                    // Show data recovery alert if needed
+                    if appState.didRecoverFromCorruption {
+                        showDataRecoveryAlert = false
+                    }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -652,11 +680,80 @@ struct PortfolioView: View {
         )
     }
 
+    // MARK: - Data Recovery Banner
+
+    private var dataRecoveryBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(.purple)
+                .frame(width: 36, height: 36)
+                .background(
+                    Circle()
+                        .fill(Color.purple.opacity(0.15))
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Cosmic Data Restored")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(CosmicTheme.textPrimary)
+
+                Text("Your profile was recovered from backup")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.textSecondary)
+            }
+
+            Spacer()
+
+            Button(action: {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    showDataRecoveryAlert = true
+                }
+            }) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .frame(width: 24, height: 24)
+                    .background(Circle().fill(CosmicTheme.cardBackground))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(CosmicTheme.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(Color.purple.opacity(0.3), lineWidth: 1)
+                )
+        )
+        .transition(.asymmetric(
+            insertion: .move(edge: .top).combined(with: .opacity),
+            removal: .opacity
+        ))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Cosmic data restored. Your profile was recovered from backup.")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Double tap to dismiss")
+    }
+
     // MARK: - Actions
 
     private func refreshPortfolio() async {
         isRefreshing = true
-        try? await Task.sleep(nanoseconds: 500_000_000)
+        // Clear any previous errors
+        currentError = nil
+
+        do {
+            // Simulate network request - in real app this would fetch stock prices
+            try await Task.sleep(nanoseconds: 500_000_000)
+            // Success - data is refreshed
+        } catch {
+            // Show error if refresh fails
+            currentError = .timeout
+        }
+
         isRefreshing = false
     }
 }

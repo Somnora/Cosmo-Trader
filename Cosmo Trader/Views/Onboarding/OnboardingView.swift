@@ -30,6 +30,11 @@ struct OnboardingView: View {
     @State private var showSignReveal: Bool = false
     @State private var pulseAnimation: Bool = false
 
+    // Validation states
+    @State private var nameValidationError: String? = nil
+    @State private var dateValidationError: String? = nil
+    @State private var showValidationError: Bool = false
+
     // MARK: - Computed Properties
 
     /// The zodiac sign based on current birth date
@@ -59,9 +64,11 @@ struct OnboardingView: View {
         case .welcome:
             return true
         case .birthDate:
-            return true
+            // Validate birth date
+            return InputValidator.validateBirthDate(birthDate) == nil
         case .name:
-            return userName.trimmingCharacters(in: .whitespaces).count >= 2
+            // Validate name (at least 2 characters, valid format)
+            return InputValidator.validateName(userName) == nil
         case .element:
             return true
         case .stockMatch:
@@ -71,9 +78,39 @@ struct OnboardingView: View {
         }
     }
 
+    /// Get validation message for current step
+    private var currentValidationMessage: String? {
+        switch currentStep {
+        case .birthDate:
+            if let error = InputValidator.validateBirthDate(birthDate) {
+                return error.cosmicMessage
+            }
+        case .name:
+            if let error = InputValidator.validateName(userName) {
+                return error.cosmicMessage
+            }
+        default:
+            break
+        }
+        return nil
+    }
+
     /// Progress value for page indicator
     private var progress: CGFloat {
         CGFloat(currentStep.rawValue + 1) / CGFloat(OnboardingStep.allCases.count)
+    }
+
+    /// Border color for name field based on validation
+    private var nameFieldBorderColor: Color {
+        if nameValidationError != nil {
+            return .orange
+        } else if userName.isEmpty {
+            return CosmicTheme.textMuted.opacity(0.3)
+        } else if InputValidator.validateName(userName) == nil {
+            return CosmicTheme.gold.opacity(0.5)
+        } else {
+            return CosmicTheme.textMuted.opacity(0.3)
+        }
     }
 
     // MARK: - Body
@@ -360,11 +397,11 @@ struct OnboardingView: View {
                     .multilineTextAlignment(.center)
             }
 
-            // Date picker
+            // Date picker with validation bounds
             DatePicker(
                 "",
                 selection: $birthDate,
-                in: ...Date(),
+                in: InputValidator.validBirthDateRange,
                 displayedComponents: .date
             )
             .datePickerStyle(.wheel)
@@ -383,8 +420,11 @@ struct OnboardingView: View {
             .onChange(of: birthDate) { _, _ in
                 withAnimation(.spring(response: 0.4)) {
                     showSignReveal = true
+                    dateValidationError = nil
                 }
             }
+            .accessibilityLabel("Birth date picker")
+            .accessibilityHint("Select your birth date to determine your zodiac sign")
 
             // Sign reveal text
             if showSignReveal {
@@ -452,24 +492,48 @@ struct OnboardingView: View {
                     .foregroundColor(CosmicTheme.textSecondary)
             }
 
-            // Name input
-            TextField("Your name", text: $userName)
-                .font(.title3)
-                .multilineTextAlignment(.center)
-                .foregroundColor(CosmicTheme.textPrimary)
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(CosmicTheme.cardBackground)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(
-                                    userName.isEmpty ? CosmicTheme.textMuted.opacity(0.3) : CosmicTheme.gold.opacity(0.5),
-                                    lineWidth: 1
-                                )
-                        )
-                )
-                .autocorrectionDisabled()
+            // Name input with validation
+            VStack(spacing: 8) {
+                TextField("Your name", text: $userName)
+                    .font(.title3)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(CosmicTheme.textPrimary)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(CosmicTheme.cardBackground)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(
+                                        nameFieldBorderColor,
+                                        lineWidth: 1
+                                    )
+                            )
+                    )
+                    .autocorrectionDisabled()
+                    .onChange(of: userName) { _, newValue in
+                        // Clear validation error when typing
+                        nameValidationError = nil
+                        // Limit to 50 characters
+                        if newValue.count > 50 {
+                            userName = String(newValue.prefix(50))
+                        }
+                    }
+                    .accessibilityLabel("Name input field")
+                    .accessibilityHint("Enter your display name")
+
+                // Validation error message
+                if let error = nameValidationError {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .font(.caption)
+                        Text(error)
+                            .font(.caption)
+                    }
+                    .foregroundColor(.orange)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                }
+            }
 
             // Personalized preview
             if !userName.isEmpty {
@@ -798,6 +862,26 @@ struct OnboardingView: View {
     // MARK: - Actions
 
     private func handleButtonTap() {
+        // Validate current step before proceeding
+        switch currentStep {
+        case .birthDate:
+            if let error = InputValidator.validateBirthDate(birthDate) {
+                withAnimation(.spring(response: 0.3)) {
+                    dateValidationError = error.cosmicMessage
+                }
+                return
+            }
+        case .name:
+            if let error = InputValidator.validateName(userName) {
+                withAnimation(.spring(response: 0.3)) {
+                    nameValidationError = error.cosmicMessage
+                }
+                return
+            }
+        default:
+            break
+        }
+
         let nextStep: OnboardingStep? = {
             switch currentStep {
             case .welcome: return .birthDate
@@ -812,6 +896,9 @@ struct OnboardingView: View {
         if let next = nextStep {
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                 currentStep = next
+                // Clear validation errors when moving to next step
+                nameValidationError = nil
+                dateValidationError = nil
             }
         }
     }

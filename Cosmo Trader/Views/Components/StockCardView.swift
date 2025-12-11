@@ -67,6 +67,34 @@ struct StockCardView: View {
             .overlay(swipeIndicators)
             .overlay(cosmicMatchBadge, alignment: .top)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityValue(accessibilityValue)
+        .accessibilityHint(accessibilityHint)
+        .accessibilityAddTraits(.isButton)
+    }
+
+    // MARK: - Accessibility
+
+    private var accessibilityLabel: String {
+        var label = "\(card.stock.name), ticker \(card.stock.symbol)"
+        if card.isCosmicMatch {
+            label += ". Cosmic match!"
+        }
+        return label
+    }
+
+    private var accessibilityValue: String {
+        let direction = card.stock.isPositive ? "up" : "down"
+        var value = "\(card.compatibility.score) percent compatibility. "
+        value += "Price \(card.stock.formattedPrice), \(direction) \(card.stock.formattedPercentageChange). "
+        value += "\(card.stock.zodiacSign.displayName) sign, \(card.stock.zodiacSign.element.displayName) element. "
+        value += card.compatibility.description
+        return value
+    }
+
+    private var accessibilityHint: String {
+        "Swipe right to add to watchlist, swipe left to skip, swipe up for details"
     }
 
     // MARK: - Top Section
