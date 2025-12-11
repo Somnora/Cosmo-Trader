@@ -1,0 +1,47 @@
+# Xcode
+*.xcuserstate
+*.xcscmblueprint
+xcuserdata/
+*.xccheckout
+*.moved-aside
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Build
+build/
+*.o
+*.LinkFileList
+*.mode*v3
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Swift Package Manager
+.build/
+Package.resolved
+
+# Carthage
+Carthage/Build/
+
+# Secrets - NEVER commit API keys
+Cosmo Trader/Secrets.plist
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# IDE
+.idea/
+*.pbxuser
+!default.pbxuser
