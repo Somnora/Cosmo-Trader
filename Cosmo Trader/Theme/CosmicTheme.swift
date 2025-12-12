@@ -20,6 +20,9 @@ struct CosmicTheme {
     /// Primary background - Deep Void Black
     static let background = Color(hex: "050505")
 
+    /// True OLED black for terminal aesthetic
+    static let terminalBlack = Color(hex: "000000")
+
     /// Card/surface background - Dark Gray
     static let cardBackground = Color(hex: "1A1A1A")
 
@@ -33,6 +36,9 @@ struct CosmicTheme {
 
     /// Standard border color
     static let border = Color(hex: "2D2D2D")
+
+    /// Dim border for subtle separators
+    static let borderDim = Color(hex: "1C1C1C")
 
     /// Subtle divider lines
     static let divider = Color(hex: "252525")
@@ -48,6 +54,9 @@ struct CosmicTheme {
 
     /// Losses, bearish, negative - Bearish Red
     static let negative = Color(hex: "FF3B30")
+
+    /// Alert red for warnings and errors
+    static let alertRed = Color(hex: "FF3B30")
 
     /// Neutral/unchanged
     static let neutral = Color(hex: "888888")
@@ -215,6 +224,11 @@ struct TerminalFont {
     /// Timestamp font - subtle monospace
     static func timestamp(_ size: CGFloat) -> Font {
         .system(size: size, weight: .regular, design: .monospaced)
+    }
+
+    /// Caption font for small text
+    static func caption(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        .system(size: size, weight: weight, design: .default)
     }
 }
 
