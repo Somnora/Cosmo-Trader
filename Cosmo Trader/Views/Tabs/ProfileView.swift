@@ -927,6 +927,17 @@ struct ProfileView: View {
             }
 
             VStack(spacing: 0) {
+                // About
+                LegalLinkRow(
+                    icon: "info.circle.fill",
+                    title: "About Cosmo Trader",
+                    destination: { AboutView() }
+                )
+
+                Divider()
+                    .background(CosmicTheme.textMuted.opacity(0.2))
+                    .padding(.leading, 48)
+
                 // Privacy Policy
                 LegalLinkRow(
                     icon: "lock.shield.fill",

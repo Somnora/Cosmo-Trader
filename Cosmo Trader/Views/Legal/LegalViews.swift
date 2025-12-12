@@ -478,6 +478,126 @@ struct DisclaimerBanner: View {
     }
 }
 
+// MARK: - About View
+
+struct AboutView: View {
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    // App info header
+                    VStack(spacing: 16) {
+                        // App icon placeholder
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(Color.black)
+                                .frame(width: 80, height: 80)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .stroke(CosmicTheme.gold, lineWidth: 2)
+                                )
+
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 32))
+                                .foregroundColor(CosmicTheme.gold)
+                        }
+
+                        Text("COSMO TRADER")
+                            .font(.system(size: 20, weight: .bold, design: .monospaced))
+                            .foregroundColor(CosmicTheme.textPrimary)
+
+                        Text("Version \(Bundle.main.appVersion) (\(Bundle.main.buildNumber))")
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(CosmicTheme.textSecondary)
+
+                        Text("Where the stars meet the market")
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .italic()
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+
+                    // Data Attribution
+                    LegalSection(
+                        title: "DATA ATTRIBUTION",
+                        content: """
+                        Stock market data provided by Finnhub.io
+
+                        Finnhub provides real-time market data, company information, and financial metrics used throughout this application.
+
+                        Data may be delayed up to 15 minutes for free tier users.
+
+                        Visit finnhub.io for more information.
+                        """
+                    )
+
+                    // Entertainment disclaimer
+                    LegalSection(
+                        title: "ENTERTAINMENT PURPOSE",
+                        content: """
+                        Cosmo Trader is designed for entertainment and educational purposes only.
+
+                        The astrological content, zodiac compatibility scores, and cosmic insights are based on traditional astrology and should not be used as the basis for any financial decisions.
+
+                        Always consult with qualified financial professionals before making investment decisions.
+                        """
+                    )
+
+                    // Open source acknowledgments
+                    LegalSection(
+                        title: "ACKNOWLEDGMENTS",
+                        content: """
+                        Built with SwiftUI for iOS
+
+                        Special thanks to:
+                        • Finnhub.io for market data API
+                        • The astrology community for zodiac wisdom
+                        • Our beta testers for invaluable feedback
+
+                        Made with cosmic energy in California.
+                        """
+                    )
+
+                    // Copyright
+                    VStack(spacing: 8) {
+                        Rectangle()
+                            .fill(CosmicTheme.borderDim)
+                            .frame(height: 1)
+
+                        Text("© 2024 Somnora. All rights reserved.")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(CosmicTheme.textMuted)
+
+                        Text("Cosmo Trader is a trademark of Somnora.")
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 16)
+
+                    Spacer(minLength: 40)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+            }
+            .background(CosmicTheme.background)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundColor(CosmicTheme.gold)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Previews
 
 #Preview("Privacy Policy") {
@@ -502,4 +622,9 @@ struct DisclaimerBanner: View {
     }
     .background(CosmicTheme.background)
     .preferredColorScheme(.dark)
+}
+
+#Preview("About View") {
+    AboutView()
+        .preferredColorScheme(.dark)
 }
