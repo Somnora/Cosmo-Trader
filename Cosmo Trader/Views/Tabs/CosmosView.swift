@@ -124,7 +124,7 @@ struct CosmosView: View {
                 AllCosmicEventsSheet(astroService: astroService)
             }
             .sheet(isPresented: $showLunarDetail) {
-                LunarDetailSheet(lunarData: moonService.getCurrentLunarData())
+                LunarOutlookSheet(lunarData: moonService.getCurrentLunarData())
             }
         }
         .onAppear {
@@ -1134,9 +1134,9 @@ struct StarsOverlay: View {
     }
 }
 
-// MARK: - Lunar Detail Sheet
+// MARK: - Lunar Outlook Sheet
 
-struct LunarDetailSheet: View {
+struct LunarOutlookSheet: View {
     let lunarData: LunarData
 
     @Environment(\.dismiss) private var dismiss

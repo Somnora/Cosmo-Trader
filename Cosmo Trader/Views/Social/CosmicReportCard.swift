@@ -552,56 +552,72 @@ struct QRCodePlaceholder: View {
 struct ZodiacWheelDecoration: View {
     let userSign: ZodiacSign
 
+    private var userSignIndex: Int {
+        ZodiacSign.allCases.firstIndex(of: userSign) ?? 0
+    }
+
     var body: some View {
         Canvas { context, size in
-            let center = CGPoint(x: size.width / 2, y: size.height / 2)
-            let radius = min(size.width, size.height) / 2 - 4
-
-            // Draw outer circle
-            let outerPath = Path(ellipseIn: CGRect(
-                x: center.x - radius,
-                y: center.y - radius,
-                width: radius * 2,
-                height: radius * 2
-            ))
-            context.stroke(outerPath, with: .color(CosmicTheme.gold.opacity(0.5)), lineWidth: 1)
-
-            // Draw 12 segments
-            for i in 0..<12 {
-                let angle = Double(i) * (2 * .pi / 12) - .pi / 2
-                let innerRadius = radius * 0.6
-                let outerRadius = radius * 0.95
-
-                let start = CGPoint(
-                    x: center.x + cos(angle) * innerRadius,
-                    y: center.y + sin(angle) * innerRadius
-                )
-                let end = CGPoint(
-                    x: center.x + cos(angle) * outerRadius,
-                    y: center.y + sin(angle) * outerRadius
-                )
-
-                var path = Path()
-                path.move(to: start)
-                path.addLine(to: end)
-
-                let isUserSign = i == ZodiacSign.allCases.firstIndex(of: userSign)
-                context.stroke(
-                    path,
-                    with: .color(isUserSign! ? CosmicTheme.gold : CosmicTheme.textMuted.opacity(0.3)),
-                    lineWidth: isUserSign! ? 2 : 0.5
-                )
-            }
-
-            // Draw center dot
-            let centerDot = Path(ellipseIn: CGRect(
-                x: center.x - 3,
-                y: center.y - 3,
-                width: 6,
-                height: 6
-            ))
-            context.fill(centerDot, with: .color(CosmicTheme.gold))
+            drawWheel(context: context, size: size)
         }
+    }
+
+    private func drawWheel(context: GraphicsContext, size: CGSize) {
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        let radius = min(size.width, size.height) / 2 - 4
+
+        // Draw outer circle
+        drawOuterCircle(context: context, center: center, radius: radius)
+
+        // Draw 12 segments
+        drawSegments(context: context, center: center, radius: radius)
+
+        // Draw center dot
+        drawCenterDot(context: context, center: center)
+    }
+
+    private func drawOuterCircle(context: GraphicsContext, center: CGPoint, radius: CGFloat) {
+        let rect = CGRect(
+            x: center.x - radius,
+            y: center.y - radius,
+            width: radius * 2,
+            height: radius * 2
+        )
+        let outerPath = Path(ellipseIn: rect)
+        let color = CosmicTheme.gold.opacity(0.5)
+        context.stroke(outerPath, with: .color(color), lineWidth: 1)
+    }
+
+    private func drawSegments(context: GraphicsContext, center: CGPoint, radius: CGFloat) {
+        for i in 0..<12 {
+            drawSegment(context: context, center: center, radius: radius, index: i)
+        }
+    }
+
+    private func drawSegment(context: GraphicsContext, center: CGPoint, radius: CGFloat, index: Int) {
+        let angle = Double(index) * (2 * .pi / 12) - .pi / 2
+        let innerRadius = radius * 0.6
+        let outerRadius = radius * 0.95
+
+        let startX = center.x + cos(angle) * innerRadius
+        let startY = center.y + sin(angle) * innerRadius
+        let endX = center.x + cos(angle) * outerRadius
+        let endY = center.y + sin(angle) * outerRadius
+
+        var path = Path()
+        path.move(to: CGPoint(x: startX, y: startY))
+        path.addLine(to: CGPoint(x: endX, y: endY))
+
+        let isUserSign = index == userSignIndex
+        let strokeColor: Color = isUserSign ? CosmicTheme.gold : CosmicTheme.textMuted.opacity(0.3)
+        let strokeWidth: CGFloat = isUserSign ? 2 : 0.5
+        context.stroke(path, with: .color(strokeColor), lineWidth: strokeWidth)
+    }
+
+    private func drawCenterDot(context: GraphicsContext, center: CGPoint) {
+        let rect = CGRect(x: center.x - 3, y: center.y - 3, width: 6, height: 6)
+        let centerDot = Path(ellipseIn: rect)
+        context.fill(centerDot, with: .color(CosmicTheme.gold))
     }
 }
 
@@ -702,17 +718,8 @@ struct ShareReportCardButton: View {
     }
 }
 
-// MARK: - Share Sheet (UIKit Bridge)
-
-struct ShareSheet: UIViewControllerRepresentable {
-    let items: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: items, applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-}
+// MARK: - Share Sheet
+// ShareSheet is defined in ProfileView.swift to avoid duplication
 
 // MARK: - Preview
 

@@ -343,34 +343,11 @@ struct MoonSignalStrip: View {
 }
 
 #Preview("All Moon Phases") {
-    let service = MoonPhaseService.shared
-
-    // Generate sample data for different phases
-    let phases: [(MoonPhase, Double, Bool)] = [
-        (.newMoon, 0.02, true),
-        (.waxingCrescent, 0.25, true),
-        (.firstQuarter, 0.50, true),
-        (.waxingGibbous, 0.75, true),
-        (.fullMoon, 0.98, false),
-        (.waningGibbous, 0.75, false),
-        (.lastQuarter, 0.50, false),
-        (.waningCrescent, 0.25, false)
-    ]
-
-    return ScrollView {
+    ScrollView {
         VStack(spacing: 16) {
-            ForEach(phases, id: \.0) { phase, illumination, isWaxing in
-                let mockData = LunarData(
-                    phase: phase,
-                    illumination: illumination,
-                    isWaxing: isWaxing,
-                    moonSign: .cancer,
-                    daysUntilFullMoon: 7,
-                    daysUntilNewMoon: 14
-                )
-
-                MoonSignalStrip(lunarData: mockData)
-            }
+            // Show current lunar data from service
+            let currentData = MoonPhaseService.shared.getCurrentLunarData()
+            MoonSignalStrip(lunarData: currentData)
         }
         .padding()
     }

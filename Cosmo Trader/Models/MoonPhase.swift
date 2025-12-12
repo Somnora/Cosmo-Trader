@@ -50,6 +50,65 @@ enum MoonPhase: String, CaseIterable, Identifiable {
         }
     }
 
+    /// SF Symbol icon for UI display
+    var icon: String {
+        switch self {
+        case .newMoon:        return "moon"
+        case .waxingCrescent: return "moon.fill"
+        case .firstQuarter:   return "moon.zzz"
+        case .waxingGibbous:  return "moon.haze"
+        case .fullMoon:       return "moon.circle.fill"
+        case .waningGibbous:  return "moon.haze.fill"
+        case .lastQuarter:    return "moon.zzz.fill"
+        case .waningCrescent: return "moon.fill"
+        }
+    }
+
+    /// Description for the phase
+    var description: String {
+        switch self {
+        case .newMoon:
+            return "A time for new beginnings and setting intentions."
+        case .waxingCrescent:
+            return "Energy builds. Plant seeds for future growth."
+        case .firstQuarter:
+            return "Take action. Decisions made now gain momentum."
+        case .waxingGibbous:
+            return "Refine your approach. Adjust before the peak."
+        case .fullMoon:
+            return "Culmination and clarity. Results become visible."
+        case .waningGibbous:
+            return "Share wisdom. Express gratitude for gains."
+        case .lastQuarter:
+            return "Release what no longer serves you."
+        case .waningCrescent:
+            return "Rest and reflect. The cycle completes."
+        }
+    }
+
+    /// Calculate moon phase from a date (simplified algorithm)
+    static func from(date: Date) -> MoonPhase {
+        // Simplified lunar cycle calculation
+        // Based on average lunar cycle of 29.53 days
+        // Reference new moon: January 6, 2000
+        let referenceDate = Calendar.current.date(from: DateComponents(year: 2000, month: 1, day: 6))!
+        let daysSinceReference = Calendar.current.dateComponents([.day], from: referenceDate, to: date).day ?? 0
+        let lunarCycle = 29.53
+        let dayInCycle = Double(daysSinceReference).truncatingRemainder(dividingBy: lunarCycle)
+
+        // Each phase is roughly 3.69 days
+        switch dayInCycle {
+        case 0..<1.85: return .newMoon
+        case 1.85..<7.38: return .waxingCrescent
+        case 7.38..<9.23: return .firstQuarter
+        case 9.23..<14.76: return .waxingGibbous
+        case 14.76..<16.61: return .fullMoon
+        case 16.61..<22.14: return .waningGibbous
+        case 22.14..<24.00: return .lastQuarter
+        default: return .waningCrescent
+        }
+    }
+
     /// Illumination range for this phase
     var illuminationRange: ClosedRange<Double> {
         switch self {

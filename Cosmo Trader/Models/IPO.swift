@@ -6,7 +6,7 @@ import SwiftUI
 // Represents an upcoming Initial Public Offering.
 // The IPO date determines the company's zodiac sign - treat IPOs like births!
 
-struct IPO: Identifiable, Equatable {
+struct IPO: Identifiable, Equatable, Hashable {
 
     let id: UUID
     let companyName: String

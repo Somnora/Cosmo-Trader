@@ -296,8 +296,9 @@ extension View {
 
 // MARK: - Terminal Background Components
 
-/// Deep void black background view
-struct TerminalBackground: View {
+/// Deep void black background view with optional effects
+/// Note: Basic TerminalBackground is in TerminalBackground.swift
+struct VoidBackground: View {
     var showScanlines: Bool = false
     var scanlineOpacity: Double = 0.02
 
@@ -506,7 +507,7 @@ struct VignetteOverlay: View {
         }
         .padding()
     }
-    .background(TerminalBackground())
+    .background(VoidBackground())
 }
 
 #Preview("Terminal Green Glow") {
@@ -526,7 +527,7 @@ struct VignetteOverlay: View {
             .foregroundColor(CosmicTheme.positive)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(TerminalBackground(showScanlines: true))
+    .background(VoidBackground(showScanlines: true))
 }
 
 private func colorBlock(_ name: String, _ color: Color) -> some View {

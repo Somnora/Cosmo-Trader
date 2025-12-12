@@ -964,10 +964,18 @@ struct SettingRow: View {
 // MARK: - Share Sheet
 
 struct ShareSheet: UIViewControllerRepresentable {
-    let text: String
+    let items: [Any]
+
+    init(items: [Any]) {
+        self.items = items
+    }
+
+    init(text: String) {
+        self.items = [text]
+    }
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
