@@ -68,24 +68,43 @@ struct CosmicTraderApp: App {
 
 // MARK: - Root View
 
-/// Root view that handles the onboarding/main app flow
+/// Root view that handles the launch screen, onboarding, and main app flow
 struct RootView: View {
 
     @Environment(AppState.self) private var appState
+    @State private var showLaunchScreen = true
 
     var body: some View {
-        Group {
-            if appState.hasCompletedOnboarding {
-                // Show main app
-                ContentView()
+        ZStack {
+            // Main content (behind launch screen)
+            Group {
+                if appState.hasCompletedOnboarding {
+                    // Show main app
+                    ContentView()
+                        .transition(.opacity)
+                } else {
+                    // Show onboarding
+                    OnboardingView()
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.3), value: appState.hasCompletedOnboarding)
+
+            // Launch screen overlay
+            if showLaunchScreen {
+                LaunchScreenView()
                     .transition(.opacity)
-            } else {
-                // Show onboarding
-                OnboardingView()
-                    .transition(.opacity)
+                    .zIndex(1)
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: appState.hasCompletedOnboarding)
+        .onAppear {
+            // Dismiss launch screen after animation completes (~4 seconds)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                withAnimation(.easeOut(duration: 0.5)) {
+                    showLaunchScreen = false
+                }
+            }
+        }
     }
 }
 

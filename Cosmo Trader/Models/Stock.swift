@@ -73,6 +73,16 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
     ///       You can own 0.5 shares of Amazon on many platforms.
     var sharesOwned: Double
 
+    /// The average price per share the user paid (cost basis)
+    /// WHY: Users need to track their entry point to calculate profit/loss
+    /// NOTE: This is optional - nil if not yet purchased or if tracking not enabled
+    var purchasePrice: Double?
+
+    /// The date when the user purchased (or first purchased) this stock
+    /// WHY: Users want to see how long they've held a position
+    /// NOTE: For multiple buys, this represents the first purchase date
+    var purchaseDate: Date?
+
     // MARK: - Company Information
     // ===========================
     // Static information about the company itself.
@@ -141,6 +151,65 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         sharesOwned > 0
     }
 
+    // MARK: - Purchase-Based Profit/Loss
+    // ==================================
+    // These calculate gains based on user's purchase price (cost basis)
+
+    /// Total cost basis (what the user paid for all shares)
+    /// WHY: Users need to know their total investment
+    var totalCostBasis: Double? {
+        guard let purchasePrice = purchasePrice else { return nil }
+        return purchasePrice * sharesOwned
+    }
+
+    /// Total profit/loss since purchase (unrealized gain/loss)
+    /// WHY: The big question - "Am I up or down on this position?"
+    var totalProfitLoss: Double? {
+        guard let costBasis = totalCostBasis else { return nil }
+        return totalValue - costBasis
+    }
+
+    /// Percentage profit/loss since purchase
+    /// WHY: Percentage gives context - "$100 profit" means different things on different position sizes
+    var totalProfitLossPercent: Double? {
+        guard let costBasis = totalCostBasis, costBasis > 0 else { return nil }
+        return ((totalValue - costBasis) / costBasis) * 100
+    }
+
+    /// Is the position profitable overall?
+    /// WHY: Quick check for color coding
+    var isProfitable: Bool {
+        guard let profitLoss = totalProfitLoss else { return true }
+        return profitLoss >= 0
+    }
+
+    /// Days held since purchase
+    /// WHY: Users want to know their holding period
+    var daysHeld: Int? {
+        guard let purchaseDate = purchaseDate else { return nil }
+        let calendar = Calendar.current
+        return calendar.dateComponents([.day], from: purchaseDate, to: Date()).day
+    }
+
+    /// Formatted holding period
+    /// WHY: Human-readable duration
+    var holdingPeriod: String? {
+        guard let days = daysHeld else { return nil }
+        if days == 0 {
+            return "Today"
+        } else if days == 1 {
+            return "1 day"
+        } else if days < 30 {
+            return "\(days) days"
+        } else if days < 365 {
+            let months = days / 30
+            return months == 1 ? "1 month" : "\(months) months"
+        } else {
+            let years = days / 365
+            return years == 1 ? "1 year" : "\(years) years"
+        }
+    }
+
     /// The element of this stock's zodiac sign
     /// WHY: Quick access for UI grouping by element (Fire, Earth, Air, Water)
     var element: ZodiacSign.Element {
@@ -198,6 +267,8 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         priceChange: Double,
         percentageChange: Double,
         sharesOwned: Double = 0,
+        purchasePrice: Double? = nil,
+        purchaseDate: Date? = nil,
         foundedDate: Date,
         sector: String
     ) {
@@ -208,6 +279,8 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         self.priceChange = priceChange
         self.percentageChange = percentageChange
         self.sharesOwned = sharesOwned
+        self.purchasePrice = purchasePrice
+        self.purchaseDate = purchaseDate
         self.foundedDate = foundedDate
         self.sector = sector
     }
@@ -222,6 +295,8 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         priceChange: Double,
         percentageChange: Double,
         sharesOwned: Double = 0,
+        purchasePrice: Double? = nil,
+        purchaseDate: Date? = nil,
         foundedMonth: Int,
         foundedDay: Int,
         foundedYear: Int,
@@ -234,6 +309,8 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         self.priceChange = priceChange
         self.percentageChange = percentageChange
         self.sharesOwned = sharesOwned
+        self.purchasePrice = purchasePrice
+        self.purchaseDate = purchaseDate
         self.sector = sector
 
         // Create a Date from the components
@@ -290,6 +367,42 @@ extension Stock {
         }
     }
 
+    // MARK: - Purchase Tracking Formatters
+
+    /// Format the purchase price
+    var formattedPurchasePrice: String? {
+        guard let purchasePrice = purchasePrice else { return nil }
+        return Self.formatCurrency(purchasePrice)
+    }
+
+    /// Format total cost basis
+    var formattedCostBasis: String? {
+        guard let costBasis = totalCostBasis else { return nil }
+        return Self.formatCurrency(costBasis)
+    }
+
+    /// Format total profit/loss with sign
+    var formattedTotalProfitLoss: String? {
+        guard let profitLoss = totalProfitLoss else { return nil }
+        let sign = profitLoss >= 0 ? "+" : ""
+        return sign + Self.formatCurrency(profitLoss)
+    }
+
+    /// Format total profit/loss percentage
+    var formattedTotalProfitLossPercent: String? {
+        guard let percent = totalProfitLossPercent else { return nil }
+        let sign = percent >= 0 ? "+" : ""
+        return String(format: "%@%.2f%%", sign, percent)
+    }
+
+    /// Format purchase date
+    var formattedPurchaseDate: String? {
+        guard let purchaseDate = purchaseDate else { return nil }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter.string(from: purchaseDate)
+    }
+
     /// Helper to format any value as USD currency
     private static func formatCurrency(_ value: Double) -> String {
         let formatter = NumberFormatter()
@@ -327,10 +440,10 @@ extension Stock {
 
 extension Stock {
 
-    /// Sample stocks with REAL founding dates for accurate zodiac signs
+    /// Sample stocks with REAL founding dates and purchase tracking data
     static let samples: [Stock] = [
         // Apple - Founded April 1, 1976 (ARIES - Fire sign)
-        // Steve Jobs, Steve Wozniak, and Ronald Wayne started in a garage
+        // Purchased at $150 in March 2024
         Stock(
             symbol: "AAPL",
             name: "Apple Inc.",
@@ -338,12 +451,14 @@ extension Stock {
             priceChange: 2.34,
             percentageChange: 1.33,
             sharesOwned: 10,
+            purchasePrice: 150.00,
+            purchaseDate: Calendar.current.date(from: DateComponents(year: 2024, month: 3, day: 15)),
             foundedMonth: 4, foundedDay: 1, foundedYear: 1976,
             sector: "Technology"
         ),
 
         // Google/Alphabet - Founded September 4, 1998 (VIRGO - Earth sign)
-        // Larry Page and Sergey Brin started in a Stanford dorm room
+        // Purchased at $135 in January 2024
         Stock(
             symbol: "GOOGL",
             name: "Alphabet Inc.",
@@ -351,12 +466,14 @@ extension Stock {
             priceChange: -1.20,
             percentageChange: -0.84,
             sharesOwned: 5,
+            purchasePrice: 135.00,
+            purchaseDate: Calendar.current.date(from: DateComponents(year: 2024, month: 1, day: 10)),
             foundedMonth: 9, foundedDay: 4, foundedYear: 1998,
             sector: "Technology"
         ),
 
         // Tesla - Founded July 1, 2003 (CANCER - Water sign)
-        // Martin Eberhard and Marc Tarpenning founded it (Elon joined later)
+        // Purchased at $200 in June 2024
         Stock(
             symbol: "TSLA",
             name: "Tesla Inc.",
@@ -364,12 +481,14 @@ extension Stock {
             priceChange: 12.30,
             percentageChange: 5.21,
             sharesOwned: 3,
+            purchasePrice: 200.00,
+            purchaseDate: Calendar.current.date(from: DateComponents(year: 2024, month: 6, day: 1)),
             foundedMonth: 7, foundedDay: 1, foundedYear: 2003,
             sector: "Automotive"
         ),
 
         // Microsoft - Founded April 4, 1975 (ARIES - Fire sign)
-        // Bill Gates and Paul Allen started it in Albuquerque, NM
+        // Purchased at $350 in February 2024
         Stock(
             symbol: "MSFT",
             name: "Microsoft Corp.",
@@ -377,25 +496,27 @@ extension Stock {
             priceChange: 4.56,
             percentageChange: 1.22,
             sharesOwned: 8,
+            purchasePrice: 350.00,
+            purchaseDate: Calendar.current.date(from: DateComponents(year: 2024, month: 2, day: 20)),
             foundedMonth: 4, foundedDay: 4, foundedYear: 1975,
             sector: "Technology"
         ),
 
         // Amazon - Founded July 5, 1994 (CANCER - Water sign)
-        // Jeff Bezos started it as an online bookstore in his garage
+        // Watchlist only - no purchase data
         Stock(
             symbol: "AMZN",
             name: "Amazon.com Inc.",
             currentPrice: 178.25,
             priceChange: 3.42,
             percentageChange: 1.96,
-            sharesOwned: 0, // Watchlist only
+            sharesOwned: 0,
             foundedMonth: 7, foundedDay: 5, foundedYear: 1994,
             sector: "Consumer Cyclical"
         ),
 
         // NVIDIA - Founded January 25, 1993 (AQUARIUS - Air sign)
-        // Jensen Huang, Chris Malachowsky, and Curtis Priem founded it
+        // Purchased at $300 in April 2024 - big winner!
         Stock(
             symbol: "NVDA",
             name: "NVIDIA Corp.",
@@ -403,12 +524,14 @@ extension Stock {
             priceChange: 15.20,
             percentageChange: 3.36,
             sharesOwned: 2,
+            purchasePrice: 300.00,
+            purchaseDate: Calendar.current.date(from: DateComponents(year: 2024, month: 4, day: 5)),
             foundedMonth: 1, foundedDay: 25, foundedYear: 1993,
             sector: "Technology"
         ),
 
         // Meta (Facebook) - Founded February 4, 2004 (AQUARIUS - Air sign)
-        // Mark Zuckerberg founded it in his Harvard dorm
+        // Watchlist only - no purchase data
         Stock(
             symbol: "META",
             name: "Meta Platforms Inc.",
@@ -421,7 +544,7 @@ extension Stock {
         ),
 
         // Netflix - Founded August 29, 1997 (VIRGO - Earth sign)
-        // Reed Hastings and Marc Randolph started as a DVD rental service
+        // Purchased at $450 in May 2024
         Stock(
             symbol: "NFLX",
             name: "Netflix Inc.",
@@ -429,6 +552,8 @@ extension Stock {
             priceChange: 6.85,
             percentageChange: 1.45,
             sharesOwned: 4,
+            purchasePrice: 450.00,
+            purchaseDate: Calendar.current.date(from: DateComponents(year: 2024, month: 5, day: 12)),
             foundedMonth: 8, foundedDay: 29, foundedYear: 1997,
             sector: "Communication Services"
         )

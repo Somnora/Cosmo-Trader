@@ -58,7 +58,10 @@ struct ProfileView: View {
                             // 5. Settings sections
                             settingsSections
 
-                            // 6. Fun extras & sign out
+                            // 6. Legal section
+                            legalSection
+
+                            // 7. Fun extras & sign out
                             funExtrasSection
 
                             signOutButton
@@ -908,6 +911,63 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity)
     }
 
+    // MARK: - Legal Section
+
+    private var legalSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Section header
+            HStack(spacing: 6) {
+                Image(systemName: "doc.text.fill")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold)
+                Text("Legal")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(CosmicTheme.textSecondary)
+            }
+
+            VStack(spacing: 0) {
+                // Privacy Policy
+                LegalLinkRow(
+                    icon: "lock.shield.fill",
+                    title: "Privacy Policy",
+                    destination: { PrivacyPolicyView() }
+                )
+
+                Divider()
+                    .background(CosmicTheme.textMuted.opacity(0.2))
+                    .padding(.leading, 48)
+
+                // Terms of Service
+                LegalLinkRow(
+                    icon: "doc.text.fill",
+                    title: "Terms of Service",
+                    destination: { TermsOfServiceView() }
+                )
+
+                Divider()
+                    .background(CosmicTheme.textMuted.opacity(0.2))
+                    .padding(.leading, 48)
+
+                // NFA Disclaimer (Important!)
+                LegalLinkRow(
+                    icon: "exclamationmark.triangle.fill",
+                    title: "Not Financial Advice",
+                    destination: { NFADisclaimerView() },
+                    highlight: true
+                )
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(CosmicTheme.cardBackground)
+            )
+
+            // Disclaimer banner
+            DisclaimerBanner()
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
     // MARK: - Sign Out
 
     private var signOutButton: some View {
@@ -927,6 +987,44 @@ struct ProfileView: View {
             )
         }
         .padding(.top, 8)
+    }
+}
+
+// MARK: - Legal Link Row
+
+struct LegalLinkRow<Destination: View>: View {
+    let icon: String
+    let title: String
+    let destination: () -> Destination
+    var highlight: Bool = false
+
+    @State private var isPresented = false
+
+    var body: some View {
+        Button(action: { isPresented = true }) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.body)
+                    .foregroundColor(highlight ? CosmicTheme.gold : CosmicTheme.textSecondary)
+                    .frame(width: 28)
+
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundColor(CosmicTheme.textPrimary)
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $isPresented) {
+            destination()
+        }
     }
 }
 
