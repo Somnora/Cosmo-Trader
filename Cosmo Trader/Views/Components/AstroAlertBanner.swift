@@ -143,8 +143,7 @@ struct AstroAlertBanner: View {
 
                         HStack(spacing: 6) {
                             ForEach(event.affectedElements, id: \.self) { element in
-                                Text(element.emoji)
-                                    .font(.caption)
+                                ElementSymbolView(element: element, size: 14)
                             }
                         }
                     }
@@ -372,8 +371,7 @@ struct CosmicEventCard: View {
 
                             // Elements
                             ForEach(event.affectedElements, id: \.self) { element in
-                                Text(element.emoji)
-                                    .font(.caption)
+                                ElementSymbolView(element: element, size: 14)
                             }
                         }
                     }

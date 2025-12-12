@@ -36,6 +36,13 @@ struct ContentView: View {
                 }
                 .tag(Tab.discover)
 
+            // IPO Tab - Upcoming cosmic births
+            IPOListView()
+                .tabItem {
+                    Label("IPOs", systemImage: selectedTab == .ipos ? "sparkle" : "sparkle")
+                }
+                .tag(Tab.ipos)
+
             // Cosmos Tab - Daily horoscope
             CosmosView()
                 .tabItem {
@@ -94,6 +101,7 @@ struct ContentView: View {
 enum Tab: Hashable {
     case portfolio
     case discover
+    case ipos
     case cosmos
     case profile
 }

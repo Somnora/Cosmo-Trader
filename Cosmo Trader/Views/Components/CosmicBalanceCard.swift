@@ -110,18 +110,12 @@ struct CosmicBalanceCard: View {
     /// Single legend item for an element
     private func elementLegendItem(element: ZodiacSign.Element, percentage: Double) -> some View {
         HStack(spacing: 6) {
-            // Color dot
-            Circle()
-                .fill(colorForElement(element))
-                .frame(width: 10, height: 10)
-
-            // Emoji and name
-            Text(element.emoji)
-                .font(.caption)
+            // Element glyph
+            ElementSymbolView(element: element, size: 12)
 
             // Percentage
             Text(String(format: "%.0f%%", percentage))
-                .font(.caption)
+                .font(TerminalFont.data(11))
                 .fontWeight(.medium)
                 .foregroundColor(percentage > 0 ? CosmicTheme.textPrimary : CosmicTheme.textMuted)
         }

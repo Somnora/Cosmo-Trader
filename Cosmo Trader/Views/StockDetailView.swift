@@ -154,16 +154,7 @@ struct StockDetailView: View {
     // MARK: - Background
 
     private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                CosmicTheme.background,
-                Color(red: 0.05, green: 0.02, blue: 0.15),
-                Color(red: 0.08, green: 0.04, blue: 0.20)
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .ignoresSafeArea()
+        TerminalBackground(starCount: 30, showGrid: false)
     }
 
     // MARK: - Header Section
@@ -227,73 +218,83 @@ struct StockDetailView: View {
                     .frame(width: 56, height: 56)
 
                 Circle()
-                    .stroke(elementColor.opacity(0.5), lineWidth: 2)
+                    .stroke(elementColor.opacity(0.5), lineWidth: 1)
                     .frame(width: 56, height: 56)
 
-                Text(stock.zodiacSign.symbol)
-                    .font(.system(size: 28))
+                // Custom zodiac glyph
+                ZodiacSymbolView(sign: stock.zodiacSign, size: 28, color: elementColor)
             }
 
             Text(stock.zodiacSign.displayName)
-                .font(.caption)
-                .fontWeight(.medium)
+                .font(TerminalFont.data(11))
                 .foregroundColor(CosmicTheme.textSecondary)
         }
     }
 
     private var priceDisplay: some View {
-        VStack(spacing: 8) {
-            HStack(alignment: .bottom) {
-                // Current price
-                VStack(alignment: .leading, spacing: 4) {
+        VStack(spacing: 12) {
+            // Status and update indicator
+            HStack(spacing: 8) {
+                MarketStatusBadge()
+
+                Spacer()
+
+                if isLoadingPrice {
                     HStack(spacing: 4) {
-                        Text("Current Price")
-                            .font(.caption)
+                        ProgressView()
+                            .scaleEffect(0.5)
+                            .tint(CosmicTheme.gold)
+                        Text("Updating...")
+                            .font(TerminalFont.data(10))
                             .foregroundColor(CosmicTheme.textMuted)
-
-                        if isLoadingPrice {
-                            ProgressView()
-                                .scaleEffect(0.5)
-                                .tint(CosmicTheme.gold)
-                        } else if let updateText = lastUpdateText {
-                            Text("• \(updateText)")
-                                .font(.caption2)
-                                .foregroundColor(CosmicTheme.positive)
-                        }
                     }
-
-                    if isLoadingPrice && lastPriceUpdate == nil {
-                        Text("Loading...")
-                            .font(.system(size: 36, weight: .bold, design: .rounded))
+                } else if let updateText = lastUpdateText {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(CosmicTheme.positive)
+                            .frame(width: 6, height: 6)
+                        Text(updateText)
+                            .font(TerminalFont.data(10))
                             .foregroundColor(CosmicTheme.textMuted)
-                    } else {
-                        Text(liveStock.formattedPrice)
-                            .font(.system(size: 36, weight: .bold, design: .rounded))
-                            .foregroundColor(CosmicTheme.textPrimary)
                     }
+                }
+            }
+
+            // Main price display using new component
+            HStack(alignment: .top) {
+                if isLoadingPrice && lastPriceUpdate == nil {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("$----.--")
+                            .font(TerminalFont.price(36))
+                            .foregroundColor(CosmicTheme.textMuted)
+                        Text("---.-- (--.--%)")
+                            .font(TerminalFont.data(14))
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+                } else {
+                    PriceDisplayView(
+                        price: liveStock.currentPrice,
+                        change: liveStock.priceChange,
+                        changePercent: liveStock.percentageChange,
+                        size: .hero
+                    )
                 }
 
                 Spacer()
 
-                // Daily change
+                // Mini chart placeholder
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text("Today")
-                        .font(.caption)
+                    Text("7D")
+                        .font(TerminalFont.data(9))
                         .foregroundColor(CosmicTheme.textMuted)
 
-                    HStack(spacing: 6) {
-                        Image(systemName: liveStock.isPositive ? "arrow.up.right" : "arrow.down.right")
-                            .font(.headline)
-
-                        Text(liveStock.formattedPriceChange)
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundColor(liveStock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
-
-                    Text(liveStock.formattedPercentageChange)
-                        .font(.subheadline)
-                        .foregroundColor(liveStock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
+                    SmoothMiniChartView(
+                        data: generateMockChartData(),
+                        width: 80,
+                        height: 40,
+                        showFill: true,
+                        overrideColor: liveStock.isPositive ? CosmicTheme.positive : CosmicTheme.negative
+                    )
                 }
             }
 
@@ -303,7 +304,7 @@ struct StockDetailView: View {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.caption2)
                     Text(error.suggestedAction)
-                        .font(.caption2)
+                        .font(TerminalFont.data(10))
                 }
                 .foregroundColor(.orange)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -311,9 +312,20 @@ struct StockDetailView: View {
         }
         .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            Rectangle()
                 .fill(CosmicTheme.secondaryBackground)
         )
+        .overlay(
+            Rectangle()
+                .stroke(CosmicTheme.border, lineWidth: 0.5)
+        )
+    }
+
+    /// Generate mock chart data based on stock performance
+    private func generateMockChartData() -> [Double] {
+        let basePrice = liveStock.currentPrice
+        let trend = liveStock.isPositive ? 0.005 : -0.005
+        return MiniChartView.sampleData(days: 7, trend: trend, volatility: 0.015, startPrice: basePrice * 0.98)
     }
 
     // MARK: - Compatibility Section
@@ -338,22 +350,21 @@ struct StockDetailView: View {
                 }
             }
 
-            // Large compatibility score
+            // Large compatibility score - monospace terminal style
             HStack(spacing: 12) {
                 Text("\(compatibility.score)%")
-                    .font(.system(size: 64, weight: .bold, design: .rounded))
+                    .font(TerminalFont.price(60))
                     .foregroundStyle(scoreGradient)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Match")
-                        .font(.title3)
+                    Text("MATCH")
+                        .font(TerminalFont.data(14))
                         .foregroundColor(CosmicTheme.textSecondary)
 
                     HStack(spacing: 6) {
                         Text(compatibility.rating.emoji)
-                        Text(compatibility.rating.displayName)
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
+                        Text(compatibility.rating.displayName.uppercased())
+                            .font(TerminalFont.data(12, weight: .semibold))
                             .foregroundColor(ratingColor)
                     }
                 }
@@ -425,18 +436,16 @@ struct StockDetailView: View {
                         .fill(userElementColor.opacity(0.2))
                         .frame(width: 36, height: 36)
 
-                    Text(user.sunSign.element.emoji)
-                        .font(.caption)
+                    ElementSymbolView(element: user.sunSign.element, size: 18)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Element Synergy")
-                        .font(.caption)
-                        .fontWeight(.semibold)
+                        .font(TerminalFont.data(11, weight: .semibold))
                         .foregroundColor(CosmicTheme.textPrimary)
 
                     Text(compatibility.elementDynamic)
-                        .font(.caption)
+                        .font(TerminalFont.data(11))
                         .foregroundColor(CosmicTheme.textSecondary)
                         .lineLimit(2)
                 }
@@ -447,12 +456,9 @@ struct StockDetailView: View {
 
             // Sign connection
             HStack(spacing: 12) {
-                HStack(spacing: -8) {
-                    Text(user.sunSign.symbol)
-                        .font(.title3)
-
-                    Text(stock.zodiacSign.symbol)
-                        .font(.title3)
+                HStack(spacing: 4) {
+                    ZodiacSymbolView(sign: user.sunSign, size: 20, color: userElementColor)
+                    ZodiacSymbolView(sign: stock.zodiacSign, size: 20, color: elementColor)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -493,11 +499,10 @@ struct StockDetailView: View {
             // Section header
             HStack {
                 Image(systemName: "moon.stars.fill")
-                    .foregroundColor(CosmicTheme.cosmicPurple)
+                    .foregroundColor(CosmicTheme.cosmicBlue)
 
-                Text("Astrological Profile")
-                    .font(.headline)
-                    .fontWeight(.semibold)
+                Text("ASTROLOGICAL PROFILE")
+                    .font(TerminalFont.data(12, weight: .semibold))
                     .foregroundColor(CosmicTheme.textPrimary)
 
                 Spacer()
@@ -508,18 +513,16 @@ struct StockDetailView: View {
 
             // Sign description
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text(stock.zodiacSign.symbol)
-                        .font(.title)
+                HStack(spacing: 12) {
+                    ZodiacSymbolView(sign: stock.zodiacSign, size: 36, color: elementColor)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(stock.zodiacSign.displayName)
-                            .font(.title3)
-                            .fontWeight(.bold)
+                            .font(TerminalFont.headline(18))
                             .foregroundColor(CosmicTheme.textPrimary)
 
                         Text(stock.zodiacSign.dateRangeDescription)
-                            .font(.caption)
+                            .font(TerminalFont.data(11))
                             .foregroundColor(CosmicTheme.textMuted)
                     }
                 }
@@ -576,16 +579,14 @@ struct StockDetailView: View {
             // Element
             VStack(alignment: .leading, spacing: 4) {
                 Text("Element")
-                    .font(.caption)
+                    .font(TerminalFont.data(10))
                     .foregroundColor(CosmicTheme.textMuted)
 
-                HStack(spacing: 4) {
-                    Text(stock.zodiacSign.element.emoji)
-                        .font(.caption)
+                HStack(spacing: 6) {
+                    ElementSymbolView(element: stock.zodiacSign.element, size: 14)
 
                     Text(stock.zodiacSign.element.displayName)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(TerminalFont.data(13, weight: .semibold))
                         .foregroundColor(elementColor)
                 }
             }
@@ -624,49 +625,48 @@ struct StockDetailView: View {
                 Image(systemName: "chart.bar.fill")
                     .foregroundColor(CosmicTheme.nebulaBlue)
 
-                Text("Financial Stats")
-                    .font(.headline)
-                    .fontWeight(.semibold)
+                Text("FINANCIAL DATA")
+                    .font(TerminalFont.data(12, weight: .semibold))
                     .foregroundColor(CosmicTheme.textPrimary)
 
                 Spacer()
             }
 
-            // Stats grid
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                statItem(title: "Price", value: stock.formattedPrice)
-                statItem(title: "Market Cap", value: stock.formattedMarketCap)
-                statItem(title: "52W High", value: stock.formatted52WeekHigh)
-                statItem(title: "52W Low", value: stock.formatted52WeekLow)
-                statItem(title: "Sector", value: stock.sector)
-                statItem(title: "Industry", value: stock.industry)
-            }
+            // Day range visualization
+            DayRangeDisplayView(
+                low: stock.currentPrice * 0.98,
+                high: stock.currentPrice * 1.02,
+                current: liveStock.currentPrice
+            )
+
+            // Bloomberg-style stats grid
+            StatsGridView(stats: [
+                .price("Price", liveStock.formattedPrice),
+                .change("Today", liveStock.percentageChange),
+                .gold("Match", "\(compatibility.score)%"),
+                .text("Sector", stock.sector),
+                .price("Mkt Cap", stock.formattedMarketCap),
+                .text("Industry", stock.industry)
+            ], columns: 3)
+
+            // 52-week high/low
+            HighLowDisplayView(
+                high: stock.currentPrice * 1.25,
+                low: stock.currentPrice * 0.75
+            )
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(CosmicTheme.cardBackground)
+            .overlay(
+                Rectangle()
+                    .stroke(CosmicTheme.border, lineWidth: 0.5)
+            )
         }
         .padding(20)
         .background(cardBackground)
         .opacity(appearAnimation ? 1 : 0)
         .offset(y: appearAnimation ? 0 : 20)
         .animation(.easeOut(duration: 0.5).delay(0.3), value: appearAnimation)
-    }
-
-    private func statItem(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption)
-                .foregroundColor(CosmicTheme.textMuted)
-
-            Text(value)
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(CosmicTheme.textPrimary)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(CosmicTheme.secondaryBackground)
-        )
     }
 
     // MARK: - Action Buttons
@@ -695,7 +695,7 @@ struct StockDetailView: View {
             .disabled(isInPortfolio)
 
             HStack(spacing: 12) {
-                // Add to Watchlist
+                // Add to Watchlist - terminal style
                 Button(action: addToWatchlist) {
                     HStack {
                         Image(systemName: isInWatchlist ? "heart.fill" : "heart")
@@ -703,20 +703,20 @@ struct StockDetailView: View {
                         Text(isInWatchlist ? "Watching" : "Watchlist")
                             .fontWeight(.medium)
                     }
-                    .foregroundColor(isInWatchlist ? CosmicTheme.cosmicPurple : CosmicTheme.textPrimary)
+                    .foregroundColor(isInWatchlist ? CosmicTheme.accentBlue : CosmicTheme.textPrimary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(isInWatchlist ? CosmicTheme.cosmicPurple.opacity(0.2) : Color.clear)
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(isInWatchlist ? CosmicTheme.accentBlue.opacity(0.2) : Color.clear)
                     )
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(isInWatchlist ? CosmicTheme.cosmicPurple : CosmicTheme.textMuted, lineWidth: 1)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(isInWatchlist ? CosmicTheme.accentBlue : CosmicTheme.border, lineWidth: 0.5)
                     )
                 }
 
-                // Share
+                // Share - terminal style
                 Button(action: { showShareSheet = true }) {
                     HStack {
                         Image(systemName: "square.and.arrow.up")
@@ -727,9 +727,9 @@ struct StockDetailView: View {
                     .foregroundColor(CosmicTheme.textPrimary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(CosmicTheme.textMuted, lineWidth: 1)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(CosmicTheme.border, lineWidth: 0.5)
                     )
                 }
             }
@@ -813,24 +813,23 @@ struct StockDetailView: View {
                 VStack(spacing: 24) {
                     // Preview card
                     VStack(spacing: 16) {
-                        HStack {
-                            Text(stock.zodiacSign.symbol)
-                                .font(.largeTitle)
+                        HStack(spacing: 16) {
+                            ZodiacSymbolView(sign: stock.zodiacSign, size: 40, color: elementColor)
 
                             VStack(alignment: .leading) {
                                 Text(stock.name)
-                                    .font(.headline)
+                                    .font(TerminalFont.headline(16))
                                     .foregroundColor(CosmicTheme.textPrimary)
 
                                 Text("\(stock.symbol) • \(stock.zodiacSign.displayName)")
-                                    .font(.subheadline)
+                                    .font(TerminalFont.data(13))
                                     .foregroundColor(CosmicTheme.textSecondary)
                             }
 
                             Spacer()
 
                             Text("\(compatibility.score)% Match")
-                                .font(.headline)
+                                .font(TerminalFont.price(16))
                                 .foregroundColor(CosmicTheme.gold)
                         }
 
@@ -881,11 +880,11 @@ struct StockDetailView: View {
     // MARK: - Card Background
 
     private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 20)
+        Rectangle()
             .fill(CosmicTheme.cardBackground)
             .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(CosmicTheme.cosmicPurple.opacity(0.2), lineWidth: 1)
+                Rectangle()
+                    .stroke(CosmicTheme.border, lineWidth: 0.5)
             )
     }
 
@@ -893,26 +892,26 @@ struct StockDetailView: View {
 
     private var elementColor: Color {
         switch stock.zodiacSign.element {
-        case .fire:  return Color(red: 1.0, green: 0.4, blue: 0.3)
-        case .earth: return Color(red: 0.4, green: 0.75, blue: 0.4)
-        case .air:   return Color(red: 0.4, green: 0.6, blue: 0.9)
-        case .water: return Color(red: 0.5, green: 0.3, blue: 0.8)
+        case .fire:  return CosmicTheme.fireElement
+        case .earth: return CosmicTheme.earthElement
+        case .air:   return CosmicTheme.airElement
+        case .water: return CosmicTheme.waterElement
         }
     }
 
     private var userElementColor: Color {
         switch user.sunSign.element {
-        case .fire:  return Color(red: 1.0, green: 0.4, blue: 0.3)
-        case .earth: return Color(red: 0.4, green: 0.75, blue: 0.4)
-        case .air:   return Color(red: 0.4, green: 0.6, blue: 0.9)
-        case .water: return Color(red: 0.5, green: 0.3, blue: 0.8)
+        case .fire:  return CosmicTheme.fireElement
+        case .earth: return CosmicTheme.earthElement
+        case .air:   return CosmicTheme.airElement
+        case .water: return CosmicTheme.waterElement
         }
     }
 
     private var ratingColor: Color {
         switch compatibility.rating {
         case .cosmicSoulmates:   return CosmicTheme.gold
-        case .highCompatibility: return CosmicTheme.cosmicPurple
+        case .highCompatibility: return CosmicTheme.accentBlue
         case .neutral:           return CosmicTheme.textSecondary
         case .challenging:       return .orange
         case .cosmicClash:       return CosmicTheme.negative

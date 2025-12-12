@@ -43,6 +43,10 @@ struct HoldingRow: View {
 
                 Spacer()
 
+                // Sparkline - price trend visualization
+                sparklineSection
+                    .accessibilityHidden(true)
+
                 // Right: Price and holdings
                 priceSection
                     .accessibilityHidden(true)
@@ -86,9 +90,8 @@ struct HoldingRow: View {
                 .fill(CosmicTheme.cardBackground)
                 .frame(width: 40, height: 40)
 
-            // Zodiac symbol
-            Text(stock.zodiacSign.symbol)
-                .font(.title3)
+            // Zodiac symbol - custom drawn glyph
+            ZodiacSymbolView(sign: stock.zodiacSign, size: 22, color: elementColor)
         }
     }
 
@@ -102,10 +105,8 @@ struct HoldingRow: View {
                     .fontWeight(.semibold)
                     .foregroundColor(CosmicTheme.textPrimary)
 
-                // Small zodiac indicator
-                Text(stock.zodiacSign.symbol)
-                    .font(.caption2)
-                    .foregroundColor(CosmicTheme.textMuted)
+                // Small zodiac indicator - custom glyph
+                ZodiacSymbolView(sign: stock.zodiacSign, size: 12, color: CosmicTheme.textMuted)
             }
 
             // Full name
@@ -122,10 +123,9 @@ struct HoldingRow: View {
     /// Price and holdings info
     private var priceSection: some View {
         VStack(alignment: .trailing, spacing: 4) {
-            // Current price
+            // Current price - monospace for terminal look
             Text(stock.formattedPrice)
-                .font(.headline)
-                .fontWeight(.semibold)
+                .font(TerminalFont.price(17))
                 .foregroundColor(CosmicTheme.textPrimary)
 
             // Daily change
@@ -134,26 +134,32 @@ struct HoldingRow: View {
                     .font(.caption2)
 
                 Text(stock.formattedPercentageChange)
-                    .font(.caption)
-                    .fontWeight(.medium)
+                    .font(TerminalFont.data(12))
             }
             .foregroundColor(stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
 
             // Holdings value
             HStack(spacing: 4) {
                 Text("\(stock.formattedSharesOwned) shares")
-                    .font(.caption2)
+                    .font(TerminalFont.data(10))
                     .foregroundColor(CosmicTheme.textMuted)
 
                 Text("·")
                     .foregroundColor(CosmicTheme.textMuted)
 
                 Text(stock.formattedTotalValue)
-                    .font(.caption)
-                    .fontWeight(.medium)
+                    .font(TerminalFont.data(11, weight: .medium))
                     .foregroundColor(CosmicTheme.textSecondary)
             }
         }
+    }
+
+    /// Mini sparkline showing price trend
+    private var sparklineSection: some View {
+        MiniSparkline(
+            data: stock.priceHistory,
+            size: CGSize(width: 44, height: 20)
+        )
     }
 
     /// Star rating for compatibility
@@ -175,37 +181,37 @@ struct HoldingRow: View {
         }
     }
 
-    /// Row background
+    /// Row background - terminal style with sharp corners
     private var rowBackground: some View {
-        RoundedRectangle(cornerRadius: 16)
+        Rectangle()
             .fill(CosmicTheme.cardBackground)
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(borderColor, lineWidth: 1)
+                Rectangle()
+                    .stroke(borderColor, lineWidth: 0.5)
             )
     }
 
     // MARK: - Helpers
 
-    /// Color based on stock's element
+    /// Color based on stock's element - using muted terminal theme colors
     private var elementColor: Color {
         switch stock.zodiacSign.element {
-        case .fire:  return Color(red: 1.0, green: 0.4, blue: 0.3)
-        case .earth: return Color(red: 0.4, green: 0.75, blue: 0.4)
-        case .air:   return Color(red: 0.95, green: 0.85, blue: 0.4)
-        case .water: return Color(red: 0.3, green: 0.6, blue: 0.9)
+        case .fire:  return CosmicTheme.fireElement
+        case .earth: return CosmicTheme.earthElement
+        case .air:   return CosmicTheme.airElement
+        case .water: return CosmicTheme.waterElement
         }
     }
 
-    /// Border color based on compatibility
+    /// Border color based on compatibility - subtle terminal styling
     private var borderColor: Color {
         switch compatibility.rating {
         case .cosmicSoulmates:
-            return CosmicTheme.gold.opacity(0.4)
+            return CosmicTheme.gold.opacity(0.5)
         case .highCompatibility:
-            return CosmicTheme.cosmicPurple.opacity(0.3)
+            return CosmicTheme.accentBlue.opacity(0.4)
         default:
-            return CosmicTheme.textMuted.opacity(0.1)
+            return CosmicTheme.border
         }
     }
 
@@ -229,11 +235,20 @@ struct CompactHoldingRow: View {
     let stock: Stock
     let compatibility: CompatibilityResult
 
+    /// Element color for this stock
+    private var elementColor: Color {
+        switch stock.zodiacSign.element {
+        case .fire:  return CosmicTheme.fireElement
+        case .earth: return CosmicTheme.earthElement
+        case .air:   return CosmicTheme.airElement
+        case .water: return CosmicTheme.waterElement
+        }
+    }
+
     var body: some View {
         HStack(spacing: 12) {
-            // Zodiac symbol
-            Text(stock.zodiacSign.symbol)
-                .font(.title3)
+            // Zodiac symbol - custom drawn glyph
+            ZodiacSymbolView(sign: stock.zodiacSign, size: 24, color: elementColor)
                 .frame(width: 36)
                 .accessibilityHidden(true)
 
@@ -253,25 +268,21 @@ struct CompactHoldingRow: View {
 
             Spacer()
 
-            // Price and change
+            // Price and change - monospace terminal style
             VStack(alignment: .trailing, spacing: 2) {
                 Text(stock.formattedPrice)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(TerminalFont.price(14))
                     .foregroundColor(CosmicTheme.textPrimary)
 
                 Text(stock.formattedPercentageChange)
-                    .font(.caption)
+                    .font(TerminalFont.data(11))
                     .foregroundColor(stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
             }
             .accessibilityHidden(true)
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 14)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(CosmicTheme.cardBackground)
-        )
+        .terminalCard()
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(stock.name), \(stock.symbol)")
         .accessibilityValue("Price \(stock.formattedPrice), \(stock.isPositive ? "up" : "down") \(stock.formattedPercentageChange)")

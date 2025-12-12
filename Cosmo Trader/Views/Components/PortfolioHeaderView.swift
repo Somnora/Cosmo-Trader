@@ -80,11 +80,10 @@ struct PortfolioHeaderView: View {
     /// Zodiac sign badge with symbol
     private var sunSignBadge: some View {
         HStack(spacing: 6) {
-            Text(sunSign.symbol)
-                .font(.title2)
+            ZodiacSymbolView(sign: sunSign, size: 20, color: CosmicTheme.gold)
 
             Text(sunSign.displayName)
-                .font(.caption)
+                .font(TerminalFont.data(12))
                 .fontWeight(.medium)
                 .foregroundColor(CosmicTheme.textSecondary)
         }
@@ -95,7 +94,7 @@ struct PortfolioHeaderView: View {
                 .fill(CosmicTheme.secondaryBackground)
                 .overlay(
                     Capsule()
-                        .stroke(CosmicTheme.cosmicPurple.opacity(0.3), lineWidth: 1)
+                        .stroke(CosmicTheme.gold.opacity(0.3), lineWidth: 1)
                 )
         )
     }

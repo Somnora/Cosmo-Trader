@@ -282,15 +282,14 @@ struct OnboardingView: View {
                     )
                     .frame(width: 200, height: 200)
 
-                // Zodiac symbols orbiting
+                // Zodiac symbols orbiting - custom drawn glyphs
                 ForEach(0..<12, id: \.self) { index in
                     let sign = ZodiacSign.allCases[index]
                     let baseAngle = Double(index) * (360.0 / 12.0) - 90
                     let animatedAngle = baseAngle + (isAnimating ? 0 : -30)
                     let radians = animatedAngle * .pi / 180
 
-                    Text(sign.symbol)
-                        .font(.system(size: 22))
+                    ZodiacSymbolView(sign: sign, size: 20, color: CosmicTheme.gold)
                         .offset(
                             x: cos(radians) * 75,
                             y: sin(radians) * 75
@@ -376,9 +375,8 @@ struct OnboardingView: View {
                             )
                     )
 
-                // Sign symbol (revealed as date changes)
-                Text(previewSign.symbol)
-                    .font(.system(size: 50))
+                // Sign symbol (revealed as date changes) - custom glyph
+                ZodiacSymbolView(sign: previewSign, size: 48, color: previewSign.element.color)
                     .scaleEffect(showSignReveal ? 1 : 0.5)
                     .opacity(showSignReveal ? 1 : 0.3)
                     .animation(.spring(response: 0.4), value: showSignReveal)
@@ -428,12 +426,11 @@ struct OnboardingView: View {
 
             // Sign reveal text
             if showSignReveal {
-                HStack(spacing: 6) {
-                    Text(previewSign.symbol)
+                HStack(spacing: 8) {
+                    ZodiacSymbolView(sign: previewSign, size: 18, color: previewSign.element.color)
                     Text("You're a \(previewSign.displayName)!")
-                        .fontWeight(.semibold)
+                        .font(TerminalFont.headline(16))
                 }
-                .font(.headline)
                 .foregroundColor(previewSign.element.color)
                 .transition(.opacity.combined(with: .scale(scale: 0.9)))
             }
@@ -473,11 +470,10 @@ struct OnboardingView: View {
                     .frame(width: 100, height: 100)
                     .overlay(
                         Circle()
-                            .stroke(previewSign.element.color, lineWidth: 2)
+                            .stroke(previewSign.element.color, lineWidth: 1)
                     )
 
-                Text(previewSign.symbol)
-                    .font(.system(size: 50))
+                ZodiacSymbolView(sign: previewSign, size: 48, color: previewSign.element.color)
             }
 
             // Title
@@ -581,19 +577,17 @@ struct OnboardingView: View {
                     )
                     .frame(width: 140, height: 140)
 
-                Text(previewSign.element.emoji)
-                    .font(.system(size: 60))
+                ElementSymbolView(element: previewSign.element, size: 56)
             }
 
             // Element explanation
             VStack(spacing: 16) {
                 Text("Your \(previewSign.element.displayName) Energy")
-                    .font(.title2)
-                    .fontWeight(.bold)
+                    .font(TerminalFont.headline(22))
                     .foregroundColor(CosmicTheme.textPrimary)
 
                 Text("As a \(previewSign.displayName), you're an \(previewSign.element.displayName) sign investor")
-                    .font(.headline)
+                    .font(TerminalFont.data(14, weight: .semibold))
                     .foregroundColor(previewSign.element.color)
             }
 
@@ -636,11 +630,9 @@ struct OnboardingView: View {
             HStack(spacing: 20) {
                 ForEach(ZodiacSign.Element.allCases.filter { $0 != previewSign.element }, id: \.self) { element in
                     VStack(spacing: 4) {
-                        Text(element.emoji)
-                            .font(.title2)
-                            .opacity(0.5)
+                        ElementSymbolView(element: element, size: 24, color: element.color.opacity(0.5))
                         Text(element.displayName)
-                            .font(.caption2)
+                            .font(TerminalFont.data(10))
                             .foregroundColor(CosmicTheme.textMuted)
                     }
                 }
@@ -767,12 +759,10 @@ struct OnboardingView: View {
                     )
                     .frame(width: 160, height: 160)
 
-                // User sign
-                VStack(spacing: 4) {
-                    Text(previewSign.symbol)
-                        .font(.system(size: 60))
-                    Text(previewSign.element.emoji)
-                        .font(.title)
+                // User sign - custom glyphs
+                VStack(spacing: 8) {
+                    ZodiacSymbolView(sign: previewSign, size: 56, color: previewSign.element.color)
+                    ElementSymbolView(element: previewSign.element, size: 24)
                 }
             }
 
@@ -957,19 +947,17 @@ struct StockMatchCard: View {
                         .fill(stock.zodiacSign.element.color.opacity(0.2))
                         .frame(width: 50, height: 50)
 
-                    Text(stock.zodiacSign.symbol)
-                        .font(.title2)
+                    ZodiacSymbolView(sign: stock.zodiacSign, size: 26, color: stock.zodiacSign.element.color)
                 }
 
                 // Stock info
                 VStack(alignment: .leading, spacing: 4) {
                     Text(stock.symbol)
-                        .font(.headline)
-                        .fontWeight(.bold)
+                        .font(TerminalFont.data(15, weight: .bold))
                         .foregroundColor(CosmicTheme.textPrimary)
 
                     Text(stock.name)
-                        .font(.caption)
+                        .font(TerminalFont.data(11))
                         .foregroundColor(CosmicTheme.textSecondary)
                         .lineLimit(1)
                 }
@@ -979,12 +967,11 @@ struct StockMatchCard: View {
                 // Compatibility
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("\(compatibilityScore)%")
-                        .font(.headline)
-                        .fontWeight(.bold)
+                        .font(TerminalFont.price(16))
                         .foregroundColor(CosmicTheme.gold)
 
                     Text("match")
-                        .font(.caption2)
+                        .font(TerminalFont.data(10))
                         .foregroundColor(CosmicTheme.textMuted)
                 }
 

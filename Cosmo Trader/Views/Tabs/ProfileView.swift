@@ -23,6 +23,7 @@ struct ProfileView: View {
     // MARK: - State
 
     @State private var viewModel: ProfileViewModel?
+    @State private var moonService = MoonPhaseService.shared
 
     // MARK: - Computed Properties
 
@@ -151,16 +152,14 @@ struct ProfileView: View {
                     .fill(CosmicTheme.cosmicGradient)
                     .frame(width: 108, height: 108)
 
-                // Zodiac symbol
-                Text(user.sunSign.symbol)
-                    .font(.system(size: 56))
+                // Zodiac symbol - custom glyph
+                ZodiacSymbolView(sign: user.sunSign, size: 52, color: CosmicTheme.gold)
             }
 
             // User name and info
             VStack(spacing: 8) {
                 Text(user.displayName)
-                    .font(.title)
-                    .fontWeight(.bold)
+                    .font(TerminalFont.headline(26))
                     .foregroundColor(CosmicTheme.textPrimary)
 
                 // Birth date
@@ -169,14 +168,14 @@ struct ProfileView: View {
                         .font(.caption)
                     Text(viewModel?.formattedBirthDate ?? "")
                 }
-                .font(.subheadline)
+                .font(TerminalFont.data(13))
                 .foregroundColor(CosmicTheme.textSecondary)
 
                 // Sun sign with element and modality
                 HStack(spacing: 12) {
                     // Sun sign
-                    HStack(spacing: 4) {
-                        Text(user.sunSign.symbol)
+                    HStack(spacing: 6) {
+                        ZodiacSymbolView(sign: user.sunSign, size: 14, color: CosmicTheme.gold)
                         Text(user.sunSign.displayName)
                     }
                     .foregroundColor(CosmicTheme.gold)
@@ -186,7 +185,7 @@ struct ProfileView: View {
 
                     // Element
                     HStack(spacing: 4) {
-                        Text(user.sunSign.element.emoji)
+                        ElementSymbolView(element: user.sunSign.element, size: 12)
                         Text(user.sunSign.element.displayName)
                     }
                     .foregroundColor(user.sunSign.element.color)
@@ -198,8 +197,7 @@ struct ProfileView: View {
                     Text(user.sunSign.modality.displayName)
                         .foregroundColor(CosmicTheme.textSecondary)
                 }
-                .font(.caption)
-                .fontWeight(.medium)
+                .font(TerminalFont.data(11, weight: .medium))
             }
         }
         .frame(maxWidth: .infinity)
@@ -260,10 +258,9 @@ struct ProfileView: View {
 
                 Spacer()
 
-                // Element badge
-                Text(user.sunSign.element.emoji)
-                    .font(.title)
-                    .padding(8)
+                // Element badge - custom symbol
+                ElementSymbolView(element: user.sunSign.element, size: 28)
+                    .padding(10)
                     .background(
                         Circle()
                             .fill(user.sunSign.element.color.opacity(0.2))
@@ -367,9 +364,8 @@ struct ProfileView: View {
 
                 HStack(spacing: 4) {
                     ForEach(viewModel?.bestMatches.prefix(4) ?? [], id: \.self) { sign in
-                        Text(sign.symbol)
-                            .font(.title3)
-                            .padding(6)
+                        ZodiacSymbolView(sign: sign, size: 20, color: CosmicTheme.positive)
+                            .padding(8)
                             .background(
                                 Circle()
                                     .fill(CosmicTheme.positive.opacity(0.2))
@@ -381,15 +377,13 @@ struct ProfileView: View {
             // Challenging matches
             VStack(alignment: .leading, spacing: 8) {
                 Text("Challenging Signs")
-                    .font(.caption)
-                    .fontWeight(.medium)
+                    .font(TerminalFont.data(11, weight: .medium))
                     .foregroundColor(CosmicTheme.textMuted)
 
                 HStack(spacing: 4) {
                     ForEach(viewModel?.challengingMatches.prefix(4) ?? [], id: \.self) { sign in
-                        Text(sign.symbol)
-                            .font(.title3)
-                            .padding(6)
+                        ZodiacSymbolView(sign: sign, size: 20, color: CosmicTheme.negative)
+                            .padding(8)
                             .background(
                                 Circle()
                                     .fill(CosmicTheme.negative.opacity(0.2))
@@ -459,7 +453,7 @@ struct ProfileView: View {
                 // Dominant element
                 if let element = viewModel?.dominantElement {
                     cosmicInsightItem(
-                        emoji: element.emoji,
+                        element: element,
                         label: "Dominant Element",
                         value: element.displayName,
                         color: element.color
@@ -475,7 +469,7 @@ struct ProfileView: View {
                 // Most compatible holding
                 if let stock = viewModel?.mostCompatibleStock {
                     cosmicInsightItem(
-                        emoji: stock.zodiacSign.symbol,
+                        sign: stock.zodiacSign,
                         label: "Best Match Held",
                         value: stock.symbol,
                         color: CosmicTheme.positive
@@ -525,10 +519,9 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func cosmicInsightItem(emoji: String, label: String, value: String, color: Color) -> some View {
+    private func cosmicInsightItem(element: ZodiacSign.Element, label: String, value: String, color: Color) -> some View {
         HStack(spacing: 10) {
-            Text(emoji)
-                .font(.title2)
+            ElementSymbolView(element: element, size: 24, color: color)
                 .padding(8)
                 .background(
                     Circle()
@@ -540,7 +533,29 @@ struct ProfileView: View {
                     .font(.caption2)
                     .foregroundColor(CosmicTheme.textMuted)
                 Text(value)
-                    .font(.subheadline)
+                    .font(TerminalFont.data(13))
+                    .fontWeight(.medium)
+                    .foregroundColor(color)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func cosmicInsightItem(sign: ZodiacSign, label: String, value: String, color: Color) -> some View {
+        HStack(spacing: 10) {
+            ZodiacSymbolView(sign: sign, size: 24, color: color)
+                .padding(8)
+                .background(
+                    Circle()
+                        .fill(color.opacity(0.2))
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.caption2)
+                    .foregroundColor(CosmicTheme.textMuted)
+                Text(value)
+                    .font(TerminalFont.data(13))
                     .fontWeight(.medium)
                     .foregroundColor(color)
             }
@@ -556,12 +571,18 @@ struct ProfileView: View {
                 .font(.headline)
                 .foregroundColor(CosmicTheme.textPrimary)
 
+            // Subscription Status
+            subscriptionSection
+
             // Notifications
             settingsGroup(
                 title: "Notifications",
                 icon: "bell.fill",
                 settings: viewModel?.settings.filter { $0.category == .notifications } ?? []
             )
+
+            // Lunar Alerts (NEW - moon phase notifications)
+            lunarAlertsSection
 
             // Appearance
             settingsGroup(
@@ -576,6 +597,194 @@ struct ProfileView: View {
                 icon: "slider.horizontal.3",
                 settings: viewModel?.settings.filter { $0.category == .preferences } ?? []
             )
+        }
+    }
+
+    // MARK: - Subscription Section
+
+    @ViewBuilder
+    private var subscriptionSection: some View {
+        let subscriptionManager = SubscriptionManager.shared
+
+        VStack(alignment: .leading, spacing: 12) {
+            // Section header
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold)
+                Text("Subscription")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(CosmicTheme.textSecondary)
+            }
+
+            // Status card
+            subscriptionStatusCard(subscriptionManager)
+        }
+    }
+
+    @ViewBuilder
+    private func subscriptionStatusCard(_ manager: SubscriptionManager) -> some View {
+        if manager.isPremium {
+            // Premium user card
+            HStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(CosmicTheme.gold.opacity(0.2))
+                        .frame(width: 48, height: 48)
+
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 20))
+                        .foregroundColor(CosmicTheme.gold)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text("Oracle Tier")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(CosmicTheme.gold)
+
+                        if manager.isInTrial {
+                            Text("TRIAL")
+                                .font(.caption2)
+                                .fontWeight(.bold)
+                                .foregroundColor(CosmicTheme.terminalBlack)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(
+                                    Capsule()
+                                        .fill(CosmicTheme.gold)
+                                )
+                        }
+                    }
+
+                    if manager.isInTrial {
+                        Text("\(manager.trialDaysRemaining) days remaining")
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textSecondary)
+                    } else {
+                        Text("Full cosmic access unlocked")
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textSecondary)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(CosmicTheme.gold)
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(CosmicTheme.gold.opacity(0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(CosmicTheme.gold.opacity(0.3), lineWidth: 1)
+                    )
+            )
+        } else {
+            // Free user card with upgrade prompt
+            SubscriptionUpgradeCard()
+        }
+    }
+
+    // MARK: - Lunar Alerts Section
+
+    private var lunarAlertsSection: some View {
+        let subscriptionManager = SubscriptionManager.shared
+
+        return VStack(alignment: .leading, spacing: 12) {
+            // Section header
+            HStack(spacing: 6) {
+                Image(systemName: "moon.stars.fill")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold)
+                Text("Lunar Alerts")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(CosmicTheme.textSecondary)
+
+                Spacer()
+
+                // Premium badge for premium features
+                if !subscriptionManager.isPremium {
+                    OracleBadge(style: .inline)
+                }
+            }
+
+            // Settings rows
+            VStack(spacing: 0) {
+                // Full moon alert (free)
+                LunarSettingRow(
+                    icon: "🌕",
+                    title: "Full Moon Alert",
+                    subtitle: "Heightened volatility warning",
+                    isEnabled: moonService.notifyOnFullMoon,
+                    onToggle: {
+                        moonService.notifyOnFullMoon.toggle()
+                        moonService.scheduleNotifications()
+                    }
+                )
+
+                Divider()
+                    .background(CosmicTheme.textMuted.opacity(0.2))
+                    .padding(.leading, 48)
+
+                // New moon alert (free)
+                LunarSettingRow(
+                    icon: "🌑",
+                    title: "New Moon Alert",
+                    subtitle: "Fresh cycle notification",
+                    isEnabled: moonService.notifyOnNewMoon,
+                    onToggle: {
+                        moonService.notifyOnNewMoon.toggle()
+                        moonService.scheduleNotifications()
+                    }
+                )
+
+                // Moon in Sign Alert (PREMIUM)
+                if subscriptionManager.isPremium {
+                    Divider()
+                        .background(CosmicTheme.textMuted.opacity(0.2))
+                        .padding(.leading, 48)
+
+                    LunarSettingRow(
+                        icon: "✨",
+                        title: "Moon in Your Sign",
+                        subtitle: "Alert when moon enters \(user.sunSign.displayName)",
+                        isEnabled: moonService.notifyOnMoonInUserSign,
+                        onToggle: {
+                            moonService.notifyOnMoonInUserSign.toggle()
+                            moonService.userSunSign = user.sunSign
+                            moonService.scheduleNotifications()
+                        }
+                    )
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(CosmicTheme.cardBackground)
+            )
+
+            // Premium locked feature (if not premium)
+            if !subscriptionManager.isPremium {
+                FeatureLockedBanner(feature: .moonSignAlerts)
+            }
+
+            // Info text
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "info.circle")
+                    .font(.caption2)
+                    .foregroundColor(CosmicTheme.textMuted)
+
+                Text("Alerts sent 1 day before and on the day of significant lunar events")
+                    .font(.caption2)
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+            .padding(.horizontal, 4)
         }
     }
 
@@ -618,6 +827,9 @@ struct ProfileView: View {
 
     private var funExtrasSection: some View {
         VStack(spacing: 12) {
+            // THE COSMIC ROAST - Viral share feature
+            CosmicRoastCard(user: user)
+
             // Share profile button
             Button(action: { viewModel?.showingShareSheet = true }) {
                 HStack {
@@ -759,6 +971,48 @@ struct ShareSheet: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+// MARK: - Lunar Setting Row
+
+struct LunarSettingRow: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    let isEnabled: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Moon emoji icon
+            Text(icon)
+                .font(.title2)
+                .frame(width: 32)
+
+            // Labels
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundColor(CosmicTheme.textPrimary)
+
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+
+            Spacer()
+
+            // Toggle
+            Toggle("", isOn: Binding(
+                get: { isEnabled },
+                set: { _ in onToggle() }
+            ))
+            .tint(CosmicTheme.gold)
+            .labelsHidden()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
 }
 
 // MARK: - Preview

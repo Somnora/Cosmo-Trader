@@ -170,17 +170,15 @@ struct ZodiacWheelView: View {
             if let selected = selectedElement {
                 // Show selected element info
                 VStack(spacing: 4) {
-                    Text(selected.emoji)
-                        .font(.title)
+                    ElementSymbolView(element: selected, size: 28)
 
                     Text(selected.displayName)
-                        .font(.caption)
-                        .fontWeight(.semibold)
+                        .font(TerminalFont.data(11, weight: .semibold))
                         .foregroundColor(CosmicTheme.textPrimary)
 
                     let pct = breakdown.first { $0.element == selected }?.formattedPercentage ?? "0%"
                     Text(pct)
-                        .font(.caption2)
+                        .font(TerminalFont.data(10))
                         .foregroundColor(CosmicTheme.textSecondary)
                 }
             } else {
@@ -247,18 +245,16 @@ struct ZodiacWheelView: View {
                 )
                 .animation(.spring(response: 0.3), value: isSelected)
 
-            // Element emoji and name
+            // Element symbol and name
             VStack(spacing: 2) {
-                Text(element.emoji)
-                    .font(.caption)
+                ElementSymbolView(element: element, size: 14)
 
                 Text(String(format: "%.0f%%", percentage))
-                    .font(.caption2)
-                    .fontWeight(.semibold)
+                    .font(TerminalFont.data(10, weight: .semibold))
                     .foregroundColor(isSelected ? CosmicTheme.gold : CosmicTheme.textPrimary)
 
                 Text("\(stockCount)")
-                    .font(.system(size: 9))
+                    .font(TerminalFont.data(9))
                     .foregroundColor(CosmicTheme.textMuted)
             }
         }
@@ -276,16 +272,15 @@ struct ZodiacWheelView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Header with insight
             HStack {
-                Text(element.emoji)
-                    .font(.title2)
+                ElementSymbolView(element: element, size: 28)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(element.displayName) Holdings")
-                        .font(.headline)
+                        .font(TerminalFont.headline(16))
                         .foregroundColor(CosmicTheme.textPrimary)
 
                     Text(insightForElement(element))
-                        .font(.caption)
+                        .font(TerminalFont.data(11))
                         .foregroundColor(CosmicTheme.textSecondary)
                         .italic()
                 }
@@ -332,17 +327,19 @@ struct ZodiacWheelView: View {
 
     private func elementStockRow(stock: Stock) -> some View {
         HStack(spacing: 10) {
-            Text(stock.zodiacSign.symbol)
-                .font(.title3)
+            ZodiacSymbolView(
+                sign: stock.zodiacSign,
+                size: 22,
+                color: colorForElement(stock.zodiacSign.element)
+            )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(stock.symbol)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(TerminalFont.data(13, weight: .semibold))
                     .foregroundColor(CosmicTheme.textPrimary)
 
                 Text(stock.name)
-                    .font(.caption2)
+                    .font(TerminalFont.data(10))
                     .foregroundColor(CosmicTheme.textMuted)
                     .lineLimit(1)
             }
@@ -351,12 +348,11 @@ struct ZodiacWheelView: View {
 
             VStack(alignment: .trailing, spacing: 2) {
                 Text(stock.formattedTotalValue)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(TerminalFont.price(13))
                     .foregroundColor(CosmicTheme.textPrimary)
 
                 Text(stock.formattedPercentageChange)
-                    .font(.caption2)
+                    .font(TerminalFont.data(10))
                     .foregroundColor(stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
             }
         }

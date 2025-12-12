@@ -3,16 +3,17 @@ import Foundation
 // MARK: - HoroscopeGenerator
 // ===========================
 // A service that generates personalized daily portfolio horoscopes
-// in a Co-Star style voice: witty, direct, slightly nihilistic.
+// with a sharp, Bloomberg-meets-Co-Star voice: witty, specific, actually insightful.
 //
 // The generator analyzes:
-// - User's sun sign
-// - Portfolio performance (up/down/flat)
-// - Dominant element in portfolio
+// - User's sun sign (and uses sign-specific personality traits)
+// - Portfolio performance with real numbers
+// - Dominant element and balance
 // - Current planetary events
-// - Specific stock movements
+// - Specific stock movements by name
+// - Time of day / market status
 //
-// Output is a 2-4 sentence reading that feels personal and insightful.
+// Output is a 2-4 sentence reading that feels personal, specific, and useful.
 
 struct HoroscopeGenerator {
 
@@ -24,36 +25,430 @@ struct HoroscopeGenerator {
         planetaryEvents: [PlanetaryEvent] = PlanetaryEvent.currentEvents
     ) -> DailyHoroscope {
 
-        let performance = analyzePerformance(user: user)
-        let dominantElement = findDominantElement(in: user)
-        let relevantEvent = findRelevantEvent(for: user.sunSign, events: planetaryEvents)
+        let context = buildContext(for: user, events: planetaryEvents)
 
-        // Build the horoscope from templates
-        let opening = selectOpening(performance: performance, sign: user.sunSign)
-        let middle = selectMiddle(
-            performance: performance,
-            element: dominantElement,
-            topStock: performance.topGainer,
-            bottomStock: performance.topLoser,
-            sign: user.sunSign
-        )
-        let closing = selectClosing(
-            performance: performance,
-            event: relevantEvent,
-            sign: user.sunSign
-        )
+        // Build the horoscope from specialized templates
+        var reading = buildReading(context: context)
+
+        // Clean up any double spaces
+        reading = reading.replacingOccurrences(of: "  ", with: " ")
 
         return DailyHoroscope(
             date: Date(),
             sign: user.sunSign,
-            reading: "\(opening) \(middle) \(closing)",
-            performance: performance,
-            relevantEvent: relevantEvent,
-            dominantElement: dominantElement
+            reading: reading,
+            performance: context.performance,
+            relevantEvent: context.relevantEvent,
+            dominantElement: context.dominantElement
         )
     }
 
-    // MARK: - Performance Analysis
+    // MARK: - Context Building
+
+    private static func buildContext(
+        for user: UserProfile,
+        events: [PlanetaryEvent]
+    ) -> HoroscopeContext {
+
+        let performance = analyzePerformance(user: user)
+        let dominantElement = findDominantElement(in: user)
+        let relevantEvent = findRelevantEvent(for: user.sunSign, events: events)
+        let portfolioAnalysis = analyzePortfolioComposition(user: user)
+        let timeContext = analyzeTimeContext()
+
+        return HoroscopeContext(
+            user: user,
+            performance: performance,
+            dominantElement: dominantElement,
+            relevantEvent: relevantEvent,
+            portfolioAnalysis: portfolioAnalysis,
+            timeContext: timeContext
+        )
+    }
+
+    // MARK: - Reading Construction
+
+    private static func buildReading(context: HoroscopeContext) -> String {
+        var parts: [String] = []
+
+        // 1. Time-aware opener (if market timing is relevant)
+        if let timeOpener = selectTimeAwareOpener(context: context) {
+            parts.append(timeOpener)
+        }
+
+        // 2. Main observation (performance + specifics)
+        parts.append(selectMainObservation(context: context))
+
+        // 3. Sign-specific insight (personality-aware)
+        if Bool.random() || parts.count < 2 {
+            parts.append(selectSignSpecificInsight(context: context))
+        }
+
+        // 4. Closing wisdom or question
+        parts.append(selectClosing(context: context))
+
+        return parts.joined(separator: " ")
+    }
+
+    // MARK: - Time-Aware Opener
+
+    private static func selectTimeAwareOpener(context: HoroscopeContext) -> String? {
+        let timeContext = context.timeContext
+
+        // Only include time-aware opener ~40% of the time to vary readings
+        guard Bool.random() || timeContext.isWeekend || timeContext.isAfterHours else {
+            return nil
+        }
+
+        switch timeContext.period {
+        case .preMarket:
+            return [
+                "Markets open in \(timeContext.minutesToOpen ?? 0 > 60 ? "a few hours" : "\(timeContext.minutesToOpen ?? 60) minutes"). Your anxiety opened earlier.",
+                "Pre-market futures are moving. Your blood pressure is keeping pace.",
+                "The opening bell hasn't rung, but your portfolio thoughts are already loud.",
+            ].randomElement()
+
+        case .marketOpen:
+            return [
+                "Markets just opened. The chaos is fresh.",
+                "First hour volatility is doing its thing.",
+                "Opening bell energy: chaotic neutral.",
+            ].randomElement()
+
+        case .midDay:
+            return nil // Don't always need a time opener
+
+        case .powerHour:
+            return [
+                "Power hour approaches. Amateur hour ends.",
+                "The last hour of trading. Where paper hands fold and diamond hands pretend they're not nervous.",
+            ].randomElement()
+
+        case .afterHours:
+            return [
+                "Markets are closed. Your portfolio can't hurt you until tomorrow.",
+                "After-hours trading exists. Your ulcer doesn't care about market hours.",
+                "The closing bell rang. Your positions are locked in their cells until 9:30 AM.",
+            ].randomElement()
+
+        case .weekend:
+            return [
+                "No trading today. The cosmos suggest touching grass.",
+                "Markets are closed. Your portfolio is taking a much-needed break from your scrutiny.",
+                "It's the weekend. The only green you should be watching is in your backyard.",
+                "Two days without price movements. However will you cope.",
+            ].randomElement()
+        }
+    }
+
+    // MARK: - Main Observation
+
+    private static func selectMainObservation(context: HoroscopeContext) -> String {
+        let perf = context.performance
+        let user = context.user
+
+        // Build observation with real specifics
+        var observation: String
+
+        switch perf.sentiment {
+        case .veryPositive:
+            observation = selectVeryPositiveObservation(context: context)
+        case .positive:
+            observation = selectPositiveObservation(context: context)
+        case .flat:
+            observation = selectFlatObservation(context: context)
+        case .negative:
+            observation = selectNegativeObservation(context: context)
+        case .veryNegative:
+            observation = selectVeryNegativeObservation(context: context)
+        }
+
+        return observation
+            .replacingOccurrences(of: "{change}", with: String(format: "%.1f%%", abs(perf.overallChange)))
+            .replacingOccurrences(of: "{sign}", with: user.sunSign.displayName)
+            .replacingOccurrences(of: "{element}", with: context.dominantElement?.displayName ?? "cosmic")
+    }
+
+    private static func selectVeryPositiveObservation(context: HoroscopeContext) -> String {
+        let templates: [String]
+
+        if let gainer = context.performance.topGainer {
+            templates = [
+                "\(gainer.name)'s \(gainer.formattedPercentageChange) surge is carrying your portfolio today. \(gainer.zodiacSign.displayName) energy said 'you're welcome.'",
+                "Your portfolio is up {change}. \(gainer.symbol) is doing the heavy lifting while the rest of your picks watch.",
+                "\(gainer.symbol)'s \(gainer.zodiacSign.displayName) confidence is radiating through your account. {change} up and counting.",
+                "The {change} gain is real. \(gainer.name) remembered it has shareholders to impress.",
+            ]
+        } else {
+            templates = [
+                "Your portfolio is up {change}. Even you seem surprised.",
+                "{change} gain. The cosmos aligned, or the market did. Take the win, {sign}.",
+                "Everything's green. Enjoy it. Screenshot it. This feeling is temporary.",
+            ]
+        }
+
+        return templates.randomElement() ?? templates[0]
+    }
+
+    private static func selectPositiveObservation(context: HoroscopeContext) -> String {
+        let analysis = context.portfolioAnalysis
+
+        var templates = [
+            "Your portfolio is up {change}. Not life-changing, but enough to feel smug at dinner.",
+            "A modest {change} gain. The universe gave what it could spare today.",
+            "{change} up. Your {element} holdings are pulling their weight, barely.",
+        ]
+
+        // Add element-specific observation
+        if let element = context.dominantElement {
+            switch element {
+            case .earth:
+                templates.append("Your Earth holdings are doing what Earth holdings do: not much. That's the point.")
+            case .fire:
+                templates.append("Fire signs in your portfolio are warming up. Not burning yet, but the heat is building.")
+            case .air:
+                templates.append("Your Air holdings are thinking about gains. Whether they'll act on those thoughts is another matter.")
+            case .water:
+                templates.append("Water energy flows through your portfolio. Slow, steady, occasionally drowning your impatience.")
+            }
+        }
+
+        // Add concentration insight
+        if analysis.techPercentage > 60 {
+            templates.append("You're \(Int(analysis.techPercentage))% tech. That's a bet on growth over stability. Own it or rebalance.")
+        }
+
+        return templates.randomElement() ?? templates[0]
+    }
+
+    private static func selectFlatObservation(context: HoroscopeContext) -> String {
+        let analysis = context.portfolioAnalysis
+
+        var templates = [
+            "Your portfolio moved {change}. The market equivalent of a shrug emoji.",
+            "Nothing happened today. Your positions are in a holding pattern, and so is your blood pressure.",
+            "Flat. The cosmos has no opinion on your stocks today. Neither does anyone else, apparently.",
+            "Zero percent change energy. The universe is edging you.",
+        ]
+
+        // Add balance insight
+        if analysis.isWellBalanced {
+            templates.append("Your portfolio's elemental balance is showing: gains and losses cancel out. Diversification working as intended, for better or worse.")
+        }
+
+        if let loser = context.performance.topLoser,
+           let gainer = context.performance.topGainer,
+           abs(loser.percentageChange) > 1 && gainer.percentageChange > 1 {
+            templates.append("\(gainer.symbol) is up, \(loser.symbol) is down. The net effect? You're standing still while running in place.")
+        }
+
+        return templates.randomElement() ?? templates[0]
+    }
+
+    private static func selectNegativeObservation(context: HoroscopeContext) -> String {
+        var templates: [String]
+
+        if let loser = context.performance.topLoser {
+            templates = [
+                "Your portfolio's {change} dip is Saturn saying 'I told you so.' \(loser.symbol) took the hint personally.",
+                "\(loser.name)'s \(loser.formattedPercentageChange) slide is testing your conviction. \(loser.zodiacSign.displayName) mood swings are real.",
+                "\(loser.symbol) is having an existential crisis. Your portfolio is having one too, down {change}.",
+                "The {change} loss has a face: \(loser.symbol). Don't take it personally. Or do. The stock doesn't care.",
+            ]
+        } else {
+            templates = [
+                "Down {change}. Not devastating, but enough to ruin the vibes.",
+                "Your portfolio is {change} lighter. The cosmos calls it a 'learning opportunity.' You call it Tuesday.",
+                "A {change} dip. The universe is editing your net worth downward today.",
+            ]
+        }
+
+        return templates.randomElement() ?? templates[0]
+    }
+
+    private static func selectVeryNegativeObservation(context: HoroscopeContext) -> String {
+        var templates: [String]
+
+        if let loser = context.performance.topLoser {
+            templates = [
+                "Mercury retrograde isn't why \(loser.symbol) dropped \(loser.formattedPercentageChange). But it's a convenient excuse.",
+                "\(loser.name) said 'not today' and took your portfolio down {change} with it. \(loser.zodiacSign.displayName) chaos.",
+                "Your portfolio is down {change}. \(loser.symbol) is the main character in this tragedy.",
+                "The void stared back today, and \(loser.symbol)'s \(loser.formattedPercentageChange) drop was its hello.",
+            ]
+        } else {
+            templates = [
+                "Down {change}. The cosmos didn't do this. The market did. But blame Pluto anyway.",
+                "Your portfolio lost {change}. Some days the universe tests you. Today it's a final exam.",
+                "{change} loss. Time in the market beats timing the market. Doesn't make today feel better, though.",
+            ]
+        }
+
+        // Add holdings count context
+        if context.portfolioAnalysis.holdingsCount > 8 {
+            templates.append("With \(context.portfolioAnalysis.holdingsCount) positions, this {change} loss is a team effort. No single stock to blame.")
+        }
+
+        return templates.randomElement() ?? templates[0]
+    }
+
+    // MARK: - Sign-Specific Insight
+
+    private static func selectSignSpecificInsight(context: HoroscopeContext) -> String {
+        let sign = context.user.sunSign
+        let perf = context.performance
+
+        // Sign-specific observations that use actual personality traits
+        switch sign {
+        case .aries:
+            return [
+                "As an Aries, your instinct is to double down. Your wallet asks that you don't.",
+                "Aries impatience says sell. Saturn says wait. You'll do whatever you want anyway.",
+                "Your Aries energy wants action. Sometimes the action is doing nothing.",
+            ].randomElement()!
+
+        case .taurus:
+            return [
+                "Taurus stubbornness is an asset in investing. Unless you're stubborn about the wrong pick.",
+                "As a Taurus, you hate change. Your portfolio is testing that.",
+                "Bull energy in a bull market is redundant. In a bear market, it's resilience.",
+            ].randomElement()!
+
+        case .gemini:
+            return [
+                "Your Gemini brain has already considered three contradictory strategies. Pick one.",
+                "Both sides of your Gemini nature have opinions on this portfolio. Neither is wrong. Neither is right.",
+                "As a Gemini, you've already rationalized both selling and buying more. Impressive.",
+            ].randomElement()!
+
+        case .cancer:
+            return [
+                "Your Cancer intuition says something. Whether it's market wisdom or anxiety is unclear.",
+                "As a Cancer, you're emotionally attached to at least one of these positions. That's fine until it isn't.",
+                "Cancer loyalty to your picks is admirable. Sometimes it's also expensive.",
+            ].randomElement()!
+
+        case .leo:
+            return [
+                "Leo confidence in your portfolio is unshaken. Whether it's warranted is another matter.",
+                "As a Leo, you expect your stocks to perform. They're aware of your expectations. They don't care.",
+                "Your Leo energy demands attention. Your portfolio's performance is... quieter.",
+            ].randomElement()!
+
+        case .virgo:
+            return [
+                "As a Virgo, you've already noticed the 0.01% discrepancy in the math. Relax.",
+                "Virgo analysis paralysis is real. You've run the numbers. Run them again if you must.",
+                "Your Virgo precision wants perfect entries. Markets don't offer perfect, only available.",
+            ].randomElement()!
+
+        case .libra:
+            return [
+                "Libra indecision is showing. Your portfolio balance is showing too. Maybe that's enough.",
+                "As a Libra, you've weighed every option twice. The market moved while you deliberated.",
+                "Your Libra need for harmony conflicts with volatility. Volatility doesn't negotiate.",
+            ].randomElement()!
+
+        case .scorpio:
+            return [
+                "Scorpio intensity is overkill for portfolio management. But you'll be intense anyway.",
+                "As a Scorpio, you're already planning revenge on the stock that betrayed you. It's a company, not a person.",
+                "Your Scorpio instincts sense something. Market wisdom or paranoia? Time will tell.",
+            ].randomElement()!
+
+        case .sagittarius:
+            return [
+                "Sagittarius optimism says everything will be fine. Math says review your positions.",
+                "As a Sagittarius, you're already looking at the next shiny opportunity. Focus.",
+                "Your Sagittarius wanderlust wants exotic investments. Your risk tolerance should weigh in.",
+            ].randomElement()!
+
+        case .capricorn:
+            return [
+                "Capricorn discipline is your edge. Unless you're disciplined about the wrong strategy.",
+                "As a Capricorn, you've already planned through seven market scenarios. Number eight will surprise you.",
+                "Your Capricorn work ethic applies to your portfolio. Unfortunately, stocks don't care how hard you research.",
+            ].randomElement()!
+
+        case .aquarius:
+            return [
+                "Aquarius contrarianism is interesting. Buying what everyone else sells works until it doesn't.",
+                "As an Aquarius, your portfolio is probably 'different.' Whether different means better is the question.",
+                "Your Aquarius vision sees future value. The market sees today's price. Patience.",
+            ].randomElement()!
+
+        case .pisces:
+            return [
+                "Pisces intuition is valuable. Just don't let it override the spreadsheet entirely.",
+                "As a Pisces, you feel your portfolio more than analyze it. Both have value.",
+                "Your Pisces sensitivity to market vibes is real. So is the need for stop losses.",
+            ].randomElement()!
+        }
+    }
+
+    // MARK: - Closing
+
+    private static func selectClosing(context: HoroscopeContext) -> String {
+        var templates: [String] = []
+
+        // Event-based closings
+        if let event = context.relevantEvent {
+            switch event.type {
+            case .retrograde:
+                templates += [
+                    "With \(event.planet) retrograde, review your positions. Or don't. Free will is yours.",
+                    "The retrograde asks you to reconsider. Your confirmation bias says you're right. Someone's wrong.",
+                ]
+            case .conjunction:
+                templates += [
+                    "This cosmic conjunction amplifies everything. Including your tendency to overthink.",
+                ]
+            case .moonPhase:
+                templates += [
+                    "The current lunar phase favors patience. Your refresh button disagrees.",
+                ]
+            case .transit:
+                templates += [
+                    "Planetary movement suggests movement. Whether your portfolio cooperates is its choice.",
+                ]
+            }
+        }
+
+        // Performance-based closings
+        switch context.performance.sentiment {
+        case .veryPositive, .positive:
+            templates += [
+                "Did you check your portfolio or just your horoscope? Both confirm you're fine.",
+                "Enjoy the green. Resist the urge to tell everyone about it.",
+                "Gains today. Try not to calculate what you'd have if you'd bought more.",
+            ]
+        case .flat:
+            templates += [
+                "Sometimes doing nothing is the move. Today confirmed that.",
+                "The universe offers no clear direction. Make peace with ambiguity.",
+                "Flat markets build character. Or boredom. Similar outcomes.",
+            ]
+        case .negative, .veryNegative:
+            templates += [
+                "Tomorrow is a new trading day. The stars will still be there, indifferent as always.",
+                "This too shall pass. Your position doesn't have to, but it could.",
+                "The cosmos tests those it... actually, it tests everyone. You're not special. Neither are your losses.",
+            ]
+        }
+
+        // Add occasional question
+        if Bool.random() {
+            templates += [
+                "Did you check your watchlist or just your ex's Instagram?",
+                "What would you do if you weren't staring at a chart?",
+                "Have you considered that some questions don't have answers?",
+            ]
+        }
+
+        return templates.randomElement() ?? "The cosmos offers no further comment."
+    }
+
+    // MARK: - Analysis Helpers
 
     private static func analyzePerformance(user: UserProfile) -> PortfolioPerformance {
         let holdings = user.portfolio.filter { $0.sharesOwned > 0 }
@@ -117,111 +512,113 @@ struct HoroscopeGenerator {
         for sign: ZodiacSign,
         events: [PlanetaryEvent]
     ) -> PlanetaryEvent? {
-        // Find an event affecting the user's sign or element
         return events.first { event in
             event.affectedSigns.contains(sign) || event.affectedElements.contains(sign.element)
         } ?? events.first
     }
 
-    // MARK: - Template Selection
+    private static func analyzePortfolioComposition(user: UserProfile) -> PortfolioAnalysis {
+        let holdings = user.portfolio.filter { $0.sharesOwned > 0 }
+        let totalValue = holdings.reduce(0.0) { $0 + $1.totalValue }
 
-    private static func selectOpening(
-        performance: PortfolioPerformance,
-        sign: ZodiacSign
-    ) -> String {
-        let templates: [String]
-
-        switch performance.sentiment {
-        case .veryPositive:
-            templates = OpeningTemplates.veryPositive
-        case .positive:
-            templates = OpeningTemplates.positive
-        case .flat:
-            templates = OpeningTemplates.flat
-        case .negative:
-            templates = OpeningTemplates.negative
-        case .veryNegative:
-            templates = OpeningTemplates.veryNegative
+        guard totalValue > 0 else {
+            return PortfolioAnalysis(
+                holdingsCount: 0,
+                techPercentage: 0,
+                isWellBalanced: false,
+                largestPosition: nil,
+                smallestPosition: nil
+            )
         }
 
-        let template = templates.randomElement() ?? templates[0]
-        return template
-            .replacingOccurrences(of: "{sign}", with: sign.displayName)
-            .replacingOccurrences(of: "{change}", with: String(format: "%.1f%%", abs(performance.overallChange)))
+        // Calculate tech percentage (Fire + Air signs are typically tech/growth)
+        let techValue = holdings
+            .filter { $0.zodiacSign.element == .fire || $0.zodiacSign.element == .air }
+            .reduce(0.0) { $0 + $1.totalValue }
+        let techPercentage = (techValue / totalValue) * 100
+
+        // Check balance across elements
+        var elementPercentages: [ZodiacSign.Element: Double] = [:]
+        for element in ZodiacSign.Element.allCases {
+            let elementValue = holdings
+                .filter { $0.zodiacSign.element == element }
+                .reduce(0.0) { $0 + $1.totalValue }
+            elementPercentages[element] = (elementValue / totalValue) * 100
+        }
+        let maxElementPct = elementPercentages.values.max() ?? 0
+        let isWellBalanced = maxElementPct < 40
+
+        let largestPosition = holdings.max(by: { $0.totalValue < $1.totalValue })
+        let smallestPosition = holdings.min(by: { $0.totalValue < $1.totalValue })
+
+        return PortfolioAnalysis(
+            holdingsCount: holdings.count,
+            techPercentage: techPercentage,
+            isWellBalanced: isWellBalanced,
+            largestPosition: largestPosition,
+            smallestPosition: smallestPosition
+        )
     }
 
-    private static func selectMiddle(
-        performance: PortfolioPerformance,
-        element: ZodiacSign.Element?,
-        topStock: Stock?,
-        bottomStock: Stock?,
-        sign: ZodiacSign
-    ) -> String {
-        var templates: [String] = []
+    private static func analyzeTimeContext() -> TimeContext {
+        let now = Date()
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: now)
+        let minute = calendar.component(.minute, from: now)
+        let weekday = calendar.component(.weekday, from: now)
 
-        // Add element-based templates if we have a dominant element
-        if let element = element {
-            templates += MiddleTemplates.byElement[element] ?? []
+        // Weekend check (Saturday = 7, Sunday = 1)
+        let isWeekend = weekday == 1 || weekday == 7
+
+        if isWeekend {
+            return TimeContext(
+                period: .weekend,
+                isWeekend: true,
+                isAfterHours: true,
+                minutesToOpen: nil,
+                minutesToClose: nil
+            )
         }
 
-        // Add stock-specific templates if we have notable movers
-        if let gainer = topStock, gainer.percentageChange > 1.0 {
-            templates += MiddleTemplates.topGainer.map { template in
-                template
-                    .replacingOccurrences(of: "{stock}", with: gainer.name)
-                    .replacingOccurrences(of: "{symbol}", with: gainer.symbol)
-                    .replacingOccurrences(of: "{change}", with: gainer.formattedPercentageChange)
-                    .replacingOccurrences(of: "{stockSign}", with: gainer.zodiacSign.displayName)
-            }
+        // Market hours: 9:30 AM - 4:00 PM ET
+        let totalMinutes = hour * 60 + minute
+        let marketOpen = 9 * 60 + 30   // 9:30 AM
+        let marketClose = 16 * 60       // 4:00 PM
+        let powerHourStart = 15 * 60   // 3:00 PM
+
+        let period: MarketPeriod
+        let isAfterHours: Bool
+        var minutesToOpen: Int? = nil
+        var minutesToClose: Int? = nil
+
+        if totalMinutes < marketOpen {
+            period = .preMarket
+            isAfterHours = true
+            minutesToOpen = marketOpen - totalMinutes
+        } else if totalMinutes < marketOpen + 30 {
+            period = .marketOpen
+            isAfterHours = false
+            minutesToClose = marketClose - totalMinutes
+        } else if totalMinutes < powerHourStart {
+            period = .midDay
+            isAfterHours = false
+            minutesToClose = marketClose - totalMinutes
+        } else if totalMinutes < marketClose {
+            period = .powerHour
+            isAfterHours = false
+            minutesToClose = marketClose - totalMinutes
+        } else {
+            period = .afterHours
+            isAfterHours = true
         }
 
-        if let loser = bottomStock, loser.percentageChange < -1.0 {
-            templates += MiddleTemplates.topLoser.map { template in
-                template
-                    .replacingOccurrences(of: "{stock}", with: loser.name)
-                    .replacingOccurrences(of: "{symbol}", with: loser.symbol)
-                    .replacingOccurrences(of: "{change}", with: loser.formattedPercentageChange)
-                    .replacingOccurrences(of: "{stockSign}", with: loser.zodiacSign.displayName)
-            }
-        }
-
-        // Fallback templates
-        if templates.isEmpty {
-            templates = MiddleTemplates.generic
-        }
-
-        let template = templates.randomElement() ?? "The stars are silent on specifics today."
-        return template
-            .replacingOccurrences(of: "{sign}", with: sign.displayName)
-            .replacingOccurrences(of: "{element}", with: element?.displayName ?? "elemental")
-    }
-
-    private static func selectClosing(
-        performance: PortfolioPerformance,
-        event: PlanetaryEvent?,
-        sign: ZodiacSign
-    ) -> String {
-        var templates: [String] = []
-
-        // Add event-based closings if relevant
-        if let event = event {
-            templates += ClosingTemplates.byEventType[event.type] ?? []
-        }
-
-        // Add sentiment-based closings
-        switch performance.sentiment {
-        case .veryPositive, .positive:
-            templates += ClosingTemplates.positive
-        case .flat:
-            templates += ClosingTemplates.neutral
-        case .negative, .veryNegative:
-            templates += ClosingTemplates.negative
-        }
-
-        let template = templates.randomElement() ?? "The cosmos offers no further comment."
-        return template
-            .replacingOccurrences(of: "{sign}", with: sign.displayName)
-            .replacingOccurrences(of: "{planet}", with: event?.planet ?? "Mercury")
+        return TimeContext(
+            period: period,
+            isWeekend: false,
+            isAfterHours: isAfterHours,
+            minutesToOpen: minutesToOpen,
+            minutesToClose: minutesToClose
+        )
     }
 }
 
@@ -263,148 +660,42 @@ struct DailyHoroscope: Identifiable {
     }
 }
 
-// MARK: - Template Collections
+// MARK: - Context Types
 
-/// Opening lines based on market performance
-private enum OpeningTemplates {
-
-    static let veryPositive = [
-        "The universe is showing off today, {sign}.",
-        "Even the cosmos couldn't ignore your portfolio's {change} surge.",
-        "Jupiter sends its regards through your green numbers.",
-        "Today the stars aligned—literally. Your portfolio thanks them.",
-        "The celestial odds were in your favor, {sign}. Don't get used to it."
-    ]
-
-    static let positive = [
-        "A gentle cosmic breeze lifts your holdings today, {sign}.",
-        "Venus smiles on your portfolio, if only slightly.",
-        "The stars didn't promise much, but they delivered something.",
-        "A {change} gain. Small victories are still victories, {sign}.",
-        "The universe offers you a modest green today. Accept it gracefully."
-    ]
-
-    static let flat = [
-        "The moon is void-of-course and so is your portfolio's direction.",
-        "Today the cosmos shrugged at your holdings, {sign}.",
-        "Neither blessing nor curse—the stars are indifferent today.",
-        "Your portfolio exists in a state of cosmic pause.",
-        "The universe has no opinion on your stocks today. Rare neutrality."
-    ]
-
-    static let negative = [
-        "The stars are testing your resolve today, {sign}.",
-        "Saturn's lessons arrive in the form of red numbers.",
-        "Not every day is a manifestation success. Today proves it.",
-        "The cosmos asks: did you really need that {change} anyway?",
-        "A minor cosmic correction. The universe is editing your expectations."
-    ]
-
-    static let veryNegative = [
-        "Mercury retrograde is not why your portfolio is down. But blame it anyway.",
-        "The void stared back today, {sign}. And it brought receipts.",
-        "Some days the cosmos tests you. Today it's a pop quiz.",
-        "Your {change} loss is just the universe's way of keeping you humble.",
-        "Pluto demands transformation. Starting with your account balance."
-    ]
+/// Full context for horoscope generation
+struct HoroscopeContext {
+    let user: UserProfile
+    let performance: PortfolioPerformance
+    let dominantElement: ZodiacSign.Element?
+    let relevantEvent: PlanetaryEvent?
+    let portfolioAnalysis: PortfolioAnalysis
+    let timeContext: TimeContext
 }
 
-/// Middle content referencing elements and specific stocks
-private enum MiddleTemplates {
-
-    static let byElement: [ZodiacSign.Element: [String]] = [
-        .fire: [
-            "Your Fire holdings burn bright—perhaps too bright.",
-            "Fire energy dominates your portfolio. Bold, but watch for burns.",
-            "The flames of your Fire stocks flicker with potential.",
-            "Aries, Leo, Sagittarius energy courses through your positions. Stay sharp."
-        ],
-        .earth: [
-            "Your Earth holdings remain grounded. Boring? Maybe. Stable? Absolutely.",
-            "Taurus energy keeps your portfolio stubborn in the face of volatility.",
-            "The Earth signs in your portfolio are doing what Earth signs do: enduring.",
-            "Your practical Earth holdings won't make headlines. That's the point."
-        ],
-        .air: [
-            "Your Air holdings drift with intellectual promise.",
-            "Gemini, Libra, Aquarius energy swirls through your positions. Overthinking incoming.",
-            "Air dominates your portfolio—ideas over execution, as always.",
-            "Your Air stocks think they're smarter than the market. Sometimes they are."
-        ],
-        .water: [
-            "Your Water holdings flow with emotional intelligence today.",
-            "Cancer, Scorpio, Pisces energy runs deep in your portfolio.",
-            "Trust your gut on these Water holdings. Or don't. The moon doesn't care.",
-            "Water signs rule your portfolio. Intuition is your only strategy now."
-        ]
-    ]
-
-    static let topGainer = [
-        "That {change} gain in {stock}? You didn't manifest it, but you can pretend you did.",
-        "{symbol}'s rise feels personal. It isn't, but let yourself have this.",
-        "{stock} ({stockSign} energy) is having a moment. Bask in reflected glory.",
-        "Your {symbol} position proves even broken clocks are right sometimes."
-    ]
-
-    static let topLoser = [
-        "{stock}'s {change} drop isn't personal. The universe doesn't know your brokerage password.",
-        "Blaming Mercury for {symbol}'s decline feels better than blaming yourself.",
-        "{stock} is in its flop era. {stockSign} energy needs a nap.",
-        "Your {symbol} position is teaching you about non-attachment. How Buddhist."
-    ]
-
-    static let generic = [
-        "Your positions hold steady in the cosmic current.",
-        "The stars see your portfolio but choose not to comment.",
-        "Your holdings exist. The universe acknowledges this and nothing more.",
-        "No individual stock demands cosmic attention today. Peaceful? Or ominous?"
-    ]
+/// Analysis of portfolio composition
+struct PortfolioAnalysis {
+    let holdingsCount: Int
+    let techPercentage: Double
+    let isWellBalanced: Bool
+    let largestPosition: Stock?
+    let smallestPosition: Stock?
 }
 
-/// Closing advice and reflections
-private enum ClosingTemplates {
+/// Time-related context for the reading
+struct TimeContext {
+    let period: MarketPeriod
+    let isWeekend: Bool
+    let isAfterHours: Bool
+    let minutesToOpen: Int?
+    let minutesToClose: Int?
+}
 
-    static let byEventType: [PlanetaryEventType: [String]] = [
-        .retrograde: [
-            "With {planet} retrograde, review before you trade. Or don't. Free will exists.",
-            "The retrograde asks you to reconsider. Will you? Probably not.",
-            "Retrograde energy suggests patience. The market suggests otherwise."
-        ],
-        .conjunction: [
-            "This cosmic conjunction amplifies everything. Including your anxiety.",
-            "Two planets align. Your portfolio may or may not notice.",
-            "Celestial convergence promises intensity. Define 'promise' loosely."
-        ],
-        .moonPhase: [
-            "This lunar phase favors introspection over action.",
-            "The moon's current state suggests holding. Emotionally and financially.",
-            "Let the moon handle the tides. You handle your sell limits."
-        ],
-        .transit: [
-            "This transit brings change. Whether you want it or not is irrelevant.",
-            "Planetary movement suggests movement in your portfolio. Correlation isn't causation.",
-            "The cosmic transit continues. So does the market. Both are indifferent to you."
-        ]
-    ]
-
-    static let positive = [
-        "Enjoy the green while it lasts, {sign}. Nothing is permanent.",
-        "Today's gains are tomorrow's baseline. Manage expectations accordingly.",
-        "The universe gave. Don't ask when it will take back.",
-        "Celebrate quietly. The cosmos doesn't like bragging."
-    ]
-
-    static let neutral = [
-        "Sometimes doing nothing is the move. Today might be one of those times.",
-        "The cosmos offers no clear direction. Neither does your portfolio. Poetic.",
-        "In stillness, find peace. Or at least find something on Netflix.",
-        "When the stars are quiet, listen anyway. Or check your phone. Either works."
-    ]
-
-    static let negative = [
-        "Remember: time in the market beats timing the market. Even when it hurts.",
-        "The cosmos tests those it believes in. Or it's random. Both can be true.",
-        "Tomorrow is a new trading day. The stars will still be there, indifferent as ever.",
-        "This too shall pass. Your portfolio agrees, eventually."
-    ]
+/// Current market period
+enum MarketPeriod {
+    case preMarket
+    case marketOpen
+    case midDay
+    case powerHour
+    case afterHours
+    case weekend
 }

@@ -158,28 +158,26 @@ struct StockCardView: View {
                     .fill(elementColor.opacity(0.2))
                     .frame(width: 56, height: 56)
 
-                Text(card.stock.zodiacSign.symbol)
-                    .font(.system(size: 32))
+                // Custom zodiac glyph
+                ZodiacSymbolView(sign: card.stock.zodiacSign, size: 32, color: elementColor)
             }
 
             Text(card.stock.zodiacSign.displayName)
-                .font(.caption)
-                .fontWeight(.medium)
+                .font(TerminalFont.data(11))
                 .foregroundColor(CosmicTheme.textSecondary)
         }
     }
 
     private var priceSection: some View {
         HStack {
-            // Current price
+            // Current price - monospace terminal style
             VStack(alignment: .leading, spacing: 2) {
-                Text("Current Price")
-                    .font(.caption)
+                Text("PRICE")
+                    .font(TerminalFont.data(10))
                     .foregroundColor(CosmicTheme.textMuted)
 
                 Text(card.stock.formattedPrice)
-                    .font(.title3)
-                    .fontWeight(.bold)
+                    .font(TerminalFont.price(22))
                     .foregroundColor(CosmicTheme.textPrimary)
             }
 
@@ -187,8 +185,8 @@ struct StockCardView: View {
 
             // Daily change
             VStack(alignment: .trailing, spacing: 2) {
-                Text("Today")
-                    .font(.caption)
+                Text("TODAY")
+                    .font(TerminalFont.data(10))
                     .foregroundColor(CosmicTheme.textMuted)
 
                 HStack(spacing: 4) {
@@ -196,16 +194,19 @@ struct StockCardView: View {
                         .font(.caption)
 
                     Text(card.stock.formattedPercentageChange)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(TerminalFont.data(15, weight: .semibold))
                 }
                 .foregroundColor(card.stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
             }
         }
         .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            Rectangle()
                 .fill(CosmicTheme.secondaryBackground)
+        )
+        .overlay(
+            Rectangle()
+                .stroke(CosmicTheme.border, lineWidth: 0.5)
         )
     }
 
@@ -213,32 +214,34 @@ struct StockCardView: View {
 
     private var compatibilitySection: some View {
         VStack(spacing: 12) {
-            // Big compatibility score
+            // Big compatibility score - monospace terminal style
             HStack(spacing: 8) {
                 Text("\(card.compatibility.score)%")
-                    .font(.system(size: 56, weight: .bold, design: .rounded))
+                    .font(TerminalFont.price(52))
                     .foregroundStyle(compatibilityGradient)
 
-                Text("Match")
-                    .font(.title2)
-                    .fontWeight(.medium)
+                Text("MATCH")
+                    .font(TerminalFont.data(16))
                     .foregroundColor(CosmicTheme.textSecondary)
             }
 
-            // Rating badge
+            // Rating badge - sharp corners
             HStack(spacing: 6) {
                 Text(card.compatibility.rating.emoji)
 
-                Text(card.compatibility.rating.displayName)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                Text(card.compatibility.rating.displayName.uppercased())
+                    .font(TerminalFont.data(12, weight: .semibold))
                     .foregroundColor(ratingColor)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
             .background(
-                Capsule()
+                RoundedRectangle(cornerRadius: 2)
                     .fill(ratingColor.opacity(0.15))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 2)
+                    .stroke(ratingColor.opacity(0.3), lineWidth: 0.5)
             )
         }
         .frame(maxWidth: .infinity)
@@ -251,8 +254,7 @@ struct StockCardView: View {
         VStack(alignment: .leading, spacing: 16) {
             // Element dynamic
             HStack(spacing: 8) {
-                Text(card.stock.zodiacSign.element.emoji)
-                    .font(.caption)
+                ElementSymbolView(element: card.stock.zodiacSign.element, size: 14)
 
                 Text(card.compatibility.elementDynamic)
                     .font(.subheadline)
@@ -403,13 +405,13 @@ struct StockCardView: View {
 
     private var cardBackground: some View {
         ZStack {
-            // Base color
+            // Base terminal color
             CosmicTheme.cardBackground
 
-            // Gradient overlay based on element
+            // Very subtle gradient overlay based on element
             LinearGradient(
                 colors: [
-                    elementColor.opacity(0.1),
+                    elementColor.opacity(0.05),
                     Color.clear
                 ],
                 startPoint: .topTrailing,
@@ -421,13 +423,13 @@ struct StockCardView: View {
                 .stroke(
                     LinearGradient(
                         colors: [
-                            elementColor.opacity(0.4),
-                            CosmicTheme.cosmicPurple.opacity(0.2)
+                            elementColor.opacity(0.3),
+                            CosmicTheme.border
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
-                    lineWidth: 1
+                    lineWidth: 0.5
                 )
         )
     }
@@ -436,17 +438,17 @@ struct StockCardView: View {
 
     private var elementColor: Color {
         switch card.stock.zodiacSign.element {
-        case .fire:  return Color(red: 1.0, green: 0.4, blue: 0.3)
-        case .earth: return Color(red: 0.4, green: 0.75, blue: 0.4)
-        case .air:   return Color(red: 0.4, green: 0.6, blue: 0.9)
-        case .water: return Color(red: 0.5, green: 0.3, blue: 0.8)
+        case .fire:  return CosmicTheme.fireElement
+        case .earth: return CosmicTheme.earthElement
+        case .air:   return CosmicTheme.airElement
+        case .water: return CosmicTheme.waterElement
         }
     }
 
     private var ratingColor: Color {
         switch card.compatibility.rating {
         case .cosmicSoulmates:   return CosmicTheme.gold
-        case .highCompatibility: return CosmicTheme.cosmicPurple
+        case .highCompatibility: return CosmicTheme.accentBlue
         case .neutral:           return CosmicTheme.textSecondary
         case .challenging:       return .orange
         case .cosmicClash:       return CosmicTheme.negative

@@ -147,6 +147,45 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         zodiacSign.element
     }
 
+    /// Simulated price history for sparkline display
+    /// WHY: Generates consistent pseudo-random price history based on stock symbol
+    ///      for visual trend representation in portfolio rows.
+    /// NOTE: In production, this would come from real historical API data.
+    var priceHistory: [Double] {
+        // Generate deterministic pseudo-random history based on symbol hash
+        var history: [Double] = []
+        let seed = symbol.hashValue
+        var generator = SeededRandomGenerator(seed: UInt64(abs(seed)))
+
+        // Start from a base price (current price minus recent change extrapolated)
+        let basePrice = currentPrice - (priceChange * 5)
+        var price = max(basePrice, currentPrice * 0.9) // Don't go below 90% of current
+
+        // Generate 15 data points for sparkline
+        for i in 0..<15 {
+            // Progress toward end (0.0 to 1.0)
+            let progress = Double(i) / 14.0
+
+            // Drift toward current price, stronger as we approach the end
+            let targetDrift = (currentPrice - price) * (0.1 + progress * 0.1)
+
+            // Add some noise based on the stock's volatility (percentageChange as proxy)
+            let volatility = max(abs(percentageChange), 0.5) * 0.5
+            let noise = (Double.random(in: -1...1, using: &generator)) * volatility
+
+            price += targetDrift + noise
+            price = max(price, currentPrice * 0.85) // Keep within reasonable bounds
+            price = min(price, currentPrice * 1.15)
+
+            history.append(price)
+        }
+
+        // Ensure last point is current price
+        history[history.count - 1] = currentPrice
+
+        return history
+    }
+
     // MARK: - Initializers
     // ====================
 
@@ -413,6 +452,24 @@ extension Stock {
     /// Group sample stocks by their zodiac element
     static var samplesByElement: [ZodiacSign.Element: [Stock]] {
         Dictionary(grouping: samples) { $0.element }
+    }
+}
+
+// MARK: - Seeded Random Generator
+// ================================
+// For generating consistent pseudo-random price history
+
+struct SeededRandomGenerator: RandomNumberGenerator {
+    private var state: UInt64
+
+    init(seed: UInt64) {
+        self.state = seed
+    }
+
+    mutating func next() -> UInt64 {
+        // Simple linear congruential generator
+        state = state &* 6364136223846793005 &+ 1442695040888963407
+        return state
     }
 }
 

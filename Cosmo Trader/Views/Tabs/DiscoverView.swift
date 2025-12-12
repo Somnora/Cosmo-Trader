@@ -185,11 +185,14 @@ struct DiscoverView: View {
             }
         }) {
             HStack(spacing: 4) {
-                Text(element.emoji)
-                    .font(.caption)
+                ElementSymbolView(
+                    element: element,
+                    size: 12,
+                    color: isSelected ? CosmicTheme.background : elementColor(element)
+                )
 
                 Text(element.displayName)
-                    .font(.caption)
+                    .font(TerminalFont.data(11))
                     .fontWeight(.medium)
             }
             .foregroundColor(isSelected ? CosmicTheme.background : CosmicTheme.textSecondary)
@@ -581,11 +584,10 @@ struct DiscoverView: View {
             }
         }) {
             HStack {
-                Text(element.emoji)
-                    .font(.title3)
+                ElementSymbolView(element: element, size: 24)
 
                 Text(element.displayName)
-                    .font(.subheadline)
+                    .font(TerminalFont.data(14))
                     .fontWeight(.medium)
 
                 Spacer()

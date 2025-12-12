@@ -48,6 +48,7 @@
 				Services/ErrorHandling.swift = (ios, );
 				Services/HoroscopeGenerator.swift = (ios, );
 				Services/InputValidation.swift = (ios, );
+				Services/StockAPIService.swift = (ios, );
 				State/AppState.swift = (ios, );
 				Theme/CosmicTheme.swift = (ios, );
 				ViewModels/DiscoverViewModel.swift = (ios, );

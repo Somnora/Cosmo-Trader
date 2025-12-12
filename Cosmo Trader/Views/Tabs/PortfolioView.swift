@@ -56,6 +56,12 @@ struct PortfolioView: View {
     /// Is currently fetching prices
     @State private var isFetchingPrices: Bool = false
 
+    /// Cosmic mood service for Fear & Greed index
+    @State private var moodService = CosmicMoodService.shared
+
+    /// Show cosmic mood detail sheet
+    @State private var showMoodDetail: Bool = false
+
     // MARK: - Computed Properties
 
     /// Get current user from app state
@@ -170,62 +176,79 @@ struct PortfolioView: View {
                 // Full-screen cosmic background
                 backgroundGradient
 
-                // Main content
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
-                        // 0a. Data Recovery Alert (if recovered from corruption)
-                        if appState.didRecoverFromCorruption && !showDataRecoveryAlert {
-                            dataRecoveryBanner
-                        }
-
-                        // 0b. Error Banner (if there's a current error)
-                        if let error = currentError {
-                            CosmicErrorView(
-                                networkError: error,
-                                style: .banner,
-                                onRetry: { await refreshPortfolio() },
-                                onDismiss: { currentError = nil }
-                            )
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                        }
-
-                        // 0c. Cosmic Alert Banner (if active events)
-                        if let alertEvent = primaryAlertEvent {
-                            cosmicAlertBanner(for: alertEvent)
-                        }
-
-                        // 1. Header with greeting and portfolio value
-                        headerSection
-
-                        // 2. Visualization toggle
-                        if !holdings.isEmpty {
-                            visualizationToggle
-                        }
-
-                        // 3. Cosmic Balance visualization (wheel or card)
-                        if !holdings.isEmpty {
-                            cosmicBalanceSection
-                        }
-
-                        // 4. Holdings list
-                        holdingsSection
+                // Ticker tape at top (outside scroll)
+                VStack(spacing: 0) {
+                    if !holdings.isEmpty {
+                        TickerTapeView(stocks: holdings, speed: 35, showPrice: true)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 100)
-                }
-                .refreshable {
-                    await refreshPortfolio()
-                }
-                .onAppear {
-                    // Show data recovery alert if needed
-                    if appState.didRecoverFromCorruption {
-                        showDataRecoveryAlert = false
+
+                    // Main content
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 20) {
+                            // 0. Market status indicator
+                            HStack {
+                                MarketStatusIndicator(size: .small)
+                                Spacer()
+                            }
+                            .padding(.top, 8)
+
+                            // 0a. Data Recovery Alert (if recovered from corruption)
+                            if appState.didRecoverFromCorruption && !showDataRecoveryAlert {
+                                dataRecoveryBanner
+                            }
+
+                            // 0b. Error Banner (if there's a current error)
+                            if let error = currentError {
+                                CosmicErrorView(
+                                    networkError: error,
+                                    style: .banner,
+                                    onRetry: { await refreshPortfolio() },
+                                    onDismiss: { currentError = nil }
+                                )
+                                .transition(.move(edge: .top).combined(with: .opacity))
+                            }
+
+                            // 0c. Cosmic Alert Banner (if active events)
+                            if let alertEvent = primaryAlertEvent {
+                                cosmicAlertBanner(for: alertEvent)
+                            }
+
+                            // 1. Header with greeting and portfolio value
+                            headerSection
+
+                            // 2. Visualization toggle
+                            if !holdings.isEmpty {
+                                visualizationToggle
+                            }
+
+                            // 3. Cosmic Balance visualization (wheel or card)
+                            if !holdings.isEmpty {
+                                cosmicBalanceSection
+                            }
+
+                            // 4. Cosmic Mood Index widget
+                            cosmicMoodSection
+
+                            // 5. Holdings list
+                            holdingsSection
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 100)
+                    }
+                    .refreshable {
+                        await refreshPortfolio()
                     }
                 }
-                .task {
-                    // Fetch live prices on appear
-                    await fetchLivePrices()
+            }
+            .onAppear {
+                // Show data recovery alert if needed
+                if appState.didRecoverFromCorruption {
+                    showDataRecoveryAlert = false
                 }
+            }
+            .task {
+                // Fetch live prices on appear
+                await fetchLivePrices()
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -253,6 +276,9 @@ struct PortfolioView: View {
             }
             .sheet(item: $selectedCosmicEvent) { event in
                 cosmicEventDetailSheet(for: event)
+            }
+            .sheet(isPresented: $showMoodDetail) {
+                CosmicMoodDetailSheet(moodData: moodService.getCurrentMood())
             }
         }
     }
@@ -320,17 +346,14 @@ struct PortfolioView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background {
-            let strokeColor: Color = event.themeColor.opacity(0.4)
-            let shadowColor: Color = event.themeColor.opacity(0.15)
-            RoundedRectangle(cornerRadius: 14)
+        .background(
+            RoundedRectangle(cornerRadius: 4)
                 .fill(CosmicTheme.cardBackground)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(strokeColor, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(event.themeColor.opacity(0.4), lineWidth: 0.5)
                 )
-                .shadow(color: shadowColor, radius: 8, x: 0, y: 2)
-        }
+        )
         .transition(.asymmetric(
             insertion: .move(edge: .top).combined(with: .opacity),
             removal: .opacity
@@ -446,9 +469,9 @@ struct PortfolioView: View {
                                     HStack(spacing: 8) {
                                         ForEach(event.affectedElements, id: \.self) { element in
                                             HStack(spacing: 4) {
-                                                Text(element.emoji)
+                                                ElementSymbolView(element: element, size: 14)
                                                 Text(element.displayName)
-                                                    .font(.caption)
+                                                    .font(TerminalFont.data(11))
                                                     .foregroundColor(CosmicTheme.textSecondary)
                                             }
                                             .padding(.horizontal, 10)
@@ -499,15 +522,7 @@ struct PortfolioView: View {
     // MARK: - Background
 
     private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                CosmicTheme.background,
-                Color(red: 0.08, green: 0.04, blue: 0.20)
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .ignoresSafeArea()
+        TerminalBackground(starCount: 35, showGrid: false)
     }
 
     // MARK: - Header Section
@@ -575,10 +590,14 @@ struct PortfolioView: View {
                 }
             }
         }
-        .padding(4)
+        .padding(2)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 4)
                 .fill(CosmicTheme.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(CosmicTheme.border, lineWidth: 0.5)
+                )
         )
     }
 
@@ -593,14 +612,13 @@ struct PortfolioView: View {
                 Image(systemName: icon)
                     .font(.caption)
                 Text(title)
-                    .font(.caption)
-                    .fontWeight(.medium)
+                    .font(TerminalFont.data(11))
             }
             .foregroundColor(isSelected ? CosmicTheme.background : CosmicTheme.textSecondary)
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
             .background(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: 2)
                     .fill(isSelected ? CosmicTheme.gold : Color.clear)
             )
         }
@@ -630,6 +648,32 @@ struct PortfolioView: View {
                 insertion: .scale(scale: 0.9).combined(with: .opacity),
                 removal: .scale(scale: 0.9).combined(with: .opacity)
             ))
+        }
+    }
+
+    // MARK: - Cosmic Mood Section
+
+    private var cosmicMoodSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Section header
+            HStack {
+                Image(systemName: "gauge.with.needle.fill")
+                    .foregroundColor(CosmicTheme.gold)
+                Text("Market Mood")
+                    .font(TerminalFont.headline(14))
+                    .foregroundColor(CosmicTheme.textPrimary)
+
+                Spacer()
+
+                Text("Fear & Greed")
+                    .font(TerminalFont.data(10))
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+
+            // Mood widget
+            CosmicMoodWidget(moodData: moodService.getCurrentMood()) {
+                showMoodDetail = true
+            }
         }
     }
 
@@ -711,14 +755,7 @@ struct PortfolioView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(40)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(CosmicTheme.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(CosmicTheme.textMuted.opacity(0.1), lineWidth: 1)
-                )
-        )
+        .terminalCard()
     }
 
     // MARK: - Data Recovery Banner
@@ -727,11 +764,11 @@ struct PortfolioView: View {
         HStack(spacing: 12) {
             Image(systemName: "arrow.triangle.2.circlepath")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.purple)
+                .foregroundColor(CosmicTheme.accentBlue)
                 .frame(width: 36, height: 36)
                 .background(
                     Circle()
-                        .fill(Color.purple.opacity(0.15))
+                        .fill(CosmicTheme.accentBlue.opacity(0.15))
                 )
 
             VStack(alignment: .leading, spacing: 2) {
@@ -762,11 +799,11 @@ struct PortfolioView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 4)
                 .fill(CosmicTheme.cardBackground)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.purple.opacity(0.3), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(CosmicTheme.accentBlue.opacity(0.4), lineWidth: 0.5)
                 )
         )
         .transition(.asymmetric(
