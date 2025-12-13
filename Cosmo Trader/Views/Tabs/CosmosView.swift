@@ -58,6 +58,9 @@ struct CosmosView: View {
                             // 3. Lunar alert banner (if significant moon event)
                             lunarAlertSection
 
+                            // 3a. Mercury Retrograde Countdown (always visible)
+                            MercuryRetrogradeBanner()
+
                             // 4. Active cosmic alert (if any important events)
                             if let alertEvent = astroService.activeAlertEvents.first {
                                 AstroAlertBanner(
