@@ -274,7 +274,10 @@ struct PortfolioView: View {
                                 EarningsCalendarCard(holdings: holdings)
                             }
 
-                            // 10. Holdings list
+                            // 10. On This Day in Cosmic Markets
+                            OnThisDaySection()
+
+                            // 11. Holdings list
                             holdingsSection
                         }
                         .padding(.horizontal, 16)
