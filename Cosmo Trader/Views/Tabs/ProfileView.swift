@@ -833,6 +833,9 @@ struct ProfileView: View {
             // THE COSMIC ROAST - Viral share feature
             CosmicRoastCard(user: user)
 
+            // Referral program card
+            ReferralCard()
+
             // Share profile button
             Button(action: { viewModel?.showingShareSheet = true }) {
                 HStack {
