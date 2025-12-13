@@ -84,7 +84,10 @@ struct StockDetailView: View {
                 // 5. Cosmic Rivals (opposition stocks)
                 CosmicRivalCard(stock: stock, allStocks: MockStockData.all)
 
-                // 6. Financial Stats
+                // 6. Upcoming Earnings with Cosmic Horoscope
+                StockEarningsSection(stock: stock)
+
+                // 7. Financial Stats
                 financialStatsSection
 
                 // 5. Action Buttons

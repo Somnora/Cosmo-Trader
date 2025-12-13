@@ -247,7 +247,12 @@ struct PortfolioView: View {
                                 PortfolioTensionBanner(holdings: holdings)
                             }
 
-                            // 7. Holdings list
+                            // 7. Earnings Calendar (upcoming earnings for holdings)
+                            if !holdings.isEmpty {
+                                EarningsCalendarCard(holdings: holdings)
+                            }
+
+                            // 8. Holdings list
                             holdingsSection
                         }
                         .padding(.horizontal, 16)
