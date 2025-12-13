@@ -277,7 +277,10 @@ struct PortfolioView: View {
                             // 10. On This Day in Cosmic Markets
                             OnThisDaySection()
 
-                            // 11. Holdings list
+                            // 11. Cosmic Ticker Wire (stock + cosmic messages)
+                            CosmicTickerCard()
+
+                            // 12. Holdings list
                             holdingsSection
                         }
                         .padding(.horizontal, 16)
