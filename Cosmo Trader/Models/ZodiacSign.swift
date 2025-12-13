@@ -404,6 +404,91 @@ extension ZodiacSign {
     func isCompatible(with other: ZodiacSign) -> Bool {
         compatibleSigns.contains(other)
     }
+
+    // MARK: - Cosmic Rivals (Opposition)
+    // ==================================
+    // In astrology, signs 180° apart on the zodiac wheel are in "opposition".
+    // These opposing pairs represent complementary but often conflicting energies.
+    //
+    // THE SIX OPPOSING PAIRS:
+    // - Aries ↔ Libra (Self vs Partnership)
+    // - Taurus ↔ Scorpio (Security vs Transformation)
+    // - Gemini ↔ Sagittarius (Details vs Big Picture)
+    // - Cancer ↔ Capricorn (Home vs Career)
+    // - Leo ↔ Aquarius (Individual vs Collective)
+    // - Virgo ↔ Pisces (Logic vs Intuition)
+
+    /// The zodiac sign directly opposite this one (180° apart)
+    /// These are "cosmic rivals" - complementary yet opposing energies
+    var oppositeSign: ZodiacSign {
+        switch self {
+        case .aries:       return .libra
+        case .taurus:      return .scorpio
+        case .gemini:      return .sagittarius
+        case .cancer:      return .capricorn
+        case .leo:         return .aquarius
+        case .virgo:       return .pisces
+        case .libra:       return .aries
+        case .scorpio:     return .taurus
+        case .sagittarius: return .gemini
+        case .capricorn:   return .cancer
+        case .aquarius:    return .leo
+        case .pisces:      return .virgo
+        }
+    }
+
+    /// Check if this sign is in opposition to another
+    func isOpposite(to other: ZodiacSign) -> Bool {
+        oppositeSign == other
+    }
+
+    /// The cosmic tension description for this opposition pair
+    var oppositionTheme: String {
+        switch self {
+        case .aries, .libra:
+            return "Self vs Partnership"
+        case .taurus, .scorpio:
+            return "Security vs Transformation"
+        case .gemini, .sagittarius:
+            return "Details vs Big Picture"
+        case .cancer, .capricorn:
+            return "Home vs Career"
+        case .leo, .aquarius:
+            return "Individual vs Collective"
+        case .virgo, .pisces:
+            return "Logic vs Intuition"
+        }
+    }
+
+    /// Detailed description of this opposition's dynamic
+    var oppositionDescription: String {
+        switch self {
+        case .aries:
+            return "Aries charges forward independently while Libra seeks balance through partnership. Together they teach us to balance self-assertion with cooperation."
+        case .libra:
+            return "Libra harmonizes through relationships while Aries leads with bold independence. Together they teach us to balance cooperation with self-assertion."
+        case .taurus:
+            return "Taurus builds stable foundations while Scorpio embraces deep transformation. Together they teach us to balance security with necessary change."
+        case .scorpio:
+            return "Scorpio transforms through intensity while Taurus maintains steady comfort. Together they teach us to balance transformation with stability."
+        case .gemini:
+            return "Gemini gathers diverse information while Sagittarius seeks universal truth. Together they teach us to balance facts with meaning."
+        case .sagittarius:
+            return "Sagittarius explores grand philosophies while Gemini focuses on immediate details. Together they teach us to balance vision with practicality."
+        case .cancer:
+            return "Cancer nurtures home and family while Capricorn builds worldly achievement. Together they teach us to balance personal life with professional ambition."
+        case .capricorn:
+            return "Capricorn climbs toward public success while Cancer tends to private emotional needs. Together they teach us to balance career with family."
+        case .leo:
+            return "Leo shines through personal creativity while Aquarius innovates for the collective. Together they teach us to balance individual expression with group consciousness."
+        case .aquarius:
+            return "Aquarius revolutionizes for humanity while Leo expresses unique individuality. Together they teach us to balance social progress with personal pride."
+        case .virgo:
+            return "Virgo analyzes practical details while Pisces flows with intuitive wisdom. Together they teach us to balance logic with faith."
+        case .pisces:
+            return "Pisces dissolves into universal compassion while Virgo organizes tangible reality. Together they teach us to balance dreams with discipline."
+        }
+    }
 }
 
 // MARK: - Modality

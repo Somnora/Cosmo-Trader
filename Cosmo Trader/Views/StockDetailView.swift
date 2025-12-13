@@ -81,7 +81,10 @@ struct StockDetailView: View {
                 // 4. Saturn Return Analysis (if company is approaching/in Saturn Return)
                 SaturnReturnCard(stock: stock)
 
-                // 5. Financial Stats
+                // 5. Cosmic Rivals (opposition stocks)
+                CosmicRivalCard(stock: stock, allStocks: MockStockData.all)
+
+                // 6. Financial Stats
                 financialStatsSection
 
                 // 5. Action Buttons

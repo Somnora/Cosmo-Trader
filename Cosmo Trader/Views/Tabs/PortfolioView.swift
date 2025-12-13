@@ -242,7 +242,12 @@ struct PortfolioView: View {
                                 SaturnReturnListSection(stocks: holdings)
                             }
 
-                            // 6. Holdings list
+                            // 6. Cosmic Tensions (rival pairs in portfolio)
+                            if !holdings.isEmpty {
+                                PortfolioTensionBanner(holdings: holdings)
+                            }
+
+                            // 7. Holdings list
                             holdingsSection
                         }
                         .padding(.horizontal, 16)
