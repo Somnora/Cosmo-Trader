@@ -279,6 +279,13 @@ struct NotificationSettingsView: View {
 
             // Void of Course Moon
             VOCWarningsToggle()
+
+            Divider()
+                .background(CosmicTheme.textMuted.opacity(0.2))
+                .padding(.leading, 56)
+
+            // Sign Season Spotlights
+            SignSeasonToggle()
         }
     }
 

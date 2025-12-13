@@ -29,6 +29,7 @@ final class NotificationService {
         static let ipoAlertsEnabled = "notifications_ipoAlerts"
         static let cosmicRoastReminderEnabled = "notifications_cosmicRoast"
         static let weeklySummaryEnabled = "notifications_weeklySummary"
+        static let signSeasonEnabled = "notifications_signSeason"
     }
 
     // MARK: - Permission State
@@ -115,6 +116,14 @@ final class NotificationService {
         }
     }
 
+    /// Sign season alerts - when sun enters new zodiac sign (default: ON)
+    var signSeasonEnabled: Bool = true {
+        didSet {
+            savePreferences()
+            scheduleAllNotifications()
+        }
+    }
+
     // MARK: - Notification Identifiers
 
     private enum NotificationID {
@@ -125,6 +134,7 @@ final class NotificationService {
         static let weeklySummary = "cosmo.weekly.summary"
         static let ipoAlertPrefix = "cosmo.ipo."
         static let cosmicRoast = "cosmo.roast.reminder"
+        static let signSeasonPrefix = "cosmo.season."
     }
 
     // MARK: - Initialization
@@ -224,6 +234,10 @@ final class NotificationService {
 
             if cosmicRoastReminderEnabled {
                 await scheduleCosmicRoastReminder()
+            }
+
+            if signSeasonEnabled {
+                await scheduleSignSeasonAlerts()
             }
 
             // IPO alerts are scheduled dynamically when new IPOs are added
@@ -421,6 +435,77 @@ final class NotificationService {
         }
     }
 
+    // MARK: - Sign Season Alerts
+
+    /// Schedule notifications for zodiac sign transitions (~21st of each month)
+    private func scheduleSignSeasonAlerts() async {
+        let calendar = Calendar.current
+        let now = Date()
+
+        // Schedule alerts for the next 3 zodiac sign transitions
+        for offset in 0..<3 {
+            // Get current sign and find when next sign starts
+            var checkDate = now
+            for _ in 0...offset {
+                let currentSign = ZodiacSign.from(date: checkDate)
+                let nextSign = getNextSign(after: currentSign)
+
+                // Calculate the start date of the next sign
+                var year = calendar.component(.year, from: checkDate)
+                let startDate = nextSign.startDate
+
+                // If the next sign starts in a month before the current month, it's next year
+                let currentMonth = calendar.component(.month, from: checkDate)
+                let currentDay = calendar.component(.day, from: checkDate)
+
+                if startDate.month < currentMonth || (startDate.month == currentMonth && startDate.day <= currentDay) {
+                    year += 1
+                }
+
+                var components = DateComponents()
+                components.year = year
+                components.month = startDate.month
+                components.day = startDate.day
+                components.hour = 8  // 8 AM on sign transition day
+                components.minute = 0
+
+                if let nextSeasonDate = calendar.date(from: components), nextSeasonDate > now {
+                    checkDate = nextSeasonDate
+
+                    // Schedule the notification
+                    let content = UNMutableNotificationContent()
+                    content.title = "\(nextSign.displayName) Season Begins"
+                    content.body = "Sun enters \(nextSign.displayName). Your \(nextSign.element.displayName) Sector is in focus."
+                    content.sound = .default
+                    content.userInfo = ["type": "signSeason", "sign": nextSign.rawValue]
+
+                    let triggerComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: nextSeasonDate)
+                    let trigger = UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: false)
+
+                    let request = UNNotificationRequest(
+                        identifier: "\(NotificationID.signSeasonPrefix)\(nextSign.rawValue)",
+                        content: content,
+                        trigger: trigger
+                    )
+
+                    do {
+                        try await UNUserNotificationCenter.current().add(request)
+                    } catch {
+                        print("Failed to schedule sign season alert for \(nextSign.displayName): \(error)")
+                    }
+                }
+            }
+        }
+    }
+
+    /// Get the next zodiac sign in sequence
+    private func getNextSign(after sign: ZodiacSign) -> ZodiacSign {
+        let allSigns = ZodiacSign.allCases
+        guard let currentIndex = allSigns.firstIndex(of: sign) else { return .aries }
+        let nextIndex = (currentIndex + 1) % allSigns.count
+        return allSigns[nextIndex]
+    }
+
     // MARK: - Dynamic Notifications
 
     /// Schedule an IPO alert for a compatible zodiac sign
@@ -550,6 +635,7 @@ final class NotificationService {
         defaults.set(weeklySummaryEnabled, forKey: StorageKeys.weeklySummaryEnabled)
         defaults.set(ipoAlertsEnabled, forKey: StorageKeys.ipoAlertsEnabled)
         defaults.set(cosmicRoastReminderEnabled, forKey: StorageKeys.cosmicRoastReminderEnabled)
+        defaults.set(signSeasonEnabled, forKey: StorageKeys.signSeasonEnabled)
     }
 
     private func loadPreferences() {
@@ -565,6 +651,7 @@ final class NotificationService {
         weeklySummaryEnabled = defaults.object(forKey: StorageKeys.weeklySummaryEnabled) as? Bool ?? true
         ipoAlertsEnabled = defaults.object(forKey: StorageKeys.ipoAlertsEnabled) as? Bool ?? false
         cosmicRoastReminderEnabled = defaults.object(forKey: StorageKeys.cosmicRoastReminderEnabled) as? Bool ?? false
+        signSeasonEnabled = defaults.object(forKey: StorageKeys.signSeasonEnabled) as? Bool ?? true
 
         // Load horoscope time
         if let timestamp = defaults.object(forKey: StorageKeys.dailyHoroscopeTime) as? TimeInterval {

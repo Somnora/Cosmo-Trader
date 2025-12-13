@@ -237,22 +237,30 @@ struct PortfolioView: View {
                             // 4. Cosmic Mood Index widget
                             cosmicMoodSection
 
-                            // 5. Saturn Return alerts (if any approaching)
+                            // 5. Sign Season Spotlight
+                            if !holdings.isEmpty {
+                                SignSeasonBanner(
+                                    holdings: holdings,
+                                    userSign: user.sunSign
+                                )
+                            }
+
+                            // 6. Saturn Return alerts (if any approaching)
                             if !holdings.isEmpty {
                                 SaturnReturnListSection(stocks: holdings)
                             }
 
-                            // 6. Cosmic Tensions (rival pairs in portfolio)
+                            // 7. Cosmic Tensions (rival pairs in portfolio)
                             if !holdings.isEmpty {
                                 PortfolioTensionBanner(holdings: holdings)
                             }
 
-                            // 7. Earnings Calendar (upcoming earnings for holdings)
+                            // 8. Earnings Calendar (upcoming earnings for holdings)
                             if !holdings.isEmpty {
                                 EarningsCalendarCard(holdings: holdings)
                             }
 
-                            // 8. Holdings list
+                            // 9. Holdings list
                             holdingsSection
                         }
                         .padding(.horizontal, 16)
