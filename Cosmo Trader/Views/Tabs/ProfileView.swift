@@ -995,6 +995,9 @@ struct ProfileView: View {
             // Karmic Ledger - Track losses as cosmic lessons
             KarmicLedgerCard()
 
+            // Cosmic Graveyard - Obituaries for fallen stocks
+            CosmicObituaryCard()
+
             // Referral program card
             ReferralCard()
 
