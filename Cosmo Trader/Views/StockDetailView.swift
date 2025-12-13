@@ -78,7 +78,10 @@ struct StockDetailView: View {
                 // 3. Astrological Profile
                 astrologicalProfileSection
 
-                // 4. Financial Stats
+                // 4. Saturn Return Analysis (if company is approaching/in Saturn Return)
+                SaturnReturnCard(stock: stock)
+
+                // 5. Financial Stats
                 financialStatsSection
 
                 // 5. Action Buttons

@@ -229,7 +229,12 @@ struct PortfolioView: View {
                             // 4. Cosmic Mood Index widget
                             cosmicMoodSection
 
-                            // 5. Holdings list
+                            // 5. Saturn Return alerts (if any approaching)
+                            if !holdings.isEmpty {
+                                SaturnReturnListSection(stocks: holdings)
+                            }
+
+                            // 6. Holdings list
                             holdingsSection
                         }
                         .padding(.horizontal, 16)
