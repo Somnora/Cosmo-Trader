@@ -577,14 +577,10 @@ struct ProfileView: View {
             // Subscription Status
             subscriptionSection
 
-            // Notifications
-            settingsGroup(
-                title: "Notifications",
-                icon: "bell.fill",
-                settings: viewModel?.settings.filter { $0.category == .notifications } ?? []
-            )
+            // Notifications - comprehensive settings
+            notificationSettingsSection
 
-            // Lunar Alerts (NEW - moon phase notifications)
+            // Lunar Alerts (quick toggles - synced with NotificationService)
             lunarAlertsSection
 
             // Appearance
@@ -691,6 +687,32 @@ struct ProfileView: View {
         } else {
             // Free user card with upgrade prompt
             SubscriptionUpgradeCard()
+        }
+    }
+
+    // MARK: - Notification Settings Section
+
+    private var notificationSettingsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Section header
+            HStack(spacing: 6) {
+                Image(systemName: "bell.fill")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold)
+                Text("Notifications")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(CosmicTheme.textSecondary)
+            }
+
+            // Notification settings card with navigation
+            VStack(spacing: 0) {
+                NotificationSettingsCard()
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(CosmicTheme.cardBackground)
+            )
         }
     }
 

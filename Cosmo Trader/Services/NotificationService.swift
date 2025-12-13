@@ -1,0 +1,713 @@
+import Foundation
+import UserNotifications
+import SwiftUI
+
+// MARK: - Notification Service
+// =============================
+// Handles all push notification logic for Cosmo Trader.
+// Requests permission thoughtfully, schedules strategic notifications,
+// and respects user preferences at all times.
+
+@MainActor
+@Observable
+final class NotificationService {
+
+    // MARK: - Singleton
+
+    static let shared = NotificationService()
+
+    // MARK: - Storage Keys
+
+    private enum StorageKeys {
+        static let hasRequestedPermission = "notifications_hasRequested"
+        static let permissionStatus = "notifications_status"
+        static let dailyHoroscopeEnabled = "notifications_dailyHoroscope"
+        static let dailyHoroscopeTime = "notifications_dailyHoroscopeTime"
+        static let moonPhaseEnabled = "notifications_moonPhase"
+        static let mercuryRetrogradeEnabled = "notifications_mercuryRetrograde"
+        static let portfolioAlertsEnabled = "notifications_portfolioAlerts"
+        static let ipoAlertsEnabled = "notifications_ipoAlerts"
+        static let cosmicRoastReminderEnabled = "notifications_cosmicRoast"
+        static let weeklySummaryEnabled = "notifications_weeklySummary"
+    }
+
+    // MARK: - Permission State
+
+    /// Whether we've already asked for permission (don't ask again if denied)
+    private(set) var hasRequestedPermission: Bool = false
+
+    /// Current authorization status
+    private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
+
+    /// Whether notifications are currently authorized
+    var isAuthorized: Bool {
+        authorizationStatus == .authorized
+    }
+
+    /// Whether we can show the permission prompt (haven't asked yet)
+    var canRequestPermission: Bool {
+        !hasRequestedPermission && authorizationStatus == .notDetermined
+    }
+
+    // MARK: - Notification Preferences
+
+    /// Daily horoscope notification (default: ON)
+    var dailyHoroscopeEnabled: Bool = true {
+        didSet {
+            savePreferences()
+            scheduleAllNotifications()
+        }
+    }
+
+    /// Preferred time for daily horoscope (default: 7:30 AM)
+    var dailyHoroscopeTime: Date = defaultHoroscopeTime() {
+        didSet {
+            savePreferences()
+            scheduleAllNotifications()
+        }
+    }
+
+    /// Moon phase alerts (default: ON)
+    var moonPhaseEnabled: Bool = true {
+        didSet {
+            savePreferences()
+            scheduleAllNotifications()
+        }
+    }
+
+    /// Mercury retrograde alerts (default: ON)
+    var mercuryRetrogradeEnabled: Bool = true {
+        didSet {
+            savePreferences()
+            scheduleAllNotifications()
+        }
+    }
+
+    /// Portfolio movement alerts (default: ON)
+    var portfolioAlertsEnabled: Bool = true {
+        didSet {
+            savePreferences()
+            scheduleAllNotifications()
+        }
+    }
+
+    /// Weekly summary (default: ON)
+    var weeklySummaryEnabled: Bool = true {
+        didSet {
+            savePreferences()
+            scheduleAllNotifications()
+        }
+    }
+
+    /// IPO alerts for compatible signs (default: OFF)
+    var ipoAlertsEnabled: Bool = false {
+        didSet {
+            savePreferences()
+            scheduleAllNotifications()
+        }
+    }
+
+    /// Cosmic roast reminder (default: OFF)
+    var cosmicRoastReminderEnabled: Bool = false {
+        didSet {
+            savePreferences()
+            scheduleAllNotifications()
+        }
+    }
+
+    // MARK: - Notification Identifiers
+
+    private enum NotificationID {
+        static let dailyHoroscope = "cosmo.daily.horoscope"
+        static let moonPhasePrefix = "cosmo.moon."
+        static let mercuryRetrogradePrefix = "cosmo.mercury."
+        static let portfolioBigMove = "cosmo.portfolio.bigmove"
+        static let weeklySummary = "cosmo.weekly.summary"
+        static let ipoAlertPrefix = "cosmo.ipo."
+        static let cosmicRoast = "cosmo.roast.reminder"
+    }
+
+    // MARK: - Initialization
+
+    private init() {
+        loadPreferences()
+        Task {
+            await refreshAuthorizationStatus()
+        }
+    }
+
+    // MARK: - Default Time
+
+    private static func defaultHoroscopeTime() -> Date {
+        var components = DateComponents()
+        components.hour = 7
+        components.minute = 30
+        return Calendar.current.date(from: components) ?? Date()
+    }
+
+    // MARK: - Permission Request
+
+    /// Request notification permission (call after onboarding)
+    /// Returns true if permission was granted
+    @discardableResult
+    func requestPermission() async -> Bool {
+        guard canRequestPermission else {
+            return isAuthorized
+        }
+
+        let center = UNUserNotificationCenter.current()
+
+        do {
+            let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
+
+            hasRequestedPermission = true
+            UserDefaults.standard.set(true, forKey: StorageKeys.hasRequestedPermission)
+
+            await refreshAuthorizationStatus()
+
+            if granted {
+                scheduleAllNotifications()
+                AnalyticsService.shared.track(.notificationPermissionGranted)
+            } else {
+                AnalyticsService.shared.track(.notificationPermissionDenied)
+            }
+
+            return granted
+        } catch {
+            print("Failed to request notification permission: \(error)")
+            hasRequestedPermission = true
+            UserDefaults.standard.set(true, forKey: StorageKeys.hasRequestedPermission)
+            return false
+        }
+    }
+
+    /// Refresh the current authorization status
+    func refreshAuthorizationStatus() async {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        authorizationStatus = settings.authorizationStatus
+    }
+
+    /// Open system settings for the app
+    func openSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    // MARK: - Schedule All Notifications
+
+    /// Reschedule all notifications based on current preferences
+    func scheduleAllNotifications() {
+        guard isAuthorized else { return }
+
+        Task {
+            // Cancel all existing notifications first
+            await cancelAllNotifications()
+
+            // Schedule each type based on preferences
+            if dailyHoroscopeEnabled {
+                await scheduleDailyHoroscope()
+            }
+
+            if moonPhaseEnabled {
+                await scheduleMoonPhaseAlerts()
+            }
+
+            if mercuryRetrogradeEnabled {
+                await scheduleMercuryRetrogradeAlerts()
+            }
+
+            if weeklySummaryEnabled {
+                await scheduleWeeklySummary()
+            }
+
+            if cosmicRoastReminderEnabled {
+                await scheduleCosmicRoastReminder()
+            }
+
+            // IPO alerts are scheduled dynamically when new IPOs are added
+            // Portfolio alerts are triggered by price changes (handled elsewhere)
+        }
+    }
+
+    /// Cancel all scheduled notifications
+    func cancelAllNotifications() async {
+        let center = UNUserNotificationCenter.current()
+        center.removeAllPendingNotificationRequests()
+    }
+
+    // MARK: - Daily Horoscope
+
+    private func scheduleDailyHoroscope() async {
+        let content = UNMutableNotificationContent()
+        content.title = "Your Cosmic Reading"
+        content.body = randomHoroscopeMessage()
+        content.sound = .default
+        content.badge = 1
+
+        // Extract hour and minute from preferred time
+        let components = Calendar.current.dateComponents([.hour, .minute], from: dailyHoroscopeTime)
+        var triggerComponents = DateComponents()
+        triggerComponents.hour = components.hour
+        triggerComponents.minute = components.minute
+
+        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: true)
+
+        let request = UNNotificationRequest(
+            identifier: NotificationID.dailyHoroscope,
+            content: content,
+            trigger: trigger
+        )
+
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            print("Failed to schedule daily horoscope: \(error)")
+        }
+    }
+
+    private func randomHoroscopeMessage() -> String {
+        let messages = [
+            "Your cosmic portfolio reading is ready.",
+            "The stars have aligned. Check your holdings.",
+            "A new day, new cosmic insights await.",
+            "Your celestial market forecast is in.",
+            "The universe has something to say about your portfolio."
+        ]
+        return messages.randomElement() ?? messages[0]
+    }
+
+    // MARK: - Moon Phase Alerts
+
+    private func scheduleMoonPhaseAlerts() async {
+        let moonService = MoonPhaseService.shared
+        let calendar = Calendar.current
+        let now = Date()
+
+        // Schedule for the next 30 days
+        for dayOffset in 0..<30 {
+            guard let date = calendar.date(byAdding: .day, value: dayOffset, to: now) else { continue }
+
+            let lunarData = moonService.getLunarData(for: date)
+            let phase = lunarData.phase
+
+            // Full moon - alert day before
+            if phase == .fullMoon {
+                if let dayBefore = calendar.date(byAdding: .day, value: -1, to: date) {
+                    await scheduleNotification(
+                        id: "\(NotificationID.moonPhasePrefix)full.\(dayOffset)",
+                        title: "Full Moon Tomorrow",
+                        body: "Expect heightened volatility. The lunar tide is rising.",
+                        date: dayBefore,
+                        hour: 18,
+                        minute: 0
+                    )
+                }
+            }
+
+            // New moon - alert on the day
+            if phase == .newMoon {
+                await scheduleNotification(
+                    id: "\(NotificationID.moonPhasePrefix)new.\(dayOffset)",
+                    title: "New Moon Today",
+                    body: "Fresh cycle for fresh positions. Plant seeds for growth.",
+                    date: date,
+                    hour: 8,
+                    minute: 0
+                )
+            }
+        }
+    }
+
+    // MARK: - Mercury Retrograde Alerts
+
+    private func scheduleMercuryRetrogradeAlerts() async {
+        // Mercury retrograde periods for 2025 (approximate dates)
+        // These would ideally come from an astronomical API
+        let retrogradePeriods: [(start: DateComponents, end: DateComponents)] = [
+            (DateComponents(year: 2025, month: 3, day: 14), DateComponents(year: 2025, month: 4, day: 7)),
+            (DateComponents(year: 2025, month: 7, day: 18), DateComponents(year: 2025, month: 8, day: 11)),
+            (DateComponents(year: 2025, month: 11, day: 9), DateComponents(year: 2025, month: 11, day: 29))
+        ]
+
+        let calendar = Calendar.current
+        let now = Date()
+
+        for (index, period) in retrogradePeriods.enumerated() {
+            // Start date notification
+            if let startDate = calendar.date(from: period.start),
+               startDate > now {
+                await scheduleNotification(
+                    id: "\(NotificationID.mercuryRetrogradePrefix)start.\(index)",
+                    title: "Mercury Retrograde Begins",
+                    body: "Double-check everything. Communication mishaps likely.",
+                    date: startDate,
+                    hour: 9,
+                    minute: 0
+                )
+            }
+
+            // End date notification
+            if let endDate = calendar.date(from: period.end),
+               endDate > now {
+                await scheduleNotification(
+                    id: "\(NotificationID.mercuryRetrogradePrefix)end.\(index)",
+                    title: "Mercury Direct",
+                    body: "Communication clarity returns. Safe to sign contracts.",
+                    date: endDate,
+                    hour: 9,
+                    minute: 0
+                )
+            }
+        }
+    }
+
+    // MARK: - Weekly Summary
+
+    private func scheduleWeeklySummary() async {
+        let content = UNMutableNotificationContent()
+        content.title = "Your Week in the Cosmos"
+        content.body = "Your cosmic portfolio summary is ready. Tap to see how the stars treated you."
+        content.sound = .default
+
+        // Sunday at 6:00 PM
+        var components = DateComponents()
+        components.weekday = 1 // Sunday
+        components.hour = 18
+        components.minute = 0
+
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+
+        let request = UNNotificationRequest(
+            identifier: NotificationID.weeklySummary,
+            content: content,
+            trigger: trigger
+        )
+
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            print("Failed to schedule weekly summary: \(error)")
+        }
+    }
+
+    // MARK: - Cosmic Roast Reminder
+
+    private func scheduleCosmicRoastReminder() async {
+        let content = UNMutableNotificationContent()
+        content.title = "Time for Your Roast"
+        content.body = "Ready for the cosmos to humble you? Your weekly roast awaits."
+        content.sound = .default
+
+        // Wednesday at 12:00 PM (midweek pick-me-up)
+        var components = DateComponents()
+        components.weekday = 4 // Wednesday
+        components.hour = 12
+        components.minute = 0
+
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+
+        let request = UNNotificationRequest(
+            identifier: NotificationID.cosmicRoast,
+            content: content,
+            trigger: trigger
+        )
+
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            print("Failed to schedule cosmic roast reminder: \(error)")
+        }
+    }
+
+    // MARK: - Dynamic Notifications
+
+    /// Schedule an IPO alert for a compatible zodiac sign
+    func scheduleIPOAlert(ticker: String, companyName: String, ipoDate: Date, zodiacSign: ZodiacSign) async {
+        guard isAuthorized && ipoAlertsEnabled else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Compatible IPO Alert"
+        content.body = "A fellow \(zodiacSign.displayName) enters the market: \(companyName) (\(ticker))"
+        content.sound = .default
+        content.userInfo = ["ticker": ticker, "type": "ipo"]
+
+        // Alert day before IPO
+        let calendar = Calendar.current
+        guard let alertDate = calendar.date(byAdding: .day, value: -1, to: ipoDate) else { return }
+
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: alertDate)
+        var triggerComponents = components
+        triggerComponents.hour = 10
+        triggerComponents.minute = 0
+
+        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: false)
+
+        let request = UNNotificationRequest(
+            identifier: "\(NotificationID.ipoAlertPrefix)\(ticker)",
+            content: content,
+            trigger: trigger
+        )
+
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            print("Failed to schedule IPO alert: \(error)")
+        }
+    }
+
+    /// Trigger a portfolio big move notification immediately
+    func sendPortfolioBigMoveAlert(changePercent: Double) async {
+        guard isAuthorized && portfolioAlertsEnabled else { return }
+        guard abs(changePercent) >= 5.0 else { return } // Only for >5% moves
+
+        let direction = changePercent > 0 ? "up" : "down"
+
+        let content = UNMutableNotificationContent()
+        content.title = "Portfolio Alert"
+        content.body = "Your portfolio moved \(String(format: "%.1f", abs(changePercent)))% \(direction) today. The stars are loud."
+        content.sound = .default
+        content.userInfo = ["type": "portfolio_move", "change": changePercent]
+
+        let request = UNNotificationRequest(
+            identifier: "\(NotificationID.portfolioBigMove).\(Date().timeIntervalSince1970)",
+            content: content,
+            trigger: nil // Deliver immediately
+        )
+
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            print("Failed to send portfolio alert: \(error)")
+        }
+    }
+
+    // MARK: - Test Notification
+
+    /// Send a test notification immediately
+    func sendTestNotification() async {
+        guard isAuthorized else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Cosmic Connection Established"
+        content.body = "Your notifications are working. The stars can reach you now."
+        content.sound = .default
+
+        // Deliver in 2 seconds
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+
+        let request = UNNotificationRequest(
+            identifier: "cosmo.test.\(Date().timeIntervalSince1970)",
+            content: content,
+            trigger: trigger
+        )
+
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+            AnalyticsService.shared.track(.testNotificationSent)
+        } catch {
+            print("Failed to send test notification: \(error)")
+        }
+    }
+
+    // MARK: - Helper Methods
+
+    private func scheduleNotification(id: String, title: String, body: String, date: Date, hour: Int, minute: Int) async {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+
+        var components = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        components.hour = hour
+        components.minute = minute
+
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+
+        let request = UNNotificationRequest(
+            identifier: id,
+            content: content,
+            trigger: trigger
+        )
+
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            print("Failed to schedule notification \(id): \(error)")
+        }
+    }
+
+    // MARK: - Persistence
+
+    private func savePreferences() {
+        let defaults = UserDefaults.standard
+        defaults.set(dailyHoroscopeEnabled, forKey: StorageKeys.dailyHoroscopeEnabled)
+        defaults.set(dailyHoroscopeTime.timeIntervalSince1970, forKey: StorageKeys.dailyHoroscopeTime)
+        defaults.set(moonPhaseEnabled, forKey: StorageKeys.moonPhaseEnabled)
+        defaults.set(mercuryRetrogradeEnabled, forKey: StorageKeys.mercuryRetrogradeEnabled)
+        defaults.set(portfolioAlertsEnabled, forKey: StorageKeys.portfolioAlertsEnabled)
+        defaults.set(weeklySummaryEnabled, forKey: StorageKeys.weeklySummaryEnabled)
+        defaults.set(ipoAlertsEnabled, forKey: StorageKeys.ipoAlertsEnabled)
+        defaults.set(cosmicRoastReminderEnabled, forKey: StorageKeys.cosmicRoastReminderEnabled)
+    }
+
+    private func loadPreferences() {
+        let defaults = UserDefaults.standard
+
+        hasRequestedPermission = defaults.bool(forKey: StorageKeys.hasRequestedPermission)
+
+        // Load with defaults
+        dailyHoroscopeEnabled = defaults.object(forKey: StorageKeys.dailyHoroscopeEnabled) as? Bool ?? true
+        moonPhaseEnabled = defaults.object(forKey: StorageKeys.moonPhaseEnabled) as? Bool ?? true
+        mercuryRetrogradeEnabled = defaults.object(forKey: StorageKeys.mercuryRetrogradeEnabled) as? Bool ?? true
+        portfolioAlertsEnabled = defaults.object(forKey: StorageKeys.portfolioAlertsEnabled) as? Bool ?? true
+        weeklySummaryEnabled = defaults.object(forKey: StorageKeys.weeklySummaryEnabled) as? Bool ?? true
+        ipoAlertsEnabled = defaults.object(forKey: StorageKeys.ipoAlertsEnabled) as? Bool ?? false
+        cosmicRoastReminderEnabled = defaults.object(forKey: StorageKeys.cosmicRoastReminderEnabled) as? Bool ?? false
+
+        // Load horoscope time
+        if let timestamp = defaults.object(forKey: StorageKeys.dailyHoroscopeTime) as? TimeInterval {
+            dailyHoroscopeTime = Date(timeIntervalSince1970: timestamp)
+        }
+    }
+}
+
+// MARK: - Analytics Events Extension
+
+extension AnalyticsEvent {
+    static let notificationPermissionGranted = AnalyticsEvent(rawValue: "notification_permission_granted")!
+    static let notificationPermissionDenied = AnalyticsEvent(rawValue: "notification_permission_denied")!
+    static let testNotificationSent = AnalyticsEvent(rawValue: "test_notification_sent")!
+}
+
+// MARK: - Notification Permission View
+// =====================================
+// Shown after onboarding to request notification permission
+
+struct NotificationPermissionView: View {
+    @State private var notificationService = NotificationService.shared
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 32) {
+            Spacer()
+
+            // Cosmic illustration
+            ZStack {
+                Circle()
+                    .fill(CosmicTheme.gold.opacity(0.1))
+                    .frame(width: 160, height: 160)
+
+                Circle()
+                    .fill(CosmicTheme.gold.opacity(0.2))
+                    .frame(width: 120, height: 120)
+
+                Image(systemName: "bell.badge.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(CosmicTheme.goldGradient)
+            }
+
+            // Header
+            VStack(spacing: 12) {
+                Text("Cosmic Alerts")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundColor(CosmicTheme.textPrimary)
+
+                Text("Get cosmic insights delivered to your device")
+                    .font(.subheadline)
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            // Benefits list
+            VStack(alignment: .leading, spacing: 16) {
+                benefitRow(
+                    icon: "sparkles",
+                    title: "Daily Horoscopes",
+                    description: "Your morning cosmic portfolio reading"
+                )
+
+                benefitRow(
+                    icon: "moon.stars.fill",
+                    title: "Moon Phase Alerts",
+                    description: "Full moon volatility & new moon opportunities"
+                )
+
+                benefitRow(
+                    icon: "arrow.triangle.2.circlepath",
+                    title: "Mercury Retrograde",
+                    description: "Know when to double-check everything"
+                )
+
+                benefitRow(
+                    icon: "chart.line.uptrend.xyaxis",
+                    title: "Portfolio Alerts",
+                    description: "Big moves & weekly summaries"
+                )
+            }
+            .padding(.horizontal, 24)
+
+            Spacer()
+
+            // Action buttons
+            VStack(spacing: 12) {
+                Button(action: enableNotifications) {
+                    Text("Enable Cosmic Alerts")
+                        .font(.headline)
+                        .foregroundColor(CosmicTheme.terminalBlack)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(CosmicTheme.goldGradient)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+
+                Button(action: { dismiss() }) {
+                    Text("Not Now")
+                        .font(.subheadline)
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
+                .padding(.vertical, 8)
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 32)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(CosmicTheme.background.ignoresSafeArea())
+    }
+
+    private func benefitRow(icon: String, title: String, description: String) -> some View {
+        HStack(spacing: 16) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(CosmicTheme.gold)
+                .frame(width: 40)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(CosmicTheme.textPrimary)
+
+                Text(description)
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.textSecondary)
+            }
+        }
+    }
+
+    private func enableNotifications() {
+        Task {
+            await notificationService.requestPermission()
+            dismiss()
+        }
+    }
+}
+
+// MARK: - Preview
+
+#Preview("Permission Request") {
+    NotificationPermissionView()
+        .preferredColorScheme(.dark)
+}
