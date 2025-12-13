@@ -62,6 +62,9 @@ struct PortfolioView: View {
     /// Show cosmic mood detail sheet
     @State private var showMoodDetail: Bool = false
 
+    /// VOC Moon service for void of course tracking
+    @State private var vocService = VoidOfCourseMoonService.shared
+
     // MARK: - Computed Properties
 
     /// Get current user from app state
@@ -211,6 +214,11 @@ struct PortfolioView: View {
                             // 0c. Cosmic Alert Banner (if active events)
                             if let alertEvent = primaryAlertEvent {
                                 cosmicAlertBanner(for: alertEvent)
+                            }
+
+                            // 0d. VOC Moon Warning Banner
+                            if vocService.vocWarningsEnabled {
+                                VOCMoonWarningBanner()
                             }
 
                             // 1. Header with greeting and portfolio value
