@@ -50,6 +50,11 @@ struct DiscoverView: View {
                         // Filter controls
                         filterBar
 
+                        // Contrarian mode banner
+                        if viewModel.cosmicContrarianMode {
+                            contrarianBanner
+                        }
+
                         // Card stack area
                         ZStack {
                             if viewModel.isDeckEmpty {
@@ -139,21 +144,102 @@ struct DiscoverView: View {
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
+                // Cosmic Contrarian toggle
+                contrarianToggle
+
                 // Filter button
                 filterButton
 
-                // Element filters
-                ForEach(ZodiacSign.Element.allCases, id: \.self) { element in
-                    elementFilterChip(element)
+                // Element filters (hide when in contrarian mode)
+                if !(viewModel?.cosmicContrarianMode ?? false) {
+                    ForEach(ZodiacSign.Element.allCases, id: \.self) { element in
+                        elementFilterChip(element)
+                    }
                 }
 
-                // Sort button
-                sortButton
+                // Sort button (hide when in contrarian mode)
+                if !(viewModel?.cosmicContrarianMode ?? false) {
+                    sortButton
+                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
         }
         .background(CosmicTheme.background)
+    }
+
+    private var contrarianToggle: some View {
+        let isActive = viewModel?.cosmicContrarianMode ?? false
+
+        return Button(action: {
+            withAnimation(.spring(response: 0.3)) {
+                viewModel?.toggleContrarianMode()
+            }
+        }) {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.caption)
+
+                Text("Contrarian")
+                    .font(.caption)
+                    .fontWeight(.medium)
+            }
+            .foregroundColor(isActive ? CosmicTheme.background : .purple)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(isActive ? Color.purple : Color.purple.opacity(0.15))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(Color.purple.opacity(isActive ? 0 : 0.5), lineWidth: 1)
+            )
+        }
+    }
+
+    private var contrarianBanner: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.body)
+                    .foregroundColor(.purple)
+
+                Text("Cosmic Contrarian Mode")
+                    .font(TerminalFont.body(14, weight: .semibold))
+                    .foregroundColor(.purple)
+
+                Spacer()
+
+                // Challenge badge
+                Text("CHALLENGE")
+                    .font(TerminalFont.caption(9, weight: .bold))
+                    .foregroundColor(CosmicTheme.background)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule()
+                            .fill(Color.purple)
+                    )
+            }
+
+            Text(viewModel?.contrarianInsight ?? "Showing stocks that challenge your cosmic comfort zone.")
+                .font(TerminalFont.caption(12))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.purple.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.purple.opacity(0.3), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
     }
 
     private var filterButton: some View {

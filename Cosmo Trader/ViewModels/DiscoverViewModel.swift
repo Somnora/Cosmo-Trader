@@ -37,6 +37,9 @@ class DiscoverViewModel {
     /// Current sort option
     var sortOption: SortOption = .compatibility
 
+    /// Cosmic Contrarian Mode - shows least compatible stocks
+    var cosmicContrarianMode: Bool = false
+
     /// Whether filter sheet is showing
     var showingFilters: Bool = false
 
@@ -124,20 +127,30 @@ class DiscoverViewModel {
     func rebuildDeck() {
         var stocks = filteredStocks
 
-        // Sort stocks
-        switch sortOption {
-        case .compatibility:
+        // In Cosmic Contrarian mode, prioritize least compatible stocks
+        if cosmicContrarianMode {
+            // Sort by LOWEST compatibility first
             stocks.sort { stock1, stock2 in
                 let score1 = user.compatibility(with: stock1).score
                 let score2 = user.compatibility(with: stock2).score
-                return score1 > score2
+                return score1 < score2  // Ascending order (lowest first)
             }
-        case .performance:
-            stocks.sort { $0.percentageChange > $1.percentageChange }
-        case .price:
-            stocks.sort { $0.currentPrice < $1.currentPrice }
-        case .alphabetical:
-            stocks.sort { $0.name < $1.name }
+        } else {
+            // Normal sorting logic
+            switch sortOption {
+            case .compatibility:
+                stocks.sort { stock1, stock2 in
+                    let score1 = user.compatibility(with: stock1).score
+                    let score2 = user.compatibility(with: stock2).score
+                    return score1 > score2
+                }
+            case .performance:
+                stocks.sort { $0.percentageChange > $1.percentageChange }
+            case .price:
+                stocks.sort { $0.currentPrice < $1.currentPrice }
+            case .alphabetical:
+                stocks.sort { $0.name < $1.name }
+            }
         }
 
         // Create stock cards with compatibility
@@ -244,6 +257,51 @@ class DiscoverViewModel {
         appState.resetSkippedStocks()
         rebuildDeck()
     }
+
+    // MARK: - Cosmic Contrarian Mode
+
+    /// Toggle Cosmic Contrarian mode
+    func toggleContrarianMode() {
+        cosmicContrarianMode.toggle()
+        rebuildDeck()
+
+        // Track analytics
+        AnalyticsService.shared.track(
+            cosmicContrarianMode ? .cosmicContrarianEnabled : .cosmicContrarianDisabled
+        )
+    }
+
+    /// Get the contrarian insight text based on user's sign
+    var contrarianInsight: String {
+        let userSign = user.sunSign
+        let oppositeElement = userSign.element.oppositeElement
+
+        return "Against your \(userSign.element.displayName) nature. Growth means discomfort. Here are \(oppositeElement.displayName) stocks that challenge your cosmic comfort zone."
+    }
+
+    /// Get stocks that are cosmically opposed to user
+    var contrarianStocks: [Stock] {
+        let userSign = user.sunSign
+        return filteredStocks.filter { stock in
+            // Opposite sign or opposite element
+            stock.zodiacSign == userSign.oppositeSign ||
+            stock.zodiacSign.element == userSign.element.oppositeElement
+        }
+    }
+}
+
+// MARK: - Element Extension for Contrarian
+
+extension ZodiacSign.Element {
+    /// Get the opposite element (Fire<->Water, Earth<->Air)
+    var oppositeElement: ZodiacSign.Element {
+        switch self {
+        case .fire: return .water
+        case .water: return .fire
+        case .earth: return .air
+        case .air: return .earth
+        }
+    }
 }
 
 // MARK: - Supporting Types
@@ -277,4 +335,16 @@ struct StockCard: Identifiable {
     var isCosmicMatch: Bool {
         compatibility.score >= 85
     }
+
+    /// Is this a "Cosmic Challenge" (low compatibility)?
+    var isCosmicChallenge: Bool {
+        compatibility.score <= 40
+    }
+}
+
+// MARK: - Analytics Events
+
+extension AnalyticsEvent {
+    static let cosmicContrarianEnabled = AnalyticsEvent(rawValue: "cosmic_contrarian_enabled")!
+    static let cosmicContrarianDisabled = AnalyticsEvent(rawValue: "cosmic_contrarian_disabled")!
 }
