@@ -48,7 +48,7 @@ struct CosmosView: View {
                 if viewModel != nil {
                     // Main content
                     ScrollView(showsIndicators: false) {
-                        VStack(spacing: 24) {
+                        LazyVStack(spacing: 24) {
                             // 1. Date header with moon phase
                             dateHeader
 
@@ -749,7 +749,6 @@ struct CosmicEventDetailSheet: View {
     let event: CosmicEvent
 
     @Environment(\.dismiss) private var dismiss
-    @State private var pulseAnimation: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -757,7 +756,7 @@ struct CosmicEventDetailSheet: View {
                 VStack(spacing: 24) {
                     // Hero section
                     ZStack {
-                        // Glow background
+                        // Glow background - static for performance
                         Circle()
                             .fill(
                                 RadialGradient(
@@ -772,7 +771,6 @@ struct CosmicEventDetailSheet: View {
                                 )
                             )
                             .frame(width: 240, height: 240)
-                            .scaleEffect(pulseAnimation ? 1.05 : 1.0)
 
                         // Icon
                         Image(systemName: event.icon)
@@ -951,11 +949,6 @@ struct CosmicEventDetailSheet: View {
                 }
             }
         }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
-                pulseAnimation = true
-            }
-        }
     }
 }
 
@@ -1104,10 +1097,8 @@ struct FlowLayout: Layout {
 
 // MARK: - Stars Overlay
 
-/// Animated starfield background effect
+/// Static starfield background effect - no animation for performance
 struct StarsOverlay: View {
-
-    @State private var twinkle: Bool = false
 
     var body: some View {
         Canvas { context, size in
@@ -1128,13 +1119,8 @@ struct StarsOverlay: View {
 
                 context.fill(
                     Circle().path(in: rect),
-                    with: .color(Color.white.opacity(brightness * (twinkle ? 0.8 : 1.0)))
+                    with: .color(Color.white.opacity(brightness))
                 )
-            }
-        }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 3).repeatForever(autoreverses: true)) {
-                twinkle = true
             }
         }
     }

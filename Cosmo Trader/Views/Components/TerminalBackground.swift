@@ -2,118 +2,45 @@ import SwiftUI
 
 /// TerminalBackground
 /// -----------------
-/// A subtle star field background that evokes a planetarium without
-/// being cartoonish. Sparse, barely visible dots on deep black.
-///
-/// Design Philosophy:
-/// - Less is more - only a few dozen stars visible
-/// - Very low opacity (0.1-0.3) for subtlety
-/// - Random but deterministic positioning (seeded)
-/// - Optional grid lines for chart backgrounds
+/// Flat black. No decoration. No stars. No gradients.
+/// Bloomberg Terminal aesthetic.
 
-// MARK: - Star Field Background
+// MARK: - Terminal Background
 
 struct TerminalBackground: View {
 
-    /// Number of stars to render
-    var starCount: Int = 40
+    /// Ignored - kept for API compatibility
+    var starCount: Int = 0
 
-    /// Whether to show subtle grid lines
+    /// Whether to show grid lines (for charts only)
     var showGrid: Bool = false
 
     /// Grid spacing in points
     var gridSpacing: CGFloat = 40
 
-    /// Seed for deterministic star positions
+    /// Ignored - kept for API compatibility
     var seed: Int = 42
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Deep black base
-                CosmicTheme.background
+        ZStack {
+            // Flat black. Nothing else.
+            CosmicTheme.background
 
-                // Subtle gradient overlay (barely perceptible)
-                LinearGradient(
-                    colors: [
-                        Color(hex: "0A0A0A"),
-                        CosmicTheme.background,
-                        Color(hex: "0F0F10")
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .opacity(0.5)
-
-                // Optional grid lines
-                if showGrid {
-                    GridPattern(spacing: gridSpacing)
-                }
-
-                // Star field
-                StarField(
-                    count: starCount,
-                    size: geometry.size,
-                    seed: seed
-                )
+            // Optional grid lines for charts
+            if showGrid {
+                GridPattern(spacing: gridSpacing)
             }
         }
         .ignoresSafeArea()
     }
 }
 
-// MARK: - Star Field
-
-struct StarField: View {
-    let count: Int
-    let size: CGSize
-    let seed: Int
-
-    var body: some View {
-        Canvas { context, _ in
-            // Use seeded random for consistent star positions
-            var random = SeededRandomNumberGenerator(seed: seed)
-
-            for _ in 0..<count {
-                let x = CGFloat.random(in: 0..<size.width, using: &random)
-                let y = CGFloat.random(in: 0..<size.height, using: &random)
-                let starSize = CGFloat.random(in: 0.5...1.5, using: &random)
-                let opacity = Double.random(in: 0.08...0.25, using: &random)
-
-                // Vary star color slightly (mostly white, some with hints of blue/gold)
-                let colorVariant = Int.random(in: 0..<10, using: &random)
-                let starColor: Color
-                switch colorVariant {
-                case 0:
-                    starColor = CosmicTheme.gold.opacity(opacity * 1.5)
-                case 1:
-                    starColor = CosmicTheme.accentBlue.opacity(opacity * 1.2)
-                default:
-                    starColor = Color.white.opacity(opacity)
-                }
-
-                let rect = CGRect(
-                    x: x - starSize / 2,
-                    y: y - starSize / 2,
-                    width: starSize,
-                    height: starSize
-                )
-
-                context.fill(
-                    Circle().path(in: rect),
-                    with: .color(starColor)
-                )
-            }
-        }
-    }
-}
-
-// MARK: - Grid Pattern
+// MARK: - Grid Pattern (for charts only)
 
 struct GridPattern: View {
     let spacing: CGFloat
-    let lineColor: Color = CosmicTheme.gridLine
-    let lineWidth: CGFloat = 0.5
+    let lineColor: Color = CosmicTheme.border
+    let lineWidth: CGFloat = 1
 
     var body: some View {
         GeometryReader { geometry in
@@ -150,9 +77,20 @@ struct GridPattern: View {
     }
 }
 
-// MARK: - Seeded Random Number Generator
+// MARK: - Star Field (REMOVED - kept as empty struct for compatibility)
 
-/// A deterministic random number generator for consistent star positions
+struct StarField: View {
+    let count: Int
+    let size: CGSize
+    let seed: Int
+
+    var body: some View {
+        Color.clear // No stars. Too decorative.
+    }
+}
+
+// MARK: - Seeded Random Number Generator (kept for compatibility)
+
 struct SeededRandomNumberGenerator: RandomNumberGenerator {
     private var state: UInt64
 
@@ -161,7 +99,6 @@ struct SeededRandomNumberGenerator: RandomNumberGenerator {
     }
 
     mutating func next() -> UInt64 {
-        // Simple xorshift64 algorithm
         state ^= state << 13
         state ^= state >> 7
         state ^= state << 17
@@ -172,17 +109,15 @@ struct SeededRandomNumberGenerator: RandomNumberGenerator {
 // MARK: - View Extensions
 
 extension View {
-    /// Apply terminal background with subtle star field
-    func terminalBackground(stars: Int = 40, showGrid: Bool = false) -> some View {
-        self.background(
-            TerminalBackground(starCount: stars, showGrid: showGrid)
-        )
+    /// Apply flat black background
+    func terminalBackground(stars: Int = 0, showGrid: Bool = false) -> some View {
+        self.background(CosmicTheme.background)
     }
 
     /// Apply chart background with grid lines
     func chartBackground(gridSpacing: CGFloat = 40) -> some View {
         self.background(
-            TerminalBackground(starCount: 20, showGrid: true, gridSpacing: gridSpacing)
+            TerminalBackground(showGrid: true, gridSpacing: gridSpacing)
         )
     }
 }
@@ -190,86 +125,47 @@ extension View {
 // MARK: - Preview
 
 #Preview("Terminal Background") {
-    VStack(spacing: 20) {
+    VStack(spacing: 0) {
         Text("TERMINAL BACKGROUND")
-            .font(TerminalFont.headline(24))
-            .foregroundColor(CosmicTheme.textPrimary)
-
-        Text("Subtle star field, not cartoonish")
             .font(TerminalFont.data(14))
             .foregroundColor(CosmicTheme.textMuted)
+            .tracking(2)
+            .padding(.vertical, 12)
 
-        Spacer()
+        Rectangle()
+            .fill(CosmicTheme.border)
+            .frame(height: 1)
 
-        // Sample data card
-        VStack(alignment: .leading, spacing: 8) {
-            Text("AAPL")
-                .font(TerminalFont.data(16))
-                .foregroundColor(CosmicTheme.textPrimary)
-            Text("$178.52")
-                .font(TerminalFont.price(32))
-                .foregroundColor(CosmicTheme.textPrimary)
-            Text("+2.34 (+1.33%)")
-                .font(TerminalFont.data(14))
-                .foregroundColor(CosmicTheme.positive)
+        // Sample data
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("AAPL")
+                    .font(TerminalFont.ticker(14))
+                    .foregroundColor(CosmicTheme.textPrimary)
+                Text("Apple Inc.")
+                    .font(TerminalFont.data(11))
+                    .foregroundColor(CosmicTheme.textSecondary)
+            }
+            .padding(12)
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("$178.52")
+                    .font(TerminalFont.price(18))
+                    .foregroundColor(CosmicTheme.textPrimary)
+                Text("+1.33%")
+                    .font(TerminalFont.price(12))
+                    .foregroundColor(CosmicTheme.positive)
+            }
+            .padding(12)
         }
-        .padding(16)
-        .terminalCard()
+
+        Rectangle()
+            .fill(CosmicTheme.border)
+            .frame(height: 1)
 
         Spacer()
     }
-    .padding()
-    .terminalBackground()
-}
-
-#Preview("Chart Background") {
-    VStack(spacing: 20) {
-        Text("CHART BACKGROUND")
-            .font(TerminalFont.headline(24))
-            .foregroundColor(CosmicTheme.textPrimary)
-
-        // Chart placeholder
-        RoundedRectangle(cornerRadius: 0)
-            .fill(Color.clear)
-            .frame(height: 200)
-            .chartBackground(gridSpacing: 30)
-            .overlay(
-                Rectangle()
-                    .stroke(CosmicTheme.border, lineWidth: 0.5)
-            )
-
-        Text("Grid spacing: 30pt")
-            .font(TerminalFont.data(12))
-            .foregroundColor(CosmicTheme.textMuted)
-    }
-    .padding()
     .background(CosmicTheme.background)
-}
-
-#Preview("Star Density Comparison") {
-    HStack(spacing: 0) {
-        VStack {
-            Text("20 stars")
-                .font(.caption)
-                .foregroundColor(CosmicTheme.textMuted)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .terminalBackground(stars: 20)
-
-        VStack {
-            Text("40 stars")
-                .font(.caption)
-                .foregroundColor(CosmicTheme.textMuted)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .terminalBackground(stars: 40)
-
-        VStack {
-            Text("60 stars")
-                .font(.caption)
-                .foregroundColor(CosmicTheme.textMuted)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .terminalBackground(stars: 60)
-    }
 }

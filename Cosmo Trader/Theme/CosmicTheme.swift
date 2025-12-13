@@ -2,153 +2,143 @@ import SwiftUI
 
 /// CosmicTheme
 /// -----------
-/// NYSE trading floor meets planetarium.
-/// Bloomberg Terminal sophistication with subtle cosmic elements.
-///
-/// Design Philosophy:
-/// - Data-dense, grid-based layouts
-/// - Monospace numbers like a trading terminal
-/// - Sharp corners for data, rounded for interactive elements
-/// - Subtle borders instead of heavy shadows
-/// - The cosmos as data, not decoration
+/// Bloomberg Terminal aesthetic. No frills. Just data.
+/// If it looks "designed" it's wrong. If it looks like banking software from 2008, it's right.
 
 struct CosmicTheme {
 
-    // MARK: - Terminal Backgrounds
-    // Deep Void Black - Bloomberg Terminal meets Planetarium
+    // MARK: - Backgrounds
+    // True black. Nothing else.
 
-    /// Primary background - Deep Void Black
-    static let background = Color(hex: "050505")
+    /// Primary background - TRUE BLACK
+    static let background = Color(hex: "000000")
 
-    /// True OLED black for terminal aesthetic
+    /// Terminal black (alias)
     static let terminalBlack = Color(hex: "000000")
 
-    /// Card/surface background - Dark Gray
-    static let cardBackground = Color(hex: "1A1A1A")
+    /// Surface - barely visible lift for sections
+    static let cardBackground = Color(hex: "0A0A0A")
 
-    /// Secondary surfaces - for nested elements
-    static let secondaryBackground = Color(hex: "111111")
+    /// Secondary surfaces
+    static let secondaryBackground = Color(hex: "0A0A0A")
 
-    /// Tertiary - hover states, highlights
-    static let tertiaryBackground = Color(hex: "1F1F1F")
+    /// Tertiary - same as secondary, no hierarchy needed
+    static let tertiaryBackground = Color(hex: "0A0A0A")
 
-    // MARK: - Border & Divider Colors
+    // MARK: - Borders
+    // Thin 1px lines only. No shadows.
 
-    /// Standard border color
-    static let border = Color(hex: "2D2D2D")
+    /// Standard border - thin gray line
+    static let border = Color(hex: "1A1A1A")
 
-    /// Dim border for subtle separators
-    static let borderDim = Color(hex: "1C1C1C")
+    /// Dim border (alias)
+    static let borderDim = Color(hex: "1A1A1A")
 
-    /// Subtle divider lines
-    static let divider = Color(hex: "252525")
+    /// Divider lines
+    static let divider = Color(hex: "1A1A1A")
 
-    /// Grid lines (very subtle)
-    static let gridLine = Color(hex: "1F1F1F")
+    /// Grid lines
+    static let gridLine = Color(hex: "1A1A1A")
 
     // MARK: - Market Colors
-    // Classic trading terminal green/red
+    // Classic terminal green/red. Nothing fancy.
 
-    /// Gains, bullish, positive - Terminal Green
-    static let positive = Color(hex: "00FF41")
+    /// Gains - TERMINAL GREEN
+    static let positive = Color(hex: "00FF00")
 
-    /// Losses, bearish, negative - Bearish Red
-    static let negative = Color(hex: "FF3B30")
+    /// Losses - RED
+    static let negative = Color(hex: "FF3333")
 
-    /// Alert red for warnings and errors
-    static let alertRed = Color(hex: "FF3B30")
+    /// Alert red
+    static let alertRed = Color(hex: "FF3333")
 
     /// Neutral/unchanged
-    static let neutral = Color(hex: "888888")
+    static let neutral = Color(hex: "666666")
 
-    /// Terminal Green accent for data highlights
-    static let terminalGreen = Color(hex: "00FF41")
+    /// Terminal Green (alias)
+    static let terminalGreen = Color(hex: "00FF00")
 
     // MARK: - Accent Colors
 
-    /// Starlight Gold - premium feel, highlights, zodiac elements
-    static let gold = Color(hex: "D4AF37")
+    /// Gold - MUTED, not bright
+    static let gold = Color(hex: "AA8800")
 
-    /// Soft gold for secondary accents
-    static let softGold = Color(hex: "B8962E")
+    /// Soft gold (alias)
+    static let softGold = Color(hex: "AA8800")
 
-    /// Dim gold for subtle backgrounds
-    static let dimGold = Color(hex: "3D3220")
+    /// Dim gold for backgrounds
+    static let dimGold = Color(hex: "1A1500")
 
-    /// Deep space blue - subtle accent for cosmic elements
-    static let cosmicBlue = Color(hex: "0A1628")
-
-    /// Deep blue for gradients
-    static let deepBlue = Color(hex: "0A1220")
-
-    /// Steel blue for interactive highlights (no purple)
-    static let accentBlue = Color(hex: "2D5A8A")
+    /// Blue accents - steel, not cosmic
+    static let cosmicBlue = Color(hex: "0A0A0A")
+    static let deepBlue = Color(hex: "0A0A0A")
+    static let accentBlue = Color(hex: "336699")
 
     // MARK: - Text Colors
 
-    /// Primary text - bright but not harsh white
-    static let textPrimary = Color(hex: "E8E8E8")
+    /// Primary text - NOT pure white, slightly dim
+    static let textPrimary = Color(hex: "CCCCCC")
 
-    /// Secondary text - dimmed
-    static let textSecondary = Color(hex: "A0A0A0")
+    /// Secondary text - labels, less important
+    static let textSecondary = Color(hex: "666666")
 
     /// Muted text - hints, timestamps
-    static let textMuted = Color(hex: "666666")
+    static let textMuted = Color(hex: "444444")
 
     /// Disabled text
-    static let textDisabled = Color(hex: "444444")
+    static let textDisabled = Color(hex: "333333")
 
-    // MARK: - Legacy Aliases (for compatibility)
+    // MARK: - Legacy Aliases
 
-    static let cosmicPurple = cosmicBlue  // Redirect purple to blue
-    static let nebulaBlue = deepBlue
+    static let cosmicPurple = Color(hex: "0A0A0A")  // No purple. Ever.
+    static let nebulaBlue = Color(hex: "0A0A0A")    // No nebula nonsense.
 
-    // MARK: - Gradients
+    // MARK: - Gradients (FLAT - no actual gradients)
 
-    /// Subtle blue gradient for special headers
+    /// No gradient - flat color
     static let cosmicGradient = LinearGradient(
-        colors: [cosmicBlue, deepBlue],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
+        colors: [background, background],
+        startPoint: .top,
+        endPoint: .bottom
     )
 
-    /// Gold gradient for premium elements
+    /// Gold "gradient" - flat
     static let goldGradient = LinearGradient(
-        colors: [gold, softGold],
+        colors: [gold, gold],
         startPoint: .top,
         endPoint: .bottom
     )
 
-    /// Terminal gradient - subtle fade for backgrounds
+    /// Terminal gradient - flat black
     static let terminalGradient = LinearGradient(
-        colors: [background, Color(hex: "020202")],
+        colors: [background, background],
         startPoint: .top,
         endPoint: .bottom
     )
 
-    /// Terminal green glow gradient
+    /// Terminal green - flat
     static let terminalGreenGradient = LinearGradient(
-        colors: [terminalGreen.opacity(0.8), terminalGreen.opacity(0.4)],
+        colors: [terminalGreen, terminalGreen],
         startPoint: .top,
         endPoint: .bottom
     )
 
-    /// Data card gradient - very subtle
+    /// Card gradient - flat
     static let cardGradient = LinearGradient(
-        colors: [cardBackground, Color(hex: "151515")],
+        colors: [cardBackground, cardBackground],
         startPoint: .top,
         endPoint: .bottom
     )
 
     // MARK: - Element Colors (Zodiac)
-    // Muted, sophisticated versions
+    // Muted. Not playful.
 
-    static let fireElement = Color(hex: "C94D38")    // Muted red-orange
-    static let earthElement = Color(hex: "4A7C4E")   // Forest green
-    static let airElement = Color(hex: "C4A84B")     // Muted gold
-    static let waterElement = Color(hex: "3A6B8C")   // Steel blue
+    static let fireElement = Color(hex: "AA4400")    // Muted orange
+    static let earthElement = Color(hex: "558855")   // Muted green
+    static let airElement = Color(hex: "AA8800")     // Same as gold
+    static let waterElement = Color(hex: "446688")   // Steel blue
 
-    // MARK: - Opacity Helpers
+    // MARK: - Helpers
 
     static func withOpacity(_ color: Color, _ opacity: Double) -> Color {
         color.opacity(opacity)
@@ -164,11 +154,11 @@ extension Color {
         Scanner(string: hex).scanHexInt64(&int)
         let a, r, g, b: UInt64
         switch hex.count {
-        case 3: // RGB (12-bit)
+        case 3:
             (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
+        case 6:
             (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
+        case 8:
             (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
         default:
             (a, r, g, b) = (255, 0, 0, 0)
@@ -186,77 +176,76 @@ extension Color {
 // MARK: - Typography
 
 struct TerminalFont {
-    /// Monospace font for prices and numbers - Bloomberg Terminal style
-    static func price(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
+    /// Monospace for ALL numbers and prices
+    static func price(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight, design: .monospaced)
     }
 
-    /// Data display font - monospaced for alignment
-    static func data(_ size: CGFloat, weight: Font.Weight = .medium) -> Font {
+    /// Data display - monospaced
+    static func data(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight, design: .monospaced)
     }
 
-    /// Label font (default system for readability)
+    /// Labels - system, uppercase in usage
     static func label(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight, design: .default)
     }
 
-    /// Headline with slight tracking
+    /// Headlines - no bold unless primary value
     static func headline(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .semibold, design: .default)
+        .system(size: size, weight: .medium, design: .default)
     }
 
-    /// Body text for longer content
+    /// Body text
     static func body(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight, design: .default)
     }
 
-    /// Ticker symbol font - bold monospace for stock symbols
+    /// Ticker symbols - monospace
     static func ticker(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .bold, design: .monospaced)
-    }
-
-    /// Terminal readout - like green phosphor display
-    static func readout(_ size: CGFloat) -> Font {
         .system(size: size, weight: .medium, design: .monospaced)
     }
 
-    /// Timestamp font - subtle monospace
+    /// Terminal readout
+    static func readout(_ size: CGFloat) -> Font {
+        .system(size: size, weight: .regular, design: .monospaced)
+    }
+
+    /// Timestamp
     static func timestamp(_ size: CGFloat) -> Font {
         .system(size: size, weight: .regular, design: .monospaced)
     }
 
-    /// Caption font for small text
+    /// Caption
     static func caption(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight, design: .default)
+        .system(size: size, weight: weight, design: .monospaced)
     }
 }
 
 // MARK: - View Extensions
 
 extension View {
-    /// Apply terminal card style with sharp corners
+    /// Terminal style - NO rounded corners, 1px border
     func terminalCard() -> some View {
         self
             .background(CosmicTheme.cardBackground)
             .overlay(
                 Rectangle()
-                    .stroke(CosmicTheme.border, lineWidth: 0.5)
+                    .stroke(CosmicTheme.border, lineWidth: 1)
             )
     }
 
-    /// Apply terminal card with subtle rounded corners (for buttons)
+    /// Terminal button - sharp corners
     func terminalButton() -> some View {
         self
             .background(CosmicTheme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
             .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(CosmicTheme.border, lineWidth: 0.5)
+                Rectangle()
+                    .stroke(CosmicTheme.border, lineWidth: 1)
             )
     }
 
-    /// Price text styling
+    /// Price styling
     func priceStyle(size: CGFloat = 16, positive: Bool? = nil) -> some View {
         self
             .font(TerminalFont.price(size))
@@ -266,106 +255,57 @@ extension View {
             )
     }
 
-    /// Subtle border
+    /// 1px border
     func subtleBorder(_ color: Color = CosmicTheme.border) -> some View {
         self.overlay(
             Rectangle()
-                .stroke(color, lineWidth: 0.5)
+                .stroke(color, lineWidth: 1)
         )
     }
 
-    /// Terminal glow effect for highlighted data
+    /// NO glow effect - just return self
     func terminalGlow(_ color: Color = CosmicTheme.terminalGreen) -> some View {
-        self.shadow(color: color.opacity(0.4), radius: 4, x: 0, y: 0)
+        self // No glow. Data doesn't glow.
     }
 
-    /// Deep void background with optional subtle gradient
+    /// Flat black background
     func voidBackground(gradient: Bool = false) -> some View {
-        self.background(
-            gradient ? AnyView(CosmicTheme.terminalGradient) : AnyView(CosmicTheme.background)
-        )
+        self.background(CosmicTheme.background)
     }
 
-    /// Scanline effect for extra terminal authenticity
+    /// NO scanlines - too decorative
     func scanlines(opacity: Double = 0.03) -> some View {
-        self.overlay(
-            TerminalScanlines(opacity: opacity)
-        )
+        self // No scanlines.
     }
 }
 
-// MARK: - Terminal Background Components
+// MARK: - Terminal Background (Flat Black)
 
-/// Deep void black background view with optional effects
-/// Note: Basic TerminalBackground is in TerminalBackground.swift
 struct VoidBackground: View {
     var showScanlines: Bool = false
     var scanlineOpacity: Double = 0.02
 
     var body: some View {
-        ZStack {
-            // Deep void black
-            CosmicTheme.background
-                .ignoresSafeArea()
-
-            // Optional subtle gradient
-            LinearGradient(
-                colors: [
-                    Color(hex: "080808"),
-                    CosmicTheme.background,
-                    Color(hex: "030303")
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+        CosmicTheme.background
             .ignoresSafeArea()
-
-            // Optional scanlines
-            if showScanlines {
-                TerminalScanlines(opacity: scanlineOpacity)
-                    .ignoresSafeArea()
-            }
-        }
     }
 }
 
-/// Subtle scanline overlay for CRT terminal effect
+/// NO scanlines
 struct TerminalScanlines: View {
     var opacity: Double = 0.03
 
     var body: some View {
-        GeometryReader { geometry in
-            Path { path in
-                let spacing: CGFloat = 3
-                var y: CGFloat = 0
-                while y < geometry.size.height {
-                    path.move(to: CGPoint(x: 0, y: y))
-                    path.addLine(to: CGPoint(x: geometry.size.width, y: y))
-                    y += spacing
-                }
-            }
-            .stroke(Color.white.opacity(opacity), lineWidth: 0.5)
-        }
+        Color.clear // Removed. Too decorative.
     }
 }
 
-/// Vignette effect for planetarium feel
+/// NO vignette
 struct VignetteOverlay: View {
     var intensity: Double = 0.5
 
     var body: some View {
-        RadialGradient(
-            colors: [
-                Color.clear,
-                Color.black.opacity(intensity * 0.3),
-                Color.black.opacity(intensity)
-            ],
-            center: .center,
-            startRadius: 100,
-            endRadius: 500
-        )
-        .ignoresSafeArea()
-        .allowsHitTesting(false)
+        Color.clear // Removed. Too decorative.
     }
 }
 
@@ -373,173 +313,95 @@ struct VignetteOverlay: View {
 
 #Preview("Terminal Theme") {
     ScrollView {
-        VStack(spacing: 24) {
-            // Header
-            Text("BLOOMBERG TERMINAL × PLANETARIUM")
-                .font(TerminalFont.headline(20))
-                .foregroundColor(CosmicTheme.textPrimary)
+        VStack(spacing: 0) {
+            Text("──── TERMINAL THEME ────")
+                .font(TerminalFont.data(12))
+                .foregroundColor(CosmicTheme.textMuted)
                 .frame(maxWidth: .infinity)
-                .padding()
-                .terminalCard()
+                .padding(.vertical, 8)
 
-            // Backgrounds - Deep Void Black
-            VStack(alignment: .leading, spacing: 8) {
-                Text("VOID BACKGROUNDS")
-                    .font(TerminalFont.data(12))
-                    .foregroundColor(CosmicTheme.textMuted)
+            Rectangle()
+                .fill(CosmicTheme.border)
+                .frame(height: 1)
 
-                HStack(spacing: 2) {
-                    colorBlock("Void #050505", CosmicTheme.background)
-                    colorBlock("Surface", CosmicTheme.cardBackground)
-                    colorBlock("Secondary", CosmicTheme.secondaryBackground)
-                    colorBlock("Tertiary", CosmicTheme.tertiaryBackground)
-                }
-            }
-            .padding()
-            .terminalCard()
-
-            // Market Colors with Terminal Green
-            VStack(alignment: .leading, spacing: 8) {
-                Text("MARKET COLORS")
-                    .font(TerminalFont.data(12))
-                    .foregroundColor(CosmicTheme.textMuted)
-
-                HStack(spacing: 16) {
-                    VStack {
-                        Text("+2.45%")
-                            .font(TerminalFont.price(24))
-                            .foregroundColor(CosmicTheme.positive)
-                            .terminalGlow(CosmicTheme.terminalGreen)
-                        Text("Terminal Green")
-                            .font(.caption)
-                            .foregroundColor(CosmicTheme.textMuted)
-                    }
-
-                    VStack {
-                        Text("-1.23%")
-                            .font(TerminalFont.price(24))
-                            .foregroundColor(CosmicTheme.negative)
-                        Text("Bearish Red")
-                            .font(.caption)
-                            .foregroundColor(CosmicTheme.textMuted)
-                    }
-
-                    VStack {
-                        Text("0.00%")
-                            .font(TerminalFont.price(24))
-                            .foregroundColor(CosmicTheme.neutral)
-                        Text("Neutral")
-                            .font(.caption)
-                            .foregroundColor(CosmicTheme.textMuted)
-                    }
+            // Colors
+            HStack(spacing: 0) {
+                VStack(spacing: 4) {
+                    Text("+2.45%")
+                        .font(TerminalFont.price(16))
+                        .foregroundColor(CosmicTheme.positive)
+                    Text("GAIN")
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textMuted)
                 }
                 .frame(maxWidth: .infinity)
-            }
-            .padding()
-            .terminalCard()
+                .padding(.vertical, 12)
 
-            // Accents
-            VStack(alignment: .leading, spacing: 8) {
-                Text("ACCENTS")
-                    .font(TerminalFont.data(12))
-                    .foregroundColor(CosmicTheme.textMuted)
+                Rectangle()
+                    .fill(CosmicTheme.border)
+                    .frame(width: 1)
 
-                HStack(spacing: 2) {
-                    colorBlock("Starlight Gold", CosmicTheme.gold)
-                    colorBlock("Terminal Green", CosmicTheme.terminalGreen)
-                    colorBlock("Deep Blue", CosmicTheme.deepBlue)
-                    colorBlock("Accent Blue", CosmicTheme.accentBlue)
+                VStack(spacing: 4) {
+                    Text("-1.23%")
+                        .font(TerminalFont.price(16))
+                        .foregroundColor(CosmicTheme.negative)
+                    Text("LOSS")
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textMuted)
                 }
-            }
-            .padding()
-            .terminalCard()
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
 
-            // Elements
-            VStack(alignment: .leading, spacing: 8) {
-                Text("ZODIAC ELEMENTS")
-                    .font(TerminalFont.data(12))
-                    .foregroundColor(CosmicTheme.textMuted)
+                Rectangle()
+                    .fill(CosmicTheme.border)
+                    .frame(width: 1)
 
-                HStack(spacing: 2) {
-                    colorBlock("Fire", CosmicTheme.fireElement)
-                    colorBlock("Earth", CosmicTheme.earthElement)
-                    colorBlock("Air", CosmicTheme.airElement)
-                    colorBlock("Water", CosmicTheme.waterElement)
+                VStack(spacing: 4) {
+                    Text("0.00%")
+                        .font(TerminalFont.price(16))
+                        .foregroundColor(CosmicTheme.neutral)
+                    Text("FLAT")
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textMuted)
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
             }
-            .padding()
-            .terminalCard()
 
-            // Sample Price Display
-            VStack(alignment: .leading, spacing: 8) {
-                Text("PRICE DISPLAY")
-                    .font(TerminalFont.data(12))
-                    .foregroundColor(CosmicTheme.textMuted)
+            Rectangle()
+                .fill(CosmicTheme.border)
+                .frame(height: 1)
 
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("AAPL")
-                            .font(TerminalFont.ticker(14))
-                            .foregroundColor(CosmicTheme.textPrimary)
-                        Text("Apple Inc.")
-                            .font(.caption)
-                            .foregroundColor(CosmicTheme.textMuted)
-                    }
+            // Sample row
+            HStack(spacing: 8) {
+                Text("AAPL")
+                    .font(TerminalFont.ticker(12))
+                    .foregroundColor(CosmicTheme.textPrimary)
+                    .frame(width: 50, alignment: .leading)
 
-                    Spacer()
+                Text("Apple Inc.")
+                    .font(TerminalFont.data(11))
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .lineLimit(1)
 
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text("$178.52")
-                            .font(TerminalFont.price(20))
-                            .foregroundColor(CosmicTheme.textPrimary)
-                        Text("+2.34 (+1.33%)")
-                            .font(TerminalFont.data(12))
-                            .foregroundColor(CosmicTheme.positive)
-                            .terminalGlow()
-                    }
-                }
-                .padding(12)
-                .background(CosmicTheme.secondaryBackground)
-                .subtleBorder()
+                Spacer()
+
+                Text("$178.52")
+                    .font(TerminalFont.price(12))
+                    .foregroundColor(CosmicTheme.textPrimary)
+
+                Text("+1.33%")
+                    .font(TerminalFont.price(12))
+                    .foregroundColor(CosmicTheme.positive)
+                    .frame(width: 60, alignment: .trailing)
             }
-            .padding()
-            .terminalCard()
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+
+            Rectangle()
+                .fill(CosmicTheme.border)
+                .frame(height: 1)
         }
-        .padding()
     }
-    .background(VoidBackground())
-}
-
-#Preview("Terminal Green Glow") {
-    VStack(spacing: 20) {
-        Text("MARKET OPEN")
-            .font(TerminalFont.readout(32))
-            .foregroundColor(CosmicTheme.terminalGreen)
-            .terminalGlow()
-
-        Text("$1,247.89")
-            .font(TerminalFont.price(48))
-            .foregroundColor(CosmicTheme.terminalGreen)
-            .terminalGlow()
-
-        Text("+$47.23 (+3.94%)")
-            .font(TerminalFont.data(18))
-            .foregroundColor(CosmicTheme.positive)
-    }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(VoidBackground(showScanlines: true))
-}
-
-private func colorBlock(_ name: String, _ color: Color) -> some View {
-    VStack(spacing: 4) {
-        Rectangle()
-            .fill(color)
-            .frame(height: 40)
-        Text(name)
-            .font(.system(size: 8, design: .monospaced))
-            .foregroundColor(CosmicTheme.textMuted)
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-    }
-    .frame(maxWidth: .infinity)
+    .background(CosmicTheme.background)
 }

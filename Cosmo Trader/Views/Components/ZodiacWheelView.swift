@@ -434,10 +434,9 @@ struct ZodiacWheelView: View {
             segmentRotation = 0
         }
 
-        // Pulsing glow
-        withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
-            glowAmount = 4
-        }
+        // Static glow - removed infinite animation for performance
+        // The glow is now a fixed value instead of constantly animating
+        glowAmount = 3
     }
 }
 

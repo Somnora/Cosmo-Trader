@@ -25,13 +25,8 @@ struct CosmicTraderApp: App {
     /// Initialize any app-wide settings when the app launches
     init() {
         configureAppAppearance()
-
-        // Run API diagnostic test in debug mode
-        #if DEBUG
-        Task {
-            await StockAPIService.shared.runDiagnosticTest()
-        }
-        #endif
+        // Note: Deferred API diagnostic test to after app launch for better startup performance
+        // The test will run after the launch screen completes
     }
 
     // MARK: - Body

@@ -64,7 +64,7 @@ struct IPOListView: View {
                 TerminalBackground(starCount: 30, showGrid: false)
 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 24) {
+                    LazyVStack(spacing: 24) {
                         // Header with cosmic birth theme
                         headerSection
 

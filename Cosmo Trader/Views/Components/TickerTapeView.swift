@@ -28,6 +28,7 @@ struct TickerTapeView: View {
     /// Animation state
     @State private var offset: CGFloat = 0
     @State private var contentWidth: CGFloat = 0
+    @State private var isAnimating: Bool = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -66,10 +67,17 @@ struct TickerTapeView: View {
                 }
                 .offset(x: offset)
                 .onAppear {
+                    isAnimating = true
                     startScrolling(viewWidth: viewWidth)
+                }
+                .onDisappear {
+                    // Stop animation when view disappears to save resources
+                    isAnimating = false
+                    offset = 0
                 }
                 .onChange(of: stocks.count) { _, _ in
                     // Reset animation when stocks change
+                    guard isAnimating else { return }
                     offset = 0
                     startScrolling(viewWidth: viewWidth)
                 }
@@ -126,7 +134,8 @@ struct TickerTapeView: View {
     private func startScrolling(viewWidth: CGFloat) {
         // Wait for content width to be measured
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            guard contentWidth > 0 else { return }
+            // Only start if still animating and content has width
+            guard isAnimating, contentWidth > 0 else { return }
 
             // Calculate animation duration based on speed
             let duration = contentWidth / speed
@@ -152,6 +161,7 @@ struct CompactTickerTape: View {
 
     @State private var offset: CGFloat = 0
     @State private var contentWidth: CGFloat = 0
+    @State private var isAnimating: Bool = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -170,7 +180,12 @@ struct CompactTickerTape: View {
             }
             .offset(x: offset)
             .onAppear {
+                isAnimating = true
                 startAnimation(viewWidth: viewWidth)
+            }
+            .onDisappear {
+                isAnimating = false
+                offset = 0
             }
         }
         .frame(height: 20)
@@ -196,7 +211,7 @@ struct CompactTickerTape: View {
 
     private func startAnimation(viewWidth: CGFloat) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            guard contentWidth > 0 else { return }
+            guard isAnimating, contentWidth > 0 else { return }
             let duration = contentWidth / speed
             offset = viewWidth
 

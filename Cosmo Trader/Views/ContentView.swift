@@ -79,29 +79,29 @@ struct ContentView: View {
 
     // MARK: - Tab Bar Appearance
 
-    /// Configure the UIKit tab bar appearance for our cosmic theme
+    /// Configure the UIKit tab bar appearance - Bloomberg Terminal style
     private func configureTabBarAppearance() {
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
 
-        // Background color - darker for cosmic feel
+        // True black background
         appearance.backgroundColor = UIColor(CosmicTheme.background)
 
-        // Add subtle top border
-        appearance.shadowColor = UIColor(CosmicTheme.gold.opacity(0.1))
+        // 1px top border line
+        appearance.shadowColor = UIColor(CosmicTheme.border)
 
-        // Unselected items
+        // Unselected items - muted gray
         appearance.stackedLayoutAppearance.normal.iconColor = UIColor(CosmicTheme.textMuted)
         appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
             .foregroundColor: UIColor(CosmicTheme.textMuted),
-            .font: UIFont.systemFont(ofSize: 10, weight: .medium)
+            .font: UIFont.monospacedSystemFont(ofSize: 9, weight: .regular)
         ]
 
-        // Selected items
+        // Selected items - muted gold (not bright)
         appearance.stackedLayoutAppearance.selected.iconColor = UIColor(CosmicTheme.gold)
         appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
             .foregroundColor: UIColor(CosmicTheme.gold),
-            .font: UIFont.systemFont(ofSize: 10, weight: .semibold)
+            .font: UIFont.monospacedSystemFont(ofSize: 9, weight: .medium)
         ]
 
         UITabBar.appearance().standardAppearance = appearance

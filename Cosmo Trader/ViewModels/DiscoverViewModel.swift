@@ -49,6 +49,9 @@ class DiscoverViewModel {
     /// Animation state for card removal
     var removingCard: Bool = false
 
+    /// Debounce work item for filter changes
+    private var filterDebounceWork: DispatchWorkItem?
+
     // MARK: - Initialization
 
     init(appState: AppState = AppState.shared) {
@@ -227,29 +230,39 @@ class DiscoverViewModel {
 
     // MARK: - Filter Actions
 
+    /// Debounced rebuild deck to prevent excessive computation during rapid filter changes
+    private func debouncedRebuildDeck(delay: TimeInterval = 0.15) {
+        filterDebounceWork?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.rebuildDeck()
+        }
+        filterDebounceWork = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+    }
+
     /// Set element filter
     func setElementFilter(_ element: ZodiacSign.Element?) {
         selectedElement = element
-        rebuildDeck()
+        debouncedRebuildDeck()
     }
 
     /// Set sector filter
     func setSectorFilter(_ sector: String?) {
         selectedSector = sector
-        rebuildDeck()
+        debouncedRebuildDeck()
     }
 
     /// Set sort option
     func setSortOption(_ option: SortOption) {
         sortOption = option
-        rebuildDeck()
+        debouncedRebuildDeck()
     }
 
     /// Clear all filters
     func clearFilters() {
         selectedElement = nil
         selectedSector = nil
-        rebuildDeck()
+        rebuildDeck() // Immediate for clear action
     }
 
     /// Reset skipped stocks
