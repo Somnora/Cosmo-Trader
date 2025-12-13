@@ -989,6 +989,9 @@ struct ProfileView: View {
 
     private var funExtrasSection: some View {
         VStack(spacing: 12) {
+            // SIGN STACK - Shareable trading card
+            SignStackButton()
+
             // THE COSMIC ROAST - Viral share feature
             CosmicRoastCard(user: user)
 
