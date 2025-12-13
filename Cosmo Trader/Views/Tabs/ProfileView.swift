@@ -24,6 +24,7 @@ struct ProfileView: View {
 
     @State private var viewModel: ProfileViewModel?
     @State private var moonService = MoonPhaseService.shared
+    @State private var audioService = TerminalAudioService.shared
 
     // MARK: - Computed Properties
 
@@ -590,6 +591,9 @@ struct ProfileView: View {
                 settings: viewModel?.settings.filter { $0.category == .appearance } ?? []
             )
 
+            // Terminal Audio
+            terminalAudioSection
+
             // Preferences
             settingsGroup(
                 title: "Preferences",
@@ -806,6 +810,139 @@ struct ProfileView: View {
                     .foregroundColor(CosmicTheme.textMuted)
 
                 Text("Alerts sent 1 day before and on the day of significant lunar events")
+                    .font(.caption2)
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+            .padding(.horizontal, 4)
+        }
+    }
+
+    // MARK: - Terminal Audio Section
+
+    private var terminalAudioSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Section header
+            HStack(spacing: 6) {
+                Image(systemName: "waveform")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold)
+                Text("Terminal Audio")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(CosmicTheme.textSecondary)
+
+                Spacer()
+
+                Text("IMMERSIVE")
+                    .font(.caption2)
+                    .fontWeight(.bold)
+                    .foregroundColor(CosmicTheme.gold.opacity(0.7))
+            }
+
+            VStack(spacing: 0) {
+                // Main toggle
+                HStack(spacing: 12) {
+                    Image(systemName: "speaker.wave.2.fill")
+                        .font(.body)
+                        .foregroundColor(audioService.isEnabled ? CosmicTheme.gold : CosmicTheme.textMuted)
+                        .frame(width: 28)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Enable Terminal Sounds")
+                            .font(.subheadline)
+                            .foregroundColor(CosmicTheme.textPrimary)
+
+                        Text("Subtle Bloomberg-style ambiance")
+                            .font(.caption2)
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+
+                    Spacer()
+
+                    Toggle("", isOn: Binding(
+                        get: { audioService.isEnabled },
+                        set: { newValue in
+                            audioService.isEnabled = newValue
+                            if newValue {
+                                AnalyticsService.shared.track(.terminalAudioEnabled)
+                            } else {
+                                AnalyticsService.shared.track(.terminalAudioDisabled)
+                            }
+                        }
+                    ))
+                    .tint(CosmicTheme.gold)
+                    .labelsHidden()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+
+                if audioService.isEnabled {
+                    Divider()
+                        .background(CosmicTheme.textMuted.opacity(0.2))
+                        .padding(.leading, 48)
+
+                    // Ambient volume slider
+                    HStack(spacing: 12) {
+                        Image(systemName: "waveform.path")
+                            .font(.body)
+                            .foregroundColor(CosmicTheme.textSecondary)
+                            .frame(width: 28)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Ambient Volume")
+                                .font(.subheadline)
+                                .foregroundColor(CosmicTheme.textPrimary)
+
+                            Slider(value: Binding(
+                                get: { Double(audioService.ambientVolume) },
+                                set: { audioService.ambientVolume = Float($0) }
+                            ), in: 0...0.5)
+                            .tint(CosmicTheme.gold)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+
+                    Divider()
+                        .background(CosmicTheme.textMuted.opacity(0.2))
+                        .padding(.leading, 48)
+
+                    // Effects volume slider
+                    HStack(spacing: 12) {
+                        Image(systemName: "bell.fill")
+                            .font(.body)
+                            .foregroundColor(CosmicTheme.textSecondary)
+                            .frame(width: 28)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Sound Effects")
+                                .font(.subheadline)
+                                .foregroundColor(CosmicTheme.textPrimary)
+
+                            Slider(value: Binding(
+                                get: { Double(audioService.effectsVolume) },
+                                set: { audioService.effectsVolume = Float($0) }
+                            ), in: 0...0.5)
+                            .tint(CosmicTheme.gold)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(CosmicTheme.cardBackground)
+            )
+            .animation(.easeInOut(duration: 0.2), value: audioService.isEnabled)
+
+            // Info text
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "info.circle")
+                    .font(.caption2)
+                    .foregroundColor(CosmicTheme.textMuted)
+
+                Text("Subtle sounds include ticker tape rhythm, price update chimes, and gentle tab transitions. Respects device silent mode.")
                     .font(.caption2)
                     .foregroundColor(CosmicTheme.textMuted)
             }

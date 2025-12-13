@@ -32,6 +32,9 @@ struct DiscoverView: View {
     /// Swipe threshold
     private let swipeThreshold: CGFloat = 100
 
+    /// Terminal audio service
+    @State private var audioService = TerminalAudioService.shared
+
     // MARK: - Body
 
     /// Get the active view model (create if needed)
@@ -382,6 +385,7 @@ struct DiscoverView: View {
                 }
                 // Check for swipe right (like)
                 else if horizontalAmount > swipeThreshold {
+                    audioService.playSwipe(direction: .right)
                     withAnimation(.spring(response: 0.4)) {
                         dragOffset = CGSize(width: 500, height: 0)
                         dragRotation = 15
@@ -393,6 +397,7 @@ struct DiscoverView: View {
                 }
                 // Check for swipe left (skip)
                 else if horizontalAmount < -swipeThreshold {
+                    audioService.playSwipe(direction: .left)
                     withAnimation(.spring(response: 0.4)) {
                         dragOffset = CGSize(width: -500, height: 0)
                         dragRotation = -15
@@ -427,6 +432,7 @@ struct DiscoverView: View {
                 size: 54
             ) {
                 if let card = viewModel?.topCard {
+                    audioService.playSwipe(direction: .left)
                     withAnimation(.spring(response: 0.4)) {
                         dragOffset = CGSize(width: -500, height: 0)
                         dragRotation = -15
@@ -445,6 +451,7 @@ struct DiscoverView: View {
                 size: 64
             ) {
                 if let card = viewModel?.topCard {
+                    audioService.playSwipe(direction: .up)
                     withAnimation(.spring(response: 0.4)) {
                         dragOffset = CGSize(width: 0, height: -600)
                     }
@@ -462,6 +469,7 @@ struct DiscoverView: View {
                 size: 54
             ) {
                 if let card = viewModel?.topCard {
+                    audioService.playSwipe(direction: .right)
                     withAnimation(.spring(response: 0.4)) {
                         dragOffset = CGSize(width: 500, height: 0)
                         dragRotation = 15

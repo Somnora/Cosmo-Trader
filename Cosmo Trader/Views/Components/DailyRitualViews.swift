@@ -589,6 +589,7 @@ struct DailyRitualFlow: View {
 
     private func completeRitual() {
         guard let intention = selectedIntention else { return }
+        TerminalAudioService.shared.playRitualComplete()
         ritualService.completeRitual(intention: intention)
         dismiss()
     }

@@ -18,6 +18,9 @@ struct ContentView: View {
     /// Which tab is currently selected
     @State private var selectedTab: Tab = .portfolio
 
+    /// Terminal audio service for ambient sounds
+    @State private var audioService = TerminalAudioService.shared
+
     // MARK: - Body
 
     var body: some View {
@@ -63,10 +66,14 @@ struct ContentView: View {
             // Track app opened and refresh user properties
             AnalyticsService.shared.trackAppOpened()
             AnalyticsService.shared.refreshUserProperties(from: appState)
+            // Start ambient audio if enabled
+            audioService.startAmbientLoop()
         }
         .onChange(of: selectedTab) { oldTab, newTab in
             // Track tab switches
             AnalyticsService.shared.trackTabSwitch(newTab.analyticsName)
+            // Play tab switch sound
+            audioService.playTabSwitch()
         }
     }
 
