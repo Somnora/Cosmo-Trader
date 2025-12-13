@@ -237,7 +237,15 @@ struct PortfolioView: View {
                             // 4. Cosmic Mood Index widget
                             cosmicMoodSection
 
-                            // 5. Sign Season Spotlight
+                            // 5. Portfolio Ascendant (Sun vs. Rising)
+                            if !holdings.isEmpty {
+                                PortfolioAscendantCard(
+                                    holdings: holdings,
+                                    userSign: user.sunSign
+                                )
+                            }
+
+                            // 6. Sign Season Spotlight
                             if !holdings.isEmpty {
                                 SignSeasonBanner(
                                     holdings: holdings,
@@ -245,22 +253,22 @@ struct PortfolioView: View {
                                 )
                             }
 
-                            // 6. Saturn Return alerts (if any approaching)
+                            // 7. Saturn Return alerts (if any approaching)
                             if !holdings.isEmpty {
                                 SaturnReturnListSection(stocks: holdings)
                             }
 
-                            // 7. Cosmic Tensions (rival pairs in portfolio)
+                            // 8. Cosmic Tensions (rival pairs in portfolio)
                             if !holdings.isEmpty {
                                 PortfolioTensionBanner(holdings: holdings)
                             }
 
-                            // 8. Earnings Calendar (upcoming earnings for holdings)
+                            // 9. Earnings Calendar (upcoming earnings for holdings)
                             if !holdings.isEmpty {
                                 EarningsCalendarCard(holdings: holdings)
                             }
 
-                            // 9. Holdings list
+                            // 10. Holdings list
                             holdingsSection
                         }
                         .padding(.horizontal, 16)
