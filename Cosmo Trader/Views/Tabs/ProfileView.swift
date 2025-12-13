@@ -855,6 +855,9 @@ struct ProfileView: View {
             // THE COSMIC ROAST - Viral share feature
             CosmicRoastCard(user: user)
 
+            // Karmic Ledger - Track losses as cosmic lessons
+            KarmicLedgerCard()
+
             // Referral program card
             ReferralCard()
 
