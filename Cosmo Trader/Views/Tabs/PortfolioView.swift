@@ -224,6 +224,12 @@ struct PortfolioView: View {
                             // 1. Header with greeting and portfolio value
                             headerSection
 
+                            // 1a. Daily Ritual card (morning routine)
+                            DailyRitualCard(
+                                holdings: holdings,
+                                userSign: user.sunSign
+                            )
+
                             // 2. Visualization toggle
                             if !holdings.isEmpty {
                                 visualizationToggle
