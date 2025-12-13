@@ -131,6 +131,17 @@ struct IPOListView: View {
             .searchable(text: $searchText, prompt: "Search IPOs...")
             .navigationDestination(item: $selectedIPO) { ipo in
                 IPODetailView(ipo: ipo)
+                    .onAppear {
+                        // Track IPO detail viewed
+                        AnalyticsService.shared.trackIPODetailViewed(
+                            ticker: ipo.ticker ?? "unknown",
+                            zodiacSign: ipo.zodiacSign.displayName
+                        )
+                    }
+            }
+            .onAppear {
+                // Track IPO list viewed
+                AnalyticsService.shared.trackIPOListViewed()
             }
         }
     }

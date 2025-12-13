@@ -155,17 +155,37 @@ class DiscoverViewModel {
     func likeStock(_ stock: Stock) {
         appState.addToWatchlist(stock.symbol)
         removeTopCard()
+
+        // Track swipe right (like)
+        AnalyticsService.shared.trackDiscoverySwipe(
+            direction: "right",
+            symbol: stock.symbol,
+            zodiacSign: stock.zodiacSign.displayName,
+            compatibility: user.compatibility(with: stock).score
+        )
+        AnalyticsService.shared.trackWatchlistAdded(symbol: stock.symbol, source: "discover_swipe")
     }
 
     /// Swipe left - skip stock
     func skipStock(_ stock: Stock) {
         appState.skipStock(stock.symbol)
         removeTopCard()
+
+        // Track swipe left (skip)
+        AnalyticsService.shared.trackDiscoverySwipe(
+            direction: "left",
+            symbol: stock.symbol,
+            zodiacSign: stock.zodiacSign.displayName,
+            compatibility: user.compatibility(with: stock).score
+        )
     }
 
     /// Swipe up - view detail
     func viewDetail(_ stock: Stock) {
         detailStock = stock
+
+        // Track swipe up (view detail)
+        AnalyticsService.shared.trackStockDetailOpened(symbol: stock.symbol, source: "discover_swipe")
     }
 
     /// Remove the top card from deck

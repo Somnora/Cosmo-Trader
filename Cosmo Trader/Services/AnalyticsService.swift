@@ -23,6 +23,7 @@ enum AnalyticsEvent: String {
     case onboardingStarted = "onboarding_started"
     case onboardingCompleted = "onboarding_completed"
     case onboardingSkipped = "onboarding_skipped"
+    case onboardingAbandoned = "onboarding_abandoned"
     case birthdateEntered = "birthdate_entered"
 
     // MARK: Navigation
@@ -32,6 +33,8 @@ enum AnalyticsEvent: String {
     // MARK: Portfolio
     case stockAddedToPortfolio = "stock_added_to_portfolio"
     case stockRemovedFromPortfolio = "stock_removed_from_portfolio"
+    case watchlistAdded = "watchlist_added"
+    case watchlistRemoved = "watchlist_removed"
     case portfolioViewed = "portfolio_viewed"
     case stockDetailViewed = "stock_detail_viewed"
 
@@ -39,7 +42,12 @@ enum AnalyticsEvent: String {
     case stockSwiped = "stock_swiped"
     case stockLiked = "stock_liked"
     case stockSkipped = "stock_skipped"
+    case discoveryCardViewed = "discovery_card_viewed"
     case discoverSessionStarted = "discover_session_started"
+
+    // MARK: Search
+    case searchPerformed = "search_performed"
+    case searchResultSelected = "search_result_selected"
 
     // MARK: Cosmic Features
     case horoscopeViewed = "horoscope_viewed"
@@ -61,9 +69,11 @@ enum AnalyticsEvent: String {
 
     // MARK: Subscription
     case paywallViewed = "paywall_viewed"
+    case paywallDismissed = "paywall_dismissed"
     case subscriptionStarted = "subscription_started"
     case trialStarted = "trial_started"
     case subscriptionCancelled = "subscription_cancelled"
+    case subscriptionRestored = "subscription_restored"
     case featureGated = "feature_gated"
 
     // MARK: Settings
@@ -273,6 +283,256 @@ extension AnalyticsService {
 
     func trackFeatureGated(_ feature: String) {
         track(.featureGated, params: .feature(feature))
+    }
+
+    // MARK: - Onboarding Tracking
+
+    func trackOnboardingStarted() {
+        track(.onboardingStarted)
+    }
+
+    func trackOnboardingCompleted(sunSign: String) {
+        track(.onboardingCompleted, params: AnalyticsParameters([
+            "sun_sign": sunSign
+        ]))
+    }
+
+    func trackOnboardingAbandoned(atStep step: String) {
+        track(.onboardingAbandoned, params: AnalyticsParameters([
+            "abandoned_at_step": step
+        ]))
+    }
+
+    func trackBirthdateEntered(sunSign: String) {
+        track(.birthdateEntered, params: AnalyticsParameters([
+            "sun_sign": sunSign
+        ]))
+    }
+
+    // MARK: - Discovery Tracking
+
+    func trackDiscoverySwipe(direction: String, symbol: String, zodiacSign: String, compatibility: Int) {
+        track(.stockSwiped, params: AnalyticsParameters([
+            "swipe_direction": direction,
+            "stock_symbol": symbol,
+            "stock_zodiac_sign": zodiacSign,
+            "compatibility_score": compatibility
+        ]))
+    }
+
+    func trackDiscoveryCardViewed(symbol: String, zodiacSign: String) {
+        track(.discoveryCardViewed, params: AnalyticsParameters([
+            "stock_symbol": symbol,
+            "stock_zodiac_sign": zodiacSign
+        ]))
+    }
+
+    // MARK: - Search Tracking
+
+    func trackSearch(query: String, resultCount: Int) {
+        track(.searchPerformed, params: AnalyticsParameters([
+            "search_query": query,
+            "result_count": resultCount
+        ]))
+    }
+
+    func trackSearchResultSelected(query: String, symbol: String, position: Int) {
+        track(.searchResultSelected, params: AnalyticsParameters([
+            "search_query": query,
+            "stock_symbol": symbol,
+            "result_position": position
+        ]))
+    }
+
+    // MARK: - Portfolio Tracking
+
+    func trackStockAddedToPortfolio(symbol: String, zodiacSign: String, source: String) {
+        track(.stockAddedToPortfolio, params: AnalyticsParameters([
+            "stock_symbol": symbol,
+            "stock_zodiac_sign": zodiacSign,
+            "source": source
+        ]))
+    }
+
+    func trackStockRemovedFromPortfolio(symbol: String) {
+        track(.stockRemovedFromPortfolio, params: AnalyticsParameters([
+            "stock_symbol": symbol
+        ]))
+    }
+
+    func trackWatchlistAdded(symbol: String, source: String) {
+        track(.watchlistAdded, params: AnalyticsParameters([
+            "stock_symbol": symbol,
+            "source": source
+        ]))
+    }
+
+    func trackWatchlistRemoved(symbol: String) {
+        track(.watchlistRemoved, params: AnalyticsParameters([
+            "stock_symbol": symbol
+        ]))
+    }
+
+    // MARK: - Stock Detail Tracking
+
+    func trackStockDetailOpened(symbol: String, source: String) {
+        track(.stockDetailViewed, params: AnalyticsParameters([
+            "stock_symbol": symbol,
+            "source": source
+        ]))
+    }
+
+    // MARK: - Cosmic Features Tracking
+
+    func trackHoroscopeViewed(sunSign: String) {
+        track(.horoscopeViewed, params: AnalyticsParameters([
+            "sun_sign": sunSign
+        ]))
+    }
+
+    func trackHoroscopeRefreshed(sunSign: String) {
+        track(.horoscopeRefreshed, params: AnalyticsParameters([
+            "sun_sign": sunSign
+        ]))
+    }
+
+    func trackMoonPhaseViewed(phase: String) {
+        track(.moonPhaseViewed, params: AnalyticsParameters([
+            "moon_phase": phase
+        ]))
+    }
+
+    // MARK: - IPO Tracking
+
+    func trackIPOListViewed() {
+        track(.ipoListViewed)
+    }
+
+    func trackIPODetailViewed(ticker: String, zodiacSign: String) {
+        track(.ipoDetailViewed, params: AnalyticsParameters([
+            "ipo_ticker": ticker,
+            "ipo_zodiac_sign": zodiacSign
+        ]))
+    }
+
+    // MARK: - Subscription Tracking
+
+    func trackPaywallDismissed(source: String) {
+        track(.paywallDismissed, params: AnalyticsParameters([
+            "source": source
+        ]))
+    }
+
+    func trackSubscriptionStarted(tier: String, source: String, trialEnabled: Bool) {
+        track(.subscriptionStarted, params: AnalyticsParameters([
+            "tier": tier,
+            "source": source,
+            "trial_enabled": trialEnabled
+        ]))
+    }
+
+    func trackTrialStarted(source: String) {
+        track(.trialStarted, params: AnalyticsParameters([
+            "source": source
+        ]))
+    }
+
+    func trackSubscriptionRestored() {
+        track(.subscriptionRestored)
+    }
+}
+
+// MARK: - User Properties
+
+struct AnalyticsUserProperties {
+    var sunSign: String?
+    var portfolioSize: Int = 0
+    var accountAgeDays: Int = 0
+    var isPremium: Bool = false
+    var appVersion: String = Bundle.main.appVersion
+    var deviceType: String = "iPhone"
+
+    var dictionary: [String: Any] {
+        var props: [String: Any] = [
+            "portfolio_size": portfolioSize,
+            "account_age_days": accountAgeDays,
+            "is_premium": isPremium,
+            "app_version": appVersion,
+            "device_type": deviceType
+        ]
+        if let sign = sunSign {
+            props["sun_sign"] = sign
+        }
+        return props
+    }
+}
+
+extension AnalyticsService {
+
+    // MARK: - User Properties
+
+    /// Current user properties (cached)
+    private static var _userProperties = AnalyticsUserProperties()
+
+    /// Get current user properties
+    var userProperties: AnalyticsUserProperties {
+        Self._userProperties
+    }
+
+    /// Update user properties
+    func setUserProperties(
+        sunSign: String? = nil,
+        portfolioSize: Int? = nil,
+        accountAgeDays: Int? = nil,
+        isPremium: Bool? = nil
+    ) {
+        if let sign = sunSign {
+            Self._userProperties.sunSign = sign
+        }
+        if let size = portfolioSize {
+            Self._userProperties.portfolioSize = size
+        }
+        if let days = accountAgeDays {
+            Self._userProperties.accountAgeDays = days
+        }
+        if let premium = isPremium {
+            Self._userProperties.isPremium = premium
+        }
+
+        #if DEBUG
+        log("User properties updated: \(Self._userProperties.dictionary)")
+        #endif
+
+        // TODO: Send to analytics provider
+        // sendUserPropertiesToProvider(Self._userProperties)
+    }
+
+    /// Refresh user properties from current app state
+    func refreshUserProperties(from appState: AppState) {
+        guard let user = appState.currentUser else { return }
+
+        let calendar = Calendar.current
+        let accountAge = calendar.dateComponents([.day], from: user.memberSince, to: Date()).day ?? 0
+
+        setUserProperties(
+            sunSign: user.sunSign.displayName,
+            portfolioSize: user.portfolio.count,
+            accountAgeDays: accountAge,
+            isPremium: SubscriptionManager.shared.isPremium
+        )
+    }
+
+    // MARK: - Enhanced Tracking with Context
+
+    /// Track event with automatic user context
+    func trackWithContext(_ event: AnalyticsEvent, params: AnalyticsParameters? = nil) {
+        var enrichedParams = params?.dictionary ?? [:]
+
+        // Add user context
+        enrichedParams["user_sun_sign"] = Self._userProperties.sunSign ?? "unknown"
+        enrichedParams["is_premium"] = Self._userProperties.isPremium
+
+        track(event, params: AnalyticsParameters(enrichedParams))
     }
 }
 

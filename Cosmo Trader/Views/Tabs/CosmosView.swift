@@ -132,6 +132,11 @@ struct CosmosView: View {
                 viewModel = HoroscopeViewModel(appState: appState)
             }
             animateAppearance()
+
+            // Track horoscope viewed
+            if let user = appState.currentUser {
+                AnalyticsService.shared.trackHoroscopeViewed(sunSign: user.sunSign.displayName)
+            }
         }
     }
 
@@ -661,6 +666,10 @@ struct CosmosView: View {
         Button(action: {
             withAnimation(.spring(response: 0.4)) {
                 viewModel?.regenerateHoroscope()
+            }
+            // Track horoscope refresh
+            if let user = appState.currentUser {
+                AnalyticsService.shared.trackHoroscopeRefreshed(sunSign: user.sunSign.displayName)
             }
         }) {
             HStack(spacing: 10) {

@@ -398,6 +398,7 @@ struct PaywallView: View {
 
     private var closeButton: some View {
         Button {
+            AnalyticsService.shared.trackPaywallDismissed(source: "close_button")
             dismiss()
         } label: {
             Image(systemName: "xmark")
@@ -468,12 +469,24 @@ struct PaywallView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             subscriptionManager.upgradeToOracle()
             isProcessing = false
+
+            // Track subscription started
+            AnalyticsService.shared.trackSubscriptionStarted(
+                tier: "oracle",
+                source: "paywall",
+                trialEnabled: false
+            )
+
             dismiss()
         }
     }
 
     private func startTrial() {
         subscriptionManager.startFreeTrial()
+
+        // Track trial started
+        AnalyticsService.shared.trackTrialStarted(source: "paywall")
+
         withAnimation {
             showTrialStarted = true
         }
@@ -491,6 +504,8 @@ struct PaywallView: View {
             await MainActor.run {
                 isProcessing = false
                 if restored {
+                    // Track restore
+                    AnalyticsService.shared.trackSubscriptionRestored()
                     dismiss()
                 }
             }

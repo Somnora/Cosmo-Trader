@@ -60,6 +60,13 @@ struct ContentView: View {
         .tint(CosmicTheme.gold)
         .onAppear {
             configureTabBarAppearance()
+            // Track app opened and refresh user properties
+            AnalyticsService.shared.trackAppOpened()
+            AnalyticsService.shared.refreshUserProperties(from: appState)
+        }
+        .onChange(of: selectedTab) { oldTab, newTab in
+            // Track tab switches
+            AnalyticsService.shared.trackTabSwitch(newTab.analyticsName)
         }
     }
 
@@ -104,6 +111,17 @@ enum Tab: Hashable {
     case ipos
     case cosmos
     case profile
+
+    /// Name for analytics tracking
+    var analyticsName: String {
+        switch self {
+        case .portfolio: return "Portfolio"
+        case .discover: return "Discover"
+        case .ipos: return "IPOs"
+        case .cosmos: return "Cosmos"
+        case .profile: return "Profile"
+        }
+    }
 }
 
 // MARK: - Preview

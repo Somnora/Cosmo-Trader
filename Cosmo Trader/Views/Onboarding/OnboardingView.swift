@@ -149,6 +149,8 @@ struct OnboardingView: View {
                 isAnimating = true
             }
             startPulseAnimation()
+            // Track onboarding started
+            AnalyticsService.shared.trackOnboardingStarted()
         }
     }
 
@@ -420,6 +422,8 @@ struct OnboardingView: View {
                     showSignReveal = true
                     dateValidationError = nil
                 }
+                // Track birthdate entered
+                AnalyticsService.shared.trackBirthdateEntered(sunSign: previewSign.displayName)
             }
             .accessibilityLabel("Birth date picker")
             .accessibilityHint("Select your birth date to determine your zodiac sign")
@@ -894,6 +898,9 @@ struct OnboardingView: View {
     }
 
     private func completeOnboarding() {
+        // Track onboarding completed
+        AnalyticsService.shared.trackOnboardingCompleted(sunSign: previewSign.displayName)
+
         // Add selected stock to portfolio if chosen
         appState.completeOnboarding(
             name: userName.trimmingCharacters(in: .whitespaces),
@@ -904,8 +911,22 @@ struct OnboardingView: View {
         if let stock = selectedStock {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 appState.addToPortfolio(stock, shares: 1)
+                // Track first stock added
+                AnalyticsService.shared.trackStockAddedToPortfolio(
+                    symbol: stock.symbol,
+                    zodiacSign: stock.zodiacSign.displayName,
+                    source: "onboarding"
+                )
             }
         }
+
+        // Update user properties
+        AnalyticsService.shared.setUserProperties(
+            sunSign: previewSign.displayName,
+            portfolioSize: selectedStock != nil ? 1 : 0,
+            accountAgeDays: 0,
+            isPremium: false
+        )
     }
 
     private func startPulseAnimation() {

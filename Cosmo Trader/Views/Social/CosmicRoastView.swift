@@ -570,6 +570,7 @@ struct CosmicRoastPreviewSheet: View {
     private func generateRoast() {
         guard subscriptionManager.canGenerateRoast() else {
             showPaywall = true
+            AnalyticsService.shared.trackPaywallViewed(source: "cosmic_roast")
             return
         }
 
@@ -581,11 +582,17 @@ struct CosmicRoastPreviewSheet: View {
             roast = CosmicRoastGenerator.generate(for: user)
             subscriptionManager.recordRoastGeneration()
             isGenerating = false
+
+            // Track roast generated
+            AnalyticsService.shared.trackRoastGenerated(forSign: user.sunSign.displayName)
         }
     }
 
     private func shareRoast() {
         guard let roast = roast else { return }
+
+        // Track roast shared
+        AnalyticsService.shared.trackRoastShared(forSign: user.sunSign.displayName)
 
         // Render to image
         let renderer = ImageRenderer(content: CosmicRoastView(roast: roast))
