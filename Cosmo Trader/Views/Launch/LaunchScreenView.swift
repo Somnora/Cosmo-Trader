@@ -16,6 +16,7 @@ struct LaunchScreenView: View {
     @State private var starsRevealed: Bool = false
     @State private var logoOpacity: Double = 0
     @State private var taglineOpacity: Double = 0
+    @State private var risingPhase: Bool = false
 
     // MARK: - Constants
 
@@ -41,7 +42,8 @@ struct LaunchScreenView: View {
                 ConstellationAnimationView(
                     lineProgress: lineProgress,
                     lineOpacity: lineOpacity,
-                    starsRevealed: starsRevealed
+                    starsRevealed: starsRevealed,
+                    risingPhase: risingPhase
                 )
                 .frame(height: 200)
                 .padding(.horizontal, 40)
@@ -118,6 +120,13 @@ struct LaunchScreenView: View {
                 taglineOpacity = 1
             }
         }
+
+        // Phase 5: Rising - constellation ascends upward for aspirational feeling
+        DispatchQueue.main.asyncAfter(deadline: .now() + animationDuration + 1.0) {
+            withAnimation(.easeInOut(duration: 0.8)) {
+                risingPhase = true
+            }
+        }
     }
 }
 
@@ -128,6 +137,11 @@ struct ConstellationAnimationView: View {
     let lineProgress: CGFloat
     let lineOpacity: Double
     let starsRevealed: Bool
+    let risingPhase: Bool
+
+    // Parallax multipliers for diverse star movement (creates depth)
+    private let parallaxMultipliers: [CGFloat] = [1.0, 0.6, 1.2, 0.8, 1.1, 0.7, 0.9]
+    private let baseRiseAmount: CGFloat = 40
 
     // Define the trend line points (normalized 0-1)
     // Creates a realistic-looking price chart pattern
@@ -192,16 +206,24 @@ struct ConstellationAnimationView: View {
                         y: star.point.y * size.height
                     )
 
+                    // Parallax effect: each star rises at slightly different rate
+                    let parallaxIndex = index % parallaxMultipliers.count
+                    let riseOffset = risingPhase ? -baseRiseAmount * parallaxMultipliers[parallaxIndex] : 0
+
                     StarPoint(
                         isPeak: star.isPeak,
                         isRevealed: starsRevealed,
                         appearDelay: Double(index) * 0.15
                     )
                     .position(screenPoint)
+                    .offset(y: riseOffset)
                 }
 
                 // Constellation lines connecting the stars (after reveal)
                 if starsRevealed {
+                    // Lines rise with average parallax (0.85x base) for cohesion
+                    let linesRiseOffset = risingPhase ? -baseRiseAmount * 0.85 : 0
+
                     ConstellationLines(
                         starPoints: starPoints,
                         size: size
@@ -210,6 +232,7 @@ struct ConstellationAnimationView: View {
                         Color.white.opacity(0.15),
                         style: StrokeStyle(lineWidth: 0.5, dash: [4, 4])
                     )
+                    .offset(y: linesRiseOffset)
                 }
             }
         }
@@ -412,7 +435,23 @@ struct GridBackground: View {
         ConstellationAnimationView(
             lineProgress: 1.0,
             lineOpacity: 0.3,
-            starsRevealed: true
+            starsRevealed: true,
+            risingPhase: false
+        )
+        .frame(height: 200)
+        .padding(.horizontal, 40)
+    }
+}
+
+#Preview("Constellation Rising") {
+    ZStack {
+        Color.black.ignoresSafeArea()
+
+        ConstellationAnimationView(
+            lineProgress: 1.0,
+            lineOpacity: 0.0,
+            starsRevealed: true,
+            risingPhase: true
         )
         .frame(height: 200)
         .padding(.horizontal, 40)
