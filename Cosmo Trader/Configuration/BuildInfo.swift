@@ -76,6 +76,7 @@ enum BuildInfo {
     }
 
     /// Whether this is a TestFlight build
+    @available(iOS, deprecated: 18.0, message: "Use AppTransaction from StoreKit 2")
     static var isTestFlight: Bool {
         Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
     }

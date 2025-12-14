@@ -297,6 +297,7 @@ final class StoreKitManager {
     }
 
     /// Get the App Store receipt data for server-side validation
+    @available(iOS, deprecated: 18.0, message: "Use AppTransaction from StoreKit 2")
     func getReceiptData() -> Data? {
         guard let receiptURL = Bundle.main.appStoreReceiptURL,
               FileManager.default.fileExists(atPath: receiptURL.path) else {

@@ -204,7 +204,7 @@ struct EarningsCalendarSheet: View {
     }
 
     private var groupedByWeek: [(String, [EarningsEvent])] {
-        let calendar = Calendar.current
+        _ = Calendar.current  // Reserved for future date calculations
         let grouped = Dictionary(grouping: allEarnings) { event -> String in
             if event.isThisWeek {
                 return "This Week"

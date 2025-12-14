@@ -219,7 +219,7 @@ class DiscoverViewModel {
     /// Undo last skip (if possible)
     func undoLastSkip() {
         guard let user = appState.currentUser,
-              let lastSkipped = user.skippedStocks.last else { return }
+              user.skippedStocks.last != nil else { return }
 
         // Remove last skipped
         var updatedUser = user

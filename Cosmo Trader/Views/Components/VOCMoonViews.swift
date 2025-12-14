@@ -168,9 +168,12 @@ struct VOCMoonWarningBanner: View {
     // MARK: - Timer
 
     private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            if let remaining = vocService.getTimeRemainingInVOC() {
-                timeRemaining = remaining
+        let service = vocService
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [self] _ in
+            Task { @MainActor in
+                if let remaining = service.getTimeRemainingInVOC() {
+                    timeRemaining = remaining
+                }
             }
         }
     }

@@ -114,7 +114,7 @@ final class CosmicRoastGenerator {
     private static func calculateYTDReturn(for user: UserProfile) -> Double {
         // For demo purposes, calculate based on daily changes
         // In production, this would use actual historical data
-        let totalChange = user.totalDailyChange
+        _ = user.totalDailyChange  // Used for future YTD calculation
         let portfolioValue = user.totalPortfolioValue
 
         guard portfolioValue > 0 else { return 0 }

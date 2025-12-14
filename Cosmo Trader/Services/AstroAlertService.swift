@@ -313,7 +313,7 @@ extension AstroAlertService {
     /// Preview instance with no active events
     static var previewCalm: AstroAlertService {
         let calendar = Calendar.current
-        let future = calendar.date(byAdding: .month, value: 2, to: Date())!
+        _ = calendar.date(byAdding: .month, value: 2, to: Date())!
         let events = MockCosmicEvents.all.map { event in
             CosmicEvent(
                 id: event.id,

@@ -169,7 +169,7 @@ final class VoidOfCourseMoonService {
         // Duration varies from a few minutes to 24+ hours
 
         // Start from beginning of today
-        var currentDate = calendar.startOfDay(for: now)
+        let currentDate = calendar.startOfDay(for: now)
 
         // Generate periods for next 14 days
         for dayOffset in 0..<14 {

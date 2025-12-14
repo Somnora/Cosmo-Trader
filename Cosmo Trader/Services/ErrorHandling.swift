@@ -341,20 +341,20 @@ class ErrorState {
 // MARK: - Retry Logic
 // ===================
 
-struct RetryConfiguration {
+struct RetryConfiguration: Sendable {
     let maxAttempts: Int
     let initialDelay: TimeInterval
     let maxDelay: TimeInterval
     let multiplier: Double
 
-    static let `default` = RetryConfiguration(
+    static nonisolated let `default` = RetryConfiguration(
         maxAttempts: 3,
         initialDelay: 1.0,
         maxDelay: 10.0,
         multiplier: 2.0
     )
 
-    static let aggressive = RetryConfiguration(
+    static nonisolated let aggressive = RetryConfiguration(
         maxAttempts: 5,
         initialDelay: 0.5,
         maxDelay: 30.0,

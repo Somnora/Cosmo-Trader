@@ -246,7 +246,8 @@ struct SmoothMiniChartView: View {
             if i == 1 {
                 path.addLine(to: midPoint)
             } else {
-                let previousMid = CGPoint(
+                // Previous midpoint calculation reserved for smoother curves
+                _ = CGPoint(
                     x: (points[i - 2].x + previous.x) / 2,
                     y: (points[i - 2].y + previous.y) / 2
                 )

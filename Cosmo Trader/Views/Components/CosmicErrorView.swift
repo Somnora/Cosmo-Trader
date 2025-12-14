@@ -208,7 +208,7 @@ struct CosmicErrorView: View {
             Spacer()
 
             // Retry or dismiss
-            if let onRetry = onRetry, isRetryable {
+            if onRetry != nil, isRetryable {
                 Button(action: handleRetry) {
                     if isRetrying {
                         ProgressView()
@@ -262,7 +262,7 @@ struct CosmicErrorView: View {
 
             Spacer()
 
-            if let onRetry = onRetry, isRetryable {
+            if onRetry != nil, isRetryable {
                 Button("Retry", action: handleRetry)
                     .font(.caption)
                     .fontWeight(.semibold)
@@ -352,7 +352,7 @@ struct CosmicErrorView: View {
     private var actionButtons: some View {
         VStack(spacing: 12) {
             // Primary action (retry if available)
-            if let onRetry = onRetry, isRetryable {
+            if onRetry != nil, isRetryable {
                 Button(action: handleRetry) {
                     HStack(spacing: 8) {
                         if isRetrying {
@@ -406,7 +406,7 @@ struct CosmicErrorView: View {
                 }
             }
 
-            if let onRetry = onRetry, isRetryable {
+            if onRetry != nil, isRetryable {
                 Button(action: handleRetry) {
                     HStack(spacing: 6) {
                         if isRetrying {

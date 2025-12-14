@@ -226,11 +226,12 @@ struct MoonVisual: View {
             let bulgeFactor = (illumination - 0.5) * 2
             let controlOffset = radius * bulgeFactor
 
-            let topPoint = CGPoint(
+            // Reference points for potential bezier curve refinement
+            _ = CGPoint(
                 x: center.x + (isWaxing ? -radius : radius) * cos(.pi / 2),
                 y: center.y - radius
             )
-            let bottomPoint = CGPoint(
+            _ = CGPoint(
                 x: center.x + (isWaxing ? -radius : radius) * cos(.pi / 2),
                 y: center.y + radius
             )

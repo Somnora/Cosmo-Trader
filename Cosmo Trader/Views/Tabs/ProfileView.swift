@@ -44,7 +44,7 @@ struct ProfileView: View {
                 // Cosmic background gradient
                 backgroundGradient
 
-                if let vm = viewModel {
+                if viewModel != nil {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 24) {
                             // 1. User header with zodiac prominently displayed

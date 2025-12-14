@@ -117,8 +117,8 @@ struct CentralGlyph: Shape {
         var path = Path()
         let w = rect.width
         let h = rect.height
-        let centerX = w / 2
-        let centerY = h / 2
+        _ = w / 2  // centerX reserved for future use
+        _ = h / 2  // centerY reserved for future use
 
         // Create a stylized chart/constellation hybrid
         // Looks like an upward trending chart with star points
