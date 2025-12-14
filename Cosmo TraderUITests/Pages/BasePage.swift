@@ -127,7 +127,7 @@ class BasePage {
                 app.swipeLeft()
             case .right:
                 app.swipeRight()
-            @unknown default:
+            default:
                 app.swipeUp()
             }
             scrollCount += 1

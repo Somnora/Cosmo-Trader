@@ -188,7 +188,7 @@ enum DataError: Error, LocalizedError {
 // =======================
 // Errors related to user input validation
 
-enum ValidationError: Error, LocalizedError {
+enum ValidationError: Error, LocalizedError, Equatable {
     case emptyName
     case nameTooLong(maxLength: Int)
     case invalidCharacters
