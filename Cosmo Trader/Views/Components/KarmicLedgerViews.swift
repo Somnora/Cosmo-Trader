@@ -559,7 +559,14 @@ struct KarmicWisdomSheet: View {
                                 .font(TerminalFont.caption(10))
                                 .foregroundColor(CosmicTheme.textMuted)
 
-                            ForEach(Array(wisdom.elementBreakdown.keys.sorted(by: { wisdom.elementBreakdown[$0]! > wisdom.elementBreakdown[$1]! })), id: \.self) { element in
+                            // Sort elements by loss amount (descending) with safe optional handling
+                            let sortedElements = wisdom.elementBreakdown.keys.sorted { element1, element2 in
+                                let amount1 = wisdom.elementBreakdown[element1] ?? 0
+                                let amount2 = wisdom.elementBreakdown[element2] ?? 0
+                                return amount1 > amount2
+                            }
+
+                            ForEach(sortedElements, id: \.self) { element in
                                 ElementLossRow(
                                     element: element,
                                     amount: wisdom.elementBreakdown[element] ?? 0,

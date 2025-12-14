@@ -281,9 +281,14 @@ struct PortfolioAscendantSheet: View {
                     .font(TerminalFont.caption(10, weight: .bold))
                     .foregroundColor(CosmicTheme.textMuted)
 
-                ForEach(Array(reading.sunAnalysis.elementBreakdown.keys.sorted(by: {
-                    reading.sunAnalysis.elementBreakdown[$0]! > reading.sunAnalysis.elementBreakdown[$1]!
-                })), id: \.self) { element in
+                // Sort elements by percentage (descending) with safe optional handling
+                let sortedElements = reading.sunAnalysis.elementBreakdown.keys.sorted { e1, e2 in
+                    let p1 = reading.sunAnalysis.elementBreakdown[e1] ?? 0
+                    let p2 = reading.sunAnalysis.elementBreakdown[e2] ?? 0
+                    return p1 > p2
+                }
+
+                ForEach(sortedElements, id: \.self) { element in
                     ElementBar(
                         element: element,
                         percentage: reading.sunAnalysis.elementBreakdown[element] ?? 0,

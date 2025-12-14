@@ -93,14 +93,20 @@ struct ProfileView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { viewModel?.startEditing() }) {
                         Text("Edit")
-                            .foregroundColor(CosmicTheme.gold)
+                            .foregroundColor(viewModel != nil ? CosmicTheme.gold : CosmicTheme.textMuted)
                     }
+                    .disabled(viewModel == nil)
                 }
             }
             .toolbarBackground(CosmicTheme.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .sheet(isPresented: showingShareSheetBinding) {
                 ShareSheet(text: viewModel?.shareableProfileText ?? "")
+            }
+            .sheet(isPresented: isEditingBinding) {
+                if let viewModel = viewModel {
+                    ProfileEditSheet(viewModel: viewModel)
+                }
             }
             .sheet(isPresented: $showingExportSheet) {
                 if let data = exportData {
@@ -121,7 +127,8 @@ struct ProfileView: View {
                 Text("This will permanently delete all your data including your profile, portfolio, watchlist, and preferences. This action cannot be undone.")
             }
         }
-        .onAppear {
+        .task {
+            // Initialize viewModel if needed (async-safe)
             if viewModel == nil {
                 viewModel = ProfileViewModel(appState: appState)
             }
@@ -134,6 +141,13 @@ struct ProfileView: View {
         Binding(
             get: { viewModel?.showingShareSheet ?? false },
             set: { viewModel?.showingShareSheet = $0 }
+        )
+    }
+
+    private var isEditingBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel?.isEditing ?? false },
+            set: { viewModel?.isEditing = $0 }
         )
     }
 
@@ -1496,6 +1510,226 @@ struct LunarSettingRow: View {
     }
 }
 
+// MARK: - Profile Edit Sheet
+
+struct ProfileEditSheet: View {
+    @Bindable var viewModel: ProfileViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                CosmicTheme.background.ignoresSafeArea()
+
+                ScrollView {
+                    VStack(spacing: 24) {
+                        // Current zodiac display (read-only)
+                        currentSignDisplay
+
+                        // Editable fields
+                        VStack(spacing: 16) {
+                            // Name field
+                            nameField
+
+                            // Birth date picker
+                            birthDatePicker
+                        }
+                        .padding(20)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(CosmicTheme.cardBackground)
+                        )
+
+                        // Info about sun sign
+                        signChangeInfo
+
+                        Spacer(minLength: 40)
+                    }
+                    .padding(20)
+                }
+            }
+            .navigationTitle("Edit Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") {
+                        viewModel.cancelEditing()
+                        dismiss()
+                    }
+                    .foregroundColor(CosmicTheme.textSecondary)
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Save") {
+                        viewModel.saveProfile()
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                    .foregroundColor(CosmicTheme.gold)
+                }
+            }
+            .toolbarBackground(CosmicTheme.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+        }
+    }
+
+    // MARK: - Current Sign Display
+
+    private var currentSignDisplay: some View {
+        VStack(spacing: 12) {
+            // Zodiac symbol
+            ZStack {
+                Circle()
+                    .fill(viewModel.user.sunSign.element.color.opacity(0.2))
+                    .frame(width: 80, height: 80)
+
+                ZodiacSymbolView(
+                    sign: viewModel.user.sunSign,
+                    size: 40,
+                    color: CosmicTheme.gold
+                )
+            }
+
+            VStack(spacing: 4) {
+                Text(viewModel.user.sunSign.displayName)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(CosmicTheme.textPrimary)
+
+                HStack(spacing: 8) {
+                    HStack(spacing: 4) {
+                        ElementSymbolView(element: viewModel.user.sunSign.element, size: 12)
+                        Text(viewModel.user.sunSign.element.displayName)
+                    }
+                    .foregroundColor(viewModel.user.sunSign.element.color)
+
+                    Text("·")
+                        .foregroundColor(CosmicTheme.textMuted)
+
+                    Text(viewModel.user.sunSign.modality.displayName)
+                        .foregroundColor(CosmicTheme.textSecondary)
+                }
+                .font(.caption)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(CosmicTheme.cardBackground)
+        )
+    }
+
+    // MARK: - Name Field
+
+    private var nameField: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Display Name")
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(CosmicTheme.textMuted)
+
+            TextField("Your name", text: $viewModel.editingName)
+                .font(.body)
+                .foregroundColor(CosmicTheme.textPrimary)
+                .padding(14)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(CosmicTheme.secondaryBackground)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(CosmicTheme.textMuted.opacity(0.3), lineWidth: 1)
+                )
+        }
+    }
+
+    // MARK: - Birth Date Picker
+
+    private var birthDatePicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Birth Date")
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(CosmicTheme.textMuted)
+
+            DatePicker(
+                "",
+                selection: $viewModel.editingBirthDate,
+                in: ...Date(),
+                displayedComponents: .date
+            )
+            .datePickerStyle(.compact)
+            .labelsHidden()
+            .tint(CosmicTheme.gold)
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(CosmicTheme.secondaryBackground)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(CosmicTheme.textMuted.opacity(0.3), lineWidth: 1)
+            )
+
+            // Show new sign preview if date changed
+            if viewModel.editingBirthDate != viewModel.user.birthDate {
+                newSignPreview
+            }
+        }
+    }
+
+    // MARK: - New Sign Preview
+
+    @ViewBuilder
+    private var newSignPreview: some View {
+        let newSign = ZodiacSign.from(date: viewModel.editingBirthDate)
+
+        if newSign != viewModel.user.sunSign {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.right.circle.fill")
+                    .foregroundColor(CosmicTheme.gold)
+
+                Text("Your sign will change to")
+                    .foregroundColor(CosmicTheme.textSecondary)
+
+                HStack(spacing: 4) {
+                    ZodiacSymbolView(sign: newSign, size: 14, color: newSign.element.color)
+                    Text(newSign.displayName)
+                        .fontWeight(.semibold)
+                        .foregroundColor(newSign.element.color)
+                }
+            }
+            .font(.caption)
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(CosmicTheme.gold.opacity(0.1))
+            )
+        }
+    }
+
+    // MARK: - Sign Change Info
+
+    private var signChangeInfo: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "info.circle.fill")
+                .foregroundColor(CosmicTheme.textMuted)
+
+            Text("Your sun sign is determined by your birth date. Changing your birth date will update your cosmic profile and stock compatibility ratings.")
+                .font(.caption)
+                .foregroundColor(CosmicTheme.textMuted)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(CosmicTheme.cardBackground)
+        )
+    }
+}
+
 // MARK: - Preview
 
 #Preview("Profile View") {
@@ -1508,4 +1742,9 @@ struct LunarSettingRow: View {
     ProfileView()
         .environment(AppState.preview)
         .preferredColorScheme(.light)
+}
+
+#Preview("Profile Edit Sheet") {
+    ProfileEditSheet(viewModel: ProfileViewModel(appState: AppState.preview))
+        .preferredColorScheme(.dark)
 }

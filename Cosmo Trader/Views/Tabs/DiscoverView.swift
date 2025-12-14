@@ -35,12 +35,12 @@ struct DiscoverView: View {
     /// Terminal audio service
     @State private var audioService = TerminalAudioService.shared
 
-    // MARK: - Body
-
-    /// Get the active view model (create if needed)
-    private var vm: DiscoverViewModel {
-        viewModel ?? DiscoverViewModel(appState: appState)
+    /// Whether the view is ready for interaction
+    private var isReady: Bool {
+        viewModel != nil
     }
+
+    // MARK: - Body
 
     var body: some View {
         NavigationStack {
@@ -119,7 +119,8 @@ struct DiscoverView: View {
             .navigationDestination(item: detailStockBinding) { stock in
                 StockDetailView(stock: stock)
             }
-            .onAppear {
+            .task {
+                // Initialize viewModel if needed (async-safe)
                 if viewModel == nil {
                     viewModel = DiscoverViewModel(appState: appState)
                 }
@@ -175,6 +176,7 @@ struct DiscoverView: View {
         let isActive = viewModel?.cosmicContrarianMode ?? false
 
         return Button(action: {
+            guard isReady else { return }
             withAnimation(.spring(response: 0.3)) {
                 viewModel?.toggleContrarianMode()
             }
@@ -199,6 +201,7 @@ struct DiscoverView: View {
                     .stroke(Color.purple.opacity(isActive ? 0 : 0.5), lineWidth: 1)
             )
         }
+        .disabled(!isReady)
     }
 
     private var contrarianBanner: some View {
@@ -246,7 +249,10 @@ struct DiscoverView: View {
     }
 
     private var filterButton: some View {
-        Button(action: { viewModel?.showingFilters = true }) {
+        Button(action: {
+            guard isReady else { return }
+            viewModel?.showingFilters = true
+        }) {
             HStack(spacing: 6) {
                 Image(systemName: "slider.horizontal.3")
                     .font(.caption)
@@ -263,12 +269,14 @@ struct DiscoverView: View {
                     .fill(hasActiveFilters ? CosmicTheme.gold : CosmicTheme.cardBackground)
             )
         }
+        .disabled(!isReady)
     }
 
     private func elementFilterChip(_ element: ZodiacSign.Element) -> some View {
         let isSelected = viewModel?.selectedElement == element
 
         return Button(action: {
+            guard isReady else { return }
             withAnimation(.spring(response: 0.3)) {
                 viewModel?.setElementFilter(isSelected ? nil : element)
             }
@@ -292,12 +300,14 @@ struct DiscoverView: View {
                     .fill(isSelected ? elementColor(element) : CosmicTheme.cardBackground)
             )
         }
+        .disabled(!isReady)
     }
 
     private var sortButton: some View {
         Menu {
             ForEach(SortOption.allCases) { option in
                 Button(action: {
+                    guard isReady else { return }
                     withAnimation(.spring(response: 0.3)) {
                         viewModel?.setSortOption(option)
                     }
@@ -325,6 +335,7 @@ struct DiscoverView: View {
                     .fill(CosmicTheme.cardBackground)
             )
         }
+        .disabled(!isReady)
     }
 
     private var hasActiveFilters: Bool {
@@ -365,11 +376,17 @@ struct DiscoverView: View {
     private func dragGesture(for card: StockCard) -> some Gesture {
         DragGesture()
             .onChanged { value in
+                guard isReady else { return }
                 dragOffset = value.translation
                 // Rotation based on horizontal drag
                 dragRotation = Double(value.translation.width / 20)
             }
             .onEnded { value in
+                guard isReady else {
+                    resetCard()
+                    return
+                }
+
                 let horizontalAmount = value.translation.width
                 let verticalAmount = value.translation.height
 
@@ -431,16 +448,15 @@ struct DiscoverView: View {
                 color: CosmicTheme.negative,
                 size: 54
             ) {
-                if let card = viewModel?.topCard {
-                    audioService.playSwipe(direction: .left)
-                    withAnimation(.spring(response: 0.4)) {
-                        dragOffset = CGSize(width: -500, height: 0)
-                        dragRotation = -15
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        viewModel?.skipStock(card.stock)
-                        resetCard()
-                    }
+                guard isReady, let card = viewModel?.topCard else { return }
+                audioService.playSwipe(direction: .left)
+                withAnimation(.spring(response: 0.4)) {
+                    dragOffset = CGSize(width: -500, height: 0)
+                    dragRotation = -15
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    viewModel?.skipStock(card.stock)
+                    resetCard()
                 }
             }
 
@@ -450,15 +466,14 @@ struct DiscoverView: View {
                 color: CosmicTheme.gold,
                 size: 64
             ) {
-                if let card = viewModel?.topCard {
-                    audioService.playSwipe(direction: .up)
-                    withAnimation(.spring(response: 0.4)) {
-                        dragOffset = CGSize(width: 0, height: -600)
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        viewModel?.viewDetail(card.stock)
-                        resetCard()
-                    }
+                guard isReady, let card = viewModel?.topCard else { return }
+                audioService.playSwipe(direction: .up)
+                withAnimation(.spring(response: 0.4)) {
+                    dragOffset = CGSize(width: 0, height: -600)
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    viewModel?.viewDetail(card.stock)
+                    resetCard()
                 }
             }
 
@@ -468,16 +483,15 @@ struct DiscoverView: View {
                 color: CosmicTheme.positive,
                 size: 54
             ) {
-                if let card = viewModel?.topCard {
-                    audioService.playSwipe(direction: .right)
-                    withAnimation(.spring(response: 0.4)) {
-                        dragOffset = CGSize(width: 500, height: 0)
-                        dragRotation = 15
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        viewModel?.likeStock(card.stock)
-                        resetCard()
-                    }
+                guard isReady, let card = viewModel?.topCard else { return }
+                audioService.playSwipe(direction: .right)
+                withAnimation(.spring(response: 0.4)) {
+                    dragOffset = CGSize(width: 500, height: 0)
+                    dragRotation = 15
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    viewModel?.likeStock(card.stock)
+                    resetCard()
                 }
             }
         }

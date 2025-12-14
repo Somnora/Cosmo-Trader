@@ -130,10 +130,13 @@ struct CosmosView: View {
                 LunarOutlookSheet(lunarData: moonService.getCurrentLunarData())
             }
         }
-        .onAppear {
+        .task {
+            // Initialize viewModel if needed (async-safe)
             if viewModel == nil {
                 viewModel = HoroscopeViewModel(appState: appState)
             }
+
+            // Only animate and track after viewModel is ready
             animateAppearance()
 
             // Track horoscope viewed

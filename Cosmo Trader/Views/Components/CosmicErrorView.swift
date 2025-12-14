@@ -714,6 +714,125 @@ struct CosmicLoadingView: View {
     }
 }
 
+// MARK: - Error Boundary View
+// ============================
+// A wrapper component that catches errors and displays a recovery UI
+// instead of crashing the app.
+
+struct ErrorBoundaryView<Content: View>: View {
+    let content: () -> Content
+    let errorTitle: String
+    let errorMessage: String
+
+    @State private var hasError = false
+
+    init(
+        errorTitle: String = "Cosmic Interference",
+        errorMessage: String = "Something went wrong. The stars will realign shortly.",
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.errorTitle = errorTitle
+        self.errorMessage = errorMessage
+        self.content = content
+    }
+
+    var body: some View {
+        if hasError {
+            GenericErrorView(
+                title: errorTitle,
+                message: errorMessage,
+                retryAction: { hasError = false }
+            )
+        } else {
+            content()
+        }
+    }
+}
+
+// MARK: - Generic Error View
+// ==========================
+// A simpler error view for use with ErrorBoundaryView
+// when we don't have a specific AppError type
+
+struct GenericErrorView: View {
+    let title: String
+    let message: String
+    let retryAction: (() -> Void)?
+
+    @State private var starPulse: Bool = false
+
+    init(
+        title: String = "Cosmic Interference",
+        message: String = "Something went wrong. The stars will realign shortly.",
+        retryAction: (() -> Void)? = nil
+    ) {
+        self.title = title
+        self.message = message
+        self.retryAction = retryAction
+    }
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            // Animated icon
+            ZStack {
+                Circle()
+                    .fill(CosmicTheme.gold.opacity(0.1))
+                    .frame(width: 100, height: 100)
+                    .scaleEffect(starPulse ? 1.1 : 1.0)
+
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 44))
+                    .foregroundColor(CosmicTheme.gold)
+            }
+            .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: starPulse)
+
+            // Message
+            VStack(spacing: 12) {
+                Text(title)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(CosmicTheme.textPrimary)
+                    .multilineTextAlignment(.center)
+
+                Text(message)
+                    .font(.body)
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+            }
+            .padding(.horizontal, 32)
+
+            // Retry button
+            if let retryAction = retryAction {
+                Button(action: retryAction) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.clockwise")
+                        Text("Try Again")
+                    }
+                    .font(.headline)
+                    .foregroundColor(CosmicTheme.background)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(CosmicTheme.gold)
+                    )
+                }
+                .padding(.horizontal, 40)
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(CosmicTheme.background)
+        .onAppear {
+            starPulse = true
+        }
+    }
+}
+
 // MARK: - Previews
 
 #Preview("Error - Full Screen") {

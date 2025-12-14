@@ -32,9 +32,21 @@ final class TerminalAudioService {
 
     // MARK: - State
 
+    /// Whether audio is available on this device (setup succeeded)
+    private(set) var isAudioAvailable: Bool = false
+
     /// Whether terminal audio is enabled (OFF by default)
     var isEnabled: Bool = false {
         didSet {
+            // Guard against enabling when audio isn't available
+            guard isAudioAvailable else {
+                if isEnabled {
+                    // Revert the toggle - audio not available
+                    isEnabled = false
+                }
+                return
+            }
+
             UserDefaults.standard.set(isEnabled, forKey: StorageKeys.audioEnabled)
             if isEnabled {
                 startAmbientLoop()
@@ -112,20 +124,27 @@ final class TerminalAudioService {
             // Use ambient category so it mixes with other audio and respects silent switch
             try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
             try session.setActive(true)
+            isAudioAvailable = true
         } catch {
-            print("Terminal Audio: Failed to setup audio session: \(error)")
+            print("⚠️ Terminal Audio: Failed to setup audio session: \(error)")
+            isAudioAvailable = false
         }
     }
 
     private func prepareSounds() {
         toneGenerator = ToneGenerator()
+
+        // Verify audio engine started successfully
+        if let generator = toneGenerator, !generator.isRunning {
+            isAudioAvailable = false
+        }
     }
 
     // MARK: - Public Methods
 
     /// Play a sound effect
     func play(_ effect: SoundEffect) {
-        guard isEnabled else { return }
+        guard isAudioAvailable, isEnabled else { return }
         guard shouldPlay(effect) else { return }
 
         lastPlayTime[effect] = Date()
@@ -173,7 +192,7 @@ final class TerminalAudioService {
 
     /// Start the ambient background loop
     func startAmbientLoop() {
-        guard isEnabled, !isAmbientPlaying else { return }
+        guard isAudioAvailable, isEnabled, !isAmbientPlaying else { return }
 
         // Generate ambient ticker tape sound
         toneGenerator?.startAmbientLoop(volume: ambientVolume)
@@ -195,7 +214,7 @@ final class TerminalAudioService {
 
     /// Resume ambient (for app foreground)
     func resumeAmbient() {
-        guard isEnabled else { return }
+        guard isAudioAvailable, isEnabled else { return }
         toneGenerator?.resumeAmbient()
         isAmbientPlaying = true
     }
@@ -287,7 +306,7 @@ final class ToneGenerator {
 
     private let audioEngine = AVAudioEngine()
     private let mainMixer: AVAudioMixerNode
-    private var isRunning = false
+    private(set) var isRunning = false
 
     // Ambient oscillators
     private var ambientNodes: [AVAudioSourceNode] = []
@@ -308,14 +327,29 @@ final class ToneGenerator {
             try audioEngine.start()
             isRunning = true
         } catch {
-            print("Terminal Audio: Failed to start audio engine: \(error)")
+            print("⚠️ Terminal Audio: Failed to start audio engine: \(error)")
+            isRunning = false
+        }
+    }
+
+    /// Try to restart the audio engine if it stopped
+    func ensureRunning() -> Bool {
+        guard !isRunning else { return true }
+
+        do {
+            try audioEngine.start()
+            isRunning = true
+            return true
+        } catch {
+            print("⚠️ Terminal Audio: Failed to restart audio engine: \(error)")
+            return false
         }
     }
 
     // MARK: - Sound Effects
 
     func playEffect(_ effect: SoundEffect, volume: Float) {
-        guard isRunning else { return }
+        guard ensureRunning() else { return }
 
         let sampleRate = audioEngine.outputNode.outputFormat(forBus: 0).sampleRate
         var phase: Double = 0
@@ -381,7 +415,8 @@ final class ToneGenerator {
     // MARK: - Ambient Loop
 
     func startAmbientLoop(volume: Float) {
-        guard isRunning, !isAmbientActive else { return }
+        // Ensure engine is running, try to restart if needed
+        guard ensureRunning(), !isAmbientActive else { return }
 
         ambientVolume = volume
         isAmbientActive = true

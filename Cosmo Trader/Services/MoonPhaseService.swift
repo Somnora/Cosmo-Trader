@@ -164,8 +164,11 @@ final class MoonPhaseService {
     /// Get moon phase calendar for a month
     func getMonthlyCalendar(for month: Date) -> [MoonPhaseCalendarEntry] {
         let calendar = Calendar.current
-        let range = calendar.range(of: .day, in: .month, for: month)!
-        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: month))!
+
+        guard let range = calendar.range(of: .day, in: .month, for: month),
+              let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: month)) else {
+            return []
+        }
 
         return range.compactMap { day -> MoonPhaseCalendarEntry? in
             guard let date = calendar.date(byAdding: .day, value: day - 1, to: startOfMonth) else {
@@ -213,8 +216,13 @@ final class MoonPhaseService {
     func getNextMoonInSign(_ targetSign: ZodiacSign, from date: Date = Date()) -> Date {
         let signDuration = siderealMonth / 12  // ~2.28 days per sign
         let currentData = getLunarData(for: date)
-        let currentSignIndex = ZodiacSign.allCases.firstIndex(of: currentData.moonSign)!
-        let targetSignIndex = ZodiacSign.allCases.firstIndex(of: targetSign)!
+
+        // Safe index lookup with fallback
+        guard let currentSignIndex = ZodiacSign.allCases.firstIndex(of: currentData.moonSign),
+              let targetSignIndex = ZodiacSign.allCases.firstIndex(of: targetSign) else {
+            // Fallback: return date + 1 day if indices can't be found
+            return Calendar.current.date(byAdding: .day, value: 1, to: date) ?? date
+        }
 
         // Calculate days until target sign
         var signsToWait = targetSignIndex - currentSignIndex
