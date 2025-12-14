@@ -1,4 +1,5 @@
 import SwiftUI
+import WidgetKit
 #if canImport(FirebaseCore)
 import FirebaseCore
 #endif
@@ -30,8 +31,19 @@ struct CosmicTraderApp: App {
         configureAppAppearance()
         configureCrashReporting()
         configureAnalytics()
+        configureWidgets()
         // Note: Deferred API diagnostic test to after app launch for better startup performance
         // The test will run after the launch screen completes
+    }
+
+    // MARK: - Widget Configuration
+
+    /// Update widget data on app launch
+    private func configureWidgets() {
+        Task { @MainActor in
+            // Update widget with current lunar data
+            WidgetDataManager.shared.updateWidgetData()
+        }
     }
 
     // MARK: - Crash Reporting Configuration
@@ -98,6 +110,7 @@ struct CosmicTraderApp: App {
 struct RootView: View {
 
     @Environment(AppState.self) private var appState
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showLaunchScreen = true
 
     var body: some View {
@@ -129,6 +142,12 @@ struct RootView: View {
                 withAnimation(.easeOut(duration: 0.5)) {
                     showLaunchScreen = false
                 }
+            }
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            if newPhase == .active {
+                // Update widget data when app becomes active
+                WidgetDataManager.shared.updateWidgetData()
             }
         }
     }
