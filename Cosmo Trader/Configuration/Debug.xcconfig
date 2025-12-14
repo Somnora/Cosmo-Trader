@@ -1,0 +1,35 @@
+// Debug.xcconfig
+// Cosmo Trader
+//
+// Configuration for development/debug builds.
+// Used with "Cosmo Trader Dev" scheme.
+
+// Include base configuration
+#include "Base.xcconfig"
+
+// Include secrets (gitignored)
+#include? "Secrets.xcconfig"
+
+// MARK: - Environment
+APP_ENVIRONMENT = development
+
+// MARK: - App Identity (suffix for dev builds)
+PRODUCT_BUNDLE_IDENTIFIER = com.cosmotrader.app.dev
+PRODUCT_NAME = Cosmo Trader Dev
+
+// MARK: - Build Settings
+DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
+SWIFT_OPTIMIZATION_LEVEL = -Onone
+GCC_OPTIMIZATION_LEVEL = 0
+ENABLE_TESTABILITY = YES
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG
+
+// MARK: - Development Features
+ENABLE_DEBUG_UI = YES
+ENABLE_MOCK_DATA = YES
+VERBOSE_LOGGING = YES
+
+// MARK: - API Keys (placeholders - actual values from Secrets.xcconfig)
+// These are overridden by Secrets.xcconfig if it exists
+// FINNHUB_API_KEY = (from Secrets.xcconfig)
+// MIXPANEL_TOKEN = (from Secrets.xcconfig)

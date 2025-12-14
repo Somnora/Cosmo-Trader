@@ -1,10 +1,11 @@
 import Foundation
 import SwiftUI
+import StoreKit
 
 // MARK: - SubscriptionManager
 // ===========================
 // Manages subscription status and feature access for freemium model.
-// Uses UserDefaults for now — StoreKit integration will come later.
+// Integrates with StoreKit 2 via StoreKitManager for real purchases.
 //
 // Philosophy: Free tier should be genuinely useful.
 // Premium ("Oracle Tier") should feel like "more," not "finally usable."
@@ -19,6 +20,7 @@ final class SubscriptionManager {
     // MARK: - Constants
 
     static let oracleTierPrice = "$4.99/mo"
+    static let oracleTierYearlyPrice = "$39.99/yr"
     static let trialDuration = 7 // days
 
     // MARK: - Storage Keys
@@ -33,6 +35,8 @@ final class SubscriptionManager {
         static let horoscopeCountToday = "subscription_horoscopeCountToday"
         static let roastCountToday = "subscription_roastCountToday"
         static let lastRoastDate = "subscription_lastRoastDate"
+        static let subscriptionExpirationDate = "subscription_expirationDate"
+        static let lastSubscriptionCheck = "subscription_lastCheck"
     }
 
     // MARK: - State
@@ -48,6 +52,15 @@ final class SubscriptionManager {
 
     /// Daily swipe count (resets at midnight)
     private(set) var dailySwipeCount: Int = 0
+
+    /// Subscription expiration date (if subscribed)
+    private(set) var subscriptionExpirationDate: Date?
+
+    /// Whether a purchase is in progress
+    private(set) var isPurchasing: Bool = false
+
+    /// Last purchase error
+    private(set) var purchaseError: StoreKitError?
 
     /// Maximum swipes for free tier
     let freeSwipeLimit = 5
@@ -78,11 +91,29 @@ final class SubscriptionManager {
         !isPremium && dailySwipeCount >= freeSwipeLimit
     }
 
+    /// Days until subscription expires (nil if not subscribed)
+    var daysUntilExpiration: Int? {
+        guard let expirationDate = subscriptionExpirationDate else { return nil }
+        let days = Calendar.current.dateComponents([.day], from: Date(), to: expirationDate).day
+        return days
+    }
+
+    /// Whether subscription is expiring soon (within 7 days)
+    var isExpiringSoon: Bool {
+        guard let days = daysUntilExpiration else { return false }
+        return days <= 7 && days > 0
+    }
+
     // MARK: - Init
 
     private init() {
         loadSubscriptionState()
         checkAndResetDailyLimits()
+
+        // Check StoreKit status on launch
+        Task { @MainActor in
+            await StoreKitManager.shared.checkSubscriptionStatus()
+        }
     }
 
     // MARK: - Public Methods
@@ -179,28 +210,143 @@ final class SubscriptionManager {
         }
     }
 
-    // MARK: - Subscription Management (Placeholder for StoreKit)
+    // MARK: - Subscription Management (StoreKit Integration)
 
-    /// Upgrade to Oracle tier (placeholder - will integrate StoreKit)
+    /// Purchase Oracle tier subscription (monthly)
+    @MainActor
+    func purchaseMonthly() async throws {
+        isPurchasing = true
+        purchaseError = nil
+
+        defer { isPurchasing = false }
+
+        do {
+            _ = try await StoreKitManager.shared.purchase(productID: .oracleMonthly)
+        } catch let error as StoreKitError {
+            purchaseError = error
+            throw error
+        } catch {
+            purchaseError = .purchaseFailed(error)
+            throw error
+        }
+    }
+
+    /// Purchase Oracle tier subscription (yearly)
+    @MainActor
+    func purchaseYearly() async throws {
+        isPurchasing = true
+        purchaseError = nil
+
+        defer { isPurchasing = false }
+
+        do {
+            _ = try await StoreKitManager.shared.purchase(productID: .oracleYearly)
+        } catch let error as StoreKitError {
+            purchaseError = error
+            throw error
+        } catch {
+            purchaseError = .purchaseFailed(error)
+            throw error
+        }
+    }
+
+    /// Purchase a specific product
+    @MainActor
+    func purchase(product: Product) async throws {
+        isPurchasing = true
+        purchaseError = nil
+
+        defer { isPurchasing = false }
+
+        do {
+            _ = try await StoreKitManager.shared.purchase(product)
+        } catch let error as StoreKitError {
+            purchaseError = error
+            throw error
+        } catch {
+            purchaseError = .purchaseFailed(error)
+            throw error
+        }
+    }
+
+    /// Upgrade to Oracle tier (legacy method for backward compatibility)
+    @MainActor
     func upgradeToOracle() {
-        // TODO: Integrate StoreKit
-        // For now, just set the flag for testing
-        currentTier = .oracle
-        UserDefaults.standard.set(true, forKey: Keys.isPremium)
+        // This now triggers the paywall flow
+        // For direct upgrade, use purchaseMonthly() or purchaseYearly()
+        Task {
+            do {
+                try await purchaseMonthly()
+            } catch {
+                print("[Subscription] Upgrade failed: \(error)")
+            }
+        }
     }
 
-    /// Restore purchases (placeholder - will integrate StoreKit)
+    /// Restore purchases from App Store
+    @MainActor
     func restorePurchases() async -> Bool {
-        // TODO: Integrate StoreKit restoration
-        // For now, just return current state
-        return isPremium
+        isPurchasing = true
+        purchaseError = nil
+
+        defer { isPurchasing = false }
+
+        let restored = await StoreKitManager.shared.restorePurchases()
+        return restored
     }
 
-    /// Downgrade to free tier (for testing)
+    /// Manually refresh subscription status
+    @MainActor
+    func refreshSubscriptionStatus() async {
+        await StoreKitManager.shared.checkSubscriptionStatus()
+    }
+
+    /// Handle subscription activated (called by StoreKitManager)
+    func handleSubscriptionActivated() {
+        currentTier = .oracle
+        subscriptionExpirationDate = StoreKitManager.shared.subscriptionExpirationDate
+        UserDefaults.standard.set(true, forKey: Keys.isPremium)
+
+        if let expirationDate = subscriptionExpirationDate {
+            UserDefaults.standard.set(expirationDate, forKey: Keys.subscriptionExpirationDate)
+        }
+
+        UserDefaults.standard.set(Date(), forKey: Keys.lastSubscriptionCheck)
+
+        print("[Subscription] Subscription activated, expires: \(subscriptionExpirationDate?.description ?? "unknown")")
+    }
+
+    /// Handle subscription expired (called by StoreKitManager)
+    func handleSubscriptionExpired() {
+        // Only downgrade if we were previously subscribed (not in trial)
+        guard currentTier == .oracle && !isInTrial else { return }
+
+        currentTier = .free
+        subscriptionExpirationDate = nil
+        UserDefaults.standard.set(false, forKey: Keys.isPremium)
+        UserDefaults.standard.removeObject(forKey: Keys.subscriptionExpirationDate)
+
+        print("[Subscription] Subscription expired")
+    }
+
+    /// Downgrade to free tier (for testing/debugging only)
     func downgradeToFree() {
         currentTier = .free
         isInTrial = false
+        subscriptionExpirationDate = nil
         UserDefaults.standard.set(false, forKey: Keys.isPremium)
+        UserDefaults.standard.removeObject(forKey: Keys.subscriptionExpirationDate)
+    }
+
+    /// Check if subscription needs refresh (called periodically)
+    func shouldRefreshSubscription() -> Bool {
+        guard let lastCheck = UserDefaults.standard.object(forKey: Keys.lastSubscriptionCheck) as? Date else {
+            return true
+        }
+
+        // Refresh every 24 hours
+        let hoursSinceLastCheck = Calendar.current.dateComponents([.hour], from: lastCheck, to: Date()).hour ?? 0
+        return hoursSinceLastCheck >= 24
     }
 
     // MARK: - Private Methods
@@ -209,6 +355,17 @@ final class SubscriptionManager {
         // Load premium status
         let isPremiumStored = UserDefaults.standard.bool(forKey: Keys.isPremium)
         currentTier = isPremiumStored ? .oracle : .free
+
+        // Load subscription expiration date
+        if let expirationDate = UserDefaults.standard.object(forKey: Keys.subscriptionExpirationDate) as? Date {
+            subscriptionExpirationDate = expirationDate
+
+            // Check if subscription has expired locally
+            if expirationDate < Date() && !isInTrial {
+                currentTier = .free
+                UserDefaults.standard.set(false, forKey: Keys.isPremium)
+            }
+        }
 
         // Check trial status
         checkTrialStatus()

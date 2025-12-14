@@ -483,6 +483,17 @@ struct DisclaimerBanner: View {
 struct AboutView: View {
 
     @Environment(\.dismiss) private var dismiss
+    @State private var tapCount = 0
+    @State private var showDebugInfo = false
+
+    // Show debug info by default in DEBUG builds, or after 7 taps in release
+    private var shouldShowDebugSection: Bool {
+        #if DEBUG
+        return true
+        #else
+        return showDebugInfo
+        #endif
+    }
 
     var body: some View {
         NavigationStack {
@@ -504,12 +515,18 @@ struct AboutView: View {
                                 .font(.system(size: 32))
                                 .foregroundColor(CosmicTheme.gold)
                         }
+                        .onTapGesture {
+                            tapCount += 1
+                            if tapCount >= 7 && !showDebugInfo {
+                                showDebugInfo = true
+                            }
+                        }
 
                         Text("COSMO TRADER")
                             .font(.system(size: 20, weight: .bold, design: .monospaced))
                             .foregroundColor(CosmicTheme.textPrimary)
 
-                        Text("Version \(Bundle.main.appVersion) (\(Bundle.main.buildNumber))")
+                        Text(BuildInfo.fullVersion)
                             .font(.system(size: 12, design: .monospaced))
                             .foregroundColor(CosmicTheme.textSecondary)
 
@@ -520,6 +537,11 @@ struct AboutView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
+
+                    // Debug/Build Information Section (shown in debug or after easter egg)
+                    if shouldShowDebugSection {
+                        DebugInfoSection()
+                    }
 
                     // Data Attribution
                     LegalSection(
@@ -594,6 +616,87 @@ struct AboutView: View {
                     .foregroundColor(CosmicTheme.gold)
                 }
             }
+        }
+    }
+}
+
+// MARK: - Debug Info Section
+
+struct DebugInfoSection: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Section header
+            HStack(spacing: 8) {
+                Rectangle()
+                    .fill(Color.green)
+                    .frame(width: 3, height: 16)
+
+                Text("BUILD INFO")
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.green)
+
+                Spacer()
+
+                Text(BuildInfo.isDebug ? "DEBUG" : "RELEASE")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(BuildInfo.isDebug ? Color.orange : Color.green)
+                    .cornerRadius(4)
+            }
+
+            // Build details
+            VStack(alignment: .leading, spacing: 8) {
+                DebugInfoRow(label: "Version", value: BuildInfo.fullVersion)
+                DebugInfoRow(label: "Environment", value: BuildInfo.environment.rawValue)
+
+                if !BuildInfo.buildTimestamp.isEmpty {
+                    DebugInfoRow(label: "Built", value: BuildInfo.buildTimestamp)
+                }
+
+                if !BuildInfo.gitCommit.isEmpty && BuildInfo.gitCommit != "unknown" {
+                    DebugInfoRow(label: "Commit", value: "\(BuildInfo.gitBranch)@\(BuildInfo.gitCommit)")
+                }
+
+                DebugInfoRow(label: "Device", value: BuildInfo.deviceModel)
+                DebugInfoRow(label: "iOS", value: BuildInfo.osVersion)
+
+                if BuildInfo.isTestFlight {
+                    DebugInfoRow(label: "Distribution", value: "TestFlight")
+                } else if BuildInfo.isAppStore {
+                    DebugInfoRow(label: "Distribution", value: "App Store")
+                }
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Color(hex: "0A0A0A"))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                )
+        )
+    }
+}
+
+struct DebugInfoRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(CosmicTheme.textMuted)
+                .frame(width: 80, alignment: .leading)
+
+            Text(value)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(CosmicTheme.textSecondary)
+
+            Spacer()
         }
     }
 }

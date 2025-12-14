@@ -285,7 +285,7 @@ struct PortfolioView: View {
                     .frame(width: 70, alignment: .trailing)
 
                 // Change %
-                Text(stock.formattedPercentage)
+                Text(stock.formattedPercentageChange)
                     .font(TerminalFont.price(11))
                     .foregroundColor(stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
                     .frame(width: 60, alignment: .trailing)

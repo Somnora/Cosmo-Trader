@@ -1,0 +1,42 @@
+// Release.xcconfig
+// Cosmo Trader
+//
+// Configuration for production/release builds.
+// Used with "Cosmo Trader Release" scheme.
+
+// Include base configuration
+#include "Base.xcconfig"
+
+// Include secrets (gitignored)
+#include? "Secrets.xcconfig"
+
+// MARK: - Environment
+APP_ENVIRONMENT = production
+
+// MARK: - App Identity (production bundle ID)
+PRODUCT_BUNDLE_IDENTIFIER = com.cosmotrader.app
+PRODUCT_NAME = Cosmo Trader
+
+// MARK: - Build Settings
+DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
+SWIFT_OPTIMIZATION_LEVEL = -O
+GCC_OPTIMIZATION_LEVEL = s
+ENABLE_TESTABILITY = NO
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = RELEASE
+SWIFT_COMPILATION_MODE = wholemodule
+
+// MARK: - Release Optimizations
+VALIDATE_PRODUCT = YES
+DEAD_CODE_STRIPPING = YES
+STRIP_INSTALLED_PRODUCT = YES
+
+// MARK: - Production Features
+ENABLE_DEBUG_UI = NO
+ENABLE_MOCK_DATA = NO
+VERBOSE_LOGGING = NO
+
+// MARK: - API Keys (placeholders - actual values from Secrets.xcconfig)
+// These are overridden by Secrets.xcconfig if it exists
+// Use production keys:
+// FINNHUB_API_KEY = (from Secrets.xcconfig)
+// MIXPANEL_TOKEN = (from Secrets.xcconfig)

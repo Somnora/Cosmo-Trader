@@ -27,8 +27,13 @@ Package.resolved
 # Carthage
 Carthage/Build/
 
-# Secrets - NEVER commit API keys
+# Secrets - NEVER commit API keys or Firebase config
 Cosmo Trader/Secrets.plist
+Cosmo Trader/GoogleService-Info.plist
+Cosmo Trader/Configuration/Secrets.xcconfig
+
+# Generated build info (auto-generated on each build)
+Cosmo Trader/Configuration/BuildInfo.generated.swift
 
 # macOS
 .DS_Store

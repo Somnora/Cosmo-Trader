@@ -1,0 +1,35 @@
+// Base.xcconfig
+// Cosmo Trader
+//
+// Base configuration shared across all environments.
+// Environment-specific configs should include this file.
+
+// MARK: - App Identity
+PRODUCT_NAME = Cosmo Trader
+PRODUCT_BUNDLE_IDENTIFIER = com.cosmotrader.app
+
+// MARK: - Deployment
+IPHONEOS_DEPLOYMENT_TARGET = 17.0
+TARGETED_DEVICE_FAMILY = 1,2
+
+// MARK: - Swift
+SWIFT_VERSION = 5.0
+SWIFT_OPTIMIZATION_LEVEL = -Onone
+
+// MARK: - Build Settings
+ENABLE_BITCODE = NO
+ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES
+
+// MARK: - Code Signing (customize for your team)
+// CODE_SIGN_STYLE = Automatic
+// DEVELOPMENT_TEAM = YOUR_TEAM_ID
+
+// MARK: - Info.plist Preprocessing
+INFOPLIST_PREPROCESS = YES
+INFOPLIST_PREFIX_HEADER =
+
+// MARK: - API Keys (to be overridden by environment configs)
+// These are placeholders - actual values come from Secrets.xcconfig
+FINNHUB_API_KEY =
+MIXPANEL_TOKEN =
+APP_ENVIRONMENT = development

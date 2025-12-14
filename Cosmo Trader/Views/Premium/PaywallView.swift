@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 
 // MARK: - Paywall View
 // ====================
@@ -11,11 +12,14 @@ struct PaywallView: View {
     // MARK: - Properties
 
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedPlan: PaywallPlan = .monthly
+    @State private var selectedPlan: PaywallPlan = .yearly
     @State private var isProcessing = false
     @State private var showTrialStarted = false
+    @State private var showError = false
+    @State private var errorMessage = ""
 
     private let subscriptionManager = SubscriptionManager.shared
+    private let storeKitManager = StoreKitManager.shared
 
     // MARK: - Body
 
@@ -65,6 +69,17 @@ struct PaywallView: View {
         .overlay {
             if showTrialStarted {
                 trialStartedOverlay
+            }
+        }
+        .alert("Error", isPresented: $showError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage)
+        }
+        .task {
+            // Load products when view appears
+            if storeKitManager.products.isEmpty {
+                await storeKitManager.loadProducts()
             }
         }
     }
@@ -191,23 +206,56 @@ struct PaywallView: View {
                 Spacer()
             }
 
-            // Plan options
+            // Plan options - show real prices from StoreKit or fallback
             VStack(spacing: 12) {
-                planOption(
-                    plan: .yearly,
-                    title: "YEARLY",
-                    price: "$39.99",
-                    period: "/year",
-                    savings: "SAVE 33%"
-                )
+                if let yearly = storeKitManager.yearlyProduct {
+                    let savingsText = storeKitManager.yearlySavingsPercentage().map { "SAVE \($0)%" }
+                    planOption(
+                        plan: .yearly,
+                        title: "YEARLY",
+                        price: yearly.displayPrice,
+                        period: "/year",
+                        savings: savingsText
+                    )
+                } else {
+                    planOption(
+                        plan: .yearly,
+                        title: "YEARLY",
+                        price: SubscriptionManager.oracleTierYearlyPrice,
+                        period: "/year",
+                        savings: "SAVE 33%"
+                    )
+                }
 
-                planOption(
-                    plan: .monthly,
-                    title: "MONTHLY",
-                    price: "$4.99",
-                    period: "/month",
-                    savings: nil
-                )
+                if let monthly = storeKitManager.monthlyProduct {
+                    planOption(
+                        plan: .monthly,
+                        title: "MONTHLY",
+                        price: monthly.displayPrice,
+                        period: "/month",
+                        savings: nil
+                    )
+                } else {
+                    planOption(
+                        plan: .monthly,
+                        title: "MONTHLY",
+                        price: SubscriptionManager.oracleTierPrice,
+                        period: "/month",
+                        savings: nil
+                    )
+                }
+            }
+
+            // Loading indicator
+            if storeKitManager.isLoading {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: CosmicTheme.textSecondary))
+                        .scaleEffect(0.7)
+                    Text("Loading prices...")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                }
             }
         }
     }
@@ -464,20 +512,62 @@ struct PaywallView: View {
     private func processSubscription() {
         isProcessing = true
 
-        // TODO: Integrate StoreKit
-        // For now, simulate processing
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            subscriptionManager.upgradeToOracle()
-            isProcessing = false
+        Task {
+            do {
+                // Get the selected product
+                let product: Product?
+                switch selectedPlan {
+                case .monthly:
+                    product = storeKitManager.monthlyProduct
+                case .yearly:
+                    product = storeKitManager.yearlyProduct
+                }
 
-            // Track subscription started
-            AnalyticsService.shared.trackSubscriptionStarted(
-                tier: "oracle",
-                source: "paywall",
-                trialEnabled: false
-            )
+                guard let selectedProduct = product else {
+                    await MainActor.run {
+                        isProcessing = false
+                        errorMessage = "Product not available. Please try again."
+                        showError = true
+                    }
+                    return
+                }
 
-            dismiss()
+                // Perform the purchase
+                try await subscriptionManager.purchase(product: selectedProduct)
+
+                await MainActor.run {
+                    isProcessing = false
+
+                    // Track subscription started
+                    AnalyticsService.shared.trackSubscriptionStarted(
+                        tier: "oracle",
+                        source: "paywall",
+                        trialEnabled: false
+                    )
+
+                    dismiss()
+                }
+            } catch let error as StoreKitError {
+                await MainActor.run {
+                    isProcessing = false
+
+                    // Don't show error for user cancellation
+                    if !error.isUserCancellation {
+                        if error.isPending {
+                            errorMessage = "Your purchase is pending approval. You'll get access once approved."
+                        } else {
+                            errorMessage = error.errorDescription ?? "Purchase failed. Please try again."
+                        }
+                        showError = true
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isProcessing = false
+                    errorMessage = "An unexpected error occurred. Please try again."
+                    showError = true
+                }
+            }
         }
     }
 
@@ -507,6 +597,10 @@ struct PaywallView: View {
                     // Track restore
                     AnalyticsService.shared.trackSubscriptionRestored()
                     dismiss()
+                } else {
+                    // No purchases to restore
+                    errorMessage = "No previous purchases found to restore."
+                    showError = true
                 }
             }
         }
@@ -526,6 +620,13 @@ struct CompactPaywallView: View {
 
     var onDismiss: (() -> Void)?
     var onUpgrade: (() -> Void)?
+
+    private let storeKitManager = StoreKitManager.shared
+
+    /// Display price - uses StoreKit product if available, falls back to constant
+    private var displayPrice: String {
+        storeKitManager.monthlyProduct?.displayPrice ?? SubscriptionManager.oracleTierPrice
+    }
 
     var body: some View {
         VStack(spacing: 20) {
@@ -559,7 +660,7 @@ struct CompactPaywallView: View {
 
             // Price
             HStack(alignment: .lastTextBaseline, spacing: 4) {
-                Text(SubscriptionManager.oracleTierPrice)
+                Text(displayPrice)
                     .font(.system(size: 24, weight: .bold, design: .monospaced))
                     .foregroundColor(CosmicTheme.gold)
             }
@@ -594,6 +695,12 @@ struct CompactPaywallView: View {
         }
         .padding(24)
         .background(CosmicTheme.terminalBlack)
+        .task {
+            // Ensure products are loaded
+            if storeKitManager.products.isEmpty {
+                await storeKitManager.loadProducts()
+            }
+        }
     }
 
     private func quickBenefit(_ text: String) -> some View {

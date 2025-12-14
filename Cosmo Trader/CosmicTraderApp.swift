@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(FirebaseCore)
+import FirebaseCore
+#endif
 
 /// CosmicTraderApp
 /// ---------------
@@ -25,8 +28,36 @@ struct CosmicTraderApp: App {
     /// Initialize any app-wide settings when the app launches
     init() {
         configureAppAppearance()
+        configureCrashReporting()
+        configureAnalytics()
         // Note: Deferred API diagnostic test to after app launch for better startup performance
         // The test will run after the launch screen completes
+    }
+
+    // MARK: - Crash Reporting Configuration
+
+    /// Configure Firebase and Crashlytics for crash reporting
+    private func configureCrashReporting() {
+        Task { @MainActor in
+            // Initialize Crashlytics
+            CrashReportingService.shared.initialize()
+
+            // Log app launch
+            CrashReportingService.shared.logLifecycleEvent("App launched")
+        }
+    }
+
+    // MARK: - Analytics Configuration
+
+    /// Configure and initialize analytics
+    private func configureAnalytics() {
+        // Initialize Mixpanel from Secrets.plist
+        Task { @MainActor in
+            AnalyticsService.shared.initialize()
+
+            // Track app opened
+            AnalyticsService.shared.trackAppOpened()
+        }
     }
 
     // MARK: - Body

@@ -1,13 +1,16 @@
 import Foundation
+#if canImport(Mixpanel)
+import Mixpanel
+#endif
 
 // MARK: - Analytics Service
 // ==========================
 // Lightweight analytics tracking for app usage insights.
-// Currently logs to console in debug mode.
-// Ready for integration with Mixpanel, Amplitude, Firebase Analytics, etc.
+// Integrated with Mixpanel for production analytics.
 //
 // PRIVACY: No personally identifiable information is collected.
 // All events are anonymous and focused on feature usage patterns.
+// Users can opt-out of analytics tracking via settings.
 
 // MARK: - Analytics Events
 
@@ -148,19 +151,87 @@ final class AnalyticsService {
 
     static let shared = AnalyticsService()
 
+    // MARK: - Properties
+
     private var isEnabled: Bool = true
+    private var isOptedOut: Bool = false
+    private var debugModeEnabled: Bool = false
     private var sessionStartTime: Date?
     private var eventQueue: [(event: AnalyticsEvent, params: AnalyticsParameters?, timestamp: Date)] = []
+    private var anonymousId: String?
+
+    /// The Mixpanel provider instance
+    private let provider = MixpanelProvider.shared
 
     private init() {
+        loadOptOutPreference()
+    }
+
+    // MARK: - Initialization
+
+    /// Initialize analytics with Mixpanel token from Secrets.plist
+    func initialize() {
+        provider.initializeFromSecrets()
+        provider.loadOptOutPreference()
+
+        // Generate and set anonymous ID
+        anonymousId = provider.getOrCreateAnonymousId()
+        if let anonId = anonymousId {
+            provider.identify(anonymousId: anonId)
+        }
+
+        // Set debug mode based on build configuration
+        #if DEBUG
+        setDebugMode(true)
+        #else
+        setDebugMode(false)
+        #endif
+
         startSession()
+        log("Analytics initialized")
     }
 
     // MARK: - Configuration
 
+    /// Enable or disable analytics
     func setEnabled(_ enabled: Bool) {
         isEnabled = enabled
         log("Analytics \(enabled ? "enabled" : "disabled")")
+    }
+
+    /// Set opt-out status for privacy-conscious users
+    func setOptOut(_ optOut: Bool) {
+        isOptedOut = optOut
+        provider.setOptOut(optOut)
+        UserDefaults.standard.set(optOut, forKey: "analytics_opted_out")
+
+        if optOut {
+            log("User opted out of analytics tracking")
+        } else {
+            log("User opted in to analytics tracking")
+        }
+    }
+
+    /// Check if user has opted out
+    var hasOptedOut: Bool {
+        return isOptedOut
+    }
+
+    /// Load opt-out preference from storage
+    private func loadOptOutPreference() {
+        isOptedOut = UserDefaults.standard.bool(forKey: "analytics_opted_out")
+    }
+
+    /// Enable or disable debug mode for development
+    func setDebugMode(_ enabled: Bool) {
+        debugModeEnabled = enabled
+        provider.setDebugMode(enabled)
+        log("Debug mode \(enabled ? "enabled" : "disabled")")
+    }
+
+    /// Check if debug mode is enabled
+    var isDebugMode: Bool {
+        return debugModeEnabled
     }
 
     // MARK: - Session Management
@@ -181,7 +252,7 @@ final class AnalyticsService {
     // MARK: - Event Tracking
 
     func track(_ event: AnalyticsEvent, params: AnalyticsParameters? = nil) {
-        guard isEnabled else { return }
+        guard isEnabled, !isOptedOut else { return }
 
         let timestamp = Date()
 
@@ -193,8 +264,8 @@ final class AnalyticsService {
         logEvent(event, params: params, timestamp: timestamp)
         #endif
 
-        // TODO: Send to analytics provider
-        // sendToProvider(event: event, params: params)
+        // Send to analytics provider
+        sendToProvider(event: event, params: params)
     }
 
     // MARK: - Convenience Methods
@@ -237,23 +308,59 @@ final class AnalyticsService {
         #endif
     }
 
-    // MARK: - Provider Integration (Future)
+    // MARK: - Provider Integration
 
-    // Placeholder for analytics provider integration
-    // Uncomment and implement when adding Mixpanel, Amplitude, or Firebase
-
-    /*
+    /// Send event to Mixpanel analytics provider
     private func sendToProvider(event: AnalyticsEvent, params: AnalyticsParameters?) {
-        // Mixpanel example:
-        // Mixpanel.mainInstance().track(event: event.rawValue, properties: params?.dictionary)
-
-        // Amplitude example:
-        // Amplitude.instance().logEvent(event.rawValue, withEventProperties: params?.dictionary)
-
-        // Firebase example:
-        // Analytics.logEvent(event.rawValue, parameters: params?.dictionary)
+        provider.track(event: event, params: params)
     }
-    */
+
+    /// Flush events to server immediately
+    func flush() {
+        provider.flush()
+    }
+
+    /// Reset user identity (call on logout)
+    func resetIdentity() {
+        provider.reset()
+        anonymousId = provider.getOrCreateAnonymousId()
+        if let anonId = anonymousId {
+            provider.identify(anonymousId: anonId)
+        }
+        log("User identity reset")
+    }
+
+    // MARK: - Super Properties
+
+    /// Set super properties that are sent with every event
+    func setSuperProperties(_ properties: [String: Any]) {
+        var analyticsProps: [String: AnalyticsValue] = [:]
+        for (key, value) in properties {
+            if let stringValue = value as? String {
+                analyticsProps[key] = stringValue
+            } else if let intValue = value as? Int {
+                analyticsProps[key] = intValue
+            } else if let doubleValue = value as? Double {
+                analyticsProps[key] = doubleValue
+            } else if let boolValue = value as? Bool {
+                analyticsProps[key] = boolValue
+            }
+        }
+        provider.setSuperProperties(analyticsProps)
+    }
+
+    /// Set default super properties based on app state
+    func setDefaultSuperProperties(sunSign: String?, isPremium: Bool) {
+        var properties: [String: AnalyticsValue] = [
+            "app_version": Bundle.main.appVersion,
+            "build_number": Bundle.main.buildNumber,
+            "is_premium": isPremium
+        ]
+        if let sign = sunSign {
+            properties["sun_sign"] = sign
+        }
+        provider.setSuperProperties(properties)
+    }
 }
 
 // MARK: - Analytics Extensions
@@ -503,8 +610,23 @@ extension AnalyticsService {
         log("User properties updated: \(Self._userProperties.dictionary)")
         #endif
 
-        // TODO: Send to analytics provider
-        // sendUserPropertiesToProvider(Self._userProperties)
+        // Send to analytics provider
+        sendUserPropertiesToProvider(Self._userProperties)
+    }
+
+    /// Send user properties to analytics provider
+    private func sendUserPropertiesToProvider(_ properties: AnalyticsUserProperties) {
+        var analyticsProps: [String: AnalyticsValue] = [
+            "portfolio_size": properties.portfolioSize,
+            "account_age_days": properties.accountAgeDays,
+            "is_premium": properties.isPremium,
+            "app_version": properties.appVersion,
+            "device_type": properties.deviceType
+        ]
+        if let sign = properties.sunSign {
+            analyticsProps["sun_sign"] = sign
+        }
+        provider.setUserProfileProperties(analyticsProps)
     }
 
     /// Refresh user properties from current app state

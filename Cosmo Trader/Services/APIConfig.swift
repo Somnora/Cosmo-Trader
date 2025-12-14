@@ -1,69 +1,90 @@
+//
+//  APIConfig.swift
+//  Cosmo Trader
+//
+//  Secure configuration loader for API keys and secrets.
+//  Reads from xcconfig via Info.plist, with fallback to Secrets.plist.
+//
+//  USAGE:
+//  ------
+//  let key = APIConfig.finnhubKey
+//  let baseURL = APIConfig.finnhubBaseURL
+//
+//  SETUP:
+//  ------
+//  1. Copy Secrets.xcconfig.sample to Secrets.xcconfig
+//  2. Fill in your API keys
+//  3. Secrets.xcconfig is gitignored - never committed
+
 import Foundation
 
-// MARK: - APIConfig
-// =================
-// Secure configuration loader for API keys and secrets.
-// Reads from Secrets.plist which is gitignored.
-//
-// USAGE:
-// ------
-// let key = APIConfig.finnhubKey
-// let baseURL = APIConfig.finnhubBaseURL
-//
-// SETUP:
-// ------
-// 1. Copy Secrets-template.plist to Secrets.plist
-// 2. Fill in your API keys
-// 3. Secrets.plist is gitignored - never committed
-
 enum APIConfig {
+
+    // MARK: - Environment
+
+    /// Current app environment
+    static var environment: AppEnvironment {
+        AppEnvironment.current
+    }
+
+    /// Environment configuration
+    static var config: EnvironmentConfig {
+        EnvironmentConfig.shared
+    }
 
     // MARK: - Finnhub API
 
     /// Finnhub API key for stock quotes
     /// Get yours at: https://finnhub.io
     static var finnhubKey: String {
-        guard let key = secrets["FINNHUB_API_KEY"] as? String,
-              !key.isEmpty,
-              key != "YOUR_FINNHUB_API_KEY_HERE" else {
+        let key = config.finnhubAPIKey
+
+        if key.isEmpty {
             #if DEBUG
-            print("⚠️ Finnhub API key not configured. Copy Secrets-template.plist to Secrets.plist")
+            print("⚠️ Finnhub API key not configured.")
+            print("   Set FINNHUB_API_KEY in Secrets.xcconfig or Secrets.plist")
             #endif
-            return ""
         }
+
         return key
     }
 
-    /// Finnhub base URL
-    static let finnhubBaseURL = "https://finnhub.io/api/v1"
+    /// Finnhub base URL (may vary by environment)
+    static var finnhubBaseURL: String {
+        environment.apiBaseURL
+    }
 
     /// Check if Finnhub is properly configured
     static var isFinnhubConfigured: Bool {
         !finnhubKey.isEmpty
     }
 
-    // MARK: - Private
+    // MARK: - Mixpanel
 
-    /// Cached secrets dictionary
+    /// Mixpanel token for analytics
+    static var mixpanelToken: String {
+        config.mixpanelToken
+    }
+
+    /// Check if Mixpanel is configured
+    static var isMixpanelConfigured: Bool {
+        !mixpanelToken.isEmpty
+    }
+
+    // MARK: - Legacy Support
+
+    /// Cached secrets dictionary (for backwards compatibility)
     private static var secrets: [String: Any] = {
         loadSecrets()
     }()
 
-    /// Load secrets from plist file
+    /// Load secrets from plist file (legacy support)
     private static func loadSecrets() -> [String: Any] {
-        // Try to find Secrets.plist in the main bundle
         guard let path = Bundle.main.path(forResource: "Secrets", ofType: "plist") else {
-            #if DEBUG
-            print("⚠️ Secrets.plist not found in bundle.")
-            print("   Copy Secrets-template.plist to Secrets.plist and add your API keys.")
-            #endif
             return [:]
         }
 
         guard let dict = NSDictionary(contentsOfFile: path) as? [String: Any] else {
-            #if DEBUG
-            print("⚠️ Failed to read Secrets.plist")
-            #endif
             return [:]
         }
 
@@ -79,30 +100,12 @@ enum APIConfig {
 
     /// Validate all required API keys are present
     static func validateConfiguration() -> [String] {
-        var missingKeys: [String] = []
-
-        if !isFinnhubConfigured {
-            missingKeys.append("FINNHUB_API_KEY")
-        }
-
-        return missingKeys
+        return config.missingKeys
     }
 
     /// Print configuration status (debug only)
     static func printStatus() {
-        #if DEBUG
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        print("API Configuration Status")
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        print("Finnhub: \(isFinnhubConfigured ? "✓ Configured" : "✗ Missing")")
-
-        let missing = validateConfiguration()
-        if !missing.isEmpty {
-            print("\n⚠️ Missing keys: \(missing.joined(separator: ", "))")
-            print("Add them to Secrets.plist")
-        }
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        #endif
+        config.printStatus()
     }
 }
 
@@ -120,5 +123,35 @@ extension APIConfig {
         components?.queryItems = queryItems
 
         return components?.url
+    }
+}
+
+// MARK: - Feature Flags
+
+extension APIConfig {
+
+    /// Whether analytics should be enabled for current environment
+    static var analyticsEnabled: Bool {
+        environment.analyticsEnabled
+    }
+
+    /// Whether crash reporting should be enabled
+    static var crashReportingEnabled: Bool {
+        environment.crashReportingEnabled
+    }
+
+    /// Whether to show debug UI
+    static var showDebugUI: Bool {
+        environment.showsDebugUI
+    }
+
+    /// Whether to use mock data
+    static var useMockData: Bool {
+        environment.useMockData
+    }
+
+    /// Whether verbose logging is enabled
+    static var verboseLogging: Bool {
+        environment.verboseLogging
     }
 }

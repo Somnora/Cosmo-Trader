@@ -51,7 +51,7 @@ struct HoldingRow: View {
                     .frame(width: 70, alignment: .trailing)
 
                 // Change %
-                Text(stock.formattedPercentage)
+                Text(stock.formattedPercentageChange)
                     .font(TerminalFont.price(11))
                     .foregroundColor(stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
                     .frame(width: 55, alignment: .trailing)
@@ -92,7 +92,7 @@ struct CompactHoldingRow: View {
                 .foregroundColor(CosmicTheme.textPrimary)
 
             // Change
-            Text(stock.formattedPercentage)
+            Text(stock.formattedPercentageChange)
                 .font(TerminalFont.price(11))
                 .foregroundColor(stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
                 .frame(width: 50, alignment: .trailing)

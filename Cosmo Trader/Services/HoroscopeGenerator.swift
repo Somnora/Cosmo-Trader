@@ -296,7 +296,6 @@ struct HoroscopeGenerator {
 
     private static func selectSignSpecificInsight(context: HoroscopeContext) -> String {
         let sign = context.user.sunSign
-        let perf = context.performance
 
         // Sign-specific observations that use actual personality traits
         switch sign {
