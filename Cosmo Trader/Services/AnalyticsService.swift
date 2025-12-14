@@ -86,6 +86,13 @@ enum AnalyticsEvent: String {
     case termsViewed = "terms_viewed"
     case disclaimerViewed = "disclaimer_viewed"
 
+    // MARK: GDPR / Privacy
+    case dataExported = "data_exported"
+    case dataDeleted = "data_deleted"
+    case deleteDataRequested = "delete_data_requested"
+    case deleteDataConfirmed = "delete_data_confirmed"
+    case deleteDataCancelled = "delete_data_cancelled"
+
     // MARK: Errors
     case apiError = "api_error"
     case networkError = "network_error"

@@ -25,6 +25,9 @@ struct ProfileView: View {
     @State private var viewModel: ProfileViewModel?
     @State private var moonService = MoonPhaseService.shared
     @State private var audioService = TerminalAudioService.shared
+    @State private var showingExportSheet = false
+    @State private var showingDeleteConfirmation = false
+    @State private var exportData: Data?
 
     // MARK: - Computed Properties
 
@@ -98,6 +101,24 @@ struct ProfileView: View {
             .toolbarBackground(.visible, for: .navigationBar)
             .sheet(isPresented: showingShareSheetBinding) {
                 ShareSheet(text: viewModel?.shareableProfileText ?? "")
+            }
+            .sheet(isPresented: $showingExportSheet) {
+                if let data = exportData {
+                    DataExportShareSheet(
+                        data: data,
+                        filename: appState.generateExportFilename()
+                    )
+                }
+            }
+            .alert("Delete All Data?", isPresented: $showingDeleteConfirmation) {
+                Button("Cancel", role: .cancel) {
+                    AnalyticsService.shared.track(.deleteDataCancelled)
+                }
+                Button("Delete Everything", role: .destructive) {
+                    confirmDataDeletion()
+                }
+            } message: {
+                Text("This will permanently delete all your data including your profile, portfolio, watchlist, and preferences. This action cannot be undone.")
             }
         }
         .onAppear {
@@ -600,7 +621,135 @@ struct ProfileView: View {
                 icon: "slider.horizontal.3",
                 settings: viewModel?.settings.filter { $0.category == .preferences } ?? []
             )
+
+            // Privacy & Data (GDPR)
+            privacyDataSection
         }
+    }
+
+    // MARK: - Privacy & Data Section (GDPR)
+
+    private var privacyDataSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Section header
+            HStack(spacing: 6) {
+                Image(systemName: "hand.raised.fill")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold)
+                Text("Privacy & Data")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(CosmicTheme.textSecondary)
+            }
+
+            VStack(spacing: 0) {
+                // Export My Data
+                Button(action: { exportMyData() }) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.body)
+                            .foregroundColor(CosmicTheme.textSecondary)
+                            .frame(width: 28)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Export My Data")
+                                .font(.subheadline)
+                                .foregroundColor(CosmicTheme.textPrimary)
+
+                            Text("Download all your data as JSON")
+                                .font(.caption2)
+                                .foregroundColor(CosmicTheme.textMuted)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+
+                Divider()
+                    .background(CosmicTheme.textMuted.opacity(0.2))
+                    .padding(.leading, 48)
+
+                // Delete All Data
+                Button(action: { requestDataDeletion() }) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "trash")
+                            .font(.body)
+                            .foregroundColor(CosmicTheme.negative)
+                            .frame(width: 28)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Delete All Data")
+                                .font(.subheadline)
+                                .foregroundColor(CosmicTheme.negative)
+
+                            Text("Permanently remove all your data")
+                                .font(.caption2)
+                                .foregroundColor(CosmicTheme.textMuted)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(CosmicTheme.cardBackground)
+            )
+
+            // GDPR info text
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "info.circle")
+                    .font(.caption2)
+                    .foregroundColor(CosmicTheme.textMuted)
+
+                Text("Your data is stored locally on your device. Export creates a portable JSON file with all your information.")
+                    .font(.caption2)
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+            .padding(.horizontal, 4)
+        }
+    }
+
+    // MARK: - Data Export/Delete Actions
+
+    private func exportMyData() {
+        // Track analytics
+        AnalyticsService.shared.track(.dataExported)
+
+        // Generate export data
+        if let data = appState.exportUserDataAsData() {
+            exportData = data
+            showingExportSheet = true
+        }
+    }
+
+    private func requestDataDeletion() {
+        // Track analytics
+        AnalyticsService.shared.track(.deleteDataRequested)
+
+        showingDeleteConfirmation = true
+    }
+
+    private func confirmDataDeletion() {
+        // Track analytics
+        AnalyticsService.shared.track(.deleteDataConfirmed)
+
+        // Delete all data
+        appState.deleteAllUserData()
     }
 
     // MARK: - Subscription Section
@@ -1256,6 +1405,50 @@ struct ShareSheet: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
         UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+// MARK: - Data Export Share Sheet
+
+struct DataExportShareSheet: UIViewControllerRepresentable {
+    let data: Data
+    let filename: String
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        // Create a temporary file URL
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+
+        do {
+            try data.write(to: tempURL)
+        } catch {
+            print("[Export] Failed to write temp file: \(error)")
+        }
+
+        let activityVC = UIActivityViewController(
+            activityItems: [tempURL],
+            applicationActivities: nil
+        )
+
+        // Exclude some activity types that don't make sense for JSON files
+        activityVC.excludedActivityTypes = [
+            .assignToContact,
+            .addToReadingList,
+            .postToFacebook,
+            .postToTwitter,
+            .postToWeibo,
+            .postToVimeo,
+            .postToTencentWeibo,
+            .postToFlickr
+        ]
+
+        // Clean up temp file after sharing
+        activityVC.completionWithItemsHandler = { _, _, _, _ in
+            try? FileManager.default.removeItem(at: tempURL)
+        }
+
+        return activityVC
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}

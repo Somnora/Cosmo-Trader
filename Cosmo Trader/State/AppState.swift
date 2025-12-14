@@ -389,6 +389,103 @@ class AppState {
             return nil
         }
     }
+
+    // MARK: - GDPR Data Export
+
+    /// Export complete user data for GDPR compliance
+    /// Returns a UserDataExport struct containing all user data
+    func exportUserDataGDPR() -> UserDataExport? {
+        return UserDataExportBuilder.build(from: self)
+    }
+
+    /// Export complete user data as formatted JSON string
+    func exportUserDataAsJSON() -> String? {
+        guard let export = exportUserDataGDPR() else { return nil }
+        return UserDataExportBuilder.toJSON(export)
+    }
+
+    /// Export complete user data as Data for file sharing
+    func exportUserDataAsData() -> Data? {
+        guard let export = exportUserDataGDPR() else { return nil }
+        return UserDataExportBuilder.toData(export)
+    }
+
+    /// Generate filename for data export
+    func generateExportFilename() -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd_HHmmss"
+        let timestamp = dateFormatter.string(from: Date())
+        return "CosmoTrader_DataExport_\(timestamp).json"
+    }
+
+    // MARK: - GDPR Data Deletion
+
+    /// Delete all user data (GDPR right to erasure)
+    /// This permanently removes all user data from the device
+    func deleteAllUserData() {
+        // Track analytics event before deletion
+        AnalyticsService.shared.track(.dataDeleted)
+
+        // Reset analytics identity
+        AnalyticsService.shared.resetIdentity()
+
+        // Clear current user
+        currentUser = nil
+
+        // Clear all UserDefaults keys related to the app
+        let userDefaultsKeys = [
+            userProfileKey,
+            backupProfileKey,
+            hasOnboardedKey,
+            lastSaveKey,
+            // Subscription keys
+            "subscription_isPremium",
+            "subscription_trialStartDate",
+            "subscription_dailySwipes",
+            "subscription_lastSwipeDate",
+            "subscription_horoscopeCountToday",
+            "subscription_roastCountToday",
+            "subscription_lastRoastDate",
+            "subscription_expirationDate",
+            "subscription_lastCheck",
+            // Notification keys
+            "notification_dailyHoroscope",
+            "notification_priceAlerts",
+            "notification_mercuryRetrograde",
+            // Appearance keys
+            "appearance_showCompatibility",
+            "appearance_showElements",
+            "appearance_animations",
+            // Audio keys
+            "terminal_audio_enabled",
+            "terminal_audio_ambient_volume",
+            "terminal_audio_effects_volume",
+            // Analytics keys
+            "analytics_opted_out",
+            // Moon phase keys
+            "moon_notifyFullMoon",
+            "moon_notifyNewMoon",
+            "moon_notifyMoonInSign",
+            // Misc keys
+            "hasSeenOnboarding",
+            "lastAppVersion"
+        ]
+
+        for key in userDefaultsKeys {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+
+        // Synchronize UserDefaults
+        UserDefaults.standard.synchronize()
+
+        // Reset state
+        errorState.clear()
+        didRecoverFromCorruption = false
+        lastSaveTimestamp = nil
+        isOfflineMode = false
+
+        print("[AppState] All user data has been deleted")
+    }
 }
 
 // MARK: - Preview Helpers
