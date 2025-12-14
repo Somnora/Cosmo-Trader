@@ -1533,6 +1533,9 @@ struct ProfileEditSheet: View {
 
                             // Birth date picker
                             birthDatePicker
+
+                            // Time of birth picker
+                            birthTimePicker
                         }
                         .padding(20)
                         .background(
@@ -1540,8 +1543,8 @@ struct ProfileEditSheet: View {
                                 .fill(CosmicTheme.cardBackground)
                         )
 
-                        // Info about sun sign
-                        signChangeInfo
+                        // Info about sun sign and birth time
+                        birthInfoSection
 
                         Spacer(minLength: 40)
                     }
@@ -1711,16 +1714,116 @@ struct ProfileEditSheet: View {
         }
     }
 
-    // MARK: - Sign Change Info
+    // MARK: - Birth Time Picker
 
-    private var signChangeInfo: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "info.circle.fill")
-                .foregroundColor(CosmicTheme.textMuted)
+    private var birthTimePicker: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Toggle for knowing birth time
+            HStack {
+                Text("Time of Birth")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(CosmicTheme.textMuted)
 
-            Text("Your sun sign is determined by your birth date. Changing your birth date will update your cosmic profile and stock compatibility ratings.")
-                .font(.caption)
-                .foregroundColor(CosmicTheme.textMuted)
+                Spacer()
+
+                Toggle("", isOn: $viewModel.knowsBirthTime)
+                    .labelsHidden()
+                    .tint(CosmicTheme.gold)
+            }
+
+            if viewModel.knowsBirthTime {
+                // Time picker
+                DatePicker(
+                    "",
+                    selection: Binding(
+                        get: { viewModel.editingTimeOfBirth ?? Date() },
+                        set: { viewModel.editingTimeOfBirth = $0 }
+                    ),
+                    displayedComponents: .hourAndMinute
+                )
+                .datePickerStyle(.wheel)
+                .labelsHidden()
+                .frame(height: 120)
+                .clipped()
+
+                // Helper text
+                Text("Birth time enables rising sign (ascendant) calculation")
+                    .font(.caption2)
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .italic()
+            } else {
+                // Unknown state
+                HStack(spacing: 8) {
+                    Image(systemName: "questionmark.circle")
+                        .foregroundColor(CosmicTheme.textMuted)
+
+                    Text("I don't know my birth time")
+                        .font(.caption)
+                        .foregroundColor(CosmicTheme.textSecondary)
+                }
+                .padding(.vertical, 8)
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(CosmicTheme.secondaryBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(CosmicTheme.textMuted.opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    // MARK: - Birth Info Section
+
+    private var birthInfoSection: some View {
+        VStack(spacing: 12) {
+            // Sun sign info
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "sun.max.fill")
+                    .foregroundColor(CosmicTheme.gold)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Sun Sign")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(CosmicTheme.textPrimary)
+
+                    Text("Determined by your birth date. Changing it will update your cosmic profile.")
+                        .font(.caption2)
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Divider()
+                .background(CosmicTheme.textMuted.opacity(0.3))
+
+            // Rising sign info
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "sunrise.fill")
+                    .foregroundColor(CosmicTheme.gold.opacity(0.7))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Rising Sign (Ascendant)")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(CosmicTheme.textPrimary)
+
+                    if viewModel.knowsBirthTime {
+                        Text("With your birth time, we can calculate your rising sign for deeper insights.")
+                            .font(.caption2)
+                            .foregroundColor(CosmicTheme.textMuted)
+                    } else {
+                        Text("Add your birth time to unlock rising sign calculations and more precise cosmic readings.")
+                            .font(.caption2)
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(16)
         .background(

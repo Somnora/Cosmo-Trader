@@ -24,6 +24,8 @@ struct OnboardingView: View {
 
     @State private var userName: String = ""
     @State private var birthDate: Date = Calendar.current.date(byAdding: .year, value: -25, to: Date()) ?? Date()
+    @State private var birthTime: Date = Date()
+    @State private var knowsBirthTime: Bool = false
     @State private var currentStep: OnboardingStep = .welcome
     @State private var isAnimating: Bool = false
     @State private var selectedStock: Stock? = nil
@@ -66,6 +68,9 @@ struct OnboardingView: View {
         case .birthDate:
             // Validate birth date
             return InputValidator.validateBirthDate(birthDate) == nil
+        case .birthTime:
+            // Always can proceed (birth time is optional)
+            return true
         case .name:
             // Validate name (at least 2 characters, valid format)
             return InputValidator.validateName(userName) == nil
@@ -210,6 +215,13 @@ struct OnboardingView: View {
 
         case .birthDate:
             birthDateContent
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .move(edge: .trailing)),
+                    removal: .opacity.combined(with: .move(edge: .leading))
+                ))
+
+        case .birthTime:
+            birthTimeContent
                 .transition(.asymmetric(
                     insertion: .opacity.combined(with: .move(edge: .trailing)),
                     removal: .opacity.combined(with: .move(edge: .leading))
@@ -446,6 +458,106 @@ struct OnboardingView: View {
                     showSignReveal = true
                 }
             }
+        }
+    }
+
+    // MARK: - Birth Time Step (Optional)
+
+    private var birthTimeContent: some View {
+        VStack(spacing: 28) {
+            // Rising sign icon
+            ZStack {
+                // Glow
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                CosmicTheme.gold.opacity(0.3),
+                                Color.clear
+                            ],
+                            center: .center,
+                            startRadius: 20,
+                            endRadius: 80
+                        )
+                    )
+                    .frame(width: 160, height: 160)
+
+                // Circle background
+                Circle()
+                    .fill(CosmicTheme.cardBackground)
+                    .frame(width: 100, height: 100)
+                    .overlay(
+                        Circle()
+                            .stroke(CosmicTheme.gold.opacity(0.5), lineWidth: 2)
+                    )
+
+                // Rising sun icon
+                Image(systemName: "sunrise.fill")
+                    .font(.system(size: 44))
+                    .foregroundStyle(CosmicTheme.goldGradient)
+            }
+
+            // Title
+            VStack(spacing: 8) {
+                Text("Do you know your birth time?")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(CosmicTheme.textPrimary)
+
+                Text("Birth time enables rising sign calculation\nfor deeper cosmic insights")
+                    .font(.subheadline)
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            // Toggle for knowing birth time
+            VStack(spacing: 16) {
+                Toggle(isOn: $knowsBirthTime) {
+                    HStack {
+                        Image(systemName: knowsBirthTime ? "clock.fill" : "clock")
+                            .foregroundColor(knowsBirthTime ? CosmicTheme.gold : CosmicTheme.textMuted)
+
+                        Text(knowsBirthTime ? "I know my birth time" : "I don't know my birth time")
+                            .foregroundColor(CosmicTheme.textPrimary)
+                    }
+                }
+                .toggleStyle(SwitchToggleStyle(tint: CosmicTheme.gold))
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(CosmicTheme.cardBackground)
+                )
+
+                // Time picker (only if they know their time)
+                if knowsBirthTime {
+                    DatePicker(
+                        "",
+                        selection: $birthTime,
+                        displayedComponents: .hourAndMinute
+                    )
+                    .datePickerStyle(.wheel)
+                    .labelsHidden()
+                    .colorScheme(.dark)
+                    .frame(maxHeight: 150)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(CosmicTheme.cardBackground)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(CosmicTheme.gold.opacity(0.3), lineWidth: 1)
+                            )
+                    )
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                }
+            }
+            .animation(.spring(response: 0.3), value: knowsBirthTime)
+
+            // Helper text
+            Text("You can always add or change this later in Profile settings")
+                .font(.caption)
+                .foregroundColor(CosmicTheme.textMuted)
+                .multilineTextAlignment(.center)
         }
     }
 
@@ -846,6 +958,7 @@ struct OnboardingView: View {
         switch currentStep {
         case .welcome: return "Begin Your Journey"
         case .birthDate: return "Continue"
+        case .birthTime: return "Continue"
         case .name: return "Continue"
         case .element: return "Find My First Match"
         case .stockMatch: return "Complete Setup"
@@ -879,7 +992,8 @@ struct OnboardingView: View {
         let nextStep: OnboardingStep? = {
             switch currentStep {
             case .welcome: return .birthDate
-            case .birthDate: return .name
+            case .birthDate: return .birthTime
+            case .birthTime: return .name
             case .name: return .element
             case .element: return .stockMatch
             case .stockMatch: return .complete
@@ -901,10 +1015,14 @@ struct OnboardingView: View {
         // Track onboarding completed
         AnalyticsService.shared.trackOnboardingCompleted(sunSign: previewSign.displayName)
 
+        // Determine time of birth (nil if user doesn't know)
+        let timeOfBirth: Date? = knowsBirthTime ? birthTime : nil
+
         // Add selected stock to portfolio if chosen
         appState.completeOnboarding(
             name: userName.trimmingCharacters(in: .whitespaces),
-            birthDate: birthDate
+            birthDate: birthDate,
+            timeOfBirth: timeOfBirth
         )
 
         // Add the selected stock after user is created
@@ -941,10 +1059,11 @@ struct OnboardingView: View {
 enum OnboardingStep: Int, CaseIterable {
     case welcome = 0
     case birthDate = 1
-    case name = 2
-    case element = 3
-    case stockMatch = 4
-    case complete = 5
+    case birthTime = 2
+    case name = 3
+    case element = 4
+    case stockMatch = 5
+    case complete = 6
 }
 
 // MARK: - Stock Match Card

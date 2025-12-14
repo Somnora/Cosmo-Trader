@@ -26,6 +26,7 @@ struct MockStockData {
 
         // Apple Inc. - Founded April 1, 1976
         // Steve Jobs, Steve Wozniak, and Ronald Wayne in Los Altos garage
+        // CEO: Tim Cook (born November 1, 1960 - Scorpio)
         Stock(
             symbol: "AAPL",
             name: "Apple Inc.",
@@ -34,11 +35,14 @@ struct MockStockData {
             percentageChange: 1.33,
             sharesOwned: 0,
             foundedMonth: 4, foundedDay: 1, foundedYear: 1976,
-            sector: "Technology"
+            sector: "Technology",
+            ceoName: "Tim Cook",
+            ceoBirthMonth: 11, ceoBirthDay: 1, ceoBirthYear: 1960
         ),
 
         // Microsoft Corporation - Founded April 4, 1975
         // Bill Gates and Paul Allen in Albuquerque, New Mexico
+        // CEO: Satya Nadella (born August 19, 1967 - Leo)
         Stock(
             symbol: "MSFT",
             name: "Microsoft Corporation",
@@ -47,7 +51,9 @@ struct MockStockData {
             percentageChange: 1.22,
             sharesOwned: 0,
             foundedMonth: 4, foundedDay: 4, foundedYear: 1975,
-            sector: "Technology"
+            sector: "Technology",
+            ceoName: "Satya Nadella",
+            ceoBirthMonth: 8, ceoBirthDay: 19, ceoBirthYear: 1967
         ),
 
         // ═══════════════════════════════════════════════════════════════════
@@ -116,6 +122,7 @@ struct MockStockData {
 
         // Tesla Inc. - Founded July 1, 2003
         // Martin Eberhard and Marc Tarpenning in San Carlos, CA
+        // CEO: Elon Musk (born June 28, 1971 - Cancer)
         Stock(
             symbol: "TSLA",
             name: "Tesla, Inc.",
@@ -124,11 +131,14 @@ struct MockStockData {
             percentageChange: 5.21,
             sharesOwned: 0,
             foundedMonth: 7, foundedDay: 1, foundedYear: 2003,
-            sector: "Automotive"
+            sector: "Automotive",
+            ceoName: "Elon Musk",
+            ceoBirthMonth: 6, ceoBirthDay: 28, ceoBirthYear: 1971
         ),
 
         // Amazon.com Inc. - Founded July 5, 1994
         // Jeff Bezos in Bellevue, Washington (garage)
+        // CEO: Andy Jassy (born January 13, 1968 - Capricorn)
         Stock(
             symbol: "AMZN",
             name: "Amazon.com, Inc.",
@@ -137,7 +147,9 @@ struct MockStockData {
             percentageChange: 1.96,
             sharesOwned: 0,
             foundedMonth: 7, foundedDay: 5, foundedYear: 1994,
-            sector: "Consumer Cyclical"
+            sector: "Consumer Cyclical",
+            ceoName: "Andy Jassy",
+            ceoBirthMonth: 1, ceoBirthDay: 13, ceoBirthYear: 1968
         ),
 
         // ExxonMobil - Founded June 25, 1870 (as Standard Oil of NJ)
@@ -189,6 +201,7 @@ struct MockStockData {
 
         // Alphabet Inc. (Google) - Founded September 4, 1998
         // Larry Page and Sergey Brin at Stanford
+        // CEO: Sundar Pichai (born June 10, 1972 - Gemini)
         Stock(
             symbol: "GOOGL",
             name: "Alphabet Inc.",
@@ -197,11 +210,14 @@ struct MockStockData {
             percentageChange: -0.84,
             sharesOwned: 0,
             foundedMonth: 9, foundedDay: 4, foundedYear: 1998,
-            sector: "Technology"
+            sector: "Technology",
+            ceoName: "Sundar Pichai",
+            ceoBirthMonth: 6, ceoBirthDay: 10, ceoBirthYear: 1972
         ),
 
         // Netflix Inc. - Founded August 29, 1997
         // Reed Hastings and Marc Randolph in Scotts Valley, CA
+        // Co-CEOs: Ted Sarandos (born August 30, 1964 - Virgo) & Greg Peters
         Stock(
             symbol: "NFLX",
             name: "Netflix, Inc.",
@@ -210,11 +226,14 @@ struct MockStockData {
             percentageChange: 1.45,
             sharesOwned: 0,
             foundedMonth: 8, foundedDay: 29, foundedYear: 1997,
-            sector: "Communication Services"
+            sector: "Communication Services",
+            ceoName: "Ted Sarandos",
+            ceoBirthMonth: 8, ceoBirthDay: 30, ceoBirthYear: 1964
         ),
 
         // Berkshire Hathaway - Founded September 6, 1889
         // Originally a textile company, transformed by Buffett
+        // CEO: Warren Buffett (born August 30, 1930 - Virgo)
         Stock(
             symbol: "BRK.B",
             name: "Berkshire Hathaway Inc.",
@@ -223,7 +242,9 @@ struct MockStockData {
             percentageChange: 0.58,
             sharesOwned: 0,
             foundedMonth: 9, foundedDay: 6, foundedYear: 1889,
-            sector: "Finance"
+            sector: "Finance",
+            ceoName: "Warren Buffett",
+            ceoBirthMonth: 8, ceoBirthDay: 30, ceoBirthYear: 1930
         ),
 
         // ═══════════════════════════════════════════════════════════════════
@@ -292,6 +313,7 @@ struct MockStockData {
 
         // The Walt Disney Company - Founded December 16, 1923
         // Walt and Roy Disney in Hollywood
+        // CEO: Bob Iger (born February 10, 1951 - Aquarius)
         Stock(
             symbol: "DIS",
             name: "The Walt Disney Company",
@@ -300,7 +322,9 @@ struct MockStockData {
             percentageChange: 1.41,
             sharesOwned: 0,
             foundedMonth: 12, foundedDay: 16, foundedYear: 1923,
-            sector: "Communication Services"
+            sector: "Communication Services",
+            ceoName: "Bob Iger",
+            ceoBirthMonth: 2, ceoBirthDay: 10, ceoBirthYear: 1951
         ),
 
         // Costco Wholesale - Founded December 15, 1983 (as Price Club merger)
@@ -365,6 +389,7 @@ struct MockStockData {
 
         // NVIDIA Corporation - Founded January 25, 1993
         // Jensen Huang, Chris Malachowsky, Curtis Priem
+        // CEO: Jensen Huang (born February 17, 1963 - Aquarius)
         Stock(
             symbol: "NVDA",
             name: "NVIDIA Corporation",
@@ -373,11 +398,14 @@ struct MockStockData {
             percentageChange: 3.36,
             sharesOwned: 0,
             foundedMonth: 1, foundedDay: 25, foundedYear: 1993,
-            sector: "Technology"
+            sector: "Technology",
+            ceoName: "Jensen Huang",
+            ceoBirthMonth: 2, ceoBirthDay: 17, ceoBirthYear: 1963
         ),
 
         // Meta Platforms (Facebook) - Founded February 4, 2004
         // Mark Zuckerberg at Harvard
+        // CEO: Mark Zuckerberg (born May 14, 1984 - Taurus)
         Stock(
             symbol: "META",
             name: "Meta Platforms, Inc.",
@@ -386,7 +414,9 @@ struct MockStockData {
             percentageChange: -1.61,
             sharesOwned: 0,
             foundedMonth: 2, foundedDay: 4, foundedYear: 2004,
-            sector: "Technology"
+            sector: "Technology",
+            ceoName: "Mark Zuckerberg",
+            ceoBirthMonth: 5, ceoBirthDay: 14, ceoBirthYear: 1984
         ),
 
         // Intel Corporation - Founded January 20, 1968 (First day of Aquarius!)

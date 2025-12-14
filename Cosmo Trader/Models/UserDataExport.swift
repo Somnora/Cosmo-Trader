@@ -56,6 +56,8 @@ struct ProfileExport: Codable {
     let displayName: String
     let email: String
     let birthDate: String
+    let timeOfBirth: String?
+    let birthLocation: String?
     let sunSign: String
     let element: String
     let modality: String
@@ -145,12 +147,18 @@ enum UserDataExportBuilder {
         displayDateFormatter.dateStyle = .long
         displayDateFormatter.timeStyle = .none
 
+        // Format time of birth if available
+        let timeFormatter = DateFormatter()
+        timeFormatter.timeStyle = .short
+
         // Build profile export
         let profile = ProfileExport(
             id: user.id.uuidString,
             displayName: user.displayName,
             email: user.email,
             birthDate: displayDateFormatter.string(from: user.birthDate),
+            timeOfBirth: user.timeOfBirth.map { timeFormatter.string(from: $0) },
+            birthLocation: user.birthLocation,
             sunSign: user.sunSign.displayName,
             element: user.sunSign.element.displayName,
             modality: user.sunSign.modality.displayName,

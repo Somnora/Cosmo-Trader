@@ -264,6 +264,11 @@ struct StockCardView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            // CEO info (if available)
+            if card.stock.hasCEOInfo {
+                ceoBadge
+            }
+
             Divider()
                 .background(CosmicTheme.textMuted.opacity(0.3))
 
@@ -398,6 +403,62 @@ struct StockCardView: View {
                     .fill(CosmicTheme.goldGradient)
             )
             .offset(y: -12)
+        }
+    }
+
+    // MARK: - CEO Badge
+
+    private var ceoBadge: some View {
+        HStack(spacing: 10) {
+            // CEO zodiac indicator
+            if let ceoSign = card.stock.ceoZodiacSign {
+                ZStack {
+                    Circle()
+                        .fill(ceoElementColor.opacity(0.2))
+                        .frame(width: 28, height: 28)
+
+                    ZodiacSymbolView(sign: ceoSign, size: 14, color: ceoElementColor)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Led by \(card.stock.ceoName ?? "CEO")")
+                    .font(TerminalFont.data(11, weight: .medium))
+                    .foregroundColor(CosmicTheme.textPrimary)
+
+                if let ceoSign = card.stock.ceoZodiacSign {
+                    Text(ceoSign.displayName)
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(ceoElementColor)
+                }
+            }
+
+            Spacer()
+
+            // CEO-User alignment indicator
+            Image(systemName: "person.fill.checkmark")
+                .font(.caption)
+                .foregroundColor(CosmicTheme.cosmicPurple.opacity(0.7))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(CosmicTheme.cosmicPurple.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(CosmicTheme.cosmicPurple.opacity(0.2), lineWidth: 0.5)
+        )
+    }
+
+    private var ceoElementColor: Color {
+        guard let element = card.stock.ceoElement else { return CosmicTheme.textSecondary }
+        switch element {
+        case .fire:  return CosmicTheme.fireElement
+        case .earth: return CosmicTheme.earthElement
+        case .air:   return CosmicTheme.airElement
+        case .water: return CosmicTheme.waterElement
         }
     }
 

@@ -101,6 +101,20 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
     /// EXAMPLES: "Technology", "Healthcare", "Finance", "Energy"
     let sector: String
 
+    // MARK: - CEO Information
+    // =======================
+    // Information about the company's current CEO for cosmic alignment features.
+
+    /// Name of the company's current CEO
+    /// WHY: Users can see who leads the company and their cosmic profile.
+    /// EXAMPLES: "Tim Cook", "Satya Nadella", "Elon Musk"
+    var ceoName: String?
+
+    /// Birth date of the CEO (for zodiac calculation)
+    /// WHY: We calculate the CEO's zodiac sign to show user-CEO compatibility.
+    /// NOTE: Optional because not all CEO birthdates are publicly known.
+    var ceoBirthDate: Date?
+
     // MARK: - Computed Properties
     // ===========================
     // These are calculated from other properties - not stored directly.
@@ -216,6 +230,24 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         zodiacSign.element
     }
 
+    /// The zodiac sign of the CEO based on their birth date
+    /// WHY: Shows cosmic alignment between user and company leadership.
+    /// Returns nil if CEO birth date is not available.
+    var ceoZodiacSign: ZodiacSign? {
+        guard let date = ceoBirthDate else { return nil }
+        return ZodiacSign.from(date: date)
+    }
+
+    /// The element of the CEO's zodiac sign
+    var ceoElement: ZodiacSign.Element? {
+        ceoZodiacSign?.element
+    }
+
+    /// Whether the CEO info is available
+    var hasCEOInfo: Bool {
+        ceoName != nil && ceoBirthDate != nil
+    }
+
     /// Simulated price history for sparkline display
     /// WHY: Generates consistent pseudo-random price history based on stock symbol
     ///      for visual trend representation in portfolio rows.
@@ -270,7 +302,9 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         purchasePrice: Double? = nil,
         purchaseDate: Date? = nil,
         foundedDate: Date,
-        sector: String
+        sector: String,
+        ceoName: String? = nil,
+        ceoBirthDate: Date? = nil
     ) {
         self.id = id
         self.symbol = symbol
@@ -283,6 +317,8 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         self.purchaseDate = purchaseDate
         self.foundedDate = foundedDate
         self.sector = sector
+        self.ceoName = ceoName
+        self.ceoBirthDate = ceoBirthDate
     }
 
     /// Convenience initializer using month/day/year for founding date
@@ -300,7 +336,11 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         foundedMonth: Int,
         foundedDay: Int,
         foundedYear: Int,
-        sector: String
+        sector: String,
+        ceoName: String? = nil,
+        ceoBirthMonth: Int? = nil,
+        ceoBirthDay: Int? = nil,
+        ceoBirthYear: Int? = nil
     ) {
         self.id = id
         self.symbol = symbol
@@ -312,13 +352,25 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         self.purchasePrice = purchasePrice
         self.purchaseDate = purchaseDate
         self.sector = sector
+        self.ceoName = ceoName
 
-        // Create a Date from the components
+        // Create a Date from the founding date components
         var components = DateComponents()
         components.month = foundedMonth
         components.day = foundedDay
         components.year = foundedYear
         self.foundedDate = Calendar.current.date(from: components) ?? Date()
+
+        // Create CEO birth date if all components provided
+        if let month = ceoBirthMonth, let day = ceoBirthDay, let year = ceoBirthYear {
+            var ceoComponents = DateComponents()
+            ceoComponents.month = month
+            ceoComponents.day = day
+            ceoComponents.year = year
+            self.ceoBirthDate = Calendar.current.date(from: ceoComponents)
+        } else {
+            self.ceoBirthDate = nil
+        }
     }
 }
 

@@ -31,6 +31,7 @@ struct CosmosView: View {
     @State private var selectedEvent: CosmicEvent?
     @State private var showAllEvents: Bool = false
     @State private var showLunarDetail: Bool = false
+    @State private var showZodiacLeaderboard: Bool = false
 
     /// Animation states
     @State private var cardOpacity: Double = 0
@@ -60,6 +61,9 @@ struct CosmosView: View {
 
                             // 3a. Mercury Retrograde Countdown (always visible)
                             MercuryRetrogradeBanner()
+
+                            // 3b. Weekly Zodiac Performance Section
+                            weeklyZodiacPerformanceSection
 
                             // 4. Active cosmic alert (if any important events)
                             if let alertEvent = astroService.activeAlertEvents.first {
@@ -128,6 +132,10 @@ struct CosmosView: View {
             }
             .sheet(isPresented: $showLunarDetail) {
                 LunarOutlookSheet(lunarData: moonService.getCurrentLunarData())
+            }
+            .sheet(isPresented: $showZodiacLeaderboard) {
+                ZodiacLeaderboardView()
+                    .environment(appState)
             }
         }
         .task {
@@ -697,6 +705,118 @@ struct CosmosView: View {
         }
         .disabled(viewModel?.isLoading == true)
         .opacity(viewModel?.isLoading == true ? 0.6 : 1.0)
+    }
+
+    // MARK: - Weekly Zodiac Performance Section
+
+    private var weeklyZodiacPerformanceSection: some View {
+        let leaderboard = ZodiacPerformanceService.getLeaderboard(stocks: MockStockData.all)
+        let topThree = leaderboard.prefix(3)
+        let userSign = viewModel?.user.sunSign ?? .aries
+        let performances = leaderboard.map { $0.performance }
+        let commentary = ZodiacPerformanceService.generateWeeklyCommentary(performances: performances, userSign: userSign)
+
+        return Button(action: { showZodiacLeaderboard = true }) {
+            VStack(alignment: .leading, spacing: 16) {
+                // Header
+                HStack {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .foregroundColor(CosmicTheme.gold)
+
+                    Text("This Week in the Cosmos")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(CosmicTheme.textPrimary)
+
+                    Spacer()
+
+                    HStack(spacing: 4) {
+                        Text("View All")
+                            .font(.caption)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                    }
+                    .foregroundColor(CosmicTheme.gold)
+                }
+
+                // Top 3 mini leaderboard
+                VStack(spacing: 8) {
+                    ForEach(topThree, id: \.performance.id) { item in
+                        weeklyPerformanceRow(rank: item.rank, performance: item.performance, userSign: userSign)
+                    }
+                }
+
+                // Commentary
+                Text(commentary)
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .italic()
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(CosmicTheme.cardBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(CosmicTheme.gold.opacity(0.2), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func weeklyPerformanceRow(rank: Int, performance: ZodiacWeeklyPerformance, userSign: ZodiacSign) -> some View {
+        let isUserSign = performance.sign == userSign
+
+        return HStack(spacing: 12) {
+            // Rank
+            HStack(spacing: 2) {
+                if rank == 1 {
+                    Text("🏆")
+                        .font(.caption)
+                }
+                Text("#\(rank)")
+                    .font(TerminalFont.data(11, weight: rank == 1 ? .bold : .regular))
+                    .foregroundColor(rank == 1 ? CosmicTheme.gold : CosmicTheme.textSecondary)
+            }
+            .frame(width: 36, alignment: .leading)
+
+            // Sign
+            HStack(spacing: 6) {
+                ZodiacSymbolView(
+                    sign: performance.sign,
+                    size: 14,
+                    color: performance.sign.element.color
+                )
+
+                Text(performance.sign.displayName)
+                    .font(TerminalFont.data(12, weight: isUserSign ? .bold : .regular))
+                    .foregroundColor(isUserSign ? CosmicTheme.gold : CosmicTheme.textPrimary)
+            }
+
+            Spacer()
+
+            // Return
+            Text(performance.formattedReturn)
+                .font(TerminalFont.price(12))
+                .foregroundColor(performance.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
+
+            // User badge
+            if isUserSign {
+                Text("YOU")
+                    .font(TerminalFont.data(8, weight: .bold))
+                    .foregroundColor(CosmicTheme.background)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(CosmicTheme.gold)
+                    )
+            }
+        }
+        .padding(.vertical, 4)
     }
 
     // MARK: - Card Background

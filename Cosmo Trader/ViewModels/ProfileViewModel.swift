@@ -39,6 +39,12 @@ class ProfileViewModel {
     /// Temporary birth date for editing
     var editingBirthDate: Date = Date()
 
+    /// Temporary time of birth for editing (nil = unknown)
+    var editingTimeOfBirth: Date?
+
+    /// Whether user knows their birth time (for toggle in edit sheet)
+    var knowsBirthTime: Bool = false
+
     // MARK: - Initialization
 
     init(appState: AppState = AppState.shared) {
@@ -46,6 +52,8 @@ class ProfileViewModel {
         let currentUser = appState.currentUser ?? .sampleWithHoldings
         self.editingName = currentUser.displayName
         self.editingBirthDate = currentUser.birthDate
+        self.editingTimeOfBirth = currentUser.timeOfBirth
+        self.knowsBirthTime = currentUser.timeOfBirth != nil
     }
 
     // MARK: - User Access
@@ -251,6 +259,8 @@ class ProfileViewModel {
     func startEditing() {
         editingName = user.displayName
         editingBirthDate = user.birthDate
+        editingTimeOfBirth = user.timeOfBirth
+        knowsBirthTime = user.timeOfBirth != nil
         isEditing = true
     }
 
@@ -263,6 +273,12 @@ class ProfileViewModel {
             appState.updateBirthDate(editingBirthDate)
         }
 
+        // Update time of birth
+        let newTimeOfBirth = knowsBirthTime ? editingTimeOfBirth : nil
+        if newTimeOfBirth != user.timeOfBirth {
+            appState.updateTimeOfBirth(newTimeOfBirth)
+        }
+
         isEditing = false
     }
 
@@ -270,6 +286,8 @@ class ProfileViewModel {
     func cancelEditing() {
         editingName = user.displayName
         editingBirthDate = user.birthDate
+        editingTimeOfBirth = user.timeOfBirth
+        knowsBirthTime = user.timeOfBirth != nil
         isEditing = false
     }
 

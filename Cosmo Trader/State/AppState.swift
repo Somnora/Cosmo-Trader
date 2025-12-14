@@ -71,7 +71,7 @@ class AppState {
     /// Complete onboarding with a new user
     /// Returns validation error if inputs are invalid
     @discardableResult
-    func completeOnboarding(name: String, birthDate: Date) -> ValidationError? {
+    func completeOnboarding(name: String, birthDate: Date, timeOfBirth: Date? = nil) -> ValidationError? {
         // Validate name
         if let nameError = InputValidator.validateName(name) {
             errorState.showValidation(nameError)
@@ -91,6 +91,7 @@ class AppState {
             displayName: sanitizedName,
             email: "\(sanitizedName.lowercased().replacingOccurrences(of: " ", with: "."))@cosmictrader.com",
             birthDate: birthDate,
+            timeOfBirth: timeOfBirth,
             portfolio: [], // Start with empty portfolio
             watchlist: [],
             skippedStocks: [],
@@ -150,6 +151,8 @@ class AppState {
             displayName: user.displayName,
             email: user.email,
             birthDate: date,
+            timeOfBirth: user.timeOfBirth,
+            birthLocation: user.birthLocation,
             portfolio: user.portfolio,
             watchlist: user.watchlist,
             skippedStocks: user.skippedStocks,
@@ -160,6 +163,22 @@ class AppState {
         currentUser = updatedUser
         saveUserToStorage()
         return nil
+    }
+
+    /// Update the user's time of birth (for rising sign calculations)
+    func updateTimeOfBirth(_ time: Date?) {
+        guard var user = currentUser else { return }
+        user.timeOfBirth = time
+        currentUser = user
+        saveUserToStorage()
+    }
+
+    /// Update the user's birth location (for accurate timezone calculations)
+    func updateBirthLocation(_ location: String?) {
+        guard var user = currentUser else { return }
+        user.birthLocation = location
+        currentUser = user
+        saveUserToStorage()
     }
 
     // MARK: - Portfolio Management

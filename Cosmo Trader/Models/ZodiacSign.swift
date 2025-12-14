@@ -405,6 +405,33 @@ extension ZodiacSign {
         compatibleSigns.contains(other)
     }
 
+    /// Calculate a compatibility score (0-100) with another sign
+    /// Uses multiple factors: same sign, same element, traditional compatibility, opposition
+    func compatibilityScore(with other: ZodiacSign) -> Int {
+        // Same sign = highest compatibility
+        if self == other {
+            return 95
+        }
+
+        // Same element = very high compatibility
+        if self.element == other.element {
+            return 88
+        }
+
+        // Traditional compatibility (from compatibleSigns)
+        if compatibleSigns.contains(other) {
+            return 78
+        }
+
+        // Opposition signs = cosmic tension but potential
+        if oppositeSign == other {
+            return 45
+        }
+
+        // Neutral compatibility
+        return 55
+    }
+
     // MARK: - Cosmic Rivals (Opposition)
     // ==================================
     // In astrology, signs 180° apart on the zodiac wheel are in "opposition".

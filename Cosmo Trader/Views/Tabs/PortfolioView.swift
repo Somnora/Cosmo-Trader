@@ -17,6 +17,7 @@ struct PortfolioView: View {
     @State private var lastPriceUpdate: Date = Date()
     @State private var isFetchingPrices: Bool = false
     @State private var stockAPI = StockAPIService.shared
+    @State private var showRebalancingSuggestions: Bool = false
 
     // MARK: - Computed Properties
 
@@ -53,6 +54,22 @@ struct PortfolioView: View {
         return "Last updated: \(formatter.string(from: lastPriceUpdate)) ET"
     }
 
+    /// Weighted portfolio compatibility result
+    private var portfolioCompatibility: PortfolioCompatibilityResult {
+        PortfolioCompatibilityService.calculateWeightedCompatibility(
+            portfolio: user.portfolio,
+            userSign: user.sunSign
+        )
+    }
+
+    /// Rebalancing suggestions
+    private var rebalancingSuggestions: [RebalancingSuggestion] {
+        PortfolioCompatibilityService.generateRebalancingSuggestions(
+            result: portfolioCompatibility,
+            userSign: user.sunSign
+        )
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -69,9 +86,21 @@ struct PortfolioView: View {
 
                         dividerLine
 
+                        // Cosmic Portfolio Health section
+                        if !holdings.isEmpty {
+                            cosmicHealthSection
+                            dividerLine
+                        }
+
                         // Element allocation bar chart
                         if !holdings.isEmpty {
                             elementAllocationSection
+                            dividerLine
+                        }
+
+                        // Rebalancing suggestions
+                        if !rebalancingSuggestions.isEmpty && showRebalancingSuggestions {
+                            rebalancingSection
                             dividerLine
                         }
 
@@ -155,6 +184,231 @@ struct PortfolioView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 12)
+    }
+
+    // MARK: - Cosmic Health Section
+
+    private var cosmicHealthSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Section header with toggle
+            HStack {
+                HStack(spacing: 8) {
+                    Rectangle()
+                        .fill(CosmicTheme.border)
+                        .frame(height: 1)
+                        .frame(width: 20)
+
+                    Text("COSMIC PORTFOLIO HEALTH")
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .tracking(1)
+
+                    Rectangle()
+                        .fill(CosmicTheme.border)
+                        .frame(height: 1)
+                }
+
+                Spacer()
+
+                // Suggestions toggle
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showRebalancingSuggestions.toggle()
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: showRebalancingSuggestions ? "lightbulb.fill" : "lightbulb")
+                            .font(.caption)
+                        Text(showRebalancingSuggestions ? "HIDE" : "TIPS")
+                            .font(TerminalFont.data(9))
+                    }
+                    .foregroundColor(showRebalancingSuggestions ? CosmicTheme.gold : CosmicTheme.textMuted)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+
+            // Main health display
+            HStack(spacing: 0) {
+                // Big score display
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("WEIGHTED SCORE")
+                        .font(TerminalFont.data(9))
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .tracking(1)
+
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(String(format: "%.0f", portfolioCompatibility.overallScore))
+                            .font(TerminalFont.price(36))
+                            .foregroundStyle(cosmicScoreGradient)
+
+                        Text("%")
+                            .font(TerminalFont.price(18))
+                            .foregroundColor(CosmicTheme.textSecondary)
+                    }
+
+                    // Rating badge
+                    HStack(spacing: 4) {
+                        Text(portfolioCompatibility.rating.emoji)
+                            .font(.caption)
+
+                        Text(portfolioCompatibility.rating.displayName.uppercased())
+                            .font(TerminalFont.data(9, weight: .semibold))
+                            .foregroundColor(cosmicRatingColor)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(cosmicRatingColor.opacity(0.15))
+                    )
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Rectangle()
+                    .fill(CosmicTheme.border)
+                    .frame(width: 1)
+                    .padding(.vertical, 8)
+
+                // Dominant sign & element
+                VStack(alignment: .trailing, spacing: 8) {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("DOMINANT SIGN")
+                            .font(TerminalFont.data(9))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .tracking(1)
+
+                        HStack(spacing: 6) {
+                            ZodiacSymbolView(
+                                sign: portfolioCompatibility.dominantSign,
+                                size: 16,
+                                color: CosmicTheme.gold
+                            )
+                            Text(portfolioCompatibility.dominantSign.displayName)
+                                .font(TerminalFont.data(14, weight: .semibold))
+                                .foregroundColor(CosmicTheme.textPrimary)
+                        }
+                    }
+
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("DOMINANT ELEMENT")
+                            .font(TerminalFont.data(9))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .tracking(1)
+
+                        HStack(spacing: 6) {
+                            Text(portfolioCompatibility.dominantElement.emoji)
+                                .font(.caption)
+                            Text(portfolioCompatibility.dominantElement.displayName)
+                                .font(TerminalFont.data(12))
+                                .foregroundColor(portfolioCompatibility.dominantElement.color)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .padding(.horizontal, 12)
+
+            // Cosmic insight
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "sparkles")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold.opacity(0.7))
+
+                Text(portfolioCompatibility.cosmicInsight)
+                    .font(TerminalFont.data(11))
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .italic()
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 12)
+            .padding(.bottom, 12)
+        }
+    }
+
+    private var cosmicScoreGradient: LinearGradient {
+        let score = portfolioCompatibility.overallScore
+        if score >= 85 {
+            return CosmicTheme.goldGradient
+        } else if score >= 65 {
+            return LinearGradient(
+                colors: [CosmicTheme.accentBlue, CosmicTheme.cosmicPurple],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        } else {
+            return LinearGradient(
+                colors: [CosmicTheme.textPrimary, CosmicTheme.textSecondary],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+    }
+
+    private var cosmicRatingColor: Color {
+        switch portfolioCompatibility.rating {
+        case .cosmicSoulmates: return CosmicTheme.gold
+        case .highCompatibility: return CosmicTheme.accentBlue
+        case .neutral: return CosmicTheme.textSecondary
+        case .challenging: return .orange
+        case .cosmicClash: return CosmicTheme.negative
+        }
+    }
+
+    // MARK: - Rebalancing Section
+
+    private var rebalancingSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("COSMIC REBALANCING")
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("To improve cosmic alignment, consider:")
+                    .font(TerminalFont.data(10))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .padding(.horizontal, 12)
+
+                ForEach(rebalancingSuggestions.prefix(4)) { suggestion in
+                    suggestionRow(suggestion)
+                }
+            }
+            .padding(.bottom, 8)
+        }
+    }
+
+    private func suggestionRow(_ suggestion: RebalancingSuggestion) -> some View {
+        HStack(spacing: 10) {
+            Text(suggestion.icon)
+                .font(.caption)
+                .frame(width: 20)
+
+            Text(suggestion.message)
+                .font(TerminalFont.data(11))
+                .foregroundColor(suggestionColor(for: suggestion.priority))
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer()
+
+            // Priority indicator
+            Circle()
+                .fill(suggestionColor(for: suggestion.priority))
+                .frame(width: 6, height: 6)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(
+            Rectangle()
+                .fill(suggestionColor(for: suggestion.priority).opacity(0.05))
+        )
+    }
+
+    private func suggestionColor(for priority: RebalancingSuggestion.Priority) -> Color {
+        switch priority {
+        case .high: return CosmicTheme.gold
+        case .medium: return CosmicTheme.textSecondary
+        case .low: return CosmicTheme.textMuted
+        }
     }
 
     // MARK: - Element Allocation Section

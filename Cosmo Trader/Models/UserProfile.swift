@@ -46,6 +46,26 @@ struct UserProfile: Identifiable, Codable, Equatable {
     ///       allows for birthday features and age verification
     let birthDate: Date
 
+    /// User's time of birth (optional)
+    /// WHY: Enables more precise astrological calculations:
+    ///      - Rising sign (ascendant) - requires exact time
+    ///      - Moon sign - more accurate with time
+    ///      - Planetary houses - require time and location
+    /// NOTE: Optional because many users don't know their exact birth time
+    var timeOfBirth: Date?
+
+    /// User's birth location (optional, city name)
+    /// WHY: Combined with time of birth, enables:
+    ///      - Accurate rising sign calculation (requires timezone)
+    ///      - Precise planetary positions
+    /// NOTE: Future use - full birth chart calculations
+    var birthLocation: String?
+
+    /// Whether the user has provided their birth time
+    var hasBirthTime: Bool {
+        timeOfBirth != nil
+    }
+
     /// User's sun sign - COMPUTED from their birth date
     /// WHY: This is the "main" zodiac sign people know
     ///      "What's your sign?" → This is that sign!
@@ -186,6 +206,8 @@ struct UserProfile: Identifiable, Codable, Equatable {
         displayName: String,
         email: String,
         birthDate: Date,
+        timeOfBirth: Date? = nil,
+        birthLocation: String? = nil,
         portfolio: [Stock] = [],
         watchlist: [String] = [],
         skippedStocks: [String] = [],
@@ -196,6 +218,8 @@ struct UserProfile: Identifiable, Codable, Equatable {
         self.displayName = displayName
         self.email = email
         self.birthDate = birthDate
+        self.timeOfBirth = timeOfBirth
+        self.birthLocation = birthLocation
         self.portfolio = portfolio
         self.watchlist = watchlist
         self.skippedStocks = skippedStocks
@@ -212,6 +236,9 @@ struct UserProfile: Identifiable, Codable, Equatable {
         birthMonth: Int,
         birthDay: Int,
         birthYear: Int,
+        birthHour: Int? = nil,
+        birthMinute: Int? = nil,
+        birthLocation: String? = nil,
         portfolio: [Stock] = [],
         watchlist: [String] = [],
         skippedStocks: [String] = [],
@@ -221,6 +248,7 @@ struct UserProfile: Identifiable, Codable, Equatable {
         self.id = id
         self.displayName = displayName
         self.email = email
+        self.birthLocation = birthLocation
         self.portfolio = portfolio
         self.watchlist = watchlist
         self.skippedStocks = skippedStocks
@@ -233,6 +261,16 @@ struct UserProfile: Identifiable, Codable, Equatable {
         components.day = birthDay
         components.year = birthYear
         self.birthDate = Calendar.current.date(from: components) ?? Date()
+
+        // Create time of birth if provided
+        if let hour = birthHour, let minute = birthMinute {
+            var timeComponents = DateComponents()
+            timeComponents.hour = hour
+            timeComponents.minute = minute
+            self.timeOfBirth = Calendar.current.date(from: timeComponents)
+        } else {
+            self.timeOfBirth = nil
+        }
     }
 }
 
@@ -263,6 +301,26 @@ extension UserProfile {
         let formatter = DateFormatter()
         formatter.dateStyle = .long
         return formatter.string(from: birthDate)
+    }
+
+    /// Formatted time of birth (e.g., "2:30 PM" or "Unknown")
+    var formattedTimeOfBirth: String {
+        guard let time = timeOfBirth else {
+            return "Unknown"
+        }
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: time)
+    }
+
+    /// Full formatted birth info (date and time if known)
+    var formattedFullBirthInfo: String {
+        if let time = timeOfBirth {
+            let formatter = DateFormatter()
+            formatter.timeStyle = .short
+            return "\(formattedBirthDate) at \(formatter.string(from: time))"
+        }
+        return formattedBirthDate
     }
 
     /// Formatted member since date
