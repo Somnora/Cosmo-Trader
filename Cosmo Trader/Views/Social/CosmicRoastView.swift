@@ -569,11 +569,13 @@ struct CosmicRoastPreviewSheet: View {
 
     private func generateRoast() {
         guard subscriptionManager.canGenerateRoast() else {
+            HapticFeedback.warning()
             showPaywall = true
             AnalyticsService.shared.trackPaywallViewed(source: "cosmic_roast")
             return
         }
 
+        HapticFeedback.medium()
         isGenerating = true
         roast = nil
 
@@ -590,6 +592,8 @@ struct CosmicRoastPreviewSheet: View {
 
     private func shareRoast() {
         guard let roast = roast else { return }
+
+        HapticFeedback.success()
 
         // Track roast shared
         AnalyticsService.shared.trackRoastShared(forSign: user.sunSign.displayName)

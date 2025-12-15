@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - CosmicErrorView
 // =======================
@@ -830,6 +831,144 @@ struct GenericErrorView: View {
         .onAppear {
             starPulse = true
         }
+    }
+}
+
+// MARK: - Haptic Feedback Utility
+// ================================
+// Centralized haptic feedback for consistent tactile responses
+
+enum HapticFeedback {
+
+    /// Light impact - for subtle interactions like skip
+    static func light() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    /// Medium impact - for primary actions like like, save, star
+    static func medium() {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+    }
+
+    /// Heavy impact - for significant actions
+    static func heavy() {
+        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+    }
+
+    /// Selection changed - for toggles, pickers
+    static func selection() {
+        UISelectionFeedbackGenerator().selectionChanged()
+    }
+
+    /// Success notification - for completed purchases, saves
+    static func success() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    /// Warning notification - for cautionary feedback
+    static func warning() {
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+    }
+
+    /// Error notification - for errors, failures
+    static func error() {
+        UINotificationFeedbackGenerator().notificationOccurred(.error)
+    }
+}
+
+// MARK: - Preset Empty States
+// ===========================
+// Factory methods for common empty states
+
+extension CosmicEmptyStateView {
+
+    /// Empty portfolio state
+    static var emptyPortfolio: CosmicEmptyStateView {
+        CosmicEmptyStateView(
+            title: "Your Portfolio Awaits",
+            message: "Your cosmic portfolio is empty. Start discovering stocks that align with your stars.",
+            icon: "briefcase"
+        )
+    }
+
+    /// Empty watchlist state
+    static var emptyWatchlist: CosmicEmptyStateView {
+        CosmicEmptyStateView(
+            title: "No Watchlist Items",
+            message: "No stocks in your watchlist yet. Star stocks from Discover to track them here.",
+            icon: "star"
+        )
+    }
+
+    /// No more discover cards
+    static var noMoreCards: CosmicEmptyStateView {
+        CosmicEmptyStateView(
+            title: "All Caught Up",
+            message: "You've seen all available stocks. Check back tomorrow for new cosmic matches.",
+            icon: "sparkles"
+        )
+    }
+
+    /// Empty search results
+    static func emptySearch(query: String) -> CosmicEmptyStateView {
+        CosmicEmptyStateView(
+            title: "No Results",
+            message: "No stocks match \"\(query)\". Try a different symbol or name.",
+            icon: "magnifyingglass"
+        )
+    }
+
+    /// No patterns detected
+    static var noPatterns: CosmicEmptyStateView {
+        CosmicEmptyStateView(
+            title: "No Active Patterns",
+            message: "No patterns detected. The stars are quiet today.",
+            icon: "waveform.path.ecg"
+        )
+    }
+
+    /// Empty karmic ledger
+    static var emptyLedger: CosmicEmptyStateView {
+        CosmicEmptyStateView(
+            title: "Clean Slate",
+            message: "Your karmic ledger is clean. Portfolio actions will appear here.",
+            icon: "book.closed"
+        )
+    }
+
+    /// Volume leaders unavailable
+    static var volumeUnavailable: CosmicEmptyStateView {
+        CosmicEmptyStateView(
+            title: "Data Unavailable",
+            message: "Market data temporarily unavailable. Please try again later.",
+            icon: "chart.bar.xaxis"
+        )
+    }
+}
+
+// MARK: - Preset Loading Messages
+// ================================
+
+extension CosmicLoadingView {
+
+    static var consultingStars: CosmicLoadingView {
+        CosmicLoadingView(message: "Consulting the stars...")
+    }
+
+    static var analyzingPatterns: CosmicLoadingView {
+        CosmicLoadingView(message: "Analyzing patterns...")
+    }
+
+    static var loadingMarketData: CosmicLoadingView {
+        CosmicLoadingView(message: "Loading market data...")
+    }
+
+    static var generatingHoroscope: CosmicLoadingView {
+        CosmicLoadingView(message: "Generating your horoscope...")
+    }
+
+    static var calculatingCompatibility: CosmicLoadingView {
+        CosmicLoadingView(message: "Calculating compatibility...")
     }
 }
 

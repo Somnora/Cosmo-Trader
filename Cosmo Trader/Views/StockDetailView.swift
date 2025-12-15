@@ -128,7 +128,10 @@ struct StockDetailView: View {
             }
 
             ToolbarItem(placement: .topBarTrailing) {
-                Button(action: { showShareSheet = true }) {
+                Button(action: {
+                    HapticFeedback.light()
+                    showShareSheet = true
+                }) {
                     Image(systemName: "square.and.arrow.up")
                         .foregroundColor(CosmicTheme.textSecondary)
                 }
@@ -1058,6 +1061,7 @@ struct StockDetailView: View {
     private func addToPortfolio() {
         guard !isInPortfolio else { return }
 
+        HapticFeedback.success()
         appState.addToPortfolio(stock, shares: 1)
 
         confirmationMessage = "\(stock.symbol) added to your portfolio!"
@@ -1074,6 +1078,7 @@ struct StockDetailView: View {
     }
 
     private func addToWatchlist() {
+        HapticFeedback.medium()
         if isInWatchlist {
             // Remove from watchlist
             appState.removeFromWatchlist(stock.symbol)

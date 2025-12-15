@@ -589,25 +589,26 @@ struct DiscoverView: View {
                 .foregroundStyle(CosmicTheme.goldGradient)
 
             VStack(spacing: 8) {
-                Text("No More Stocks")
-                    .font(.title2)
-                    .fontWeight(.bold)
+                Text("All Caught Up")
+                    .font(.system(size: 18, weight: .bold, design: .monospaced))
                     .foregroundColor(CosmicTheme.textPrimary)
 
-                Text("You've seen all available stocks.\nTry adjusting your filters or reset skipped stocks.")
-                    .font(.subheadline)
+                Text("You've seen all available stocks.\nCheck back tomorrow for new cosmic matches.")
+                    .font(.system(size: 13, design: .monospaced))
                     .foregroundColor(CosmicTheme.textSecondary)
                     .multilineTextAlignment(.center)
+                    .lineSpacing(4)
             }
 
             HStack(spacing: 16) {
                 Button(action: {
+                    HapticFeedback.light()
                     withAnimation {
                         viewModel?.clearFilters()
                     }
                 }) {
                     Text("Clear Filters")
-                        .font(.headline)
+                        .font(.system(size: 13, weight: .medium, design: .monospaced))
                         .foregroundColor(CosmicTheme.textSecondary)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
@@ -618,12 +619,13 @@ struct DiscoverView: View {
                 }
 
                 Button(action: {
+                    HapticFeedback.medium()
                     withAnimation {
                         viewModel?.resetSkipped()
                     }
                 }) {
                     Text("Reset Skipped")
-                        .font(.headline)
+                        .font(.system(size: 13, weight: .medium, design: .monospaced))
                         .foregroundColor(CosmicTheme.background)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)

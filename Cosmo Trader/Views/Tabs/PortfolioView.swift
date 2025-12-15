@@ -648,16 +648,13 @@ struct PortfolioView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
-            Text("NO HOLDINGS")
-                .font(TerminalFont.data(12))
-                .foregroundColor(CosmicTheme.textMuted)
-            Text("Add positions to track your portfolio")
-                .font(TerminalFont.data(10))
-                .foregroundColor(CosmicTheme.textMuted)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
+        CosmicEmptyStateView(
+            title: "Your Portfolio Awaits",
+            message: "Your cosmic portfolio is empty. Start discovering stocks that align with your stars.",
+            icon: "briefcase",
+            actionTitle: "Explore Discover",
+            action: nil  // Could navigate to Discover tab
+        )
     }
 
     // MARK: - Watching Section

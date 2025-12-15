@@ -681,6 +681,7 @@ struct CosmosView: View {
 
     private var regenerateButton: some View {
         Button(action: {
+            HapticFeedback.medium()
             withAnimation(.spring(response: 0.4)) {
                 viewModel?.regenerateHoroscope()
             }

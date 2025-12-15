@@ -99,6 +99,7 @@ struct VolumeLeadersView: View {
 
     private func filterButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: {
+            HapticFeedback.selection()
             withAnimation(.easeInOut(duration: 0.2)) {
                 action()
             }
@@ -199,7 +200,10 @@ struct VolumeLeaderRow: View {
     @State private var isPressed: Bool = false
 
     var body: some View {
-        Button(action: { onTap?() }) {
+        Button(action: {
+            HapticFeedback.light()
+            onTap?()
+        }) {
             HStack(spacing: 12) {
                 // Rank
                 rankBadge

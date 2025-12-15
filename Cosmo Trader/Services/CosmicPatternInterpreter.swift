@@ -285,8 +285,6 @@ class CosmicPatternInterpreter {
     // MARK: - Moon Phase Note
 
     private func generateMoonPhaseNote(moonPhase: MoonPhase, pattern: ChartPattern) -> String {
-        let isWaxing = moonPhase.isWaxing
-
         switch moonPhase {
         case .fullMoon:
             return "\(moonPhase.emoji) Full Moon Energy: Emotions and volatility run high. The pattern's signal may manifest more dramatically than usual. Trade with heightened awareness."
