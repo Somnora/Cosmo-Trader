@@ -65,6 +65,9 @@ struct CosmosView: View {
                             // 3b. Weekly Zodiac Performance Section
                             weeklyZodiacPerformanceSection
 
+                            // 3c. Option Expiry Alignment Section
+                            optionExpirySection
+
                             // 4. Active cosmic alert (if any important events)
                             if let alertEvent = astroService.activeAlertEvents.first {
                                 AstroAlertBanner(
@@ -817,6 +820,14 @@ struct CosmosView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    // MARK: - Option Expiry Section
+
+    private var optionExpirySection: some View {
+        let userSign = viewModel?.user.sunSign ?? .aries
+
+        return OptionExpiryView(userSign: userSign)
     }
 
     // MARK: - Card Background

@@ -35,6 +35,9 @@ struct DiscoverView: View {
     /// Terminal audio service
     @State private var audioService = TerminalAudioService.shared
 
+    /// Toast message for watchlist feedback
+    @State private var watchlistToast: String?
+
     /// Whether the view is ready for interaction
     private var isReady: Bool {
         viewModel != nil
@@ -91,10 +94,13 @@ struct DiscoverView: View {
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    // Watchlist count badge
-                    Button(action: {}) {
+                    // Watchlist count badge - taps to view watchlist in Portfolio
+                    Button(action: {
+                        // Navigate to Portfolio tab to see watchlist
+                        appState.selectedTab = .portfolio
+                    }) {
                         HStack(spacing: 4) {
-                            Image(systemName: "heart.fill")
+                            Image(systemName: "eye.fill")
                                 .font(.caption)
 
                             Text("\(viewModel?.watchlistCount ?? 0)")
@@ -124,6 +130,55 @@ struct DiscoverView: View {
                 if viewModel == nil {
                     viewModel = DiscoverViewModel(appState: appState)
                 }
+            }
+            .overlay(alignment: .top) {
+                // Watchlist toast feedback
+                if let toast = watchlistToast {
+                    watchlistToastView(toast)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .zIndex(100)
+                }
+            }
+        }
+    }
+
+    // MARK: - Watchlist Toast
+
+    private func watchlistToastView(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "eye.fill")
+                .font(.caption)
+                .foregroundColor(CosmicTheme.gold)
+
+            Text(message)
+                .font(TerminalFont.data(12, weight: .medium))
+                .foregroundColor(CosmicTheme.textPrimary)
+
+            Text("View in Portfolio")
+                .font(TerminalFont.data(10))
+                .foregroundColor(CosmicTheme.textMuted)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            Capsule()
+                .fill(CosmicTheme.cardBackground)
+                .shadow(color: Color.black.opacity(0.3), radius: 8, y: 4)
+        )
+        .overlay(
+            Capsule()
+                .stroke(CosmicTheme.gold.opacity(0.3), lineWidth: 1)
+        )
+        .padding(.top, 60)
+    }
+
+    private func showWatchlistToast(for symbol: String) {
+        withAnimation(.spring(response: 0.3)) {
+            watchlistToast = "\(symbol) added to watchlist"
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            withAnimation(.easeOut(duration: 0.2)) {
+                watchlistToast = nil
             }
         }
     }
@@ -409,6 +464,7 @@ struct DiscoverView: View {
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                         viewModel?.likeStock(card.stock)
+                        showWatchlistToast(for: card.stock.symbol)
                         resetCard()
                     }
                 }
@@ -477,9 +533,9 @@ struct DiscoverView: View {
                 }
             }
 
-            // Like button
+            // Like button (adds to watchlist)
             actionButton(
-                icon: "heart.fill",
+                icon: "eye.fill",
                 color: CosmicTheme.positive,
                 size: 54
             ) {
@@ -491,6 +547,7 @@ struct DiscoverView: View {
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                     viewModel?.likeStock(card.stock)
+                    showWatchlistToast(for: card.stock.symbol)
                     resetCard()
                 }
             }

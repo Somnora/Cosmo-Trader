@@ -18,6 +18,8 @@ struct PortfolioView: View {
     @State private var isFetchingPrices: Bool = false
     @State private var stockAPI = StockAPIService.shared
     @State private var showRebalancingSuggestions: Bool = false
+    @State private var chartTimeframe: ChartTimeframe = .month
+    @State private var showPerformanceChart: Bool = true
 
     // MARK: - Computed Properties
 
@@ -27,6 +29,12 @@ struct PortfolioView: View {
 
     private var holdings: [Stock] {
         user.portfolio.filter { $0.sharesOwned > 0 }
+    }
+
+    /// Stocks in the user's watchlist (not owned)
+    private var watchlistStocks: [Stock] {
+        let watchlistSymbols = Set(user.watchlist)
+        return MockStockData.all.filter { watchlistSymbols.contains($0.symbol) }
     }
 
     private var elementBreakdown: [(element: ZodiacSign.Element, percentage: Double, value: Double)] {
@@ -86,6 +94,12 @@ struct PortfolioView: View {
 
                         dividerLine
 
+                        // Performance chart section (collapsible)
+                        if !holdings.isEmpty && showPerformanceChart {
+                            performanceChartSection
+                            dividerLine
+                        }
+
                         // Cosmic Portfolio Health section
                         if !holdings.isEmpty {
                             cosmicHealthSection
@@ -106,6 +120,12 @@ struct PortfolioView: View {
 
                         // Holdings table
                         holdingsSection
+
+                        // Watchlist section
+                        if !watchlistStocks.isEmpty {
+                            dividerLine
+                            watchingSection
+                        }
 
                         // Timestamp footer
                         footerSection
@@ -142,6 +162,61 @@ struct PortfolioView: View {
         Rectangle()
             .fill(CosmicTheme.border)
             .frame(height: 1)
+    }
+
+    // MARK: - Performance Chart Section
+
+    private var performanceChartSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Section header with toggle
+            HStack {
+                HStack(spacing: 8) {
+                    Rectangle()
+                        .fill(CosmicTheme.border)
+                        .frame(height: 1)
+                        .frame(width: 20)
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.caption2)
+                            .foregroundColor(CosmicTheme.gold.opacity(0.7))
+
+                        Text("PERFORMANCE")
+                            .font(TerminalFont.data(10))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .tracking(1)
+                    }
+
+                    Rectangle()
+                        .fill(CosmicTheme.border)
+                        .frame(height: 1)
+                }
+
+                Spacer()
+
+                // Collapse toggle
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showPerformanceChart.toggle()
+                    }
+                }) {
+                    Image(systemName: showPerformanceChart ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+
+            // Chart
+            PortfolioChartView(
+                portfolio: holdings,
+                userSign: user.sunSign,
+                selectedTimeframe: $chartTimeframe
+            )
+            .padding(.horizontal, 12)
+            .padding(.bottom, 12)
+        }
     }
 
     // MARK: - Portfolio Header
@@ -583,6 +658,156 @@ struct PortfolioView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
+    }
+
+    // MARK: - Watching Section
+
+    private var watchingSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Section header with count
+            HStack(spacing: 8) {
+                Rectangle()
+                    .fill(CosmicTheme.border)
+                    .frame(height: 1)
+                    .frame(width: 20)
+
+                HStack(spacing: 6) {
+                    Image(systemName: "eye.fill")
+                        .font(.caption2)
+                        .foregroundColor(CosmicTheme.gold.opacity(0.7))
+
+                    Text("WATCHING")
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .tracking(1)
+
+                    Text("(\(watchlistStocks.count))")
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
+
+                Rectangle()
+                    .fill(CosmicTheme.border)
+                    .frame(height: 1)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+
+            // Watchlist table header
+            watchlistTableHeader
+            dividerLine
+
+            // Watchlist rows with swipe to remove
+            ForEach(watchlistStocks) { stock in
+                watchlistRow(stock)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                appState.removeFromWatchlist(stock.symbol)
+                            }
+                        } label: {
+                            Label("Remove", systemImage: "eye.slash")
+                        }
+                        .tint(CosmicTheme.negative)
+                    }
+                dividerLine
+            }
+
+            // Hint text
+            HStack(spacing: 4) {
+                Image(systemName: "arrow.left")
+                    .font(.system(size: 8))
+                Text("Swipe left to remove from watchlist")
+                    .font(TerminalFont.data(9))
+            }
+            .foregroundColor(CosmicTheme.textMuted.opacity(0.6))
+            .padding(.horizontal, 12)
+            .padding(.top, 4)
+            .padding(.bottom, 8)
+        }
+    }
+
+    private var watchlistTableHeader: some View {
+        HStack(spacing: 0) {
+            Text("SYMBOL")
+                .frame(width: 60, alignment: .leading)
+            Text("NAME")
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text("PRICE")
+                .frame(width: 70, alignment: .trailing)
+            Text("CHG%")
+                .frame(width: 60, alignment: .trailing)
+            Text("MATCH")
+                .frame(width: 50, alignment: .trailing)
+        }
+        .font(TerminalFont.data(9))
+        .foregroundColor(CosmicTheme.textMuted)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(CosmicTheme.cardBackground.opacity(0.5))
+    }
+
+    private func watchlistRow(_ stock: Stock) -> some View {
+        let compatibility = user.compatibility(with: stock)
+
+        return Button(action: { selectedStock = stock }) {
+            HStack(spacing: 0) {
+                // Symbol with zodiac glyph
+                HStack(spacing: 4) {
+                    ZodiacSymbolView(
+                        sign: stock.zodiacSign,
+                        size: 10,
+                        color: CosmicTheme.gold.opacity(0.7)
+                    )
+                    Text(stock.symbol)
+                        .font(TerminalFont.ticker(11))
+                        .foregroundColor(CosmicTheme.textPrimary)
+                }
+                .frame(width: 60, alignment: .leading)
+
+                // Name
+                Text(stock.name)
+                    .font(TerminalFont.data(11))
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Price
+                Text(stock.formattedPrice)
+                    .font(TerminalFont.price(11))
+                    .foregroundColor(CosmicTheme.textPrimary)
+                    .frame(width: 70, alignment: .trailing)
+
+                // Change %
+                Text(stock.formattedPercentageChange)
+                    .font(TerminalFont.price(11))
+                    .foregroundColor(stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
+                    .frame(width: 60, alignment: .trailing)
+
+                // Compatibility score
+                compatibilityBadge(score: compatibility.score)
+                    .frame(width: 50, alignment: .trailing)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func compatibilityBadge(score: Int) -> some View {
+        let color: Color = score >= 85 ? CosmicTheme.gold :
+                           score >= 65 ? CosmicTheme.accentBlue :
+                           score >= 45 ? CosmicTheme.textSecondary : CosmicTheme.negative
+
+        return Text("\(score)%")
+            .font(TerminalFont.data(10, weight: .semibold))
+            .foregroundColor(color)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(color.opacity(0.15))
+            )
     }
 
     // MARK: - Section Header

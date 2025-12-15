@@ -15,48 +15,53 @@ struct ContentView: View {
 
     // MARK: - State
 
-    /// Which tab is currently selected
-    @State private var selectedTab: Tab = .portfolio
-
     /// Terminal audio service for ambient sounds
     @State private var audioService = TerminalAudioService.shared
+
+    /// Binding to shared tab selection in AppState
+    private var selectedTab: Binding<Tab> {
+        Binding(
+            get: { appState.selectedTab },
+            set: { appState.selectedTab = $0 }
+        )
+    }
 
     // MARK: - Body
 
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: selectedTab) {
             // Portfolio Tab - Home/main view
             PortfolioView()
                 .tabItem {
-                    Label("Portfolio", systemImage: selectedTab == .portfolio ? "house.fill" : "house")
+                    Label("Portfolio", systemImage: appState.selectedTab == .portfolio ? "house.fill" : "house")
                 }
                 .tag(Tab.portfolio)
 
             // Discover Tab - Swipe on stocks
             DiscoverView()
                 .tabItem {
-                    Label("Discover", systemImage: selectedTab == .discover ? "safari.fill" : "safari")
+                    Label("Discover", systemImage: appState.selectedTab == .discover ? "safari.fill" : "safari")
                 }
                 .tag(Tab.discover)
 
             // IPO Tab - Upcoming cosmic births
             IPOListView()
                 .tabItem {
-                    Label("IPOs", systemImage: selectedTab == .ipos ? "sparkle" : "sparkle")
+                    Label("IPOs", systemImage: appState.selectedTab == .ipos ? "sparkle" : "sparkle")
                 }
                 .tag(Tab.ipos)
 
             // Cosmos Tab - Daily horoscope
             CosmosView()
                 .tabItem {
-                    Label("Cosmos", systemImage: selectedTab == .cosmos ? "moon.stars.fill" : "moon.stars")
+                    Label("Cosmos", systemImage: appState.selectedTab == .cosmos ? "moon.stars.fill" : "moon.stars")
                 }
                 .tag(Tab.cosmos)
 
             // Profile Tab - User settings
             ProfileView()
                 .tabItem {
-                    Label("Profile", systemImage: selectedTab == .profile ? "person.fill" : "person")
+                    Label("Profile", systemImage: appState.selectedTab == .profile ? "person.fill" : "person")
                 }
                 .tag(Tab.profile)
         }
@@ -69,7 +74,7 @@ struct ContentView: View {
             // Start ambient audio if enabled
             audioService.startAmbientLoop()
         }
-        .onChange(of: selectedTab) { oldTab, newTab in
+        .onChange(of: appState.selectedTab) { oldTab, newTab in
             // Track tab switches
             AnalyticsService.shared.trackTabSwitch(newTab.analyticsName)
             // Play tab switch sound

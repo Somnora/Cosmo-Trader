@@ -57,6 +57,9 @@ struct StockDetailView: View {
     @State private var lastPriceUpdate: Date?
     @State private var priceError: NetworkError?
 
+    /// Chart state
+    @State private var selectedTimeframe: ChartTimeframe = .month
+
     // MARK: - Init
 
     init(stock: Stock) {
@@ -72,7 +75,13 @@ struct StockDetailView: View {
                 // 1. Header Section
                 headerSection
 
-                // 2. Compatibility Section
+                // 2. Price Chart Section
+                chartSection
+
+                // 3. Key Statistics
+                keyStatsSection
+
+                // 4. Compatibility Section
                 compatibilitySection
 
                 // 3. Astrological Profile
@@ -340,6 +349,31 @@ struct StockDetailView: View {
         let basePrice = liveStock.currentPrice
         let trend = liveStock.isPositive ? 0.005 : -0.005
         return MiniChartView.sampleData(days: 7, trend: trend, volatility: 0.015, startPrice: basePrice * 0.98)
+    }
+
+    // MARK: - Chart Section
+
+    private var chartSection: some View {
+        VStack(spacing: 0) {
+            StockChartView(
+                stock: liveStock,
+                selectedTimeframe: $selectedTimeframe
+            )
+        }
+        .padding(16)
+        .background(cardBackground)
+        .opacity(appearAnimation ? 1 : 0)
+        .offset(y: appearAnimation ? 0 : 20)
+    }
+
+    // MARK: - Key Stats Section
+
+    private var keyStatsSection: some View {
+        StockKeyStatsView(stats: stock.keyStats)
+            .padding(16)
+            .background(cardBackground)
+            .opacity(appearAnimation ? 1 : 0)
+            .offset(y: appearAnimation ? 0 : 20)
     }
 
     // MARK: - Compatibility Section

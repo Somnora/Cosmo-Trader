@@ -48,6 +48,9 @@ class AppState {
     /// Is the app in offline mode?
     var isOfflineMode: Bool = false
 
+    /// Currently selected tab (for cross-tab navigation)
+    var selectedTab: Tab = .portfolio
+
     // MARK: - Storage Keys
 
     private let userProfileKey = "com.cosmotrader.userProfile"
@@ -276,7 +279,7 @@ class AppState {
     // MARK: - Persistence
 
     /// Save user profile to UserDefaults with backup
-    private func saveUserToStorage() {
+    func saveUserToStorage() {
         guard let user = currentUser else { return }
 
         // Validate before saving

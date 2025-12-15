@@ -28,6 +28,7 @@ struct ProfileView: View {
     @State private var showingExportSheet = false
     @State private var showingDeleteConfirmation = false
     @State private var exportData: Data?
+    @State private var showingImportPortfolio = false
 
     // MARK: - Computed Properties
 
@@ -125,6 +126,9 @@ struct ProfileView: View {
                 }
             } message: {
                 Text("This will permanently delete all your data including your profile, portfolio, watchlist, and preferences. This action cannot be undone.")
+            }
+            .sheet(isPresented: $showingImportPortfolio) {
+                ImportPortfolioView()
             }
         }
         .task {
@@ -636,8 +640,75 @@ struct ProfileView: View {
                 settings: viewModel?.settings.filter { $0.category == .preferences } ?? []
             )
 
+            // Portfolio Management
+            portfolioManagementSection
+
             // Privacy & Data (GDPR)
             privacyDataSection
+        }
+    }
+
+    // MARK: - Portfolio Management Section
+
+    private var portfolioManagementSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Section header
+            HStack(spacing: 6) {
+                Image(systemName: "chart.pie.fill")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold)
+                Text("Portfolio")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(CosmicTheme.textSecondary)
+            }
+
+            VStack(spacing: 0) {
+                // Import from CSV
+                Button(action: { showingImportPortfolio = true }) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "square.and.arrow.down")
+                            .font(.body)
+                            .foregroundColor(CosmicTheme.gold)
+                            .frame(width: 28)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Import Portfolio")
+                                .font(.subheadline)
+                                .foregroundColor(CosmicTheme.textPrimary)
+
+                            Text("Import holdings from CSV (Robinhood, Fidelity, etc.)")
+                                .font(.caption2)
+                                .foregroundColor(CosmicTheme.textMuted)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(CosmicTheme.cardBackground)
+            )
+
+            // Helper text
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "info.circle")
+                    .font(.caption2)
+                    .foregroundColor(CosmicTheme.textMuted)
+
+                Text("Export your positions as CSV from your broker and import them to sync your cosmic portfolio.")
+                    .font(.caption2)
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+            .padding(.horizontal, 4)
         }
     }
 

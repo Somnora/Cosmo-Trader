@@ -287,6 +287,146 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         return history
     }
 
+    /// Generate detailed price history with dates for chart display
+    /// - Parameter timeframe: The timeframe for the chart data
+    /// - Returns: Array of PricePoint with date and price
+    func chartData(for timeframe: ChartTimeframe) -> [PricePoint] {
+        let calendar = Calendar.current
+        let now = Date()
+        let seed = symbol.hashValue + timeframe.hashValue
+        var generator = SeededRandomGenerator(seed: UInt64(abs(seed)))
+
+        // Determine number of points and interval based on timeframe
+        let (pointCount, component, interval): (Int, Calendar.Component, Int) = {
+            switch timeframe {
+            case .day: return (78, .minute, 5)      // 5-min intervals for trading day (9:30-4:00)
+            case .week: return (35, .hour, 4)       // 4-hour intervals
+            case .month: return (30, .day, 1)       // Daily
+            case .threeMonth: return (90, .day, 1)  // Daily
+            case .year: return (52, .weekOfYear, 1) // Weekly
+            case .all: return (60, .month, 1)       // Monthly (5 years)
+            }
+        }()
+
+        var points: [PricePoint] = []
+
+        // Calculate starting price based on timeframe performance
+        let timeframeReturn = timeframePerformance(for: timeframe, generator: &generator)
+        let startPrice = currentPrice / (1 + timeframeReturn / 100)
+
+        var price = startPrice
+
+        for i in 0..<pointCount {
+            // Calculate date going backwards from now
+            let pointsFromEnd = pointCount - 1 - i
+            let date: Date
+            if component == .minute {
+                // For intraday, start from market open today
+                let marketOpen = calendar.date(bySettingHour: 9, minute: 30, second: 0, of: now) ?? now
+                date = calendar.date(byAdding: component, value: i * interval, to: marketOpen) ?? now
+            } else {
+                date = calendar.date(byAdding: component, value: -pointsFromEnd * interval, to: now) ?? now
+            }
+
+            // Progress toward current price
+            let progress = Double(i) / Double(pointCount - 1)
+
+            // Base volatility varies by timeframe
+            let baseVolatility: Double = {
+                switch timeframe {
+                case .day: return 0.002    // 0.2% per 5 minutes
+                case .week: return 0.005   // 0.5% per 4 hours
+                case .month: return 0.015  // 1.5% per day
+                case .threeMonth: return 0.02
+                case .year: return 0.025
+                case .all: return 0.04
+                }
+            }()
+
+            // Add trend drift toward current price
+            let targetDrift = (currentPrice - price) * (0.02 + progress * 0.08)
+
+            // Add realistic volatility with some momentum
+            let noise = Double.random(in: -1...1, using: &generator) * baseVolatility * price
+
+            price += targetDrift + noise
+            price = max(price, currentPrice * 0.5)  // Floor at 50% of current
+            price = min(price, currentPrice * 2.0)  // Cap at 200% of current
+
+            points.append(PricePoint(date: date, price: price))
+        }
+
+        // Ensure last point is current price
+        if !points.isEmpty {
+            points[points.count - 1] = PricePoint(date: now, price: currentPrice)
+        }
+
+        return points
+    }
+
+    /// Simulated timeframe performance percentage
+    private func timeframePerformance(for timeframe: ChartTimeframe, generator: inout SeededRandomGenerator) -> Double {
+        // Base on current percentageChange with some variation
+        let dailyChange = percentageChange
+
+        switch timeframe {
+        case .day:
+            return dailyChange
+        case .week:
+            return dailyChange * (3 + Double.random(in: -1...1, using: &generator))
+        case .month:
+            return dailyChange * (8 + Double.random(in: -3...3, using: &generator))
+        case .threeMonth:
+            return dailyChange * (15 + Double.random(in: -5...5, using: &generator))
+        case .year:
+            return dailyChange * (40 + Double.random(in: -15...15, using: &generator))
+        case .all:
+            return dailyChange * (80 + Double.random(in: -30...30, using: &generator))
+        }
+    }
+
+    /// Key statistics for the stock
+    var keyStats: StockKeyStats {
+        let seed = symbol.hashValue
+        var generator = SeededRandomGenerator(seed: UInt64(abs(seed)))
+
+        // Generate realistic mock stats
+        let dayHigh = currentPrice * (1 + Double.random(in: 0.005...0.025, using: &generator))
+        let dayLow = currentPrice * (1 - Double.random(in: 0.005...0.025, using: &generator))
+        let open = currentPrice - priceChange + Double.random(in: -0.5...0.5, using: &generator)
+
+        // Volume based on price level (higher price = lower volume typically)
+        let baseVolume = 50_000_000 / sqrt(currentPrice)
+        let volume = Int(baseVolume * Double.random(in: 0.7...1.5, using: &generator))
+
+        // Market cap (mock based on price)
+        let sharesOutstanding = Double.random(in: 500_000_000...5_000_000_000, using: &generator)
+        let marketCap = currentPrice * sharesOutstanding
+
+        // 52-week range
+        let yearHigh = currentPrice * Double.random(in: 1.1...1.4, using: &generator)
+        let yearLow = currentPrice * Double.random(in: 0.6...0.9, using: &generator)
+
+        // P/E ratio (realistic range)
+        let peRatio = Double.random(in: 10...50, using: &generator)
+
+        // Dividend yield (0-4%)
+        let dividendYield = Double.random(in: 0...0.04, using: &generator)
+
+        return StockKeyStats(
+            open: open,
+            dayHigh: dayHigh,
+            dayLow: dayLow,
+            volume: volume,
+            avgVolume: Int(Double(volume) * Double.random(in: 0.8...1.2, using: &generator)),
+            marketCap: marketCap,
+            peRatio: peRatio,
+            weekHigh52: yearHigh,
+            weekLow52: yearLow,
+            dividendYield: dividendYield
+        )
+    }
+
     // MARK: - Initializers
     // ====================
 
@@ -647,6 +787,126 @@ struct SeededRandomGenerator: RandomNumberGenerator {
         // Simple linear congruential generator
         state = state &* 6364136223846793005 &+ 1442695040888963407
         return state
+    }
+}
+
+// MARK: - Price Point Model
+// =========================
+// Data point for chart display with date and price.
+
+struct PricePoint: Identifiable {
+    let id = UUID()
+    let date: Date
+    let price: Double
+}
+
+// MARK: - Chart Timeframe
+// =======================
+// Available timeframes for stock charts.
+
+enum ChartTimeframe: String, CaseIterable, Identifiable, Hashable {
+    case day = "1D"
+    case week = "1W"
+    case month = "1M"
+    case threeMonth = "3M"
+    case year = "1Y"
+    case all = "ALL"
+
+    var id: String { rawValue }
+
+    /// Human-readable description
+    var description: String {
+        switch self {
+        case .day: return "Today"
+        case .week: return "Past Week"
+        case .month: return "Past Month"
+        case .threeMonth: return "Past 3 Months"
+        case .year: return "Past Year"
+        case .all: return "All Time"
+        }
+    }
+
+    /// Number of trading days in timeframe
+    var tradingDays: Int {
+        switch self {
+        case .day: return 1
+        case .week: return 5
+        case .month: return 22
+        case .threeMonth: return 66
+        case .year: return 252
+        case .all: return 1260  // 5 years
+        }
+    }
+}
+
+// MARK: - Stock Key Stats
+// =======================
+// Key statistics for stock detail view.
+
+struct StockKeyStats {
+    let open: Double
+    let dayHigh: Double
+    let dayLow: Double
+    let volume: Int
+    let avgVolume: Int
+    let marketCap: Double
+    let peRatio: Double
+    let weekHigh52: Double
+    let weekLow52: Double
+    let dividendYield: Double
+
+    /// Format volume for display (e.g., "15.2M")
+    var formattedVolume: String {
+        formatLargeNumber(Double(volume))
+    }
+
+    /// Format average volume for display
+    var formattedAvgVolume: String {
+        formatLargeNumber(Double(avgVolume))
+    }
+
+    /// Format market cap for display (e.g., "$2.8T")
+    var formattedMarketCap: String {
+        formatLargeNumber(marketCap, prefix: "$")
+    }
+
+    /// Format P/E ratio
+    var formattedPERatio: String {
+        String(format: "%.2f", peRatio)
+    }
+
+    /// Format dividend yield
+    var formattedDividendYield: String {
+        String(format: "%.2f%%", dividendYield * 100)
+    }
+
+    /// Format 52-week range
+    var formattedWeek52Range: String {
+        String(format: "$%.2f - $%.2f", weekLow52, weekHigh52)
+    }
+
+    /// Format day range
+    var formattedDayRange: String {
+        String(format: "$%.2f - $%.2f", dayLow, dayHigh)
+    }
+
+    /// Format open price
+    var formattedOpen: String {
+        String(format: "$%.2f", open)
+    }
+
+    private func formatLargeNumber(_ value: Double, prefix: String = "") -> String {
+        if value >= 1_000_000_000_000 {
+            return String(format: "%@%.2fT", prefix, value / 1_000_000_000_000)
+        } else if value >= 1_000_000_000 {
+            return String(format: "%@%.2fB", prefix, value / 1_000_000_000)
+        } else if value >= 1_000_000 {
+            return String(format: "%@%.2fM", prefix, value / 1_000_000)
+        } else if value >= 1_000 {
+            return String(format: "%@%.2fK", prefix, value / 1_000)
+        } else {
+            return String(format: "%@%.0f", prefix, value)
+        }
     }
 }
 
