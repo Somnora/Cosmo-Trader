@@ -989,6 +989,7 @@ struct StockDetailView: View {
                 )
             }
             .disabled(isInPortfolio)
+            .accessibilityLabel(isInPortfolio ? "\(stock.symbol) is in your portfolio" : "Add \(stock.symbol) to portfolio")
 
             HStack(spacing: 12) {
                 // Add to Watchlist - terminal style
@@ -1011,6 +1012,7 @@ struct StockDetailView: View {
                             .stroke(isInWatchlist ? CosmicTheme.accentBlue : CosmicTheme.border, lineWidth: 0.5)
                     )
                 }
+                .accessibilityLabel(isInWatchlist ? "Remove \(stock.symbol) from watchlist" : "Add \(stock.symbol) to watchlist")
 
                 // Share - terminal style
                 Button(action: { showShareSheet = true }) {

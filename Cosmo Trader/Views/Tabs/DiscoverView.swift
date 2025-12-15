@@ -502,7 +502,8 @@ struct DiscoverView: View {
             actionButton(
                 icon: "xmark",
                 color: CosmicTheme.negative,
-                size: 54
+                size: 54,
+                accessibilityLabel: "Skip stock"
             ) {
                 guard isReady, let card = viewModel?.topCard else { return }
                 audioService.playSwipe(direction: .left)
@@ -520,7 +521,8 @@ struct DiscoverView: View {
             actionButton(
                 icon: "star.fill",
                 color: CosmicTheme.gold,
-                size: 64
+                size: 64,
+                accessibilityLabel: "View stock details"
             ) {
                 guard isReady, let card = viewModel?.topCard else { return }
                 audioService.playSwipe(direction: .up)
@@ -537,7 +539,8 @@ struct DiscoverView: View {
             actionButton(
                 icon: "eye.fill",
                 color: CosmicTheme.positive,
-                size: 54
+                size: 54,
+                accessibilityLabel: "Add to watchlist"
             ) {
                 guard isReady, let card = viewModel?.topCard else { return }
                 audioService.playSwipe(direction: .right)
@@ -560,6 +563,7 @@ struct DiscoverView: View {
         icon: String,
         color: Color,
         size: CGFloat,
+        accessibilityLabel: String,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -577,6 +581,7 @@ struct DiscoverView: View {
                     .foregroundColor(color)
             }
         }
+        .accessibilityLabel(accessibilityLabel)
         .shadow(color: color.opacity(0.2), radius: 8, x: 0, y: 4)
     }
 
