@@ -16,6 +16,7 @@ struct LaunchScreenView: View {
     @State private var starsRevealed: Bool = false
     @State private var logoOpacity: Double = 0
     @State private var taglineOpacity: Double = 0
+    @State private var quoteOpacity: Double = 0
     @State private var risingPhase: Bool = false
 
     // MARK: - Constants
@@ -76,6 +77,11 @@ struct LaunchScreenView: View {
 
                 Spacer()
 
+                // J.P. Morgan quote - subtle, near bottom
+                JPMorganQuoteView(size: .minimal, opacity: quoteOpacity)
+                    .padding(.horizontal, 40)
+                    .padding(.bottom, 24)
+
                 // Version
                 Text("v1.0")
                     .font(.system(size: 10, design: .monospaced))
@@ -125,6 +131,13 @@ struct LaunchScreenView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + animationDuration + 1.0) {
             withAnimation(.easeInOut(duration: 0.8)) {
                 risingPhase = true
+            }
+        }
+
+        // Phase 6: Show J.P. Morgan quote - subtle fade in
+        DispatchQueue.main.asyncAfter(deadline: .now() + animationDuration + 1.8) {
+            withAnimation(.easeIn(duration: 0.8)) {
+                quoteOpacity = 1
             }
         }
     }

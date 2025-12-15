@@ -59,13 +59,13 @@ Unlock unlimited cosmic insights with our Oracle subscription:
 
 IMPORTANT DISCLAIMER:
 
-Cosmo Trader is designed for ENTERTAINMENT and EDUCATIONAL purposes only.
+Cosmo Trader is for informational and entertainment purposes only and does not constitute financial advice. Always consult a qualified financial advisor before making investment decisions.
 
 The astrological insights, zodiac compatibility scores, horoscopes, and all cosmic content in this app are based on traditional astrology and should NOT be used as the basis for any financial decisions. There is no scientific evidence that astronomical phenomena influence stock market performance.
 
 This app does NOT provide financial advice, investment recommendations, or trading signals. Nothing in this app should be construed as a recommendation to buy, sell, or hold any security.
 
-Stock data may be delayed up to 15 minutes. Always verify information with official sources and consult qualified financial professionals before making investment decisions. Past performance does not guarantee future results.
+Stock data may be delayed up to 15 minutes. Always verify information with official sources. Past performance does not guarantee future results.
 
 By using Cosmo Trader, you acknowledge that all astrological content is for entertainment only and accept full responsibility for your investment decisions.
 

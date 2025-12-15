@@ -68,6 +68,12 @@ struct OnboardingView: View {
         case .birthDate:
             // Validate birth date
             return InputValidator.validateBirthDate(birthDate) == nil
+        case .quote:
+            // Quote step uses its own continue button
+            return true
+        case .disclaimer:
+            // Disclaimer step uses its own "I understand" button
+            return true
         case .birthTime:
             // Always can proceed (birth time is optional)
             return true
@@ -127,8 +133,8 @@ struct OnboardingView: View {
 
             // Content
             VStack(spacing: 0) {
-                // Page indicator
-                if currentStep != .welcome && currentStep != .complete {
+                // Page indicator (hide on welcome, quote, disclaimer, and complete)
+                if currentStep != .welcome && currentStep != .quote && currentStep != .disclaimer && currentStep != .complete {
                     pageIndicator
                         .padding(.top, 20)
                 }
@@ -141,8 +147,8 @@ struct OnboardingView: View {
 
                 Spacer()
 
-                // Bottom button
-                if currentStep != .complete {
+                // Bottom button (hide on quote and disclaimer steps - they have their own buttons)
+                if currentStep != .complete && currentStep != .quote && currentStep != .disclaimer {
                     bottomButton
                         .padding(.horizontal, 32)
                         .padding(.bottom, 50)
@@ -163,7 +169,8 @@ struct OnboardingView: View {
 
     private var pageIndicator: some View {
         HStack(spacing: 8) {
-            ForEach(OnboardingStep.allCases.filter { $0 != .welcome && $0 != .complete }, id: \.rawValue) { step in
+            // Exclude welcome, quote, disclaimer, and complete from the indicator
+            ForEach(OnboardingStep.allCases.filter { $0 != .welcome && $0 != .quote && $0 != .disclaimer && $0 != .complete }, id: \.rawValue) { step in
                 Capsule()
                     .fill(step.rawValue <= currentStep.rawValue ? CosmicTheme.gold : CosmicTheme.textMuted.opacity(0.3))
                     .frame(width: step == currentStep ? 24 : 8, height: 8)
@@ -218,6 +225,20 @@ struct OnboardingView: View {
                 .transition(.asymmetric(
                     insertion: .opacity.combined(with: .move(edge: .trailing)),
                     removal: .opacity.combined(with: .move(edge: .leading))
+                ))
+
+        case .quote:
+            quoteContent
+                .transition(.asymmetric(
+                    insertion: .opacity,
+                    removal: .opacity
+                ))
+
+        case .disclaimer:
+            disclaimerContent
+                .transition(.asymmetric(
+                    insertion: .opacity,
+                    removal: .opacity
                 ))
 
         case .birthTime:
@@ -457,6 +478,26 @@ struct OnboardingView: View {
                 withAnimation {
                     showSignReveal = true
                 }
+            }
+        }
+    }
+
+    // MARK: - Quote Step
+
+    private var quoteContent: some View {
+        OnboardingQuoteStepView {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                currentStep = .disclaimer
+            }
+        }
+    }
+
+    // MARK: - Disclaimer Step
+
+    private var disclaimerContent: some View {
+        OnboardingDisclaimerStepView {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                currentStep = .birthTime
             }
         }
     }
@@ -958,6 +999,8 @@ struct OnboardingView: View {
         switch currentStep {
         case .welcome: return "Begin Your Journey"
         case .birthDate: return "Continue"
+        case .quote: return "Continue"  // Not shown - quote has its own button
+        case .disclaimer: return "I Understand"  // Not shown - disclaimer has its own button
         case .birthTime: return "Continue"
         case .name: return "Continue"
         case .element: return "Find My First Match"
@@ -992,7 +1035,9 @@ struct OnboardingView: View {
         let nextStep: OnboardingStep? = {
             switch currentStep {
             case .welcome: return .birthDate
-            case .birthDate: return .birthTime
+            case .birthDate: return .quote
+            case .quote: return .disclaimer  // Quote step handles its own transition
+            case .disclaimer: return .birthTime  // Disclaimer step handles its own transition
             case .birthTime: return .name
             case .name: return .element
             case .element: return .stockMatch
@@ -1059,11 +1104,13 @@ struct OnboardingView: View {
 enum OnboardingStep: Int, CaseIterable {
     case welcome = 0
     case birthDate = 1
-    case birthTime = 2
-    case name = 3
-    case element = 4
-    case stockMatch = 5
-    case complete = 6
+    case quote = 2        // J.P. Morgan quote - "this is what serious people do"
+    case disclaimer = 3   // Legal disclaimer - must acknowledge
+    case birthTime = 4
+    case name = 5
+    case element = 6
+    case stockMatch = 7
+    case complete = 8
 }
 
 // MARK: - Stock Match Card

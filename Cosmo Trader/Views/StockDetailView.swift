@@ -60,6 +60,10 @@ struct StockDetailView: View {
     /// Chart state
     @State private var selectedTimeframe: ChartTimeframe = .month
 
+    /// Cosmic pattern state
+    @State private var cosmicInsights: [CosmicPatternInsight] = []
+    @State private var isLoadingPatterns: Bool = true
+
     // MARK: - Init
 
     init(stock: Stock) {
@@ -80,6 +84,9 @@ struct StockDetailView: View {
 
                 // 3. Key Statistics
                 keyStatsSection
+
+                // 3.5. Cosmic Signals (Technical + Astro Analysis)
+                cosmicSignalsSection
 
                 // 4. Compatibility Section
                 compatibilitySection
@@ -136,6 +143,7 @@ struct StockDetailView: View {
         }
         .task {
             await fetchLivePrice()
+            await loadCosmicPatterns()
         }
         .sheet(isPresented: $showShareSheet) {
             shareSheet
@@ -374,6 +382,35 @@ struct StockDetailView: View {
             .background(cardBackground)
             .opacity(appearAnimation ? 1 : 0)
             .offset(y: appearAnimation ? 0 : 20)
+    }
+
+    // MARK: - Cosmic Signals Section
+
+    private var cosmicSignalsSection: some View {
+        CosmicSignalsSection(
+            insights: cosmicInsights,
+            isLoading: isLoadingPatterns
+        )
+        .padding(16)
+        .background(cardBackground)
+        .opacity(appearAnimation ? 1 : 0)
+        .offset(y: appearAnimation ? 0 : 20)
+    }
+
+    private func loadCosmicPatterns() async {
+        isLoadingPatterns = true
+
+        // Small delay to simulate analysis
+        try? await Task.sleep(nanoseconds: 500_000_000)
+
+        await MainActor.run {
+            let interpreter = CosmicPatternInterpreter.shared
+            cosmicInsights = interpreter.getInsights(
+                for: stock,
+                userSign: user.sunSign
+            )
+            isLoadingPatterns = false
+        }
     }
 
     // MARK: - Compatibility Section

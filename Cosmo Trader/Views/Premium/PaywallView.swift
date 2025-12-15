@@ -39,9 +39,14 @@ struct PaywallView: View {
                     benefitsSection
                         .padding(.top, 32)
 
+                    // J.P. Morgan quote - reinforces credibility
+                    JPMorganQuoteView(size: .compact)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 28)
+
                     // Plans
                     plansSection
-                        .padding(.top, 32)
+                        .padding(.top, 24)
 
                     // Action
                     actionSection

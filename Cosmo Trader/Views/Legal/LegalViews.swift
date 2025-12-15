@@ -149,6 +149,24 @@ struct NFADisclaimerView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
 
+                    // Key disclaimer banner
+                    VStack(spacing: 12) {
+                        Text("Cosmo Trader is for informational and entertainment purposes only and does not constitute financial advice. Always consult a qualified financial advisor before making investment decisions.")
+                            .font(.system(size: 13, weight: .medium, design: .monospaced))
+                            .foregroundColor(CosmicTheme.textPrimary)
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(4)
+                    }
+                    .padding(20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(CosmicTheme.gold.opacity(0.1))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(CosmicTheme.gold.opacity(0.3), lineWidth: 1)
+                            )
+                    )
+
                     // Main disclaimer
                     LegalSection(
                         title: "DISCLAIMER",

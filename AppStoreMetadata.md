@@ -64,9 +64,11 @@ THE FINE PRINT (PLEASE READ):
 
 ⚠️ THIS IS NOT FINANCIAL ADVICE ⚠️
 
-Cosmo Trader is an entertainment app. The astrological content is for fun only. There is no scientific evidence that zodiac signs, moon phases, or planetary alignments affect stock prices.
+Cosmo Trader is for informational and entertainment purposes only and does not constitute financial advice. Always consult a qualified financial advisor before making investment decisions.
 
-Do not make investment decisions based on this app. Always consult a qualified financial advisor. We're not registered investment advisors, and the stars aren't either.
+The astrological content is for fun only. There is no scientific evidence that zodiac signs, moon phases, or planetary alignments affect stock prices.
+
+Do not make investment decisions based on this app. We're not registered investment advisors, and the stars aren't either.
 
 Stock data is provided by Finnhub and may be delayed up to 15 minutes.
 

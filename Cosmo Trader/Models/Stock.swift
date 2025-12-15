@@ -63,6 +63,31 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
     /// EXAMPLE: -0.84 means down 0.84%
     var percentageChange: Double
 
+    /// Daily volatility (standard deviation of daily returns)
+    /// WHY: Measures how much the stock price typically swings.
+    ///      Used for pattern detection and risk assessment.
+    /// EXAMPLE: 0.02 means the stock typically moves 2% per day
+    var volatility: Double?
+
+    /// Trading volume for today
+    /// WHY: High volume confirms price movements; low volume may signal weakness.
+    var volume: Int?
+
+    /// Average daily trading volume
+    /// WHY: Compares today's activity to normal levels.
+    var avgVolume: Int?
+
+    /// Volume compared to average (today's volume / average volume)
+    var volumeRatio: Double? {
+        guard let vol = volume, let avg = avgVolume, avg > 0 else { return nil }
+        return Double(vol) / Double(avg)
+    }
+
+    /// Whether today's volume is unusually high (50%+ above average)
+    var isUnusualVolume: Bool {
+        (volumeRatio ?? 0) > 1.5
+    }
+
     // MARK: - Ownership Properties
     // ============================
     // These track the user's relationship with this stock.
@@ -438,6 +463,9 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         currentPrice: Double,
         priceChange: Double,
         percentageChange: Double,
+        volatility: Double? = nil,
+        volume: Int? = nil,
+        avgVolume: Int? = nil,
         sharesOwned: Double = 0,
         purchasePrice: Double? = nil,
         purchaseDate: Date? = nil,
@@ -452,6 +480,9 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         self.currentPrice = currentPrice
         self.priceChange = priceChange
         self.percentageChange = percentageChange
+        self.volatility = volatility
+        self.volume = volume
+        self.avgVolume = avgVolume
         self.sharesOwned = sharesOwned
         self.purchasePrice = purchasePrice
         self.purchaseDate = purchaseDate
@@ -470,6 +501,9 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         currentPrice: Double,
         priceChange: Double,
         percentageChange: Double,
+        volatility: Double? = nil,
+        volume: Int? = nil,
+        avgVolume: Int? = nil,
         sharesOwned: Double = 0,
         purchasePrice: Double? = nil,
         purchaseDate: Date? = nil,
@@ -488,6 +522,9 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         self.currentPrice = currentPrice
         self.priceChange = priceChange
         self.percentageChange = percentageChange
+        self.volatility = volatility
+        self.volume = volume
+        self.avgVolume = avgVolume
         self.sharesOwned = sharesOwned
         self.purchasePrice = purchasePrice
         self.purchaseDate = purchaseDate
