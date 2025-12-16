@@ -428,65 +428,96 @@ struct DiscoverView: View {
 
     // MARK: - Drag Gesture
 
+    /// Track if a swipe animation is in progress to prevent double-triggers
+    @State private var isSwipeAnimating: Bool = false
+
     private func dragGesture(for card: StockCard) -> some Gesture {
         DragGesture()
             .onChanged { value in
-                guard isReady else { return }
+                guard isReady, !isSwipeAnimating else { return }
+
+                // Only respond to horizontal drags (prevents vertical swipe crash)
+                let horizontalDrag = abs(value.translation.width)
+                let verticalDrag = abs(value.translation.height)
+
+                // Ignore if primarily vertical - prevents accidental swipe up crash
+                guard horizontalDrag > verticalDrag * 0.5 else { return }
+
                 dragOffset = value.translation
                 // Rotation based on horizontal drag
                 dragRotation = Double(value.translation.width / 20)
             }
             .onEnded { value in
-                guard isReady else {
+                guard isReady, !isSwipeAnimating else {
                     resetCard()
                     return
                 }
 
                 let horizontalAmount = value.translation.width
-                let verticalAmount = value.translation.height
+                let verticalAmount = abs(value.translation.height)
 
-                // Check for swipe up (view detail)
-                if verticalAmount < -swipeThreshold {
-                    withAnimation(.spring(response: 0.4)) {
-                        dragOffset = CGSize(width: 0, height: -600)
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        viewModel?.viewDetail(card.stock)
+                // Ignore if it was primarily a vertical swipe attempt
+                guard abs(horizontalAmount) > verticalAmount * 0.5 else {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         resetCard()
                     }
+                    return
                 }
-                // Check for swipe right (like)
-                else if horizontalAmount > swipeThreshold {
-                    audioService.playSwipe(direction: .right)
-                    withAnimation(.spring(response: 0.4)) {
-                        dragOffset = CGSize(width: 500, height: 0)
-                        dragRotation = 15
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        viewModel?.likeStock(card.stock)
-                        showWatchlistToast(for: card.stock.symbol)
-                        resetCard()
-                    }
+
+                // Check for swipe right (like/watchlist)
+                if horizontalAmount > swipeThreshold {
+                    swipeCard(direction: .right, card: card)
                 }
                 // Check for swipe left (skip)
                 else if horizontalAmount < -swipeThreshold {
-                    audioService.playSwipe(direction: .left)
-                    withAnimation(.spring(response: 0.4)) {
-                        dragOffset = CGSize(width: -500, height: 0)
-                        dragRotation = -15
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        viewModel?.skipStock(card.stock)
-                        resetCard()
-                    }
+                    swipeCard(direction: .left, card: card)
                 }
-                // Return to center
+                // Return to center - not enough distance
                 else {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         resetCard()
                     }
                 }
             }
+    }
+
+    private enum SwipeDirection {
+        case left, right
+    }
+
+    private func swipeCard(direction: SwipeDirection, card: StockCard) {
+        guard !isSwipeAnimating else { return }
+        isSwipeAnimating = true
+
+        let offscreenX: CGFloat = direction == .right ? 500 : -500
+        let rotation: Double = direction == .right ? 15 : -15
+
+        audioService.playSwipe(direction: direction == .right ? .right : .left)
+        HapticFeedback.medium()
+
+        // Animate card off screen
+        withAnimation(.easeOut(duration: 0.25)) {
+            dragOffset = CGSize(width: offscreenX, height: 0)
+            dragRotation = rotation
+        }
+
+        // After animation completes, update state
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            // Reset drag state FIRST (without animation)
+            dragOffset = .zero
+            dragRotation = 0
+
+            // Then update the deck
+            if direction == .right {
+                viewModel?.likeStock(card.stock)
+                showWatchlistToast(for: card.stock.symbol)
+            } else {
+                viewModel?.skipStock(card.stock)
+            }
+
+            // Allow new swipes
+            isSwipeAnimating = false
+        }
     }
 
     private func resetCard() {
@@ -505,34 +536,22 @@ struct DiscoverView: View {
                 size: 54,
                 accessibilityLabel: "Skip stock"
             ) {
-                guard isReady, let card = viewModel?.topCard else { return }
-                audioService.playSwipe(direction: .left)
-                withAnimation(.spring(response: 0.4)) {
-                    dragOffset = CGSize(width: -500, height: 0)
-                    dragRotation = -15
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    viewModel?.skipStock(card.stock)
-                    resetCard()
-                }
+                guard isReady, !isSwipeAnimating, let card = viewModel?.topCard else { return }
+                HapticFeedback.light()
+                swipeCard(direction: .left, card: card)
             }
 
-            // View detail button
+            // View detail button - navigates directly without animation
             actionButton(
                 icon: "star.fill",
                 color: CosmicTheme.gold,
                 size: 64,
                 accessibilityLabel: "View stock details"
             ) {
-                guard isReady, let card = viewModel?.topCard else { return }
-                audioService.playSwipe(direction: .up)
-                withAnimation(.spring(response: 0.4)) {
-                    dragOffset = CGSize(width: 0, height: -600)
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    viewModel?.viewDetail(card.stock)
-                    resetCard()
-                }
+                guard isReady, !isSwipeAnimating, let card = viewModel?.topCard else { return }
+                HapticFeedback.medium()
+                // Navigate to detail directly without swipe animation
+                viewModel?.viewDetail(card.stock)
             }
 
             // Like button (adds to watchlist)
@@ -542,17 +561,9 @@ struct DiscoverView: View {
                 size: 54,
                 accessibilityLabel: "Add to watchlist"
             ) {
-                guard isReady, let card = viewModel?.topCard else { return }
-                audioService.playSwipe(direction: .right)
-                withAnimation(.spring(response: 0.4)) {
-                    dragOffset = CGSize(width: 500, height: 0)
-                    dragRotation = 15
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                    viewModel?.likeStock(card.stock)
-                    showWatchlistToast(for: card.stock.symbol)
-                    resetCard()
-                }
+                guard isReady, !isSwipeAnimating, let card = viewModel?.topCard else { return }
+                HapticFeedback.medium()
+                swipeCard(direction: .right, card: card)
             }
         }
         .padding(.vertical, 20)

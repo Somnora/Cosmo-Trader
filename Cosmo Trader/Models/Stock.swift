@@ -322,6 +322,7 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         var generator = SeededRandomGenerator(seed: UInt64(abs(seed)))
 
         // Determine number of points and interval based on timeframe
+        // Reduced "all" from 60 to 36 points (3 years) for stability
         let (pointCount, component, interval): (Int, Calendar.Component, Int) = {
             switch timeframe {
             case .day: return (78, .minute, 5)      // 5-min intervals for trading day (9:30-4:00)
@@ -329,7 +330,7 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
             case .month: return (30, .day, 1)       // Daily
             case .threeMonth: return (90, .day, 1)  // Daily
             case .year: return (52, .weekOfYear, 1) // Weekly
-            case .all: return (60, .month, 1)       // Monthly (5 years)
+            case .all: return (36, .month, 1)       // Monthly (3 years) - reduced for stability
             }
         }()
 
@@ -337,9 +338,12 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
 
         // Calculate starting price based on timeframe performance
         let timeframeReturn = timeframePerformance(for: timeframe, generator: &generator)
-        let startPrice = currentPrice / (1 + timeframeReturn / 100)
+        // Clamp the divisor to avoid extreme values
+        let divisor = max(0.2, 1 + timeframeReturn / 100)
+        let startPrice = currentPrice / divisor
 
-        var price = startPrice
+        // Validate startPrice
+        var price = startPrice.isFinite && startPrice > 0 ? startPrice : currentPrice
 
         for i in 0..<pointCount {
             // Calculate date going backwards from now
@@ -357,6 +361,7 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
             let progress = Double(i) / Double(pointCount - 1)
 
             // Base volatility varies by timeframe
+            // Reduced volatility for "all" to improve stability
             let baseVolatility: Double = {
                 switch timeframe {
                 case .day: return 0.002    // 0.2% per 5 minutes
@@ -364,7 +369,7 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
                 case .month: return 0.015  // 1.5% per day
                 case .threeMonth: return 0.02
                 case .year: return 0.025
-                case .all: return 0.04
+                case .all: return 0.025    // Reduced from 0.04 for stability
                 }
             }()
 
@@ -378,7 +383,14 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
             price = max(price, currentPrice * 0.5)  // Floor at 50% of current
             price = min(price, currentPrice * 2.0)  // Cap at 200% of current
 
-            points.append(PricePoint(date: date, price: price))
+            // Validate price before adding (protection against NaN/Inf)
+            if price.isFinite && price > 0 {
+                points.append(PricePoint(date: date, price: price))
+            } else {
+                // Fallback to current price if invalid
+                price = currentPrice
+                points.append(PricePoint(date: date, price: price))
+            }
         }
 
         // Ensure last point is current price

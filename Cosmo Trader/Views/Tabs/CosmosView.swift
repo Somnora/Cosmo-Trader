@@ -25,7 +25,8 @@ struct CosmosView: View {
 
     // MARK: - State
 
-    @State private var viewModel: HoroscopeViewModel?
+    /// ViewModel - initialized immediately to avoid race conditions
+    @State private var viewModel = HoroscopeViewModel()
     @State private var astroService = AstroAlertService.shared
     @State private var moonService = MoonPhaseService.shared
     @State private var selectedEvent: CosmicEvent?
@@ -37,6 +38,7 @@ struct CosmosView: View {
     @State private var cardOpacity: Double = 0
     @State private var cardOffset: CGFloat = 20
     @State private var starsVisible: Bool = false
+    @State private var hasAppeared: Bool = false
 
     // MARK: - Body
 
@@ -46,64 +48,59 @@ struct CosmosView: View {
                 // Cosmic background with stars
                 cosmicBackground
 
-                if viewModel != nil {
-                    // Main content
-                    ScrollView(showsIndicators: false) {
-                        LazyVStack(spacing: 24) {
-                            // 1. Date header with moon phase
-                            dateHeader
+                // Main content - viewModel is always ready
+                ScrollView(showsIndicators: false) {
+                    LazyVStack(spacing: 24) {
+                        // 1. Date header with moon phase
+                        dateHeader
 
-                            // 2. Moon Phase Widget (Prominent - for swing traders)
-                            moonPhaseWidget
+                        // 2. Moon Phase Widget (Prominent - for swing traders)
+                        moonPhaseWidget
 
-                            // 3. Lunar alert banner (if significant moon event)
-                            lunarAlertSection
+                        // 3. Lunar alert banner (if significant moon event)
+                        lunarAlertSection
 
-                            // 3a. Mercury Retrograde Countdown (always visible)
-                            MercuryRetrogradeBanner()
+                        // 3a. Mercury Retrograde Countdown (always visible)
+                        MercuryRetrogradeBanner()
 
-                            // 3b. Weekly Zodiac Performance Section
-                            weeklyZodiacPerformanceSection
+                        // 3b. Weekly Zodiac Performance Section
+                        weeklyZodiacPerformanceSection
 
-                            // 3c. Option Expiry Alignment Section
-                            optionExpirySection
+                        // 3c. Option Expiry Alignment Section
+                        optionExpirySection
 
-                            // 4. Active cosmic alert (if any important events)
-                            if let alertEvent = astroService.activeAlertEvents.first {
-                                AstroAlertBanner(
-                                    event: alertEvent,
-                                    onDismiss: {
-                                        withAnimation(.spring(response: 0.3)) {
-                                            astroService.dismissAlert(alertEvent)
-                                        }
+                        // 4. Active cosmic alert (if any important events)
+                        if let alertEvent = astroService.activeAlertEvents.first {
+                            AstroAlertBanner(
+                                event: alertEvent,
+                                onDismiss: {
+                                    withAnimation(.spring(response: 0.3)) {
+                                        astroService.dismissAlert(alertEvent)
                                     }
-                                )
-                                .transition(.asymmetric(
-                                    insertion: .move(edge: .top).combined(with: .opacity),
-                                    removal: .scale.combined(with: .opacity)
-                                ))
-                            }
-
-                            // 5. Main horoscope card
-                            horoscopeCard
-
-                            // 6. Cosmic Weather section (active events)
-                            cosmicWeatherSection
-
-                            // 7. Upcoming Events
-                            upcomingEventsSection
-
-                            // 8. Regenerate button
-                            regenerateButton
-
-                            Spacer(minLength: 80)
+                                }
+                            )
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .top).combined(with: .opacity),
+                                removal: .scale.combined(with: .opacity)
+                            ))
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 12)
+
+                        // 5. Main horoscope card
+                        horoscopeCard
+
+                        // 6. Cosmic Weather section (active events)
+                        cosmicWeatherSection
+
+                        // 7. Upcoming Events
+                        upcomingEventsSection
+
+                        // 8. Regenerate button
+                        regenerateButton
+
+                        Spacer(minLength: 80)
                     }
-                } else {
-                    ProgressView()
-                        .tint(CosmicTheme.gold)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -119,7 +116,7 @@ struct CosmosView: View {
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    Text(viewModel?.moonPhase.emoji ?? "🌙")
+                    Text(viewModel.moonPhase.emoji)
                         .font(.title2)
                 }
             }
@@ -142,12 +139,11 @@ struct CosmosView: View {
             }
         }
         .task {
-            // Initialize viewModel if needed (async-safe)
-            if viewModel == nil {
-                viewModel = HoroscopeViewModel(appState: appState)
-            }
+            // Prevent duplicate animations on re-appear
+            guard !hasAppeared else { return }
+            hasAppeared = true
 
-            // Only animate and track after viewModel is ready
+            // Animate appearance
             animateAppearance()
 
             // Track horoscope viewed
@@ -187,29 +183,27 @@ struct CosmosView: View {
         VStack(spacing: 12) {
             // Moon phase display
             HStack(spacing: 8) {
-                Image(systemName: viewModel?.moonPhaseIcon ?? "moon")
+                Image(systemName: viewModel.moonPhaseIcon)
                     .font(.system(size: 24))
                     .foregroundStyle(CosmicTheme.goldGradient)
 
-                Text(viewModel?.moonPhase.rawValue ?? "Moon Phase")
+                Text(viewModel.moonPhase.rawValue)
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundColor(CosmicTheme.textSecondary)
             }
 
             // Date
-            Text(viewModel?.formattedDate ?? "")
+            Text(viewModel.formattedDate)
                 .font(.title2)
                 .fontWeight(.bold)
                 .foregroundColor(CosmicTheme.textPrimary)
 
             // User sign badge
             HStack(spacing: 6) {
-                if let sign = viewModel?.user.sunSign {
-                    ZodiacSymbolView(sign: sign, size: 20, color: CosmicTheme.gold)
-                }
+                ZodiacSymbolView(sign: viewModel.user.sunSign, size: 20, color: CosmicTheme.gold)
 
-                Text(viewModel?.user.sunSign.displayName ?? "")
+                Text(viewModel.user.sunSign.displayName)
                     .font(TerminalFont.data(13))
                     .fontWeight(.semibold)
                     .foregroundColor(CosmicTheme.gold)
@@ -278,15 +272,15 @@ struct CosmosView: View {
                             .font(.caption)
                             .foregroundColor(CosmicTheme.textSecondary)
 
-                        Text(viewModel?.performanceSentiment ?? "")
+                        Text(viewModel.performanceSentiment)
                             .font(.caption)
                             .fontWeight(.semibold)
-                            .foregroundColor(viewModel?.performanceColor ?? CosmicTheme.textMuted)
+                            .foregroundColor(viewModel.performanceColor)
 
-                        Text(viewModel?.overallChangePercent ?? "")
+                        Text(viewModel.overallChangePercent)
                             .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(viewModel?.performanceColor ?? CosmicTheme.textMuted)
+                            .foregroundColor(viewModel.performanceColor)
                     }
                 }
 
@@ -298,9 +292,7 @@ struct CosmosView: View {
                         .fill(CosmicTheme.gold.opacity(0.15))
                         .frame(width: 60, height: 60)
 
-                    if let sign = viewModel?.user.sunSign {
-                        ZodiacSymbolView(sign: sign, size: 32, color: CosmicTheme.gold)
-                    }
+                    ZodiacSymbolView(sign: viewModel.user.sunSign, size: 32, color: CosmicTheme.gold)
                 }
             }
 
@@ -321,10 +313,10 @@ struct CosmosView: View {
 
             // The reading itself
             VStack(alignment: .leading, spacing: 16) {
-                if viewModel?.isLoading == true {
+                if viewModel.isLoading {
                     loadingView
                 } else {
-                    Text(viewModel?.readingText ?? "")
+                    Text(viewModel.readingText)
                         .font(.body)
                         .fontWeight(.regular)
                         .foregroundColor(CosmicTheme.textPrimary)
@@ -335,7 +327,7 @@ struct CosmosView: View {
             }
 
             // Dominant element badge (if applicable)
-            if let element = viewModel?.dominantElement {
+            if let element = viewModel.dominantElement {
                 dominantElementBadge(element)
             }
         }
@@ -438,7 +430,8 @@ struct CosmosView: View {
             }
 
             // Legacy planetary events from HoroscopeViewModel
-            if let events = viewModel?.planetaryEvents, !events.isEmpty {
+            if !viewModel.planetaryEvents.isEmpty {
+                let events = viewModel.planetaryEvents
                 Divider()
                     .background(CosmicTheme.textMuted.opacity(0.3))
 
@@ -683,7 +676,7 @@ struct CosmosView: View {
         Button(action: {
             HapticFeedback.medium()
             withAnimation(.spring(response: 0.4)) {
-                viewModel?.regenerateHoroscope()
+                viewModel.regenerateHoroscope()
             }
             // Track horoscope refresh
             if let user = appState.currentUser {
@@ -693,8 +686,8 @@ struct CosmosView: View {
             HStack(spacing: 10) {
                 Image(systemName: "arrow.triangle.2.circlepath")
                     .font(.headline)
-                    .rotationEffect(.degrees(viewModel?.refreshTrigger == true ? 360 : 0))
-                    .animation(.easeInOut(duration: 0.5), value: viewModel?.refreshTrigger)
+                    .rotationEffect(.degrees(viewModel.refreshTrigger ? 360 : 0))
+                    .animation(.easeInOut(duration: 0.5), value: viewModel.refreshTrigger)
 
                 Text("Consult the Stars Again")
                     .font(.headline)
@@ -707,8 +700,8 @@ struct CosmosView: View {
             .cornerRadius(25)
             .shadow(color: CosmicTheme.gold.opacity(0.3), radius: 8, x: 0, y: 4)
         }
-        .disabled(viewModel?.isLoading == true)
-        .opacity(viewModel?.isLoading == true ? 0.6 : 1.0)
+        .disabled(viewModel.isLoading)
+        .opacity(viewModel.isLoading ? 0.6 : 1.0)
     }
 
     // MARK: - Weekly Zodiac Performance Section
@@ -716,7 +709,7 @@ struct CosmosView: View {
     private var weeklyZodiacPerformanceSection: some View {
         let leaderboard = ZodiacPerformanceService.getLeaderboard(stocks: MockStockData.all)
         let topThree = leaderboard.prefix(3)
-        let userSign = viewModel?.user.sunSign ?? .aries
+        let userSign = viewModel.user.sunSign
         let performances = leaderboard.map { $0.performance }
         let commentary = ZodiacPerformanceService.generateWeeklyCommentary(performances: performances, userSign: userSign)
 
@@ -778,8 +771,9 @@ struct CosmosView: View {
             // Rank
             HStack(spacing: 2) {
                 if rank == 1 {
-                    Text("🏆")
+                    Image(systemName: "trophy.fill")
                         .font(.caption)
+                        .foregroundColor(CosmicTheme.gold)
                 }
                 Text("#\(rank)")
                     .font(TerminalFont.data(11, weight: rank == 1 ? .bold : .regular))
@@ -826,9 +820,7 @@ struct CosmosView: View {
     // MARK: - Option Expiry Section
 
     private var optionExpirySection: some View {
-        let userSign = viewModel?.user.sunSign ?? .aries
-
-        return OptionExpiryView(userSign: userSign)
+        OptionExpiryView(userSign: viewModel.user.sunSign)
     }
 
     // MARK: - Card Background

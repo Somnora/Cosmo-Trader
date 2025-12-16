@@ -184,17 +184,9 @@ struct OnboardingView: View {
 
     private var cosmicBackground: some View {
         ZStack {
-            // Base gradient
-            LinearGradient(
-                colors: [
-                    Color(red: 0.02, green: 0.02, blue: 0.08),
-                    Color(red: 0.05, green: 0.02, blue: 0.15),
-                    Color(red: 0.08, green: 0.04, blue: 0.20)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            // Base background - matches terminal aesthetic
+            CosmicTheme.background
+                .ignoresSafeArea()
 
             // Animated stars
             AnimatedStarsBackground(isAnimating: isAnimating)
@@ -301,13 +293,13 @@ struct OnboardingView: View {
                         )
                 }
 
-                // Core glow
+                // Core glow - gold terminal aesthetic
                 Circle()
                     .fill(
                         RadialGradient(
                             colors: [
                                 CosmicTheme.gold.opacity(0.4),
-                                CosmicTheme.cosmicPurple.opacity(0.2),
+                                CosmicTheme.gold.opacity(0.1),
                                 Color.clear
                             ],
                             center: .center,

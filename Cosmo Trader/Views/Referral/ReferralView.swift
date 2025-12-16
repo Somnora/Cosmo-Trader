@@ -275,8 +275,9 @@ struct ReferralView: View {
             Spacer()
 
             if isUltimate {
-                Text("🏆")
+                Image(systemName: "trophy.fill")
                     .font(.title3)
+                    .foregroundColor(CosmicTheme.gold)
             }
         }
         .padding(.vertical, 4)
@@ -471,8 +472,9 @@ struct ReferralLeaderboardView: View {
                 VStack(spacing: 16) {
                     // Header
                     VStack(spacing: 8) {
-                        Text("🏆")
+                        Image(systemName: "trophy.fill")
                             .font(.system(size: 48))
+                            .foregroundColor(CosmicTheme.gold)
 
                         Text("Top Cosmic Recruiters")
                             .font(.title2)

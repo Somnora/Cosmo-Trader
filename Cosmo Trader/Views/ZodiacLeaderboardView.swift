@@ -259,8 +259,9 @@ struct ZodiacLeaderboardView: View {
                 // Rank with trophy for #1
                 HStack(spacing: 2) {
                     if rank == 1 {
-                        Text("🏆")
+                        Image(systemName: "trophy.fill")
                             .font(.caption)
+                            .foregroundColor(CosmicTheme.gold)
                     }
                     Text("\(rank)")
                         .font(TerminalFont.data(12, weight: rank <= 3 ? .bold : .regular))

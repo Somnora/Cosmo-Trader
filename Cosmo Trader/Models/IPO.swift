@@ -375,9 +375,9 @@ enum IPOStatus: String, CaseIterable {
 
 enum IPOSortOption: String, CaseIterable {
     case date = "Date"
-    case compatibility = "Compatibility"
+    case compatibility = "Match"
     case sector = "Sector"
-    case valuation = "Valuation"
+    case valuation = "Value"
 
     var icon: String {
         switch self {

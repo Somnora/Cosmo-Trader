@@ -18,7 +18,6 @@ struct IPOListView: View {
     @State private var sortOption: IPOSortOption = .date
     @State private var selectedSector: String?
     @State private var searchText: String = ""
-    @State private var showFilters: Bool = false
 
     // MARK: - Computed
 
@@ -120,8 +119,9 @@ struct IPOListView: View {
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: { showFilters.toggle() }) {
-                        Image(systemName: showFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                    // Refresh button (for future use)
+                    Button(action: {}) {
+                        Image(systemName: "arrow.clockwise")
                             .foregroundColor(CosmicTheme.textSecondary)
                     }
                 }
@@ -246,9 +246,9 @@ struct IPOListView: View {
     @ViewBuilder
     private var sortFilterControls: some View {
         VStack(spacing: 12) {
-            // Sort options
+            // Sort options row
             HStack(spacing: 8) {
-                Text("SORT BY")
+                Text("SORT")
                     .font(TerminalFont.data(10))
                     .foregroundColor(CosmicTheme.textMuted)
 
@@ -257,23 +257,50 @@ struct IPOListView: View {
                 }
 
                 Spacer()
-            }
 
-            // Sector filter (when expanded)
-            if showFilters {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        sectorFilterButton(nil, label: "All")
-
-                        ForEach(MockIPOData.sectors, id: \.self) { sector in
-                            sectorFilterButton(sector, label: sector)
+                // Sector filter dropdown (always visible)
+                Menu {
+                    Button(action: { selectedSector = nil }) {
+                        HStack {
+                            Text("All Sectors")
+                            if selectedSector == nil {
+                                Image(systemName: "checkmark")
+                            }
                         }
                     }
+
+                    Divider()
+
+                    ForEach(MockIPOData.sectors, id: \.self) { sector in
+                        Button(action: { selectedSector = sector }) {
+                            HStack {
+                                Text(sector)
+                                if selectedSector == sector {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "building.2")
+                            .font(.system(size: 10))
+                        Text(selectedSector ?? "Sector")
+                            .font(TerminalFont.data(10))
+                            .lineLimit(1)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8))
+                    }
+                    .foregroundColor(selectedSector != nil ? CosmicTheme.background : CosmicTheme.textSecondary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(selectedSector != nil ? CosmicTheme.gold : CosmicTheme.cardBackground)
+                    )
                 }
-                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.3), value: showFilters)
     }
 
     private func sortButton(_ option: IPOSortOption) -> some View {
@@ -291,21 +318,6 @@ struct IPOListView: View {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(sortOption == option ? CosmicTheme.gold : CosmicTheme.cardBackground)
             )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func sectorFilterButton(_ sector: String?, label: String) -> some View {
-        Button(action: { selectedSector = sector }) {
-            Text(label)
-                .font(TerminalFont.data(11))
-                .foregroundColor(selectedSector == sector ? CosmicTheme.background : CosmicTheme.textSecondary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(selectedSector == sector ? CosmicTheme.gold : CosmicTheme.cardBackground)
-                )
         }
         .buttonStyle(.plain)
     }
