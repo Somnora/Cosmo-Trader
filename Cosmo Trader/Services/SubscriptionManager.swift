@@ -278,7 +278,9 @@ final class SubscriptionManager {
             do {
                 try await purchaseMonthly()
             } catch {
+                #if DEBUG
                 print("[Subscription] Upgrade failed: \(error)")
+                #endif
             }
         }
     }
@@ -313,7 +315,9 @@ final class SubscriptionManager {
 
         UserDefaults.standard.set(Date(), forKey: Keys.lastSubscriptionCheck)
 
+        #if DEBUG
         print("[Subscription] Subscription activated, expires: \(subscriptionExpirationDate?.description ?? "unknown")")
+        #endif
     }
 
     /// Handle subscription expired (called by StoreKitManager)
@@ -326,7 +330,9 @@ final class SubscriptionManager {
         UserDefaults.standard.set(false, forKey: Keys.isPremium)
         UserDefaults.standard.removeObject(forKey: Keys.subscriptionExpirationDate)
 
+        #if DEBUG
         print("[Subscription] Subscription expired")
+        #endif
     }
 
     /// Downgrade to free tier (for testing/debugging only)

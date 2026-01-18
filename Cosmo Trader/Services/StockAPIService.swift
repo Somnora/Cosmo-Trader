@@ -391,6 +391,96 @@ extension Stock {
     }
 }
 
+// MARK: - Search Result Model
+// ============================
+// Response model for Finnhub symbol search endpoint
+
+struct SymbolSearchResult: Codable {
+    let count: Int
+    let result: [SymbolMatch]
+}
+
+struct SymbolMatch: Codable, Identifiable, Hashable {
+    let description: String    // Company name
+    let displaySymbol: String  // Ticker symbol for display
+    let symbol: String         // Actual symbol to use for quotes
+    let type: String           // Security type (e.g., "Common Stock")
+
+    var id: String { symbol }
+
+    /// Whether this is a common stock (filter out ADRs, ETFs, etc.)
+    var isCommonStock: Bool {
+        type == "Common Stock" || type == "EQS"
+    }
+}
+
+// MARK: - Search Methods
+// ======================
+// Symbol search functionality
+
+extension StockAPIService {
+
+    /// Search for stock symbols matching a query
+    /// - Parameter query: Search term (company name or ticker)
+    /// - Returns: Array of matching symbols
+    func searchSymbols(query: String) async throws -> [SymbolMatch] {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else { return [] }
+
+        // Build URL for symbol search
+        guard let url = APIConfig.finnhubURL(endpoint: "search", params: ["q": trimmedQuery]) else {
+            throw NetworkError.invalidResponse
+        }
+
+        log("🔍 Searching for: \(trimmedQuery)...")
+
+        do {
+            // Make request
+            let (data, response) = try await session.data(from: url)
+
+            // Check HTTP status
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NetworkError.invalidResponse
+            }
+
+            // Record request timestamp for throttling
+            recordRequest()
+
+            // Handle HTTP errors
+            switch httpResponse.statusCode {
+            case 200:
+                break // Success
+            case 401:
+                throw NetworkError.apiKeyMissing
+            case 429:
+                throw NetworkError.rateLimited
+            default:
+                throw NetworkError.serverError(statusCode: httpResponse.statusCode)
+            }
+
+            // Decode response
+            let searchResult = try JSONDecoder().decode(SymbolSearchResult.self, from: data)
+
+            // Filter to common stocks only and limit results
+            let filtered = searchResult.result
+                .filter { $0.isCommonStock }
+                .prefix(15)
+
+            log("✅ Found \(filtered.count) results for '\(trimmedQuery)'")
+
+            return Array(filtered)
+
+        } catch let error as NetworkError {
+            log("❌ Search Error: \(error.cosmicMessage)")
+            throw error
+        } catch {
+            let networkError = mapError(error)
+            log("❌ Search Error: \(networkError.cosmicMessage)")
+            throw networkError
+        }
+    }
+}
+
 // MARK: - Test Functions
 // ======================
 // Debug functions to test API connectivity
@@ -399,6 +489,7 @@ extension StockAPIService {
 
     /// Run a comprehensive API test
     func runDiagnosticTest() async {
+        #if DEBUG
         print("")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         print("🔬 FINNHUB API DIAGNOSTIC TEST")
@@ -447,10 +538,12 @@ extension StockAPIService {
         print("✨ DIAGNOSTIC TEST COMPLETE")
         print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         print("")
+        #endif
     }
 
     /// Quick test for a single symbol
     func quickTest(symbol: String = "AAPL") async {
+        #if DEBUG
         print("[StockAPI] Quick test for \(symbol)...")
         do {
             let quote = try await getQuote(symbol: symbol)
@@ -458,5 +551,6 @@ extension StockAPIService {
         } catch {
             print("[StockAPI] ❌ Error: \(error.localizedDescription)")
         }
+        #endif
     }
 }

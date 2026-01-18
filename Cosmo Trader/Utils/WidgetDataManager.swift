@@ -11,7 +11,7 @@ import WidgetKit
 
 // MARK: - Widget Data Manager
 
-/// Manages data sharing with the home screen widget
+/// Manages data sharing with the home screen widgets
 final class WidgetDataManager {
 
     // MARK: - Singleton
@@ -21,7 +21,9 @@ final class WidgetDataManager {
     // MARK: - Constants
 
     private let appGroupIdentifier = "group.com.cosmotrader.app"
-    private let widgetDataKey = "widgetLunarData"
+    private let lunarDataKey = "widgetLunarData"
+    private let horoscopeDataKey = "widgetHoroscopeData"
+    private let portfolioDataKey = "widgetPortfolioData"
     private let lastUpdateKey = "widgetLastUpdate"
 
     // MARK: - Properties
@@ -36,9 +38,15 @@ final class WidgetDataManager {
 
     // MARK: - Public Methods
 
-    /// Update widget with current lunar data
-    /// Call this on app launch and when lunar data changes
+    /// Update all widget data
+    /// Call this on app launch and when any relevant data changes
     func updateWidgetData() {
+        updateLunarData()
+        reloadWidgetTimelines()
+    }
+
+    /// Update lunar data for Moon Phase widget
+    func updateLunarData() {
         let moonService = MoonPhaseService.shared
         let lunarData = moonService.getCurrentLunarData()
 
@@ -57,7 +65,58 @@ final class WidgetDataManager {
             tradingSignalSentiment: lunarData.phase.tradingSignal.sentiment.rawValue
         )
 
-        writeWidgetData(widgetData)
+        writeLunarData(widgetData)
+    }
+
+    /// Update horoscope data for Horoscope widget
+    /// - Parameters:
+    ///   - user: The current user profile
+    ///   - horoscopeText: The generated horoscope text
+    func updateHoroscopeData(user: UserProfile, horoscopeText: String) {
+        let sign = user.sunSign
+
+        let widgetData = WidgetHoroscopeData(
+            date: Date(),
+            signName: sign.displayName,
+            signSymbol: sign.symbol,
+            signElement: sign.element.displayName,
+            horoscopeText: horoscopeText,
+            luckyNumber: Int.random(in: 1...9),
+            compatibility: sign.compatibleSigns.prefix(2).map { $0.displayName }.joined(separator: ", ")
+        )
+
+        writeHoroscopeData(widgetData)
+        reloadWidgetTimelines()
+    }
+
+    /// Update portfolio data for Portfolio widget
+    /// - Parameters:
+    ///   - totalValue: Total portfolio value
+    ///   - dayChange: Dollar change today
+    ///   - dayChangePercent: Percentage change today
+    ///   - holdings: Array of holdings with their changes
+    ///   - compatibility: Overall portfolio compatibility score
+    func updatePortfolioData(
+        totalValue: Double,
+        dayChange: Double,
+        dayChangePercent: Double,
+        holdings: [(symbol: String, changePercent: Double)],
+        compatibility: Int
+    ) {
+        let widgetHoldings = holdings.prefix(3).map { holding in
+            WidgetHolding(symbol: holding.symbol, changePercent: holding.changePercent)
+        }
+
+        let widgetData = WidgetPortfolioData(
+            date: Date(),
+            totalValue: totalValue,
+            dayChange: dayChange,
+            dayChangePercent: dayChangePercent,
+            topHoldings: Array(widgetHoldings),
+            overallCompatibility: compatibility
+        )
+
+        writePortfolioData(widgetData)
         reloadWidgetTimelines()
     }
 
@@ -65,7 +124,9 @@ final class WidgetDataManager {
     /// Call this after any data change that should be reflected immediately
     func reloadWidgetTimelines() {
         WidgetCenter.shared.reloadAllTimelines()
+        #if DEBUG
         print("[WidgetDataManager] Widget timelines reloaded")
+        #endif
     }
 
     /// Check if widget data needs refresh
@@ -79,21 +140,144 @@ final class WidgetDataManager {
 
     // MARK: - Private Methods
 
-    private func writeWidgetData(_ data: WidgetLunarData) {
+    private func writeLunarData(_ data: WidgetLunarData) {
         guard let defaults = sharedDefaults else {
+            #if DEBUG
             print("[WidgetDataManager] Failed to access shared UserDefaults - App Group not configured")
+            #endif
             return
         }
 
         do {
             let encoded = try JSONEncoder().encode(data)
-            defaults.set(encoded, forKey: widgetDataKey)
+            defaults.set(encoded, forKey: lunarDataKey)
             defaults.set(Date(), forKey: lastUpdateKey)
             defaults.synchronize()
-            print("[WidgetDataManager] Widget data updated: \(data.phaseName)")
+            #if DEBUG
+            print("[WidgetDataManager] Lunar data updated: \(data.phaseName)")
+            #endif
         } catch {
-            print("[WidgetDataManager] Failed to encode widget data: \(error)")
+            #if DEBUG
+            print("[WidgetDataManager] Failed to encode lunar data: \(error)")
+            #endif
         }
+    }
+
+    private func writeHoroscopeData(_ data: WidgetHoroscopeData) {
+        guard let defaults = sharedDefaults else {
+            #if DEBUG
+            print("[WidgetDataManager] Failed to access shared UserDefaults - App Group not configured")
+            #endif
+            return
+        }
+
+        do {
+            let encoded = try JSONEncoder().encode(data)
+            defaults.set(encoded, forKey: horoscopeDataKey)
+            defaults.synchronize()
+            #if DEBUG
+            print("[WidgetDataManager] Horoscope data updated for: \(data.signName)")
+            #endif
+        } catch {
+            #if DEBUG
+            print("[WidgetDataManager] Failed to encode horoscope data: \(error)")
+            #endif
+        }
+    }
+
+    private func writePortfolioData(_ data: WidgetPortfolioData) {
+        guard let defaults = sharedDefaults else {
+            #if DEBUG
+            print("[WidgetDataManager] Failed to access shared UserDefaults - App Group not configured")
+            #endif
+            return
+        }
+
+        do {
+            let encoded = try JSONEncoder().encode(data)
+            defaults.set(encoded, forKey: portfolioDataKey)
+            defaults.synchronize()
+            #if DEBUG
+            print("[WidgetDataManager] Portfolio data updated: \(data.formattedValue)")
+            #endif
+        } catch {
+            #if DEBUG
+            print("[WidgetDataManager] Failed to encode portfolio data: \(error)")
+            #endif
+        }
+    }
+}
+
+// MARK: - Widget Horoscope Data Model
+
+/// Lightweight horoscope data model shared between app and widget
+struct WidgetHoroscopeData: Codable {
+    let date: Date
+    let signName: String
+    let signSymbol: String
+    let signElement: String
+    let horoscopeText: String
+    let luckyNumber: Int
+    let compatibility: String
+
+    static let placeholder = WidgetHoroscopeData(
+        date: Date(),
+        signName: "Scorpio",
+        signSymbol: "♏",
+        signElement: "Water",
+        horoscopeText: "Venus favors bold moves in your financial sector.",
+        luckyNumber: 7,
+        compatibility: "Cancer, Pisces"
+    )
+}
+
+// MARK: - Widget Portfolio Data Model
+
+/// Lightweight portfolio data model shared between app and widget
+struct WidgetPortfolioData: Codable {
+    let date: Date
+    let totalValue: Double
+    let dayChange: Double
+    let dayChangePercent: Double
+    let topHoldings: [WidgetHolding]
+    let overallCompatibility: Int
+
+    var isPositive: Bool { dayChangePercent >= 0 }
+
+    var formattedValue: String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.maximumFractionDigits = 0
+        return formatter.string(from: NSNumber(value: totalValue)) ?? "$0"
+    }
+
+    var formattedChange: String {
+        String(format: "%+.1f%%", dayChangePercent)
+    }
+
+    static let placeholder = WidgetPortfolioData(
+        date: Date(),
+        totalValue: 12450.00,
+        dayChange: 290.00,
+        dayChangePercent: 2.4,
+        topHoldings: [
+            WidgetHolding(symbol: "AAPL", changePercent: 1.2),
+            WidgetHolding(symbol: "TSLA", changePercent: 4.1),
+            WidgetHolding(symbol: "NVDA", changePercent: -0.3)
+        ],
+        overallCompatibility: 78
+    )
+}
+
+/// Individual holding for widget display
+struct WidgetHolding: Codable {
+    let symbol: String
+    let changePercent: Double
+
+    var isPositive: Bool { changePercent >= 0 }
+
+    var formattedChange: String {
+        String(format: "%+.1f%%", changePercent)
     }
 }
 

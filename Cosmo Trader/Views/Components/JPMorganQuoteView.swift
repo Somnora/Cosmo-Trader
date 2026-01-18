@@ -247,7 +247,7 @@ struct OnboardingDisclaimerStepView: View {
     ZStack {
         Color.black.ignoresSafeArea()
         OnboardingQuoteStepView {
-            print("Continue tapped")
+            // Debug action removed for release
         }
     }
 }
@@ -272,7 +272,7 @@ struct OnboardingDisclaimerStepView: View {
     ZStack {
         Color.black.ignoresSafeArea()
         OnboardingDisclaimerStepView {
-            print("I Understand tapped")
+            // Debug action removed for release
         }
     }
 }

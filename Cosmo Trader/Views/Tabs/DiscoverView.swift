@@ -436,28 +436,35 @@ struct DiscoverView: View {
             .onChanged { value in
                 guard isReady, !isSwipeAnimating else { return }
 
-                // Only respond to horizontal drags (prevents vertical swipe crash)
+                // Calculate drag direction
                 let horizontalDrag = abs(value.translation.width)
                 let verticalDrag = abs(value.translation.height)
 
-                // Ignore if primarily vertical - prevents accidental swipe up crash
-                guard horizontalDrag > verticalDrag * 0.5 else { return }
+                // BLOCK vertical swipes entirely - only allow horizontal
+                // This prevents the swipe-up crash
+                guard horizontalDrag > verticalDrag else {
+                    // Don't update any state for vertical drags
+                    return
+                }
 
-                dragOffset = value.translation
+                // Only apply horizontal component to offset (ignore vertical completely)
+                dragOffset = CGSize(width: value.translation.width, height: 0)
                 // Rotation based on horizontal drag
                 dragRotation = Double(value.translation.width / 20)
             }
             .onEnded { value in
                 guard isReady, !isSwipeAnimating else {
-                    resetCard()
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        resetCard()
+                    }
                     return
                 }
 
                 let horizontalAmount = value.translation.width
                 let verticalAmount = abs(value.translation.height)
 
-                // Ignore if it was primarily a vertical swipe attempt
-                guard abs(horizontalAmount) > verticalAmount * 0.5 else {
+                // If it was primarily a vertical swipe, just reset (no action)
+                guard abs(horizontalAmount) > verticalAmount else {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         resetCard()
                     }
@@ -495,19 +502,16 @@ struct DiscoverView: View {
         audioService.playSwipe(direction: direction == .right ? .right : .left)
         HapticFeedback.medium()
 
-        // Animate card off screen
+        // Animate card off screen with easeOut for smooth exit
         withAnimation(.easeOut(duration: 0.25)) {
             dragOffset = CGSize(width: offscreenX, height: 0)
             dragRotation = rotation
         }
 
-        // After animation completes, update state
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            // Reset drag state FIRST (without animation)
-            dragOffset = .zero
-            dragRotation = 0
-
-            // Then update the deck
+        // After animation completes, update deck state atomically
+        // Use slightly longer delay to ensure animation fully completes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
+            // Update the deck FIRST (removes the card)
             if direction == .right {
                 viewModel?.likeStock(card.stock)
                 showWatchlistToast(for: card.stock.symbol)
@@ -515,8 +519,15 @@ struct DiscoverView: View {
                 viewModel?.skipStock(card.stock)
             }
 
-            // Allow new swipes
-            isSwipeAnimating = false
+            // Reset drag state AFTER deck update (for the next card)
+            // No animation here - instant reset for clean state
+            dragOffset = .zero
+            dragRotation = 0
+
+            // Small delay before allowing new swipes to prevent rapid-fire
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                isSwipeAnimating = false
+            }
         }
     }
 

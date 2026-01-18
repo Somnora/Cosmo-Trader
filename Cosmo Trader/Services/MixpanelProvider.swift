@@ -390,7 +390,9 @@ final class MixpanelProvider: AnalyticsProvider {
     private func logDebug(_ message: String) {
         #if DEBUG
         if debugModeEnabled {
+            #if DEBUG
             print("📊 [Mixpanel] \(message)")
+            #endif
         }
         #endif
     }

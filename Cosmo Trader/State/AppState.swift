@@ -302,7 +302,9 @@ class AppState {
 
             lastSaveTimestamp = Date()
         } catch {
+            #if DEBUG
             print("Failed to save user profile: \(error)")
+            #endif
             errorState.showData(.encodingFailed)
         }
     }
@@ -345,7 +347,9 @@ class AppState {
             }
 
         } catch {
+            #if DEBUG
             print("Failed to load user profile: \(error)")
+            #endif
 
             // Attempt recovery from backup
             if attemptRecoveryFromBackup() {
@@ -379,7 +383,9 @@ class AppState {
             UserDefaults.standard.set(backupData, forKey: userProfileKey)
             UserDefaults.standard.set(true, forKey: hasOnboardedKey)
 
+            #if DEBUG
             print("Successfully recovered user profile from backup")
+            #endif
             return true
 
         } catch {

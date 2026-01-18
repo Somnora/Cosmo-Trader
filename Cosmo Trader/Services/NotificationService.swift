@@ -184,7 +184,9 @@ final class NotificationService {
 
             return granted
         } catch {
+            #if DEBUG
             print("Failed to request notification permission: \(error)")
+            #endif
             hasRequestedPermission = true
             UserDefaults.standard.set(true, forKey: StorageKeys.hasRequestedPermission)
             return false
@@ -277,7 +279,9 @@ final class NotificationService {
         do {
             try await UNUserNotificationCenter.current().add(request)
         } catch {
+            #if DEBUG
             print("Failed to schedule daily horoscope: \(error)")
+            #endif
         }
     }
 
@@ -402,7 +406,9 @@ final class NotificationService {
         do {
             try await UNUserNotificationCenter.current().add(request)
         } catch {
+            #if DEBUG
             print("Failed to schedule weekly summary: \(error)")
+            #endif
         }
     }
 
@@ -431,7 +437,9 @@ final class NotificationService {
         do {
             try await UNUserNotificationCenter.current().add(request)
         } catch {
+            #if DEBUG
             print("Failed to schedule cosmic roast reminder: \(error)")
+            #endif
         }
     }
 
@@ -491,7 +499,9 @@ final class NotificationService {
                     do {
                         try await UNUserNotificationCenter.current().add(request)
                     } catch {
+                        #if DEBUG
                         print("Failed to schedule sign season alert for \(nextSign.displayName): \(error)")
+                        #endif
                     }
                 }
             }
@@ -504,6 +514,112 @@ final class NotificationService {
         guard let currentIndex = allSigns.firstIndex(of: sign) else { return .aries }
         let nextIndex = (currentIndex + 1) % allSigns.count
         return allSigns[nextIndex]
+    }
+
+    // MARK: - Cosmic Confluence Alerts
+
+    /// Send a cosmic confluence alert when technical and cosmic signals align
+    /// This is the key notification type that makes the app unique
+    func sendCosmicConfluenceAlert(
+        symbol: String,
+        pattern: String,
+        cosmicEvent: String,
+        compatibility: Int,
+        userSign: ZodiacSign
+    ) async {
+        guard isAuthorized && portfolioAlertsEnabled else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "⚡ \(symbol): Cosmic Confluence"
+        content.body = "\(pattern) detected as \(cosmicEvent). \(compatibility)% compatible with \(userSign.displayName)."
+        content.sound = .default
+        content.badge = 1
+        content.userInfo = [
+            "symbol": symbol,
+            "type": "confluence",
+            "pattern": pattern,
+            "cosmicEvent": cosmicEvent,
+            "compatibility": compatibility
+        ]
+
+        // Deliver in 1 second (near-immediate)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+
+        let request = UNNotificationRequest(
+            identifier: "confluence-\(symbol)-\(Date().timeIntervalSince1970)",
+            content: content,
+            trigger: trigger
+        )
+
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+            AnalyticsService.shared.track(.confluenceAlertSent)
+        } catch {
+            #if DEBUG
+            print("Failed to send confluence alert: \(error)")
+            #endif
+        }
+    }
+
+    /// Send a Mercury retrograde warning notification
+    func sendMercuryRetrogradeWarning(daysUntil: Int, affectedStocksCount: Int) async {
+        guard isAuthorized && mercuryRetrogradeEnabled else { return }
+
+        let content = UNMutableNotificationContent()
+
+        if daysUntil == 0 {
+            content.title = "⚠️ Mercury Retrograde Begins Today"
+            content.body = "\(affectedStocksCount) stocks in your portfolio historically volatile during retrogrades."
+        } else if daysUntil == 1 {
+            content.title = "⚠️ Mercury Retrograde Tomorrow"
+            content.body = "\(affectedStocksCount) stocks in your portfolio may see increased volatility."
+        } else {
+            content.title = "Mercury Retrograde Approaching"
+            content.body = "Begins in \(daysUntil) days. \(affectedStocksCount) portfolio stocks to watch."
+        }
+
+        content.sound = .default
+        content.userInfo = ["type": "mercury_retrograde", "daysUntil": daysUntil]
+
+        let request = UNNotificationRequest(
+            identifier: "mercury-warning-\(Date().timeIntervalSince1970)",
+            content: content,
+            trigger: nil // Deliver immediately
+        )
+
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+        } catch {
+            #if DEBUG
+            print("Failed to send Mercury retrograde warning: \(error)")
+            #endif
+        }
+    }
+
+    /// Send a portfolio milestone notification
+    func sendPortfolioMilestone(milestone: String, message: String) async {
+        guard isAuthorized && portfolioAlertsEnabled else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "🎯 Portfolio Milestone"
+        content.body = "\(milestone) — \(message)"
+        content.sound = .default
+        content.userInfo = ["type": "portfolio_milestone", "milestone": milestone]
+
+        let request = UNNotificationRequest(
+            identifier: "milestone-\(Date().timeIntervalSince1970)",
+            content: content,
+            trigger: nil
+        )
+
+        do {
+            try await UNUserNotificationCenter.current().add(request)
+            AnalyticsService.shared.track(.portfolioMilestoneReached)
+        } catch {
+            #if DEBUG
+            print("Failed to send portfolio milestone: \(error)")
+            #endif
+        }
     }
 
     // MARK: - Dynamic Notifications
@@ -538,7 +654,9 @@ final class NotificationService {
         do {
             try await UNUserNotificationCenter.current().add(request)
         } catch {
+            #if DEBUG
             print("Failed to schedule IPO alert: \(error)")
+            #endif
         }
     }
 
@@ -564,7 +682,9 @@ final class NotificationService {
         do {
             try await UNUserNotificationCenter.current().add(request)
         } catch {
+            #if DEBUG
             print("Failed to send portfolio alert: \(error)")
+            #endif
         }
     }
 
@@ -592,7 +712,9 @@ final class NotificationService {
             try await UNUserNotificationCenter.current().add(request)
             AnalyticsService.shared.track(.testNotificationSent)
         } catch {
+            #if DEBUG
             print("Failed to send test notification: \(error)")
+            #endif
         }
     }
 
@@ -619,7 +741,9 @@ final class NotificationService {
         do {
             try await UNUserNotificationCenter.current().add(request)
         } catch {
+            #if DEBUG
             print("Failed to schedule notification \(id): \(error)")
+            #endif
         }
     }
 
@@ -666,6 +790,8 @@ extension AnalyticsEvent {
     static let notificationPermissionGranted = AnalyticsEvent(rawValue: "notification_permission_granted")!
     static let notificationPermissionDenied = AnalyticsEvent(rawValue: "notification_permission_denied")!
     static let testNotificationSent = AnalyticsEvent(rawValue: "test_notification_sent")!
+    static let confluenceAlertSent = AnalyticsEvent(rawValue: "confluence_alert_sent")!
+    static let portfolioMilestoneReached = AnalyticsEvent(rawValue: "portfolio_milestone_reached")!
 }
 
 // MARK: - Notification Permission View

@@ -1,8 +1,129 @@
 import SwiftUI
+import UIKit
 import WidgetKit
+import UserNotifications
 #if canImport(FirebaseCore)
 import FirebaseCore
 #endif
+
+// MARK: - App Delegate
+// ====================
+// Handles push notification registration and foreground delivery
+
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+    ) -> Bool {
+        // Set ourselves as the notification center delegate
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
+    // MARK: - Remote Notification Registration
+
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+        #if DEBUG
+        print("📱 Push notification token: \(token)")
+        #endif
+        // Future: Send token to backend for server-side push notifications
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: Error
+    ) {
+        #if DEBUG
+        print("❌ Failed to register for remote notifications: \(error.localizedDescription)")
+        #endif
+    }
+
+    // MARK: - UNUserNotificationCenterDelegate
+
+    /// Handle notification when app is in foreground - show it anyway
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        // Show banner, play sound, and update badge even when app is open
+        completionHandler([.banner, .badge, .sound])
+    }
+
+    /// Handle notification tap - navigate to relevant screen
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let userInfo = response.notification.request.content.userInfo
+
+        // Handle different notification types
+        if let type = userInfo["type"] as? String {
+            switch type {
+            case "confluence":
+                // Navigate to stock detail
+                if let symbol = userInfo["symbol"] as? String {
+                    NotificationCenter.default.post(
+                        name: .openStockDetail,
+                        object: nil,
+                        userInfo: ["symbol": symbol]
+                    )
+                }
+
+            case "ipo":
+                // Navigate to IPO list
+                if let ticker = userInfo["ticker"] as? String {
+                    NotificationCenter.default.post(
+                        name: .openIPODetail,
+                        object: nil,
+                        userInfo: ["ticker": ticker]
+                    )
+                }
+
+            case "portfolio_move":
+                // Navigate to portfolio
+                NotificationCenter.default.post(name: .openPortfolio, object: nil)
+
+            case "signSeason":
+                // Navigate to cosmos tab
+                NotificationCenter.default.post(name: .openCosmos, object: nil)
+
+            default:
+                // Default: open cosmos tab for horoscope-related notifications
+                NotificationCenter.default.post(name: .openCosmos, object: nil)
+            }
+        } else {
+            // No type specified - open cosmos tab
+            NotificationCenter.default.post(name: .openCosmos, object: nil)
+        }
+
+        // Track notification opened
+        AnalyticsService.shared.track(.notificationOpened)
+
+        completionHandler()
+    }
+}
+
+// MARK: - Notification Names for Navigation
+
+extension Notification.Name {
+    static let openStockDetail = Notification.Name("openStockDetail")
+    static let openIPODetail = Notification.Name("openIPODetail")
+    static let openPortfolio = Notification.Name("openPortfolio")
+    static let openCosmos = Notification.Name("openCosmos")
+}
+
+// MARK: - Analytics Event Extension
+
+extension AnalyticsEvent {
+    static let notificationOpened = AnalyticsEvent(rawValue: "notification_opened")!
+}
 
 /// CosmicTraderApp
 /// ---------------
@@ -20,6 +141,11 @@ import FirebaseCore
 
 @main
 struct CosmicTraderApp: App {
+
+    // MARK: - App Delegate
+
+    /// Connect the AppDelegate for notification handling
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     // MARK: - State
 

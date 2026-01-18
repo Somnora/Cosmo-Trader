@@ -184,18 +184,15 @@ struct OnboardingView: View {
 
     private var cosmicBackground: some View {
         ZStack {
-            // Base background - matches terminal aesthetic
+            // Base background - solid OLED black for terminal aesthetic
             CosmicTheme.background
                 .ignoresSafeArea()
 
-            // Animated stars
-            AnimatedStarsBackground(isAnimating: isAnimating)
-                .opacity(isAnimating ? 1 : 0)
-
-            // Floating particles for magic effect
+            // Subtle static stars - no animation, very dim
+            // Only on welcome and complete screens for minimal cosmic hint
             if currentStep == .welcome || currentStep == .complete {
-                FloatingParticles()
-                    .opacity(isAnimating ? 0.6 : 0)
+                StaticStarsBackground()
+                    .opacity(0.4)
             }
         }
     }
@@ -274,97 +271,59 @@ struct OnboardingView: View {
 
     private var welcomeContent: some View {
         VStack(spacing: 40) {
-            // Animated zodiac wheel
+            // Clean terminal-style zodiac wheel - no glow, no pulse
             ZStack {
-                // Outer glow rings
-                ForEach(0..<3, id: \.self) { ring in
-                    Circle()
-                        .stroke(
-                            CosmicTheme.gold.opacity(0.1 - Double(ring) * 0.03),
-                            lineWidth: 1
-                        )
-                        .frame(width: 200 + CGFloat(ring) * 40, height: 200 + CGFloat(ring) * 40)
-                        .scaleEffect(pulseAnimation ? 1.05 : 1.0)
-                        .animation(
-                            .easeInOut(duration: 2.0)
-                            .repeatForever(autoreverses: true)
-                            .delay(Double(ring) * 0.3),
-                            value: pulseAnimation
-                        )
-                }
-
-                // Core glow - gold terminal aesthetic
+                // Simple outer ring - single, clean stroke
                 Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                CosmicTheme.gold.opacity(0.4),
-                                CosmicTheme.gold.opacity(0.1),
-                                Color.clear
-                            ],
-                            center: .center,
-                            startRadius: 20,
-                            endRadius: 100
-                        )
-                    )
+                    .stroke(CosmicTheme.gold.opacity(0.3), lineWidth: 1)
                     .frame(width: 200, height: 200)
 
-                // Zodiac symbols orbiting - custom drawn glyphs
+                // Zodiac symbols in a ring - static positions, no animation
                 ForEach(0..<12, id: \.self) { index in
                     let sign = ZodiacSign.allCases[index]
-                    let baseAngle = Double(index) * (360.0 / 12.0) - 90
-                    let animatedAngle = baseAngle + (isAnimating ? 0 : -30)
-                    let radians = animatedAngle * .pi / 180
+                    let angle = Double(index) * (360.0 / 12.0) - 90
+                    let radians = angle * .pi / 180
 
-                    ZodiacSymbolView(sign: sign, size: 20, color: CosmicTheme.gold)
+                    ZodiacSymbolView(sign: sign, size: 16, color: CosmicTheme.gold.opacity(0.6))
                         .offset(
                             x: cos(radians) * 75,
                             y: sin(radians) * 75
                         )
-                        .opacity(isAnimating ? 0.9 : 0)
-                        .animation(
-                            .spring(response: 0.8, dampingFraction: 0.6)
-                            .delay(Double(index) * 0.05),
-                            value: isAnimating
-                        )
+                        .opacity(isAnimating ? 1 : 0)
+                        .animation(.easeOut(duration: 0.4).delay(Double(index) * 0.03), value: isAnimating)
                 }
 
-                // Center sparkle
-                Image(systemName: "sparkle")
-                    .font(.system(size: 44))
-                    .foregroundStyle(CosmicTheme.goldGradient)
-                    .scaleEffect(isAnimating ? 1 : 0.3)
-                    .rotationEffect(.degrees(isAnimating ? 0 : -180))
+                // Center icon - simple, no glow
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 36, weight: .medium))
+                    .foregroundColor(CosmicTheme.gold)
                     .opacity(isAnimating ? 1 : 0)
-                    .animation(.spring(response: 0.8, dampingFraction: 0.5), value: isAnimating)
+                    .animation(.easeOut(duration: 0.5), value: isAnimating)
             }
 
-            // Title and tagline
-            VStack(spacing: 16) {
-                Text("Cosmo Trader")
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
+            // Title and tagline - terminal font style
+            VStack(spacing: 12) {
+                Text("COSMO TRADER")
+                    .font(.system(size: 28, weight: .bold, design: .monospaced))
                     .foregroundColor(CosmicTheme.textPrimary)
                     .opacity(isAnimating ? 1 : 0)
-                    .offset(y: isAnimating ? 0 : 20)
-                    .animation(.easeOut(duration: 0.6).delay(0.3), value: isAnimating)
+                    .animation(.easeOut(duration: 0.4).delay(0.2), value: isAnimating)
 
-                Text("Where Wall Street Meets the Stars")
-                    .font(.title3)
-                    .fontWeight(.medium)
-                    .foregroundStyle(CosmicTheme.goldGradient)
+                Text("Astrological Market Intelligence")
+                    .font(.system(size: 14, weight: .medium, design: .monospaced))
+                    .foregroundColor(CosmicTheme.gold)
                     .opacity(isAnimating ? 1 : 0)
-                    .offset(y: isAnimating ? 0 : 20)
-                    .animation(.easeOut(duration: 0.6).delay(0.4), value: isAnimating)
+                    .animation(.easeOut(duration: 0.4).delay(0.3), value: isAnimating)
             }
 
-            // Description
-            Text("Discover stocks aligned with your cosmic energy.\nInvest with the wisdom of the universe.")
-                .font(.body)
+            // Description - professional tone
+            Text("Match your investment strategy with cosmic cycles.\nData-driven astrology for serious traders.")
+                .font(.system(size: 14, design: .monospaced))
                 .foregroundColor(CosmicTheme.textSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(6)
                 .opacity(isAnimating ? 1 : 0)
-                .animation(.easeOut(duration: 0.6).delay(0.5), value: isAnimating)
+                .animation(.easeOut(duration: 0.4).delay(0.4), value: isAnimating)
         }
     }
 
@@ -874,91 +833,65 @@ struct OnboardingView: View {
     // MARK: - Complete Step
 
     private var completeContent: some View {
-        VStack(spacing: 40) {
-            // Success animation
+        VStack(spacing: 36) {
+            // Clean success display - terminal style
             ZStack {
-                // Expanding rings
-                ForEach(0..<4, id: \.self) { ring in
-                    Circle()
-                        .stroke(CosmicTheme.gold.opacity(0.3 - Double(ring) * 0.07), lineWidth: 2)
-                        .frame(width: 100 + CGFloat(ring) * 50, height: 100 + CGFloat(ring) * 50)
-                        .scaleEffect(pulseAnimation ? 1.1 : 0.9)
-                        .opacity(pulseAnimation ? 0.5 : 1)
-                        .animation(
-                            .easeInOut(duration: 1.5)
-                            .repeatForever(autoreverses: true)
-                            .delay(Double(ring) * 0.2),
-                            value: pulseAnimation
-                        )
-                }
-
-                // Core
+                // Simple outer ring
                 Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                CosmicTheme.gold.opacity(0.5),
-                                previewSign.element.color.opacity(0.3),
-                                Color.clear
-                            ],
-                            center: .center,
-                            startRadius: 20,
-                            endRadius: 80
-                        )
-                    )
+                    .stroke(CosmicTheme.gold.opacity(0.4), lineWidth: 1)
                     .frame(width: 160, height: 160)
 
-                // User sign - custom glyphs
-                VStack(spacing: 8) {
-                    ZodiacSymbolView(sign: previewSign, size: 56, color: previewSign.element.color)
-                    ElementSymbolView(element: previewSign.element, size: 24)
+                // Inner ring with element color
+                Circle()
+                    .stroke(previewSign.element.color.opacity(0.3), lineWidth: 1)
+                    .frame(width: 120, height: 120)
+
+                // User sign - clean display
+                VStack(spacing: 6) {
+                    ZodiacSymbolView(sign: previewSign, size: 44, color: previewSign.element.color)
+                    ElementSymbolView(element: previewSign.element, size: 18)
                 }
             }
 
-            // Completion message
-            VStack(spacing: 16) {
-                Text("Your Cosmic Portfolio Awaits")
-                    .font(.title)
-                    .fontWeight(.bold)
+            // Completion message - terminal style
+            VStack(spacing: 12) {
+                Text("SETUP COMPLETE")
+                    .font(.system(size: 24, weight: .bold, design: .monospaced))
                     .foregroundColor(CosmicTheme.textPrimary)
-                    .multilineTextAlignment(.center)
 
-                Text("Welcome, \(userName)!")
-                    .font(.title3)
-                    .foregroundStyle(CosmicTheme.goldGradient)
+                Text("Welcome, \(userName)")
+                    .font(.system(size: 16, weight: .medium, design: .monospaced))
+                    .foregroundColor(CosmicTheme.gold)
 
                 if let stock = selectedStock {
-                    Text("\(stock.symbol) has been added to your portfolio")
-                        .font(.subheadline)
+                    Text("\(stock.symbol) added to portfolio")
+                        .font(.system(size: 13, design: .monospaced))
                         .foregroundColor(CosmicTheme.textSecondary)
                 }
             }
 
-            // Ready message
-            Text("The stars are aligned. Let's begin your cosmic trading journey.")
-                .font(.body)
+            // Status message
+            Text("Your \(previewSign.displayName) trading profile is ready.")
+                .font(.system(size: 13, design: .monospaced))
                 .foregroundColor(CosmicTheme.textMuted)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 20)
 
-            // Enter button
+            // Enter button - clean, no shadow glow
             Button(action: completeOnboarding) {
-                HStack(spacing: 12) {
-                    Text("Enter the Cosmos")
-                        .font(.headline)
-                        .fontWeight(.bold)
+                HStack(spacing: 10) {
+                    Text("Launch Terminal")
+                        .font(.system(size: 15, weight: .semibold, design: .monospaced))
 
-                    Image(systemName: "arrow.right.circle.fill")
-                        .font(.title3)
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 14, weight: .semibold))
                 }
                 .foregroundColor(CosmicTheme.background)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 18)
-                .background(CosmicTheme.goldGradient)
-                .cornerRadius(16)
-                .shadow(color: CosmicTheme.gold.opacity(0.4), radius: 15, x: 0, y: 8)
+                .padding(.vertical, 16)
+                .background(CosmicTheme.gold)
+                .cornerRadius(8)
             }
-            .padding(.top, 20)
+            .padding(.top, 16)
         }
     }
 
@@ -1184,21 +1117,18 @@ struct StockMatchCard: View {
     }
 }
 
-// MARK: - Animated Stars Background
+// MARK: - Static Stars Background
+// Simplified, non-animated star field for subtle cosmic hint
 
-struct AnimatedStarsBackground: View {
-    let isAnimating: Bool
-    @State private var twinkle: Bool = false
-
+struct StaticStarsBackground: View {
     var body: some View {
         Canvas { context, size in
-            for i in 0..<100 {
+            // Fewer stars, smaller, dimmer - subtle terminal aesthetic
+            for i in 0..<40 {
                 let x = pseudoRandom(seed: i * 3) * size.width
                 let y = pseudoRandom(seed: i * 3 + 1) * size.height
-                let starSize = 1.0 + pseudoRandom(seed: i * 3 + 2) * 2.5
-                let baseBrightness = 0.2 + pseudoRandom(seed: i * 3 + 3) * 0.5
-                let twinkleFactor = twinkle ? (0.7 + pseudoRandom(seed: i) * 0.3) : 1.0
-                let brightness = baseBrightness * twinkleFactor
+                let starSize = 0.5 + pseudoRandom(seed: i * 3 + 2) * 1.0
+                let brightness = 0.1 + pseudoRandom(seed: i * 3 + 3) * 0.2
 
                 let rect = CGRect(
                     x: x - starSize / 2,
@@ -1213,11 +1143,6 @@ struct AnimatedStarsBackground: View {
                 )
             }
         }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true)) {
-                twinkle = true
-            }
-        }
     }
 
     private func pseudoRandom(seed: Int) -> CGFloat {
@@ -1226,46 +1151,22 @@ struct AnimatedStarsBackground: View {
     }
 }
 
-// MARK: - Floating Particles
+// MARK: - Animated Stars Background (kept for compatibility)
 
-struct FloatingParticles: View {
-    @State private var animate: Bool = false
+struct AnimatedStarsBackground: View {
+    let isAnimating: Bool
 
     var body: some View {
-        Canvas { context, size in
-            for i in 0..<20 {
-                let baseX = pseudoRandom(seed: i * 4) * size.width
-                let baseY = pseudoRandom(seed: i * 4 + 1) * size.height
-                let particleSize = 2.0 + pseudoRandom(seed: i * 4 + 2) * 3.0
-                let floatOffset = animate ? pseudoRandom(seed: i * 4 + 3) * 20 : 0
-
-                let rect = CGRect(
-                    x: baseX - particleSize / 2,
-                    y: baseY - particleSize / 2 - floatOffset,
-                    width: particleSize,
-                    height: particleSize
-                )
-
-                context.fill(
-                    Circle().path(in: rect),
-                    with: .color(Color(
-                        red: 1.0,
-                        green: 0.85 + pseudoRandom(seed: i) * 0.15,
-                        blue: 0.4
-                    ).opacity(0.3 + pseudoRandom(seed: i * 2) * 0.3))
-                )
-            }
-        }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) {
-                animate = true
-            }
-        }
+        StaticStarsBackground()
     }
+}
 
-    private func pseudoRandom(seed: Int) -> CGFloat {
-        let x = sin(Double(seed) * 12.9898 + 78.233) * 43758.5453
-        return CGFloat(x - floor(x))
+// MARK: - Floating Particles (kept for compatibility, but simplified)
+
+struct FloatingParticles: View {
+    var body: some View {
+        // Removed floating particles - too magical for terminal aesthetic
+        EmptyView()
     }
 }
 

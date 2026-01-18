@@ -97,7 +97,9 @@ final class StoreKitManager {
         } catch {
             lastError = .productLoadFailed(error)
             isLoading = false
+            #if DEBUG
             print("[StoreKit] Failed to load products: \(error.localizedDescription)")
+            #endif
         }
     }
 
@@ -183,7 +185,9 @@ final class StoreKitManager {
             return hasActiveSubscription
         } catch {
             lastError = .restoreFailed(error)
+            #if DEBUG
             print("[StoreKit] Failed to restore purchases: \(error.localizedDescription)")
+            #endif
             return false
         }
     }
@@ -212,12 +216,16 @@ final class StoreKitManager {
                             // Find the corresponding product
                             purchasedSubscription = products.first { $0.id == transaction.productID }
 
+                            #if DEBUG
                             print("[StoreKit] Active subscription found: \(transaction.productID), expires: \(expirationDate)")
+                            #endif
                         }
                     }
                 }
             } catch {
+                #if DEBUG
                 print("[StoreKit] Transaction verification failed: \(error)")
+                #endif
             }
         }
 
@@ -246,7 +254,9 @@ final class StoreKitManager {
                 }
             }
         } catch {
+            #if DEBUG
             print("[StoreKit] Failed to get renewal info: \(error)")
+            #endif
         }
 
         return nil

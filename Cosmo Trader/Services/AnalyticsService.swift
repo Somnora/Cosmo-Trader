@@ -296,6 +296,7 @@ final class AnalyticsService {
     // MARK: - Private Helpers
 
     private func logEvent(_ event: AnalyticsEvent, params: AnalyticsParameters?, timestamp: Date) {
+        #if DEBUG
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss.SSS"
         let timeString = formatter.string(from: timestamp)
@@ -307,6 +308,7 @@ final class AnalyticsService {
         }
 
         print(logMessage)
+        #endif
     }
 
     private func log(_ message: String) {

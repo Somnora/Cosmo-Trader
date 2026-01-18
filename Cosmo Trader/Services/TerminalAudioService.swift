@@ -126,7 +126,9 @@ final class TerminalAudioService {
             try session.setActive(true)
             isAudioAvailable = true
         } catch {
+            #if DEBUG
             print("⚠️ Terminal Audio: Failed to setup audio session: \(error)")
+            #endif
             isAudioAvailable = false
         }
     }
@@ -327,7 +329,9 @@ final class ToneGenerator {
             try audioEngine.start()
             isRunning = true
         } catch {
+            #if DEBUG
             print("⚠️ Terminal Audio: Failed to start audio engine: \(error)")
+            #endif
             isRunning = false
         }
     }
@@ -341,7 +345,9 @@ final class ToneGenerator {
             isRunning = true
             return true
         } catch {
+            #if DEBUG
             print("⚠️ Terminal Audio: Failed to restart audio engine: \(error)")
+            #endif
             return false
         }
     }

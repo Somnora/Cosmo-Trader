@@ -78,6 +78,9 @@ struct PortfolioView: View {
         )
     }
 
+    /// Show search sheet
+    @State private var showSearch: Bool = false
+
     // MARK: - Body
 
     var body: some View {
@@ -144,11 +147,25 @@ struct PortfolioView: View {
                         .foregroundColor(CosmicTheme.textSecondary)
                         .tracking(2)
                 }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showSearch = true
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(CosmicTheme.gold)
+                    }
+                }
             }
             .toolbarBackground(CosmicTheme.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .navigationDestination(item: $selectedStock) { stock in
                 StockDetailView(stock: stock)
+            }
+            .sheet(isPresented: $showSearch) {
+                SearchView()
+                    .environment(appState)
             }
         }
         .task {

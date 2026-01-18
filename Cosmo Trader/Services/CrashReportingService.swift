@@ -405,7 +405,9 @@ final class CrashReportingService {
     /// Debug logging
     private func logDebug(_ message: String) {
         #if DEBUG
+        #if DEBUG
         print("💥 [Crashlytics] \(message)")
+        #endif
         #endif
     }
 }

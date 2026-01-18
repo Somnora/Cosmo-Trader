@@ -1508,7 +1508,9 @@ struct DataExportShareSheet: UIViewControllerRepresentable {
         do {
             try data.write(to: tempURL)
         } catch {
+            #if DEBUG
             print("[Export] Failed to write temp file: \(error)")
+            #endif
         }
 
         let activityVC = UIActivityViewController(
