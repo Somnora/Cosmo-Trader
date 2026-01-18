@@ -47,7 +47,7 @@ struct ProfileView: View {
 
                 if viewModel != nil {
                     ScrollView(showsIndicators: false) {
-                        VStack(spacing: 24) {
+                        LazyVStack(spacing: 24) {
                             // 1. User header with zodiac prominently displayed
                             userHeader
 

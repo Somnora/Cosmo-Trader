@@ -415,15 +415,25 @@ struct DiscoverView: View {
                 )
                 .frame(height: 560)
                 .padding(.horizontal, 20)
-                .scaleEffect(scale)
+                .scaleEffect(isTop ? cardScale : scale)
                 .offset(y: offset)
                 .offset(x: isTop ? dragOffset.width : 0, y: isTop ? dragOffset.height : 0)
                 .rotationEffect(.degrees(isTop ? dragRotation : 0))
                 .gesture(isTop ? dragGesture(for: card) : nil)
-                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: dragOffset)
+                .animation(.interactiveSpring(response: 0.3, dampingFraction: 0.7), value: dragOffset)
             }
+
+            // Swipe indicator overlay (shows LIKE/SKIP during drag)
+            SwipeIndicatorOverlay(offset: dragOffset.width, threshold: swipeThreshold)
+                .allowsHitTesting(false)
         }
         .padding(.top, 8)
+    }
+
+    /// Card scale during drag (slight shrink for depth effect)
+    private var cardScale: CGFloat {
+        let progress = abs(dragOffset.width) / 200
+        return 1.0 - (progress * 0.03)
     }
 
     // MARK: - Drag Gesture
@@ -603,6 +613,7 @@ struct DiscoverView: View {
                     .foregroundColor(color)
             }
         }
+        .buttonStyle(.bouncy)
         .accessibilityLabel(accessibilityLabel)
         .shadow(color: color.opacity(0.2), radius: 8, x: 0, y: 4)
     }

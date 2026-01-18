@@ -75,7 +75,8 @@ final class NetworkMonitor {
 
     private func startMonitoring() {
         monitor.pathUpdateHandler = { [weak self] path in
-            Task { @MainActor in
+            guard let self = self else { return }
+            Task { @MainActor [weak self] in
                 self?.updateStatus(from: path)
             }
         }
