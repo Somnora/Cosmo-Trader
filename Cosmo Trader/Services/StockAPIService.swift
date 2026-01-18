@@ -150,10 +150,23 @@ final class StockAPIService: ObservableObject {
     func getQuote(symbol: String) async throws -> StockQuote {
         let upperSymbol = symbol.uppercased()
 
-        // Check cache first
+        // Check cache first (fresh cache always preferred)
         if let cached = getCachedQuote(for: upperSymbol), !cached.isExpired {
             log("📦 Cache hit for \(upperSymbol) (age: \(cached.formattedAge))")
             return cached.quote
+        }
+
+        // Check network connectivity
+        guard NetworkMonitor.shared.isConnected else {
+            // Offline - try to return stale cache if available
+            if let staleCache = getCachedQuote(for: upperSymbol) {
+                log("📦 Offline - returning stale cache for \(upperSymbol) (age: \(staleCache.formattedAge))")
+                isOfflineMode = true
+                return staleCache.quote
+            }
+            // No cache available
+            isOfflineMode = true
+            throw NetworkError.noConnection
         }
 
         // Throttle requests
@@ -279,6 +292,51 @@ final class StockAPIService: ObservableObject {
             }
             return (nil, false, mapError(error))
         }
+    }
+
+    /// Get all cached quotes (for offline mode)
+    /// Returns quotes even if expired, for offline viewing
+    func getAllCachedQuotes() -> [String: CachedQuote] {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        return quoteCache
+    }
+
+    /// Get cached quotes for specific symbols (for offline portfolio)
+    func getCachedQuotes(for symbols: [String]) -> [String: StockQuote] {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+
+        var results: [String: StockQuote] = [:]
+        for symbol in symbols {
+            if let cached = quoteCache[symbol.uppercased()] {
+                results[symbol.uppercased()] = cached.quote
+            }
+        }
+        return results
+    }
+
+    /// Check if we have cached data for a symbol
+    func hasCachedData(for symbol: String) -> Bool {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        return quoteCache[symbol.uppercased()] != nil
+    }
+
+    /// Get the oldest cache timestamp (for "data as of" display)
+    func oldestCacheTimestamp(for symbols: [String]) -> Date? {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+
+        var oldest: Date?
+        for symbol in symbols {
+            if let cached = quoteCache[symbol.uppercased()] {
+                if oldest == nil || cached.timestamp < oldest! {
+                    oldest = cached.timestamp
+                }
+            }
+        }
+        return oldest
     }
 
     /// Clear all cached quotes

@@ -11,6 +11,8 @@ struct ReferralView: View {
     @State private var showingShareSheet = false
     @State private var showingLeaderboard = false
     @State private var copiedCode = false
+    @State private var showRewardAlert = false
+    @State private var rewardDaysClaimed = 0
 
     var body: some View {
         NavigationStack {
@@ -53,6 +55,11 @@ struct ReferralView: View {
             }
             .sheet(isPresented: $showingLeaderboard) {
                 ReferralLeaderboardView()
+            }
+            .alert("Rewards Claimed!", isPresented: $showRewardAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("You've unlocked \(rewardDaysClaimed) days of free Oracle Tier! Enjoy your cosmic upgrade. ✨")
             }
         }
     }
@@ -454,8 +461,12 @@ struct ReferralView: View {
     private func claimRewards() {
         let days = referralService.availableRewardDays
         if referralService.redeemRewardDays(days) {
-            // Show success
-            // TODO: Show confirmation alert
+            rewardDaysClaimed = days
+            showRewardAlert = true
+
+            // Haptic feedback for success
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
         }
     }
 }

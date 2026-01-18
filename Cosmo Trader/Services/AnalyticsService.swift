@@ -79,6 +79,12 @@ enum AnalyticsEvent: String {
     case subscriptionRestored = "subscription_restored"
     case featureGated = "feature_gated"
 
+    // MARK: Referral
+    case referralCodeUsed = "referral_code_used"
+    case referralCompleted = "referral_completed"
+    case referralRewardRedeemed = "referral_reward_redeemed"
+    case referralRewardApplied = "referral_reward_applied"
+
     // MARK: Settings
     case settingsViewed = "settings_viewed"
     case notificationToggled = "notification_toggled"

@@ -29,7 +29,11 @@ struct ContentView: View {
     // MARK: - Body
 
     var body: some View {
-        TabView(selection: selectedTab) {
+        VStack(spacing: 0) {
+            // Offline banner at top of screen
+            OfflineBanner()
+
+            TabView(selection: selectedTab) {
             // Portfolio Tab - Home/main view
             PortfolioView()
                 .tabItem {
@@ -79,6 +83,7 @@ struct ContentView: View {
             AnalyticsService.shared.trackTabSwitch(newTab.analyticsName)
             // Play tab switch sound
             audioService.playTabSwitch()
+        }
         }
     }
 

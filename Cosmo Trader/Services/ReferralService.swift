@@ -194,8 +194,8 @@ final class ReferralService {
         redeemedRewardDays += days
         saveToStorage()
 
-        // TODO: Integrate with SubscriptionManager to extend trial/subscription
-        // SubscriptionManager.shared.extendTrial(byDays: days)
+        // Extend the user's trial/subscription with the referral reward
+        SubscriptionManager.shared.extendTrial(byDays: days)
 
         AnalyticsService.shared.track(.referralRewardRedeemed, params: AnalyticsParameters([
             "days_redeemed": days
@@ -331,9 +331,8 @@ enum ReferralResult {
 // MARK: - Analytics Events Extension
 
 extension AnalyticsEvent {
-    static let referralCodeUsed = AnalyticsEvent(rawValue: "referral_code_used")!
-    static let referralCompleted = AnalyticsEvent(rawValue: "referral_completed")!
-    static let referralRewardRedeemed = AnalyticsEvent(rawValue: "referral_reward_redeemed")!
+    // Note: Main referral events (referralCodeUsed, referralCompleted, referralRewardRedeemed, referralRewardApplied)
+    // are defined in AnalyticsService.swift AnalyticsEvent enum
     static let referralShareTapped = AnalyticsEvent(rawValue: "referral_share_tapped")!
 }
 

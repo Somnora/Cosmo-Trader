@@ -1165,8 +1165,7 @@ struct StockDetailView: View {
 
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Share") {
-                        // TODO: Implement actual share
-                        showShareSheet = false
+                        shareStock()
                     }
                     .foregroundColor(CosmicTheme.gold)
                 }
@@ -1234,6 +1233,44 @@ struct StockDetailView: View {
                 endPoint: .bottom
             )
         }
+    }
+
+    // MARK: - Share
+
+    private func shareStock() {
+        let zodiacSign = stock.zodiacSign
+
+        // Create shareable text
+        let shareText = """
+        Check out $\(stock.symbol) on Cosmo Trader! 🌟
+
+        \(stock.name)
+        Price: \(stock.formattedPrice)
+        Zodiac: \(zodiacSign.symbol) \(zodiacSign.rawValue)
+        My Compatibility: \(compatibility.score)%
+
+        Download Cosmo Trader to find stocks written in your stars ✨
+        """
+
+        // Create share activity
+        let activityVC = UIActivityViewController(
+            activityItems: [shareText],
+            applicationActivities: nil
+        )
+
+        // Present
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first,
+           let rootVC = window.rootViewController {
+            // Find the topmost presented controller
+            var topController = rootVC
+            while let presented = topController.presentedViewController {
+                topController = presented
+            }
+            topController.present(activityVC, animated: true)
+        }
+
+        showShareSheet = false
     }
 }
 

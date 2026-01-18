@@ -190,6 +190,41 @@ final class SubscriptionManager {
         UserDefaults.standard.bool(forKey: Keys.trialUsed)
     }
 
+    /// Extend trial/subscription by specified days (for referral rewards)
+    /// This works by either:
+    /// - Extending an active trial's end date
+    /// - Starting a new promotional period if no trial exists
+    func extendTrial(byDays days: Int) {
+        guard days > 0 else { return }
+
+        // If currently in trial, extend it by adjusting the start date backwards
+        // This effectively adds more days to the remaining trial
+        if let currentStartDate = UserDefaults.standard.object(forKey: Keys.trialStartDate) as? Date {
+            // Move start date backwards by the reward days to extend the trial
+            let newStartDate = Calendar.current.date(byAdding: .day, value: -days, to: currentStartDate) ?? currentStartDate
+            UserDefaults.standard.set(newStartDate, forKey: Keys.trialStartDate)
+        } else {
+            // No trial started - start one with extended duration
+            // Set start date in the past to simulate extra days
+            let extendedStartDate = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+            UserDefaults.standard.set(extendedStartDate, forKey: Keys.trialStartDate)
+            UserDefaults.standard.set(true, forKey: Keys.trialUsed)
+        }
+
+        // Refresh trial status
+        checkTrialStatus()
+
+        #if DEBUG
+        print("[Subscription] Trial extended by \(days) days. Remaining: \(trialDaysRemaining)")
+        #endif
+
+        // Track analytics
+        AnalyticsService.shared.track(.referralRewardApplied, params: AnalyticsParameters([
+            "reward_days": days,
+            "new_trial_days_remaining": trialDaysRemaining
+        ]))
+    }
+
     /// Check if trial is still active
     private func checkTrialStatus() {
         guard let startDate = UserDefaults.standard.object(forKey: Keys.trialStartDate) as? Date else {
