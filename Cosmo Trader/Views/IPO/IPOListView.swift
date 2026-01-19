@@ -21,8 +21,17 @@ struct IPOListView: View {
 
     // MARK: - Computed
 
-    private var user: UserProfile {
-        appState.currentUser ?? .sampleWithHoldings
+    private var user: UserProfile? {
+        appState.currentUser
+    }
+
+    /// Safe user access for sorting (only call when user is known to exist)
+    private var safeUser: UserProfile {
+        appState.currentUser ?? UserProfile(
+            displayName: "",
+            email: "",
+            birthDate: Date()
+        )
     }
 
     private var filteredIPOs: [IPO] {
@@ -44,7 +53,7 @@ struct IPOListView: View {
         }
 
         // Sort
-        return ipoService.sortIPOs(ipos, by: sortOption, user: user)
+        return ipoService.sortIPOs(ipos, by: sortOption, user: safeUser)
     }
 
     private var thisWeekIPOs: [IPO] {
@@ -191,7 +200,7 @@ struct IPOListView: View {
                 )
 
                 statBadge(
-                    value: "\(ipoService.getHighlyCompatibleIPOs(for: user).count)",
+                    value: "\(ipoService.getHighlyCompatibleIPOs(for: safeUser).count)",
                     label: "High Match"
                 )
             }
@@ -217,7 +226,7 @@ struct IPOListView: View {
 
     @ViewBuilder
     private var ipoAlertsSection: some View {
-        let alerts = ipoService.getIPOAlerts(for: user)
+        let alerts = ipoService.getIPOAlerts(for: safeUser)
 
         if !alerts.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
@@ -363,7 +372,7 @@ struct IPOListView: View {
                 ForEach(ipos) { ipo in
                     IPORowView(
                         ipo: ipo,
-                        compatibility: ipo.compatibility(with: user),
+                        compatibility: ipo.compatibility(with: safeUser),
                         onTap: { selectedIPO = ipo }
                     )
                 }

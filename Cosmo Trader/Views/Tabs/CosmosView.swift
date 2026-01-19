@@ -199,25 +199,27 @@ struct CosmosView: View {
                 .fontWeight(.bold)
                 .foregroundColor(CosmicTheme.textPrimary)
 
-            // User sign badge
-            HStack(spacing: 6) {
-                ZodiacSymbolView(sign: viewModel.user.sunSign, size: 20, color: CosmicTheme.gold)
+            // User sign badge (only if user exists)
+            if let user = viewModel.user {
+                HStack(spacing: 6) {
+                    ZodiacSymbolView(sign: user.sunSign, size: 20, color: CosmicTheme.gold)
 
-                Text(viewModel.user.sunSign.displayName)
-                    .font(TerminalFont.data(13))
-                    .fontWeight(.semibold)
-                    .foregroundColor(CosmicTheme.gold)
+                    Text(user.sunSign.displayName)
+                        .font(TerminalFont.data(13))
+                        .fontWeight(.semibold)
+                        .foregroundColor(CosmicTheme.gold)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule()
+                        .fill(CosmicTheme.cardBackground)
+                        .overlay(
+                            Capsule()
+                                .stroke(CosmicTheme.gold.opacity(0.3), lineWidth: 1)
+                        )
+                )
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(CosmicTheme.cardBackground)
-                    .overlay(
-                        Capsule()
-                            .stroke(CosmicTheme.gold.opacity(0.3), lineWidth: 1)
-                    )
-            )
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
@@ -286,13 +288,15 @@ struct CosmosView: View {
 
                 Spacer()
 
-                // Large zodiac symbol
-                ZStack {
-                    Circle()
-                        .fill(CosmicTheme.gold.opacity(0.15))
-                        .frame(width: 60, height: 60)
+                // Large zodiac symbol (only if user exists)
+                if let user = viewModel.user {
+                    ZStack {
+                        Circle()
+                            .fill(CosmicTheme.gold.opacity(0.15))
+                            .frame(width: 60, height: 60)
 
-                    ZodiacSymbolView(sign: viewModel.user.sunSign, size: 32, color: CosmicTheme.gold)
+                        ZodiacSymbolView(sign: user.sunSign, size: 32, color: CosmicTheme.gold)
+                    }
                 }
             }
 
@@ -709,7 +713,7 @@ struct CosmosView: View {
     private var weeklyZodiacPerformanceSection: some View {
         let leaderboard = ZodiacPerformanceService.getLeaderboard(stocks: MockStockData.all)
         let topThree = leaderboard.prefix(3)
-        let userSign = viewModel.user.sunSign
+        let userSign = viewModel.user?.sunSign ?? .aries
         let performances = leaderboard.map { $0.performance }
         let commentary = ZodiacPerformanceService.generateWeeklyCommentary(performances: performances, userSign: userSign)
 
@@ -820,7 +824,7 @@ struct CosmosView: View {
     // MARK: - Option Expiry Section
 
     private var optionExpirySection: some View {
-        OptionExpiryView(userSign: viewModel.user.sunSign)
+        OptionExpiryView(userSign: viewModel.user?.sunSign ?? .aries)
     }
 
     // MARK: - Card Background

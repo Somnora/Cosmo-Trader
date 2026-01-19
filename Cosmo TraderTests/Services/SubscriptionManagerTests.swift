@@ -298,8 +298,11 @@ struct SubscriptionExpirationTests {
 
     @Test("Days until expiration calculation")
     func daysUntilExpirationCalculation() {
-        let expirationDate = Date().addingTimeInterval(5 * 24 * 60 * 60) // 5 days from now
-        let days = Calendar.current.dateComponents([.day], from: Date(), to: expirationDate).day
+        // Use calendar-based date addition for accurate day calculation
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let expirationDate = calendar.date(byAdding: .day, value: 5, to: today)!
+        let days = calendar.dateComponents([.day], from: today, to: expirationDate).day
 
         #expect(days == 5)
     }

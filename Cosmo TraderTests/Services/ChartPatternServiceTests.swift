@@ -401,15 +401,16 @@ struct HammerPatternDetectionTests {
     func hammerDetectedLongLowerWick() {
         let open = 100.0
         let close = 101.0
-        let high = 102.0
-        let low = 90.0 // Long lower wick
+        let high = 101.4  // Small upper wick (< 0.5 of body)
+        let low = 90.0    // Long lower wick
 
-        let bodySize = abs(close - open)
-        let bodyTop = max(open, close)
-        let bodyBottom = min(open, close)
-        let lowerWick = bodyBottom - low
-        let upperWick = high - bodyTop
+        let bodySize = abs(close - open)  // = 1.0
+        let bodyTop = max(open, close)    // = 101.0
+        let bodyBottom = min(open, close) // = 100.0
+        let lowerWick = bodyBottom - low  // = 10.0
+        let upperWick = high - bodyTop    // = 0.4
 
+        // Hammer: small body, long lower wick (>2x body), small upper wick (<0.5x body)
         let isHammer = bodySize > 0 && lowerWick > bodySize * 2 && upperWick < bodySize * 0.5
 
         #expect(isHammer == true)
@@ -443,7 +444,7 @@ struct ShootingStarPatternDetectionTests {
         let open = 100.0
         let close = 99.0
         let high = 110.0 // Long upper wick
-        let low = 98.0
+        let low = 98.6 // Small lower wick (0.4) < bodySize * 0.5 (0.5)
 
         let bodySize = abs(close - open)
         let bodyTop = max(open, close)

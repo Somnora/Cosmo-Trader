@@ -125,12 +125,6 @@ enum AnalyticsEvent: String {
     case offlineDetected = "offline_detected"
 }
 
-// MARK: - Audio/Theme Events
-extension AnalyticsEvent {
-    static let terminalAudioEnabled = AnalyticsEvent(rawValue: "terminal_audio_enabled")!
-    static let terminalAudioDisabled = AnalyticsEvent(rawValue: "terminal_audio_disabled")!
-}
-
 // MARK: - Event Parameters
 
 struct AnalyticsParameters {

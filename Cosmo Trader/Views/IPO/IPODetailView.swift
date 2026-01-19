@@ -16,17 +16,26 @@ struct IPODetailView: View {
 
     // MARK: - Computed
 
-    private var user: UserProfile {
-        appState.currentUser ?? .sampleWithHoldings
+    private var user: UserProfile? {
+        appState.currentUser
+    }
+
+    /// Safe user access for rendering
+    private var safeUser: UserProfile {
+        appState.currentUser ?? UserProfile(
+            displayName: "",
+            email: "",
+            birthDate: Date()
+        )
     }
 
     private var compatibility: IPOCompatibilityResult {
-        ipo.compatibility(with: user)
+        ipo.compatibility(with: safeUser)
     }
 
     private var isOnWatchlist: Bool {
         guard let ticker = ipo.ticker else { return false }
-        return user.watchlist.contains(ticker)
+        return safeUser.watchlist.contains(ticker)
     }
 
     // MARK: - State
@@ -371,7 +380,7 @@ struct IPODetailView: View {
     private var elementSynergyCard: some View {
         HStack(spacing: 12) {
             HStack(spacing: 8) {
-                ElementSymbolView(element: user.sunSign.element, size: 20)
+                ElementSymbolView(element: safeUser.sunSign.element, size: 20)
                 Text("+")
                     .font(TerminalFont.data(14))
                     .foregroundColor(CosmicTheme.textMuted)
@@ -379,7 +388,7 @@ struct IPODetailView: View {
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(user.sunSign.element.displayName) + \(ipo.zodiacSign.element.displayName)")
+                Text("\(safeUser.sunSign.element.displayName) + \(ipo.zodiacSign.element.displayName)")
                     .font(TerminalFont.data(11, weight: .semibold))
                     .foregroundColor(CosmicTheme.textPrimary)
 

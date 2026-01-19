@@ -49,24 +49,26 @@ class ProfileViewModel {
 
     init(appState: AppState = AppState.shared) {
         self.appState = appState
-        let currentUser = appState.currentUser ?? .sampleWithHoldings
-        self.editingName = currentUser.displayName
-        self.editingBirthDate = currentUser.birthDate
-        self.editingTimeOfBirth = currentUser.timeOfBirth
-        self.knowsBirthTime = currentUser.timeOfBirth != nil
+        if let currentUser = appState.currentUser {
+            self.editingName = currentUser.displayName
+            self.editingBirthDate = currentUser.birthDate
+            self.editingTimeOfBirth = currentUser.timeOfBirth
+            self.knowsBirthTime = currentUser.timeOfBirth != nil
+        }
     }
 
     // MARK: - User Access
 
-    /// The current user's profile
-    var user: UserProfile {
-        appState.currentUser ?? .sampleWithHoldings
+    /// The current user's profile (nil if not logged in)
+    var user: UserProfile? {
+        appState.currentUser
     }
 
     // MARK: - User Display Properties
 
     /// Fun title based on sign and element
     var cosmicTitle: String {
+        guard let user = user else { return "Cosmic Investor" }
         let element = user.sunSign.element.displayName
         let sign = user.sunSign.displayName
         let titles = [
@@ -82,6 +84,7 @@ class ProfileViewModel {
 
     /// Formatted birth date
     var formattedBirthDate: String {
+        guard let user = user else { return "" }
         let formatter = DateFormatter()
         formatter.dateStyle = .long
         return formatter.string(from: user.birthDate)
@@ -89,6 +92,7 @@ class ProfileViewModel {
 
     /// Member since formatted
     var memberSinceFormatted: String {
+        guard let user = user else { return "" }
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         return formatter.string(from: user.memberSince)
@@ -96,6 +100,7 @@ class ProfileViewModel {
 
     /// Cosmic journey duration
     var cosmicJourneyDuration: String {
+        guard let user = user else { return "" }
         let calendar = Calendar.current
         let components = calendar.dateComponents([.year, .month, .day], from: user.memberSince, to: Date())
 
@@ -114,6 +119,7 @@ class ProfileViewModel {
 
     /// Strengths based on sun sign
     var investorStrengths: [String] {
+        guard let user = user else { return [] }
         switch user.sunSign {
         case .aries:
             return ["Bold decision-making", "First-mover advantage", "High risk tolerance"]
@@ -144,6 +150,7 @@ class ProfileViewModel {
 
     /// Weaknesses based on sun sign
     var investorWeaknesses: [String] {
+        guard let user = user else { return [] }
         switch user.sunSign {
         case .aries:
             return ["Impatient with slow gains", "Overtrading tendency", "Ignores red flags"]
@@ -174,11 +181,12 @@ class ProfileViewModel {
 
     /// Best stock sign matches
     var bestMatches: [ZodiacSign] {
-        user.sunSign.compatibleSigns
+        user?.sunSign.compatibleSigns ?? []
     }
 
     /// Challenging stock sign matches
     var challengingMatches: [ZodiacSign] {
+        guard let user = user else { return [] }
         let allSigns = ZodiacSign.allCases
         let compatible = Set(user.sunSign.compatibleSigns)
         return allSigns.filter { !compatible.contains($0) && $0 != user.sunSign }.prefix(4).map { $0 }
@@ -188,32 +196,35 @@ class ProfileViewModel {
 
     /// Formatted total portfolio value
     var formattedPortfolioValue: String {
-        formatCurrency(user.totalPortfolioValue)
+        guard let user = user else { return "$0" }
+        return formatCurrency(user.totalPortfolioValue)
     }
 
     /// Formatted daily change
     var formattedDailyChange: String {
+        guard let user = user else { return "$0" }
         let sign = user.totalDailyChange >= 0 ? "+" : ""
         return sign + formatCurrency(user.totalDailyChange)
     }
 
     /// Formatted daily change percent
     var formattedDailyChangePercent: String {
-        user.formattedDailyChangePercent
+        user?.formattedDailyChangePercent ?? "0%"
     }
 
     /// Is portfolio positive today?
     var isPositive: Bool {
-        user.isPortfolioPositive
+        user?.isPortfolioPositive ?? true
     }
 
     /// Number of holdings
     var holdingsCount: Int {
-        user.numberOfHoldings
+        user?.numberOfHoldings ?? 0
     }
 
     /// Dominant element in portfolio
     var dominantElement: ZodiacSign.Element? {
+        guard let user = user else { return nil }
         let holdings = user.portfolio.filter { $0.sharesOwned > 0 }
         guard !holdings.isEmpty else { return nil }
 
@@ -228,6 +239,7 @@ class ProfileViewModel {
 
     /// Most compatible stock in portfolio
     var mostCompatibleStock: Stock? {
+        guard let user = user else { return nil }
         let holdings = user.portfolio.filter { $0.sharesOwned > 0 }
         return holdings.max(by: {
             user.compatibility(with: $0).score < user.compatibility(with: $1).score
@@ -236,6 +248,7 @@ class ProfileViewModel {
 
     /// Least compatible stock in portfolio
     var leastCompatibleStock: Stock? {
+        guard let user = user else { return nil }
         let holdings = user.portfolio.filter { $0.sharesOwned > 0 }
         return holdings.min(by: {
             user.compatibility(with: $0).score < user.compatibility(with: $1).score
@@ -244,8 +257,9 @@ class ProfileViewModel {
 
     /// All-time gain/loss (mocked for now)
     var allTimeGainLoss: Double {
+        guard let user = user else { return 0 }
         // Mock: assume 15% gain on portfolio
-        user.totalPortfolioValue * 0.15
+        return user.totalPortfolioValue * 0.15
     }
 
     var formattedAllTimeGainLoss: String {
@@ -257,6 +271,7 @@ class ProfileViewModel {
 
     /// Start editing profile
     func startEditing() {
+        guard let user = user else { return }
         editingName = user.displayName
         editingBirthDate = user.birthDate
         editingTimeOfBirth = user.timeOfBirth
@@ -266,6 +281,7 @@ class ProfileViewModel {
 
     /// Save profile changes
     func saveProfile() {
+        guard let user = user else { return }
         appState.updateDisplayName(editingName)
 
         // Check if birth date changed (this will recalculate sun sign)
@@ -284,6 +300,7 @@ class ProfileViewModel {
 
     /// Cancel editing
     func cancelEditing() {
+        guard let user = user else { return }
         editingName = user.displayName
         editingBirthDate = user.birthDate
         editingTimeOfBirth = user.timeOfBirth
@@ -300,7 +317,8 @@ class ProfileViewModel {
 
     /// Generate shareable profile text
     var shareableProfileText: String {
-        """
+        guard let user = user else { return "" }
+        return """
         My Cosmic Investor Profile
 
         \(user.sunSign.symbol) \(user.sunSign.displayName) Investor

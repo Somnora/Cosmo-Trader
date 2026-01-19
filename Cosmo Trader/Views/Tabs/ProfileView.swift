@@ -32,9 +32,18 @@ struct ProfileView: View {
 
     // MARK: - Computed Properties
 
-    /// Access user directly from appState for simpler bindings
-    private var user: UserProfile {
-        appState.currentUser ?? .sampleWithHoldings
+    /// Access user directly from appState for simpler bindings (nil if not logged in)
+    private var user: UserProfile? {
+        appState.currentUser
+    }
+
+    /// Safe user access for rendering (only call when user is known to exist)
+    private var safeUser: UserProfile {
+        appState.currentUser ?? UserProfile(
+            displayName: "",
+            email: "",
+            birthDate: Date()
+        )
     }
 
     // MARK: - Body
@@ -45,7 +54,7 @@ struct ProfileView: View {
                 // Cosmic background gradient
                 backgroundGradient
 
-                if viewModel != nil {
+                if let _ = user, viewModel != nil {
                     ScrollView(showsIndicators: false) {
                         LazyVStack(spacing: 24) {
                             // 1. User header with zodiac prominently displayed
@@ -74,6 +83,13 @@ struct ProfileView: View {
                         .padding(.horizontal, 16)
                         .padding(.bottom, 100)
                     }
+                } else if user == nil {
+                    // No user - show empty state
+                    CosmicEmptyStateView(
+                        title: "No Profile",
+                        message: "Complete onboarding to set up your cosmic profile.",
+                        icon: "person.crop.circle.badge.questionmark"
+                    )
                 } else {
                     ProgressView()
                         .tint(CosmicTheme.gold)
@@ -180,8 +196,8 @@ struct ProfileView: View {
                     .stroke(
                         LinearGradient(
                             colors: [
-                                user.sunSign.element.color,
-                                user.sunSign.element.color.opacity(0.5)
+                                safeUser.sunSign.element.color,
+                                safeUser.sunSign.element.color.opacity(0.5)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -196,12 +212,12 @@ struct ProfileView: View {
                     .frame(width: 108, height: 108)
 
                 // Zodiac symbol - custom glyph
-                ZodiacSymbolView(sign: user.sunSign, size: 52, color: CosmicTheme.gold)
+                ZodiacSymbolView(sign: safeUser.sunSign, size: 52, color: CosmicTheme.gold)
             }
 
             // User name and info
             VStack(spacing: 8) {
-                Text(user.displayName)
+                Text(safeUser.displayName)
                     .font(TerminalFont.headline(26))
                     .foregroundColor(CosmicTheme.textPrimary)
 
@@ -218,8 +234,8 @@ struct ProfileView: View {
                 HStack(spacing: 12) {
                     // Sun sign
                     HStack(spacing: 6) {
-                        ZodiacSymbolView(sign: user.sunSign, size: 14, color: CosmicTheme.gold)
-                        Text(user.sunSign.displayName)
+                        ZodiacSymbolView(sign: safeUser.sunSign, size: 14, color: CosmicTheme.gold)
+                        Text(safeUser.sunSign.displayName)
                     }
                     .foregroundColor(CosmicTheme.gold)
 
@@ -228,16 +244,16 @@ struct ProfileView: View {
 
                     // Element
                     HStack(spacing: 4) {
-                        ElementSymbolView(element: user.sunSign.element, size: 12)
-                        Text(user.sunSign.element.displayName)
+                        ElementSymbolView(element: safeUser.sunSign.element, size: 12)
+                        Text(safeUser.sunSign.element.displayName)
                     }
-                    .foregroundColor(user.sunSign.element.color)
+                    .foregroundColor(safeUser.sunSign.element.color)
 
                     Text("·")
                         .foregroundColor(CosmicTheme.textMuted)
 
                     // Modality
-                    Text(user.sunSign.modality.displayName)
+                    Text(safeUser.sunSign.modality.displayName)
                         .foregroundColor(CosmicTheme.textSecondary)
                 }
                 .font(TerminalFont.data(11, weight: .medium))
@@ -251,7 +267,7 @@ struct ProfileView: View {
                 .fill(CosmicTheme.cardBackground)
                 .overlay(
                     RoundedRectangle(cornerRadius: 24)
-                        .stroke(user.sunSign.element.color.opacity(0.3), lineWidth: 1)
+                        .stroke(safeUser.sunSign.element.color.opacity(0.3), lineWidth: 1)
                 )
         )
     }
@@ -294,7 +310,7 @@ struct ProfileView: View {
                         .font(.headline)
                         .foregroundColor(CosmicTheme.textPrimary)
 
-                    Text("Based on your \(user.sunSign.displayName) energy")
+                    Text("Based on your \(safeUser.sunSign.displayName) energy")
                         .font(.caption)
                         .foregroundColor(CosmicTheme.textMuted)
                 }
@@ -302,16 +318,16 @@ struct ProfileView: View {
                 Spacer()
 
                 // Element badge - custom symbol
-                ElementSymbolView(element: user.sunSign.element, size: 28)
+                ElementSymbolView(element: safeUser.sunSign.element, size: 28)
                     .padding(10)
                     .background(
                         Circle()
-                            .fill(user.sunSign.element.color.opacity(0.2))
+                            .fill(safeUser.sunSign.element.color.opacity(0.2))
                     )
             }
 
             // Personality quote
-            Text("\"\(user.sunSign.corporatePersonality)\"")
+            Text("\"\(safeUser.sunSign.corporatePersonality)\"")
                 .font(.subheadline)
                 .italic()
                 .foregroundColor(CosmicTheme.textSecondary)
@@ -320,7 +336,7 @@ struct ProfileView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(user.sunSign.element.color.opacity(0.1))
+                        .fill(safeUser.sunSign.element.color.opacity(0.1))
                 )
 
             // Strengths
@@ -483,7 +499,7 @@ struct ProfileView: View {
                 statItem(
                     icon: "percent",
                     title: "Avg Compatibility",
-                    value: "\(user.averagePortfolioCompatibility)%",
+                    value: "\(safeUser.averagePortfolioCompatibility)%",
                     color: CosmicTheme.gold
                 )
             }
@@ -1017,11 +1033,11 @@ struct ProfileView: View {
                     LunarSettingRow(
                         icon: "✨",
                         title: "Moon in Your Sign",
-                        subtitle: "Alert when moon enters \(user.sunSign.displayName)",
+                        subtitle: "Alert when moon enters \(safeUser.sunSign.displayName)",
                         isEnabled: moonService.notifyOnMoonInUserSign,
                         onToggle: {
                             moonService.notifyOnMoonInUserSign.toggle()
-                            moonService.userSunSign = user.sunSign
+                            moonService.userSunSign = safeUser.sunSign
                             moonService.scheduleNotifications()
                         }
                     )
@@ -1227,7 +1243,7 @@ struct ProfileView: View {
             SignStackButton()
 
             // THE COSMIC ROAST - Viral share feature
-            CosmicRoastCard(user: user)
+            CosmicRoastCard(user: safeUser)
 
             // Karmic Ledger - Track losses as cosmic lessons
             KarmicLedgerCard()
@@ -1285,7 +1301,7 @@ struct ProfileView: View {
 
                 cosmicJourneyItem(
                     icon: "sparkles",
-                    value: "\(user.sunSign.compatibleSigns.count)",
+                    value: "\(safeUser.sunSign.compatibleSigns.count)",
                     label: "Compatible Signs"
                 )
             }
@@ -1651,49 +1667,52 @@ struct ProfileEditSheet: View {
 
     // MARK: - Current Sign Display
 
+    @ViewBuilder
     private var currentSignDisplay: some View {
-        VStack(spacing: 12) {
-            // Zodiac symbol
-            ZStack {
-                Circle()
-                    .fill(viewModel.user.sunSign.element.color.opacity(0.2))
-                    .frame(width: 80, height: 80)
+        if let user = viewModel.user {
+            VStack(spacing: 12) {
+                // Zodiac symbol
+                ZStack {
+                    Circle()
+                        .fill(user.sunSign.element.color.opacity(0.2))
+                        .frame(width: 80, height: 80)
 
-                ZodiacSymbolView(
-                    sign: viewModel.user.sunSign,
-                    size: 40,
-                    color: CosmicTheme.gold
-                )
-            }
-
-            VStack(spacing: 4) {
-                Text(viewModel.user.sunSign.displayName)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(CosmicTheme.textPrimary)
-
-                HStack(spacing: 8) {
-                    HStack(spacing: 4) {
-                        ElementSymbolView(element: viewModel.user.sunSign.element, size: 12)
-                        Text(viewModel.user.sunSign.element.displayName)
-                    }
-                    .foregroundColor(viewModel.user.sunSign.element.color)
-
-                    Text("·")
-                        .foregroundColor(CosmicTheme.textMuted)
-
-                    Text(viewModel.user.sunSign.modality.displayName)
-                        .foregroundColor(CosmicTheme.textSecondary)
+                    ZodiacSymbolView(
+                        sign: user.sunSign,
+                        size: 40,
+                        color: CosmicTheme.gold
+                    )
                 }
-                .font(.caption)
+
+                VStack(spacing: 4) {
+                    Text(user.sunSign.displayName)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(CosmicTheme.textPrimary)
+
+                    HStack(spacing: 8) {
+                        HStack(spacing: 4) {
+                            ElementSymbolView(element: user.sunSign.element, size: 12)
+                            Text(user.sunSign.element.displayName)
+                        }
+                        .foregroundColor(user.sunSign.element.color)
+
+                        Text("·")
+                            .foregroundColor(CosmicTheme.textMuted)
+
+                        Text(user.sunSign.modality.displayName)
+                            .foregroundColor(CosmicTheme.textSecondary)
+                    }
+                    .font(.caption)
+                }
             }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 20)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(CosmicTheme.cardBackground)
+            )
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(CosmicTheme.cardBackground)
-        )
     }
 
     // MARK: - Name Field
@@ -1755,7 +1774,7 @@ struct ProfileEditSheet: View {
             )
 
             // Show new sign preview if date changed
-            if viewModel.editingBirthDate != viewModel.user.birthDate {
+            if let user = viewModel.user, viewModel.editingBirthDate != user.birthDate {
                 newSignPreview
             }
         }
@@ -1765,30 +1784,32 @@ struct ProfileEditSheet: View {
 
     @ViewBuilder
     private var newSignPreview: some View {
-        let newSign = ZodiacSign.from(date: viewModel.editingBirthDate)
+        if let user = viewModel.user {
+            let newSign = ZodiacSign.from(date: viewModel.editingBirthDate)
 
-        if newSign != viewModel.user.sunSign {
-            HStack(spacing: 8) {
-                Image(systemName: "arrow.right.circle.fill")
-                    .foregroundColor(CosmicTheme.gold)
+            if newSign != user.sunSign {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.right.circle.fill")
+                        .foregroundColor(CosmicTheme.gold)
 
-                Text("Your sign will change to")
-                    .foregroundColor(CosmicTheme.textSecondary)
+                    Text("Your sign will change to")
+                        .foregroundColor(CosmicTheme.textSecondary)
 
-                HStack(spacing: 4) {
-                    ZodiacSymbolView(sign: newSign, size: 14, color: newSign.element.color)
-                    Text(newSign.displayName)
-                        .fontWeight(.semibold)
-                        .foregroundColor(newSign.element.color)
+                    HStack(spacing: 4) {
+                        ZodiacSymbolView(sign: newSign, size: 14, color: newSign.element.color)
+                        Text(newSign.displayName)
+                            .fontWeight(.semibold)
+                            .foregroundColor(newSign.element.color)
+                    }
                 }
+                .font(.caption)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(CosmicTheme.gold.opacity(0.1))
+                )
             }
-            .font(.caption)
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(CosmicTheme.gold.opacity(0.1))
-            )
         }
     }
 

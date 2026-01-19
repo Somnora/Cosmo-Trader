@@ -25,24 +25,36 @@ struct StockDetailView: View {
     /// Dismiss action for sheet presentation
     @Environment(\.dismiss) private var dismiss
 
-    /// User profile from app state
-    private var user: UserProfile {
-        appState.currentUser ?? .sampleWithHoldings
+    /// User profile from app state (nil if not logged in)
+    private var user: UserProfile? {
+        appState.currentUser
     }
 
-    /// Computed compatibility result
-    private var compatibility: CompatibilityResult {
-        user.compatibility(with: stock)
+    /// Computed compatibility result (nil if no user)
+    private var compatibility: CompatibilityResult? {
+        user?.compatibility(with: stock)
+    }
+
+    /// Safe compatibility for rendering (uses stock's default when no user)
+    private var safeCompatibility: CompatibilityResult {
+        user?.compatibility(with: stock) ?? CompatibilityResult(
+            userSign: .aries,
+            stockSign: stock.zodiacSign,
+            score: 50,
+            description: "Sign in to see your personal compatibility",
+            advice: "Complete your profile to get personalized cosmic insights.",
+            elementDynamic: ""
+        )
     }
 
     /// Check if stock is already in portfolio
     private var isInPortfolio: Bool {
-        user.portfolio.contains { $0.symbol == stock.symbol && $0.sharesOwned > 0 }
+        user?.portfolio.contains { $0.symbol == stock.symbol && $0.sharesOwned > 0 } ?? false
     }
 
     /// Check if stock is in watchlist
     private var isInWatchlist: Bool {
-        user.watchlist.contains(stock.symbol)
+        user?.watchlist.contains(stock.symbol) ?? false
     }
 
     /// Animation states
@@ -410,7 +422,7 @@ struct StockDetailView: View {
             let interpreter = CosmicPatternInterpreter.shared
             cosmicInsights = interpreter.getInsights(
                 for: stock,
-                userSign: user.sunSign
+                userSign: user?.sunSign ?? .aries
             )
             isLoadingPatterns = false
         }
@@ -433,14 +445,14 @@ struct StockDetailView: View {
                 Spacer()
 
                 // Cosmic match badge if applicable
-                if compatibility.score >= 85 {
+                if safeCompatibility.score >= 85 {
                     cosmicMatchBadge
                 }
             }
 
             // Large compatibility score - monospace terminal style
             HStack(spacing: 12) {
-                Text("\(compatibility.score)%")
+                Text("\(safeCompatibility.score)%")
                     .font(TerminalFont.price(60))
                     .foregroundStyle(scoreGradient)
 
@@ -450,8 +462,8 @@ struct StockDetailView: View {
                         .foregroundColor(CosmicTheme.textSecondary)
 
                     HStack(spacing: 6) {
-                        Text(compatibility.rating.emoji)
-                        Text(compatibility.rating.displayName.uppercased())
+                        Text(safeCompatibility.rating.emoji)
+                        Text(safeCompatibility.rating.displayName.uppercased())
                             .font(TerminalFont.data(12, weight: .semibold))
                             .foregroundColor(ratingColor)
                     }
@@ -460,7 +472,7 @@ struct StockDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             // Compatibility description
-            Text(compatibility.description)
+            Text(safeCompatibility.description)
                 .font(.body)
                 .foregroundColor(CosmicTheme.textPrimary)
                 .lineSpacing(4)
@@ -474,7 +486,7 @@ struct StockDetailView: View {
                 Image(systemName: "lightbulb.fill")
                     .foregroundColor(CosmicTheme.gold)
 
-                Text(compatibility.advice)
+                Text(safeCompatibility.advice)
                     .font(.subheadline)
                     .foregroundColor(CosmicTheme.textSecondary)
                     .italic()
@@ -524,7 +536,7 @@ struct StockDetailView: View {
                         .fill(userElementColor.opacity(0.2))
                         .frame(width: 36, height: 36)
 
-                    ElementSymbolView(element: user.sunSign.element, size: 18)
+                    ElementSymbolView(element: (user?.sunSign ?? .aries).element, size: 18)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -532,7 +544,7 @@ struct StockDetailView: View {
                         .font(TerminalFont.data(11, weight: .semibold))
                         .foregroundColor(CosmicTheme.textPrimary)
 
-                    Text(compatibility.elementDynamic)
+                    Text(safeCompatibility.elementDynamic)
                         .font(TerminalFont.data(11))
                         .foregroundColor(CosmicTheme.textSecondary)
                         .lineLimit(2)
@@ -545,12 +557,12 @@ struct StockDetailView: View {
             // Sign connection
             HStack(spacing: 12) {
                 HStack(spacing: 4) {
-                    ZodiacSymbolView(sign: user.sunSign, size: 20, color: userElementColor)
+                    ZodiacSymbolView(sign: user?.sunSign ?? .aries, size: 20, color: userElementColor)
                     ZodiacSymbolView(sign: stock.zodiacSign, size: 20, color: elementColor)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(user.sunSign.displayName) + \(stock.zodiacSign.displayName)")
+                    Text("\((user?.sunSign ?? .aries).displayName) + \(stock.zodiacSign.displayName)")
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundColor(CosmicTheme.textPrimary)
@@ -569,11 +581,11 @@ struct StockDetailView: View {
     }
 
     private var signConnectionDescription: String {
-        if user.sunSign == stock.zodiacSign {
+        if user?.sunSign ?? .aries == stock.zodiacSign {
             return "Same sign energy - deep mutual understanding"
-        } else if user.sunSign.element == stock.zodiacSign.element {
+        } else if (user?.sunSign ?? .aries).element == stock.zodiacSign.element {
             return "Same element - natural elemental harmony"
-        } else if user.sunSign.isCompatible(with: stock.zodiacSign) {
+        } else if (user?.sunSign ?? .aries).isCompatible(with: stock.zodiacSign) {
             return "Traditional compatibility - cosmic alignment"
         } else {
             return "Contrasting energies - potential for growth"
@@ -776,7 +788,7 @@ struct StockDetailView: View {
 
                             HStack(spacing: 12) {
                                 // User's sign
-                                ZodiacSymbolView(sign: user.sunSign, size: 24, color: userElementColor)
+                                ZodiacSymbolView(sign: user?.sunSign ?? .aries, size: 24, color: userElementColor)
 
                                 // Connection indicator
                                 HStack(spacing: 4) {
@@ -844,7 +856,7 @@ struct StockDetailView: View {
 
     private var ceoCompatibilityScore: Int {
         guard let ceoSign = stock.ceoZodiacSign else { return 50 }
-        return user.sunSign.compatibilityScore(with: ceoSign)
+        return (user?.sunSign ?? .aries).compatibilityScore(with: ceoSign)
     }
 
     private var ceoCompatibilityColor: Color {
@@ -865,9 +877,9 @@ struct StockDetailView: View {
         guard let ceoSign = stock.ceoZodiacSign else { return "" }
         let score = ceoCompatibilityScore
 
-        if user.sunSign == ceoSign {
+        if user?.sunSign ?? .aries == ceoSign {
             return "You share the same sign as the CEO - deep natural understanding and aligned vision."
-        } else if user.sunSign.element == ceoSign.element {
+        } else if (user?.sunSign ?? .aries).element == ceoSign.element {
             return "Same elemental energy creates intuitive trust in their leadership decisions."
         } else if score >= 85 {
             return "Excellent cosmic alignment - the CEO's vision resonates with your investment style."
@@ -939,7 +951,7 @@ struct StockDetailView: View {
             StatsGridView(stats: [
                 .price("Price", liveStock.formattedPrice),
                 .change("Today", liveStock.percentageChange),
-                .gold("Match", "\(compatibility.score)%"),
+                .gold("Match", "\(safeCompatibility.score)%"),
                 .text("Sector", stock.sector),
                 .price("Mkt Cap", stock.formattedMarketCap),
                 .text("Industry", stock.industry)
@@ -1128,12 +1140,12 @@ struct StockDetailView: View {
 
                             Spacer()
 
-                            Text("\(compatibility.score)% Match")
+                            Text("\(safeCompatibility.score)% Match")
                                 .font(TerminalFont.price(16))
                                 .foregroundColor(CosmicTheme.gold)
                         }
 
-                        Text("\"\(compatibility.description)\"")
+                        Text("\"\(safeCompatibility.description)\"")
                             .font(.subheadline)
                             .foregroundColor(CosmicTheme.textSecondary)
                             .italic()
@@ -1199,7 +1211,7 @@ struct StockDetailView: View {
     }
 
     private var userElementColor: Color {
-        switch user.sunSign.element {
+        switch (user?.sunSign ?? .aries).element {
         case .fire:  return CosmicTheme.fireElement
         case .earth: return CosmicTheme.earthElement
         case .air:   return CosmicTheme.airElement
@@ -1208,7 +1220,7 @@ struct StockDetailView: View {
     }
 
     private var ratingColor: Color {
-        switch compatibility.rating {
+        switch safeCompatibility.rating {
         case .cosmicSoulmates:   return CosmicTheme.gold
         case .highCompatibility: return CosmicTheme.accentBlue
         case .neutral:           return CosmicTheme.textSecondary
@@ -1218,9 +1230,9 @@ struct StockDetailView: View {
     }
 
     private var scoreGradient: LinearGradient {
-        if compatibility.score >= 85 {
+        if safeCompatibility.score >= 85 {
             return CosmicTheme.goldGradient
-        } else if compatibility.score >= 65 {
+        } else if safeCompatibility.score >= 65 {
             return LinearGradient(
                 colors: [CosmicTheme.cosmicPurple, CosmicTheme.nebulaBlue],
                 startPoint: .topLeading,
@@ -1247,7 +1259,7 @@ struct StockDetailView: View {
         \(stock.name)
         Price: \(stock.formattedPrice)
         Zodiac: \(zodiacSign.symbol) \(zodiacSign.rawValue)
-        My Compatibility: \(compatibility.score)%
+        My Compatibility: \(safeCompatibility.score)%
 
         Download Cosmo Trader to find stocks written in your stars ✨
         """

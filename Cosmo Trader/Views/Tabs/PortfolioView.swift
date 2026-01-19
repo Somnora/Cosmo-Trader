@@ -23,22 +23,31 @@ struct PortfolioView: View {
 
     // MARK: - Computed Properties
 
-    private var user: UserProfile {
-        appState.currentUser ?? .sampleWithHoldings
+    private var user: UserProfile? {
+        appState.currentUser
+    }
+
+    /// Safe user access for rendering (only call when user is known to exist)
+    private var safeUser: UserProfile {
+        appState.currentUser ?? UserProfile(
+            displayName: "",
+            email: "",
+            birthDate: Date()
+        )
     }
 
     private var holdings: [Stock] {
-        user.portfolio.filter { $0.sharesOwned > 0 }
+        safeUser.portfolio.filter { $0.sharesOwned > 0 }
     }
 
     /// Stocks in the user's watchlist (not owned)
     private var watchlistStocks: [Stock] {
-        let watchlistSymbols = Set(user.watchlist)
+        let watchlistSymbols = Set(safeUser.watchlist)
         return MockStockData.all.filter { watchlistSymbols.contains($0.symbol) }
     }
 
     private var elementBreakdown: [(element: ZodiacSign.Element, percentage: Double, value: Double)] {
-        let totalValue = user.totalPortfolioValue
+        let totalValue = safeUser.totalPortfolioValue
         guard totalValue > 0 else { return [] }
 
         var elementValues: [ZodiacSign.Element: Double] = [:]
@@ -65,8 +74,8 @@ struct PortfolioView: View {
     /// Weighted portfolio compatibility result
     private var portfolioCompatibility: PortfolioCompatibilityResult {
         PortfolioCompatibilityService.calculateWeightedCompatibility(
-            portfolio: user.portfolio,
-            userSign: user.sunSign
+            portfolio: safeUser.portfolio,
+            userSign: safeUser.sunSign
         )
     }
 
@@ -74,7 +83,7 @@ struct PortfolioView: View {
     private var rebalancingSuggestions: [RebalancingSuggestion] {
         PortfolioCompatibilityService.generateRebalancingSuggestions(
             result: portfolioCompatibility,
-            userSign: user.sunSign
+            userSign: safeUser.sunSign
         )
     }
 
@@ -90,6 +99,14 @@ struct PortfolioView: View {
                 CosmicTheme.background
                     .ignoresSafeArea()
 
+                if user == nil {
+                    // No user - show empty state
+                    CosmicEmptyStateView(
+                        title: "No Portfolio",
+                        message: "Complete onboarding to start building your cosmic portfolio.",
+                        icon: "chart.pie"
+                    )
+                } else {
                 ScrollView(showsIndicators: false) {
                     LazyVStack(spacing: 0) {
                         // Portfolio value header
@@ -137,6 +154,7 @@ struct PortfolioView: View {
                 }
                 .refreshable {
                     await fetchLivePrices()
+                }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -228,7 +246,7 @@ struct PortfolioView: View {
             // Chart
             PortfolioChartView(
                 portfolio: holdings,
-                userSign: user.sunSign,
+                userSign: safeUser.sunSign,
                 selectedTimeframe: $chartTimeframe
             )
             .padding(.horizontal, 12)
@@ -247,7 +265,7 @@ struct PortfolioView: View {
                     .foregroundColor(CosmicTheme.textMuted)
                     .tracking(1)
 
-                Text(user.formattedPortfolioValue)
+                Text(safeUser.formattedPortfolioValue)
                     .font(TerminalFont.price(24))
                     .foregroundColor(CosmicTheme.textPrimary)
             }
@@ -265,12 +283,12 @@ struct PortfolioView: View {
                     .tracking(1)
 
                 HStack(spacing: 4) {
-                    Text(user.formattedDailyChange)
+                    Text(safeUser.formattedDailyChange)
                         .font(TerminalFont.price(18))
-                    Text("(\(user.formattedDailyChangePercent))")
+                    Text("(\(safeUser.formattedDailyChangePercent))")
                         .font(TerminalFont.price(14))
                 }
-                .foregroundColor(user.isPortfolioPositive ? CosmicTheme.positive : CosmicTheme.negative)
+                .foregroundColor(safeUser.isPortfolioPositive ? CosmicTheme.positive : CosmicTheme.negative)
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -647,7 +665,7 @@ struct PortfolioView: View {
     }
 
     private func allocationBar(for stock: Stock) -> some View {
-        let totalValue = user.totalPortfolioValue
+        let totalValue = safeUser.totalPortfolioValue
         let allocation = totalValue > 0 ? (stock.totalValue / totalValue) * 100 : 0
         let barWidth = min(allocation / 50, 1.0) // Max bar at 50% allocation
 
@@ -762,7 +780,7 @@ struct PortfolioView: View {
     }
 
     private func watchlistRow(_ stock: Stock) -> some View {
-        let compatibility = user.compatibility(with: stock)
+        let compatibility = safeUser.compatibility(with: stock)
 
         return Button(action: { selectedStock = stock }) {
             HStack(spacing: 0) {

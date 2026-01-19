@@ -30,7 +30,7 @@ class PortfolioViewModel {
 
     // MARK: - Initialization
 
-    init(user: UserProfile = .sampleWithHoldings) {
+    init(user: UserProfile) {
         self.user = user
     }
 

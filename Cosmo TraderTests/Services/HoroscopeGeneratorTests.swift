@@ -236,12 +236,18 @@ struct HoroscopeContentTests {
 
     @Test("Horoscope generated for all signs")
     func horoscopeGeneratedForAllSigns() {
-        let sampleUser = UserProfile.sample
-
         for sign in ZodiacSign.allCases {
-            // Create a modified user with each sign
-            var user = sampleUser
-            user.birthDate = dateForSign(sign)
+            // Create a new user with each sign's birthdate
+            let date = dateForSign(sign)
+            let components = Calendar.current.dateComponents([.month, .day, .year], from: date)
+            let user = UserProfile(
+                displayName: "Test",
+                email: "test@test.com",
+                birthMonth: components.month ?? 1,
+                birthDay: components.day ?? 1,
+                birthYear: components.year ?? 1990,
+                portfolio: []
+            )
 
             let horoscope = HoroscopeGenerator.generate(for: user, planetaryEvents: [])
 

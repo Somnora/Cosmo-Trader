@@ -20,8 +20,13 @@ struct ZodiacLeaderboardView: View {
 
     // MARK: - Computed Properties
 
-    private var user: UserProfile {
-        appState.currentUser ?? .sampleWithHoldings
+    private var user: UserProfile? {
+        appState.currentUser
+    }
+
+    /// Safe user sign for rendering (falls back to Aries if no user)
+    private var safeUserSign: ZodiacSign {
+        user?.sunSign ?? .aries
     }
 
     private var leaderboard: [(rank: Int, performance: ZodiacWeeklyPerformance)] {
@@ -32,14 +37,14 @@ struct ZodiacLeaderboardView: View {
         let performances = leaderboard.map { $0.performance }
         return ZodiacPerformanceService.generateWeeklyCommentary(
             performances: performances,
-            userSign: user.sunSign
+            userSign: safeUserSign
         )
     }
 
     private var userSignContext: (rank: Int, insight: String, isOutperforming: Bool) {
         let performances = leaderboard.map { $0.performance }
         return ZodiacPerformanceService.getUserSignContext(
-            userSign: user.sunSign,
+            userSign: safeUserSign,
             performances: performances
         )
     }
@@ -177,13 +182,13 @@ struct ZodiacLeaderboardView: View {
             // User's sign badge
             ZStack {
                 Circle()
-                    .fill(user.sunSign.element.color.opacity(0.2))
+                    .fill(safeUserSign.element.color.opacity(0.2))
                     .frame(width: 48, height: 48)
 
                 ZodiacSymbolView(
-                    sign: user.sunSign,
+                    sign: safeUserSign,
                     size: 24,
-                    color: user.sunSign.element.color
+                    color: safeUserSign.element.color
                 )
             }
 
@@ -207,7 +212,7 @@ struct ZodiacLeaderboardView: View {
             Spacer()
         }
         .padding(16)
-        .background(user.sunSign.element.color.opacity(0.05))
+        .background(safeUserSign.element.color.opacity(0.05))
     }
 
     // MARK: - Leaderboard Section
@@ -250,7 +255,7 @@ struct ZodiacLeaderboardView: View {
     }
 
     private func leaderboardRow(rank: Int, performance: ZodiacWeeklyPerformance) -> some View {
-        let isUserSign = performance.sign == user.sunSign
+        let isUserSign = performance.sign == safeUserSign
 
         return Button(action: {
             selectedSign = performance.sign
@@ -304,7 +309,7 @@ struct ZodiacLeaderboardView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(isUserSign ? user.sunSign.element.color.opacity(0.05) : Color.clear)
+            .background(isUserSign ? safeUserSign.element.color.opacity(0.05) : Color.clear)
         }
         .buttonStyle(.plain)
     }

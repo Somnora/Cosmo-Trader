@@ -787,8 +787,6 @@ final class NotificationService {
 // MARK: - Analytics Events Extension
 
 extension AnalyticsEvent {
-    static let notificationPermissionGranted = AnalyticsEvent(rawValue: "notification_permission_granted")!
-    static let notificationPermissionDenied = AnalyticsEvent(rawValue: "notification_permission_denied")!
     static let testNotificationSent = AnalyticsEvent(rawValue: "test_notification_sent")!
     static let confluenceAlertSent = AnalyticsEvent(rawValue: "confluence_alert_sent")!
     static let portfolioMilestoneReached = AnalyticsEvent(rawValue: "portfolio_milestone_reached")!

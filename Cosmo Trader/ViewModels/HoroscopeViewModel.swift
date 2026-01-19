@@ -43,16 +43,17 @@ class HoroscopeViewModel {
         self.cosmicWeather = CosmicWeather.current
         self.planetaryEvents = PlanetaryEvent.featuredEvents
 
-        // Generate initial horoscope
-        let currentUser = appState.currentUser ?? .sampleWithHoldings
-        self.horoscope = HoroscopeGenerator.generate(for: currentUser)
+        // Generate initial horoscope only if user exists
+        if let currentUser = appState.currentUser {
+            self.horoscope = HoroscopeGenerator.generate(for: currentUser)
+        }
     }
 
     // MARK: - Computed Properties
 
-    /// Current user from app state
-    var user: UserProfile {
-        appState.currentUser ?? .sampleWithHoldings
+    /// Current user from app state (nil if not logged in)
+    var user: UserProfile? {
+        appState.currentUser
     }
 
     /// Today's date formatted nicely
@@ -83,7 +84,8 @@ class HoroscopeViewModel {
 
     /// User's sun sign display
     var userSignDisplay: String {
-        "\(user.sunSign.symbol) \(user.sunSign.displayName)"
+        guard let user = user else { return "" }
+        return "\(user.sunSign.symbol) \(user.sunSign.displayName)"
     }
 
     /// Greeting based on time of day
@@ -151,6 +153,7 @@ class HoroscopeViewModel {
 
     /// Regenerate the horoscope
     func regenerateHoroscope() {
+        guard let user = user else { return }
         isLoading = true
         refreshTrigger.toggle()
 
@@ -158,7 +161,7 @@ class HoroscopeViewModel {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             guard let self = self else { return }
 
-            self.horoscope = HoroscopeGenerator.generate(for: self.user)
+            self.horoscope = HoroscopeGenerator.generate(for: user)
             self.cosmicWeather = CosmicWeather.current
             self.planetaryEvents = PlanetaryEvent.featuredEvents
             self.isLoading = false

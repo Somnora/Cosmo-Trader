@@ -110,13 +110,14 @@ class DiscoverViewModel {
 
     // MARK: - Computed Properties
 
-    /// Current user from app state
-    var user: UserProfile {
-        appState.currentUser ?? .sampleWithHoldings
+    /// Current user from app state (nil if not logged in)
+    var user: UserProfile? {
+        appState.currentUser
     }
 
     /// Stocks that pass current filters
     private var filteredStocks: [Stock] {
+        guard let user = user else { return [] }
         var stocks = allStocks
 
         // Exclude already owned stocks
@@ -160,12 +161,12 @@ class DiscoverViewModel {
 
     /// Watchlist count for display
     var watchlistCount: Int {
-        user.watchlist.count
+        user?.watchlist.count ?? 0
     }
 
     /// Skipped stocks count
     var skippedCount: Int {
-        user.skippedStocks.count
+        user?.skippedStocks.count ?? 0
     }
 
     /// Is deck empty?
@@ -177,6 +178,10 @@ class DiscoverViewModel {
 
     /// Rebuild the card deck with current filters and sort
     func rebuildDeck() {
+        guard let user = user else {
+            cardDeck = []
+            return
+        }
         var stocks = filteredStocks
 
         // In Cosmic Contrarian mode, prioritize least compatible stocks
@@ -232,7 +237,7 @@ class DiscoverViewModel {
             direction: "right",
             symbol: stock.symbol,
             zodiacSign: stock.zodiacSign.displayName,
-            compatibility: user.compatibility(with: stock).score
+            compatibility: user?.compatibility(with: stock).score ?? 0
         )
         AnalyticsService.shared.trackWatchlistAdded(symbol: stock.symbol, source: "discover_swipe")
     }
@@ -247,7 +252,7 @@ class DiscoverViewModel {
             direction: "left",
             symbol: stock.symbol,
             zodiacSign: stock.zodiacSign.displayName,
-            compatibility: user.compatibility(with: stock).score
+            compatibility: user?.compatibility(with: stock).score ?? 0
         )
     }
 
@@ -346,7 +351,9 @@ class DiscoverViewModel {
 
     /// Get the contrarian insight text based on user's sign
     var contrarianInsight: String {
-        let userSign = user.sunSign
+        guard let userSign = user?.sunSign else {
+            return "Discover stocks that challenge your cosmic comfort zone."
+        }
         let oppositeElement = userSign.element.oppositeElement
 
         return "Against your \(userSign.element.displayName) nature. Growth means discomfort. Here are \(oppositeElement.displayName) stocks that challenge your cosmic comfort zone."
@@ -354,7 +361,7 @@ class DiscoverViewModel {
 
     /// Get stocks that are cosmically opposed to user
     var contrarianStocks: [Stock] {
-        let userSign = user.sunSign
+        guard let userSign = user?.sunSign else { return [] }
         return filteredStocks.filter { stock in
             // Opposite sign or opposite element
             stock.zodiacSign == userSign.oppositeSign ||

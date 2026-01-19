@@ -32,6 +32,16 @@
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		23E313342EEA907F0025F506 /* Exceptions for "Cosmo Trader" folder in "Cosmo Trader" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"Configuration/Base.xcconfig",
+				"Configuration/Debug.xcconfig",
+				"Configuration/Release.xcconfig",
+				"Configuration/Secrets.xcconfig.sample",
+				"Configuration/Staging.xcconfig",
+				"GoogleService-Info.plist.sample",
+				"Secrets-template.plist",
+				Secrets.plist,
+			);
 			platformFiltersByRelativePath = {
 				CosmicTraderApp.swift = (ios, );
 				Models/Compatibility.swift = (ios, );
