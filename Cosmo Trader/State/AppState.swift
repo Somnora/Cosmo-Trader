@@ -466,37 +466,44 @@ class AppState {
             backupProfileKey,
             hasOnboardedKey,
             lastSaveKey,
-            // Subscription keys
+            // Subscription keys (from SubscriptionManager.Keys)
             "subscription_isPremium",
             "subscription_trialStartDate",
-            "subscription_dailySwipes",
+            "subscription_trialUsed",
+            "subscription_dailySwipeCount",
             "subscription_lastSwipeDate",
+            "subscription_lastHoroscopeDate",
             "subscription_horoscopeCountToday",
             "subscription_roastCountToday",
             "subscription_lastRoastDate",
             "subscription_expirationDate",
             "subscription_lastCheck",
-            // Notification keys
-            "notification_dailyHoroscope",
-            "notification_priceAlerts",
-            "notification_mercuryRetrograde",
-            // Appearance keys
+            // Notification keys (from NotificationService.StorageKeys)
+            "notifications_hasRequested",
+            "notifications_status",
+            "notifications_dailyHoroscope",
+            "notifications_dailyHoroscopeTime",
+            "notifications_moonPhase",
+            "notifications_mercuryRetrograde",
+            "notifications_portfolioAlerts",
+            "notifications_ipoAlerts",
+            "notifications_cosmicRoast",
+            "notifications_weeklySummary",
+            "notifications_signSeason",
+            // Appearance keys (from UserDataExport)
             "appearance_showCompatibility",
             "appearance_showElements",
             "appearance_animations",
-            // Audio keys
-            "terminal_audio_enabled",
-            "terminal_audio_ambient_volume",
-            "terminal_audio_effects_volume",
-            // Analytics keys
+            // Audio keys (from TerminalAudioService.StorageKeys)
+            "terminalAudio_enabled",
+            "terminalAudio_ambientVolume",
+            "terminalAudio_effectsVolume",
+            // Analytics keys (from AnalyticsService)
             "analytics_opted_out",
-            // Moon phase keys
-            "moon_notifyFullMoon",
-            "moon_notifyNewMoon",
-            "moon_notifyMoonInSign",
-            // Misc keys
-            "hasSeenOnboarding",
-            "lastAppVersion"
+            // Moon phase keys (from MoonPhaseService)
+            "notifyOnFullMoon",
+            "notifyOnNewMoon",
+            "notifyOnMoonInUserSign"
         ]
 
         for key in userDefaultsKeys {
