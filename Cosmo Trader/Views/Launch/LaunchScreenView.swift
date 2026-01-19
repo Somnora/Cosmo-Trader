@@ -272,7 +272,8 @@ struct AnimatedTrendLine: Shape {
             CGPoint(x: pt.x * size.width, y: pt.y * size.height)
         }
 
-        path.move(to: scaledPoints[0])
+        guard let firstPoint = scaledPoints.first else { return path }
+        path.move(to: firstPoint)
 
         // Calculate total path length
         var totalLength: CGFloat = 0
@@ -396,7 +397,8 @@ struct ConstellationLines: Shape {
             CGPoint(x: star.point.x * size.width, y: star.point.y * size.height)
         }
 
-        path.move(to: scaledPoints[0])
+        guard let firstPoint = scaledPoints.first else { return path }
+        path.move(to: firstPoint)
         for i in 1..<scaledPoints.count {
             path.addLine(to: scaledPoints[i])
         }

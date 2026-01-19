@@ -48,18 +48,19 @@ struct MiniChartView: View {
             guard data.count > 1 else { return }
 
             let points = normalizedPoints(in: size)
+            guard let firstPoint = points.first, let lastPoint = points.last else { return }
 
             // Draw fill gradient if enabled
             if showFill {
                 var fillPath = Path()
-                fillPath.move(to: CGPoint(x: points[0].x, y: size.height))
-                fillPath.addLine(to: points[0])
+                fillPath.move(to: CGPoint(x: firstPoint.x, y: size.height))
+                fillPath.addLine(to: firstPoint)
 
                 for point in points.dropFirst() {
                     fillPath.addLine(to: point)
                 }
 
-                fillPath.addLine(to: CGPoint(x: points.last!.x, y: size.height))
+                fillPath.addLine(to: CGPoint(x: lastPoint.x, y: size.height))
                 fillPath.closeSubpath()
 
                 context.fill(
@@ -77,7 +78,7 @@ struct MiniChartView: View {
 
             // Draw the line
             var linePath = Path()
-            linePath.move(to: points[0])
+            linePath.move(to: firstPoint)
 
             for point in points.dropFirst() {
                 linePath.addLine(to: point)
@@ -151,12 +152,12 @@ struct SmoothMiniChartView: View {
             let points = normalizedPoints(in: size)
 
             // Draw fill if enabled
-            if showFill {
+            if showFill, let firstPoint = points.first, let lastPoint = points.last {
                 var fillPath = smoothPath(through: points)
 
                 // Close the path to bottom
-                fillPath.addLine(to: CGPoint(x: points.last!.x, y: size.height))
-                fillPath.addLine(to: CGPoint(x: points[0].x, y: size.height))
+                fillPath.addLine(to: CGPoint(x: lastPoint.x, y: size.height))
+                fillPath.addLine(to: CGPoint(x: firstPoint.x, y: size.height))
                 fillPath.closeSubpath()
 
                 context.fill(
@@ -225,9 +226,11 @@ struct SmoothMiniChartView: View {
     /// Create a smooth bezier path through points
     private func smoothPath(through points: [CGPoint]) -> Path {
         var path = Path()
-        guard points.count > 1 else { return path }
+        guard points.count > 1,
+              let firstPoint = points.first,
+              let lastPoint = points.last else { return path }
 
-        path.move(to: points[0])
+        path.move(to: firstPoint)
 
         if points.count == 2 {
             path.addLine(to: points[1])
@@ -256,7 +259,7 @@ struct SmoothMiniChartView: View {
         }
 
         // Connect to last point
-        path.addLine(to: points.last!)
+        path.addLine(to: lastPoint)
 
         return path
     }
@@ -322,7 +325,8 @@ struct MiniChartShape: Shape {
             return CGPoint(x: x, y: y)
         }
 
-        path.move(to: points[0])
+        guard let firstPoint = points.first else { return path }
+        path.move(to: firstPoint)
         for point in points.dropFirst() {
             path.addLine(to: point)
         }

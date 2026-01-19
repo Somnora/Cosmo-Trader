@@ -1,0 +1,580 @@
+/*
+  Localizable.strings (English)
+  Cosmo Trader
+
+  Base English localization for Cosmo Trader app.
+  All user-facing strings should be defined here.
+*/
+
+// =============================================================================
+// MARK: - Onboarding
+// =============================================================================
+
+"onboarding.welcome.title" = "COSMO TRADER";
+"onboarding.welcome.subtitle" = "Astrological Market Intelligence";
+"onboarding.welcome.description" = "Data-driven astrology for serious traders";
+"onboarding.welcome.tagline" = "Where the stars meet the market";
+
+"onboarding.sign.title" = "SELECT YOUR SIGN";
+"onboarding.sign.prompt" = "When were you born?";
+"onboarding.sign.description" = "Your zodiac sign determines your cosmic compatibility with stocks";
+
+"onboarding.name.title" = "WHAT'S YOUR NAME?";
+"onboarding.name.prompt" = "This is how you'll appear in your cosmic profile";
+"onboarding.name.placeholder" = "Your name";
+
+"onboarding.stock.title" = "PICK YOUR FIRST STOCK";
+"onboarding.stock.prompt" = "Select a stock to add to your starter portfolio";
+
+"onboarding.disclaimer.title" = "IMPORTANT DISCLAIMER";
+"onboarding.disclaimer.text" = "Cosmo Trader is for informational and entertainment purposes only and does not constitute financial advice. Past performance does not guarantee future results. Always do your own research before making investment decisions.";
+"onboarding.disclaimer.accept" = "I Understand";
+
+"onboarding.complete.title" = "WELCOME TO THE COSMOS";
+"onboarding.complete.message" = "Your cosmic trading journey begins now";
+
+"onboarding.continue" = "Continue";
+"onboarding.skip" = "Skip";
+"onboarding.back" = "Back";
+"onboarding.launch" = "Launch Terminal";
+
+// =============================================================================
+// MARK: - Tab Bar
+// =============================================================================
+
+"tabs.discover" = "Discover";
+"tabs.cosmos" = "Cosmos";
+"tabs.portfolio" = "Portfolio";
+"tabs.profile" = "Profile";
+
+// =============================================================================
+// MARK: - Discover
+// =============================================================================
+
+"discover.title" = "DISCOVER";
+"discover.subtitle" = "Swipe Your Cosmic Matches";
+
+"discover.empty.title" = "All Caught Up";
+"discover.empty.message" = "You've seen all available stocks. Check back later for more cosmic matches.";
+"discover.empty.reset" = "Reset Skipped";
+
+"discover.swipe.hint" = "Swipe right to like, left to skip";
+"discover.swipe.like" = "LIKE";
+"discover.swipe.skip" = "SKIP";
+"discover.swipe.details" = "View Details";
+
+"discover.filter.title" = "Filter Stocks";
+"discover.filter.element" = "Element";
+"discover.filter.sector" = "Sector";
+"discover.filter.sort" = "Sort By";
+"discover.filter.all" = "All";
+"discover.filter.apply" = "Apply Filters";
+"discover.filter.reset" = "Reset";
+
+"discover.sort.compatibility" = "Compatibility";
+"discover.sort.performance" = "Performance";
+"discover.sort.alphabetical" = "Alphabetical";
+"discover.sort.price" = "Price";
+
+"discover.contrarian.title" = "Cosmic Contrarian";
+"discover.contrarian.description" = "Show least compatible stocks first";
+
+// =============================================================================
+// MARK: - Cosmos
+// =============================================================================
+
+"cosmos.title" = "DAILY HOROSCOPE";
+"cosmos.subtitle" = "Your Cosmic Trading Guidance";
+
+"cosmos.greeting.morning" = "Good morning";
+"cosmos.greeting.afternoon" = "Good afternoon";
+"cosmos.greeting.evening" = "Good evening";
+
+"cosmos.moon.title" = "Moon Phase";
+"cosmos.moon.new" = "New Moon";
+"cosmos.moon.waxingCrescent" = "Waxing Crescent";
+"cosmos.moon.firstQuarter" = "First Quarter";
+"cosmos.moon.waxingGibbous" = "Waxing Gibbous";
+"cosmos.moon.full" = "Full Moon";
+"cosmos.moon.waningGibbous" = "Waning Gibbous";
+"cosmos.moon.lastQuarter" = "Last Quarter";
+"cosmos.moon.waningCrescent" = "Waning Crescent";
+
+"cosmos.mercury.retrograde" = "Mercury Retrograde";
+"cosmos.mercury.direct" = "Mercury Direct";
+"cosmos.mercury.warning" = "Caution advised for new investments";
+"cosmos.mercury.clear" = "Clear skies for trading";
+
+"cosmos.voc.title" = "Void of Course Moon";
+"cosmos.voc.active" = "Moon is void of course";
+"cosmos.voc.clear" = "Moon is active";
+"cosmos.voc.warning" = "Avoid major decisions";
+
+"cosmos.signSeason.title" = "Current Sign Season";
+"cosmos.signSeason.description" = "%@ season is in effect";
+
+"cosmos.ritual.title" = "Daily Ritual";
+"cosmos.ritual.completed" = "Completed";
+"cosmos.ritual.pending" = "Start Ritual";
+
+// =============================================================================
+// MARK: - Portfolio
+// =============================================================================
+
+"portfolio.title" = "PORTFOLIO";
+"portfolio.subtitle" = "Your Cosmic Holdings";
+
+"portfolio.empty.title" = "No Stocks Yet";
+"portfolio.empty.message" = "Start swiping in Discover to build your cosmic portfolio.";
+"portfolio.empty.cta" = "Go to Discover";
+
+"portfolio.total" = "Total Value";
+"portfolio.change.today" = "Today's Change";
+"portfolio.change.allTime" = "All Time";
+"portfolio.compatibility" = "Portfolio Compatibility";
+"portfolio.holdings" = "Holdings";
+"portfolio.watchlist" = "Watchlist";
+
+"portfolio.add.shares" = "Add Shares";
+"portfolio.edit.shares" = "Edit Shares";
+"portfolio.shares.label" = "Number of Shares";
+"portfolio.shares.placeholder" = "Enter shares";
+
+"portfolio.element.breakdown" = "Element Breakdown";
+"portfolio.element.fire" = "Fire";
+"portfolio.element.earth" = "Earth";
+"portfolio.element.air" = "Air";
+"portfolio.element.water" = "Water";
+
+"portfolio.import.title" = "Import Portfolio";
+"portfolio.import.description" = "Import from CSV or brokerage export";
+"portfolio.export.title" = "Export Portfolio";
+
+// =============================================================================
+// MARK: - Stock Detail
+// =============================================================================
+
+"stock.price" = "Price";
+"stock.change" = "Change";
+"stock.change.day" = "Day Change";
+"stock.open" = "Open";
+"stock.high" = "High";
+"stock.low" = "Low";
+"stock.volume" = "Volume";
+"stock.marketCap" = "Market Cap";
+"stock.peRatio" = "P/E Ratio";
+"stock.dividend" = "Dividend";
+
+"stock.compatibility" = "Compatibility";
+"stock.compatibility.score" = "Compatibility Score";
+"stock.compatibility.description" = "Based on your %@ sign";
+
+"stock.zodiac" = "Zodiac Sign";
+"stock.zodiac.ipoDate" = "IPO Date: %@";
+"stock.zodiac.description" = "This stock is a %@";
+
+"stock.ceo" = "CEO";
+"stock.ceo.compatibility" = "CEO Compatibility";
+"stock.founded" = "Founded";
+"stock.sector" = "Sector";
+"stock.industry" = "Industry";
+"stock.employees" = "Employees";
+"stock.headquarters" = "Headquarters";
+
+"stock.add.portfolio" = "Add to Portfolio";
+"stock.add.watchlist" = "Add to Watchlist";
+"stock.remove.portfolio" = "Remove from Portfolio";
+"stock.remove.watchlist" = "Remove from Watchlist";
+"stock.share" = "Share";
+
+"stock.chart.1d" = "1D";
+"stock.chart.1w" = "1W";
+"stock.chart.1m" = "1M";
+"stock.chart.3m" = "3M";
+"stock.chart.1y" = "1Y";
+"stock.chart.all" = "ALL";
+
+"stock.earnings.title" = "Earnings";
+"stock.earnings.next" = "Next Earnings";
+"stock.earnings.previous" = "Previous";
+
+"stock.patterns.title" = "Chart Patterns";
+"stock.patterns.none" = "No patterns detected";
+
+// =============================================================================
+// MARK: - Search
+// =============================================================================
+
+"search.title" = "Search";
+"search.placeholder" = "Symbol or company name...";
+"search.recent" = "RECENT SEARCHES";
+"search.popular" = "POPULAR";
+"search.trending" = "TRENDING";
+"search.clear" = "Clear";
+"search.clear.all" = "Clear All";
+"search.no.results" = "No stocks found";
+"search.no.results.description" = "Try a different search term";
+
+// =============================================================================
+// MARK: - Profile
+// =============================================================================
+
+"profile.title" = "PROFILE";
+"profile.edit" = "Edit Profile";
+"profile.save" = "Save Changes";
+
+"profile.name" = "Display Name";
+"profile.birthdate" = "Birth Date";
+"profile.sign" = "Your Sign";
+"profile.sign.change" = "Your sign will change to %@";
+
+"profile.stats.title" = "Stats";
+"profile.stats.stocks" = "Stocks Owned";
+"profile.stats.watchlist" = "Watchlist";
+"profile.stats.compatibility" = "Avg Compatibility";
+"profile.stats.joined" = "Member Since";
+
+"profile.settings" = "Settings";
+"profile.notifications" = "Notifications";
+"profile.subscription" = "Subscription";
+"profile.appearance" = "Appearance";
+"profile.sounds" = "Sounds";
+
+"profile.support" = "Support";
+"profile.help" = "Help & FAQ";
+"profile.contact" = "Contact Us";
+"profile.feedback" = "Send Feedback";
+
+"profile.legal" = "Legal";
+"profile.privacy" = "Privacy Policy";
+"profile.terms" = "Terms of Service";
+"profile.licenses" = "Open Source Licenses";
+
+"profile.about" = "About";
+"profile.version" = "Version %@";
+"profile.build" = "Build %@";
+"profile.rate" = "Rate Cosmo Trader";
+"profile.share.app" = "Share App";
+
+"profile.danger" = "Account";
+"profile.reset" = "Reset All Data";
+"profile.reset.confirm" = "Are you sure? This cannot be undone.";
+"profile.delete" = "Delete Account";
+
+// =============================================================================
+// MARK: - Subscription
+// =============================================================================
+
+"subscription.free" = "Free Tier";
+"subscription.free.description" = "Basic cosmic insights";
+"subscription.premium" = "Oracle Tier";
+"subscription.premium.description" = "Full astrological intelligence";
+
+"subscription.upgrade" = "Upgrade";
+"subscription.upgrade.title" = "Unlock Oracle Tier";
+"subscription.current" = "Current Plan";
+
+"subscription.feature.horoscope" = "Daily Horoscope";
+"subscription.feature.compatibility" = "Compatibility Scores";
+"subscription.feature.patterns" = "Chart Pattern Analysis";
+"subscription.feature.alerts" = "Price Alerts";
+"subscription.feature.widgets" = "Home Screen Widgets";
+"subscription.feature.themes" = "Premium Themes";
+
+"subscription.price.monthly" = "%@/month";
+"subscription.price.yearly" = "%@/year";
+"subscription.price.savings" = "Save %@%%";
+
+"subscription.restore" = "Restore Purchases";
+"subscription.restore.success" = "Purchases restored successfully";
+"subscription.restore.none" = "No purchases to restore";
+
+"subscription.terms" = "Subscription Terms";
+"subscription.cancel" = "Cancel Subscription";
+"subscription.manage" = "Manage Subscription";
+
+// =============================================================================
+// MARK: - Notifications
+// =============================================================================
+
+"notifications.title" = "Notifications";
+"notifications.enable" = "Enable Notifications";
+"notifications.enable.description" = "Get cosmic updates and price alerts";
+
+"notifications.daily.horoscope" = "Daily Horoscope";
+"notifications.daily.horoscope.description" = "Morning cosmic guidance";
+"notifications.daily.time" = "Delivery Time";
+
+"notifications.mercury.retrograde" = "Mercury Retrograde";
+"notifications.mercury.retrograde.description" = "Alerts when Mercury goes retrograde";
+
+"notifications.moon.phase" = "Moon Phase";
+"notifications.moon.phase.description" = "Full and new moon alerts";
+
+"notifications.voc" = "Void of Course Moon";
+"notifications.voc.description" = "Alerts during void periods";
+
+"notifications.price.alerts" = "Price Alerts";
+"notifications.price.alerts.description" = "Stock price movement notifications";
+
+"notifications.earnings" = "Earnings Alerts";
+"notifications.earnings.description" = "Upcoming earnings reminders";
+
+"notifications.sign.season" = "Sign Season Changes";
+"notifications.sign.season.description" = "When a new zodiac season begins";
+
+// =============================================================================
+// MARK: - Errors
+// =============================================================================
+
+"error.title" = "Something Went Wrong";
+"error.generic" = "An unexpected error occurred. Please try again.";
+
+"error.network" = "Network Error";
+"error.network.message" = "Please check your internet connection.";
+
+"error.server" = "Server Error";
+"error.server.message" = "Our cosmic servers are experiencing turbulence.";
+
+"error.timeout" = "Request Timeout";
+"error.timeout.message" = "The stars are taking too long to align.";
+
+"error.rate.limit" = "Rate Limit";
+"error.rate.limit.message" = "You've consulted the cosmos too frequently.";
+
+"error.invalid.symbol" = "Invalid Symbol";
+"error.invalid.symbol.message" = "We couldn't find '%@' in our galaxy of stocks.";
+
+"error.offline" = "You're Offline";
+"error.offline.message" = "Connect to the internet to see latest prices.";
+"error.offline.cached" = "Showing cached data from %@";
+
+"error.retry" = "Retry";
+"error.dismiss" = "Dismiss";
+"error.settings" = "Open Settings";
+
+// =============================================================================
+// MARK: - Zodiac Signs
+// =============================================================================
+
+"zodiac.aries" = "Aries";
+"zodiac.aries.symbol" = "The Ram";
+"zodiac.aries.dates" = "Mar 21 - Apr 19";
+
+"zodiac.taurus" = "Taurus";
+"zodiac.taurus.symbol" = "The Bull";
+"zodiac.taurus.dates" = "Apr 20 - May 20";
+
+"zodiac.gemini" = "Gemini";
+"zodiac.gemini.symbol" = "The Twins";
+"zodiac.gemini.dates" = "May 21 - Jun 20";
+
+"zodiac.cancer" = "Cancer";
+"zodiac.cancer.symbol" = "The Crab";
+"zodiac.cancer.dates" = "Jun 21 - Jul 22";
+
+"zodiac.leo" = "Leo";
+"zodiac.leo.symbol" = "The Lion";
+"zodiac.leo.dates" = "Jul 23 - Aug 22";
+
+"zodiac.virgo" = "Virgo";
+"zodiac.virgo.symbol" = "The Maiden";
+"zodiac.virgo.dates" = "Aug 23 - Sep 22";
+
+"zodiac.libra" = "Libra";
+"zodiac.libra.symbol" = "The Scales";
+"zodiac.libra.dates" = "Sep 23 - Oct 22";
+
+"zodiac.scorpio" = "Scorpio";
+"zodiac.scorpio.symbol" = "The Scorpion";
+"zodiac.scorpio.dates" = "Oct 23 - Nov 21";
+
+"zodiac.sagittarius" = "Sagittarius";
+"zodiac.sagittarius.symbol" = "The Archer";
+"zodiac.sagittarius.dates" = "Nov 22 - Dec 21";
+
+"zodiac.capricorn" = "Capricorn";
+"zodiac.capricorn.symbol" = "The Goat";
+"zodiac.capricorn.dates" = "Dec 22 - Jan 19";
+
+"zodiac.aquarius" = "Aquarius";
+"zodiac.aquarius.symbol" = "The Water Bearer";
+"zodiac.aquarius.dates" = "Jan 20 - Feb 18";
+
+"zodiac.pisces" = "Pisces";
+"zodiac.pisces.symbol" = "The Fish";
+"zodiac.pisces.dates" = "Feb 19 - Mar 20";
+
+// =============================================================================
+// MARK: - Elements
+// =============================================================================
+
+"element.fire" = "Fire";
+"element.fire.description" = "Passionate, energetic, bold";
+"element.fire.signs" = "Aries, Leo, Sagittarius";
+
+"element.earth" = "Earth";
+"element.earth.description" = "Practical, grounded, patient";
+"element.earth.signs" = "Taurus, Virgo, Capricorn";
+
+"element.air" = "Air";
+"element.air.description" = "Intellectual, communicative, analytical";
+"element.air.signs" = "Gemini, Libra, Aquarius";
+
+"element.water" = "Water";
+"element.water.description" = "Intuitive, emotional, perceptive";
+"element.water.signs" = "Cancer, Scorpio, Pisces";
+
+// =============================================================================
+// MARK: - Compatibility
+// =============================================================================
+
+"compatibility.excellent" = "Excellent";
+"compatibility.excellent.description" = "A cosmic perfect match";
+"compatibility.good" = "Good";
+"compatibility.good.description" = "Strong alignment";
+"compatibility.moderate" = "Moderate";
+"compatibility.moderate.description" = "Worth considering";
+"compatibility.challenging" = "Challenging";
+"compatibility.challenging.description" = "Proceed with caution";
+"compatibility.difficult" = "Difficult";
+"compatibility.difficult.description" = "Against the cosmic flow";
+
+// =============================================================================
+// MARK: - Time & Dates
+// =============================================================================
+
+"time.just.now" = "Just now";
+"time.minutes.ago" = "%d min ago";
+"time.hours.ago" = "%dh ago";
+"time.days.ago" = "%dd ago";
+"time.today" = "Today";
+"time.yesterday" = "Yesterday";
+"time.tomorrow" = "Tomorrow";
+
+// =============================================================================
+// MARK: - Numbers & Formatting
+// =============================================================================
+
+"number.shares" = "%@ shares";
+"number.shares.singular" = "1 share";
+"number.stocks" = "%d stocks";
+"number.stocks.singular" = "1 stock";
+
+"format.price" = "$%@";
+"format.percent" = "%@%%";
+"format.percent.positive" = "+%@%%";
+"format.percent.negative" = "%@%%";
+
+// =============================================================================
+// MARK: - Common Actions
+// =============================================================================
+
+"common.ok" = "OK";
+"common.cancel" = "Cancel";
+"common.done" = "Done";
+"common.save" = "Save";
+"common.delete" = "Delete";
+"common.edit" = "Edit";
+"common.add" = "Add";
+"common.remove" = "Remove";
+"common.close" = "Close";
+"common.back" = "Back";
+"common.next" = "Next";
+"common.confirm" = "Confirm";
+"common.continue" = "Continue";
+"common.skip" = "Skip";
+"common.retry" = "Retry";
+"common.refresh" = "Refresh";
+"common.loading" = "Loading...";
+"common.share" = "Share";
+"common.copy" = "Copy";
+"common.search" = "Search";
+"common.filter" = "Filter";
+"common.sort" = "Sort";
+"common.settings" = "Settings";
+"common.help" = "Help";
+"common.more" = "More";
+"common.less" = "Less";
+"common.show.all" = "Show All";
+"common.hide" = "Hide";
+"common.select" = "Select";
+"common.selected" = "Selected";
+"common.none" = "None";
+"common.all" = "All";
+"common.yes" = "Yes";
+"common.no" = "No";
+
+// =============================================================================
+// MARK: - Accessibility
+// =============================================================================
+
+"accessibility.close.button" = "Close";
+"accessibility.back.button" = "Go back";
+"accessibility.menu.button" = "Open menu";
+"accessibility.search.button" = "Search";
+"accessibility.filter.button" = "Filter options";
+"accessibility.refresh.button" = "Refresh data";
+"accessibility.share.button" = "Share";
+"accessibility.like.button" = "Like this stock";
+"accessibility.skip.button" = "Skip this stock";
+"accessibility.add.button" = "Add to portfolio";
+
+"accessibility.stock.card" = "%@ stock, price %@, %@ change";
+"accessibility.compatibility.score" = "Compatibility score: %d percent";
+"accessibility.moon.phase" = "Current moon phase: %@";
+
+// =============================================================================
+// MARK: - Widgets
+// =============================================================================
+
+"widget.portfolio.title" = "Portfolio";
+"widget.portfolio.description" = "Track your cosmic holdings";
+"widget.horoscope.title" = "Daily Horoscope";
+"widget.horoscope.description" = "Your daily cosmic guidance";
+"widget.moon.title" = "Moon Phase";
+"widget.moon.description" = "Current lunar phase";
+"widget.compatibility.title" = "Top Match";
+"widget.compatibility.description" = "Your best cosmic match today";
+
+// =============================================================================
+// MARK: - IPO
+// =============================================================================
+
+"ipo.title" = "IPO Calendar";
+"ipo.upcoming" = "Upcoming IPOs";
+"ipo.thisWeek" = "This Week";
+"ipo.nextWeek" = "Next Week";
+"ipo.priced" = "Recently Priced";
+
+"ipo.date" = "Expected Date";
+"ipo.price.range" = "Price Range";
+"ipo.shares" = "Shares Offered";
+"ipo.exchange" = "Exchange";
+"ipo.underwriters" = "Underwriters";
+
+// =============================================================================
+// MARK: - Referral
+// =============================================================================
+
+"referral.title" = "Invite Friends";
+"referral.code" = "Your Code";
+"referral.code.copy" = "Copy Code";
+"referral.code.share" = "Share Code";
+"referral.enter" = "Enter a Code";
+"referral.enter.placeholder" = "Enter code (e.g., CT-ABC123)";
+"referral.apply" = "Apply Code";
+"referral.reward" = "Get 7 days free Oracle Tier";
+"referral.success" = "Code applied successfully!";
+"referral.invalid" = "Invalid code. Please try again.";
+
+// =============================================================================
+// MARK: - Social / Sharing
+// =============================================================================
+
+"share.roast.title" = "Portfolio Roast";
+"share.roast.generate" = "Generate Roast";
+"share.reportCard.title" = "Cosmic Report Card";
+"share.reportCard.generate" = "Generate Report Card";
+"share.copy.image" = "Copy Image";
+"share.save.image" = "Save Image";

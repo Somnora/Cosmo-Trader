@@ -406,8 +406,9 @@ struct OnboardingView: View {
                     showSignReveal = true
                     dateValidationError = nil
                 }
-                // Track birthdate entered
+                // Track birthdate entered and sign selected
                 AnalyticsService.shared.trackBirthdateEntered(sunSign: previewSign.displayName)
+                AnalyticsService.shared.trackOnboardingSignSelected(sign: previewSign.displayName, method: "birthday")
             }
             .accessibilityLabel("Birth date picker")
             .accessibilityHint("Select your birth date to determine your zodiac sign")

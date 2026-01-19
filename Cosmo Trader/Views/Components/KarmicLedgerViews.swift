@@ -706,8 +706,19 @@ struct AddKarmicEntrySheet: View {
                 Section("Stock Information") {
                     TextField("Symbol (e.g., RIVN)", text: $symbol)
                         .textInputAutocapitalization(.characters)
+                        .onChange(of: symbol) { _, newValue in
+                            if newValue.count > 10 {
+                                symbol = String(newValue.prefix(10))
+                            }
+                            symbol = newValue.uppercased()
+                        }
 
                     TextField("Company Name", text: $name)
+                        .onChange(of: name) { _, newValue in
+                            if newValue.count > 100 {
+                                name = String(newValue.prefix(100))
+                            }
+                        }
 
                     Picker("Zodiac Sign", selection: $selectedSign) {
                         ForEach(ZodiacSign.allCases, id: \.self) { sign in
@@ -719,6 +730,16 @@ struct AddKarmicEntrySheet: View {
                 Section("Loss Details") {
                     TextField("Loss Amount ($)", text: $lossAmount)
                         .keyboardType(.decimalPad)
+                        .onChange(of: lossAmount) { _, newValue in
+                            // Only allow valid decimal input
+                            let filtered = newValue.filter { $0.isNumber || $0 == "." }
+                            if filtered != newValue || newValue.filter({ $0 == "." }).count > 1 {
+                                lossAmount = String(filtered.prefix(while: { $0.isNumber || $0 == "." }))
+                            }
+                            if filtered.count > 15 {
+                                lossAmount = String(filtered.prefix(15))
+                            }
+                        }
 
                     DatePicker("Sale Date", selection: $saleDate, displayedComponents: .date)
                 }

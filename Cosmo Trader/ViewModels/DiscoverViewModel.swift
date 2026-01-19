@@ -2,58 +2,107 @@ import Foundation
 import SwiftUI
 
 // MARK: - DiscoverViewModel
-// =========================
-// The brain behind the "dating app for stocks" Discover tab.
-//
-// Responsibilities:
-// - Manage stock card deck
-// - Handle swipe actions (like, skip, view detail)
-// - Filter by element and sector
-// - Sort by compatibility or performance
-// - Track watchlist and skipped stocks
-//
-// Now works with AppState for shared user data.
 
+/// ViewModel for the stock discovery "swipe" interface.
+///
+/// `DiscoverViewModel` manages the "Tinder for stocks" experience, handling the card deck,
+/// swipe gestures, filtering, and sorting. It integrates with ``AppState`` to track
+/// watchlist additions and skipped stocks.
+///
+/// ## Architecture
+///
+/// ```
+/// DiscoverView ──> DiscoverViewModel ──> AppState
+///      │                  │                  │
+///      │                  │                  └── Persists watchlist/skipped
+///      │                  └── Manages card deck & filters
+///      └── Renders swipeable cards
+/// ```
+///
+/// ## Usage
+///
+/// ```swift
+/// struct DiscoverView: View {
+///     @State private var viewModel = DiscoverViewModel()
+///
+///     var body: some View {
+///         ForEach(viewModel.cardDeck) { card in
+///             StockCardView(card: card)
+///                 .gesture(swipeGesture(for: card))
+///         }
+///     }
+/// }
+/// ```
+///
+/// ## Swipe Actions
+///
+/// | Swipe | Action | Result |
+/// |-------|--------|--------|
+/// | Right | Like | Added to watchlist |
+/// | Left | Skip | Hidden from deck |
+/// | Up | Details | Opens stock detail sheet |
+///
+/// ## Filtering
+///
+/// Users can filter by:
+/// - **Element**: Fire, Earth, Air, Water (zodiac-based)
+/// - **Sector**: Technology, Healthcare, Finance, etc.
+/// - **Sort**: Compatibility score or price performance
+/// - **Contrarian Mode**: Shows least compatible stocks first
 @Observable
 class DiscoverViewModel {
 
     // MARK: - Properties
 
-    /// Reference to shared app state
+    /// Reference to shared app state for persisting user actions.
     private var appState: AppState
 
-    /// All available stocks from MockStockData
+    /// All available stocks loaded from mock data.
     private var allStocks: [Stock] = MockStockData.all
 
-    /// Current card deck (filtered and sorted)
+    /// The current card deck after applying filters and sorting.
+    ///
+    /// Cards are displayed from index 0 (top of deck) to last (bottom).
     var cardDeck: [StockCard] = []
 
-    /// Currently selected element filter (nil = all)
+    /// Currently selected element filter.
+    ///
+    /// When set, only stocks whose zodiac sign matches this element are shown.
+    /// Set to `nil` to show all elements.
     var selectedElement: ZodiacSign.Element?
 
-    /// Currently selected sector filter (nil = all)
+    /// Currently selected sector filter.
+    ///
+    /// When set, only stocks in this sector are shown.
+    /// Set to `nil` to show all sectors.
     var selectedSector: String?
 
-    /// Current sort option
+    /// How cards are sorted in the deck.
     var sortOption: SortOption = .compatibility
 
-    /// Cosmic Contrarian Mode - shows least compatible stocks
+    /// When enabled, shows least compatible stocks first.
+    ///
+    /// "Cosmic Contrarian Mode" inverts the compatibility sort,
+    /// useful for users who want to go against their zodiac alignment.
     var cosmicContrarianMode: Bool = false
 
-    /// Whether filter sheet is showing
+    /// Whether the filter sheet is currently presented.
     var showingFilters: Bool = false
 
-    /// The stock being viewed in detail (swipe up)
+    /// Stock currently being viewed in the detail sheet (from swipe up).
     var detailStock: Stock?
 
-    /// Animation state for card removal
+    /// Whether a card removal animation is in progress.
     var removingCard: Bool = false
 
-    /// Debounce work item for filter changes
+    /// Work item for debouncing filter changes.
     private var filterDebounceWork: DispatchWorkItem?
 
     // MARK: - Initialization
 
+    /// Creates a new discover view model.
+    ///
+    /// - Parameter appState: The app state to use for persistence. Defaults to shared instance.
     init(appState: AppState = AppState.shared) {
         self.appState = appState
         rebuildDeck()
@@ -157,11 +206,17 @@ class DiscoverViewModel {
         }
 
         // Create stock cards with compatibility
+        let previousCount = cardDeck.count
         cardDeck = stocks.map { stock in
             StockCard(
                 stock: stock,
                 compatibility: user.compatibility(with: stock)
             )
+        }
+
+        // Track deck refresh if cards were added (deck was empty or significantly changed)
+        if previousCount == 0 && !cardDeck.isEmpty {
+            AnalyticsService.shared.trackDiscoverDeckRefreshed(cardCount: cardDeck.count)
         }
     }
 
@@ -213,6 +268,11 @@ class DiscoverViewModel {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             self?.cardDeck.removeFirst()
             self?.removingCard = false
+
+            // Track if deck is now empty
+            if self?.cardDeck.isEmpty == true {
+                AnalyticsService.shared.trackDiscoverDeckEmpty()
+            }
         }
     }
 

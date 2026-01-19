@@ -18,7 +18,29 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     ) -> Bool {
         // Set ourselves as the notification center delegate
         UNUserNotificationCenter.current().delegate = self
+
+        // Register for memory warnings
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleMemoryWarning()
+        }
+
         return true
+    }
+
+    // MARK: - Memory Warning Handler
+
+    private func handleMemoryWarning() {
+        #if DEBUG
+        print("⚠️ Memory warning received - clearing caches")
+        #endif
+
+        // Clear API caches
+        StockAPIService.shared.clearCache()
+        VolumeService.shared.clearCache()
     }
 
     // MARK: - Remote Notification Registration

@@ -1717,6 +1717,11 @@ struct ProfileEditSheet: View {
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(CosmicTheme.textMuted.opacity(0.3), lineWidth: 1)
                 )
+                .onChange(of: viewModel.editingName) { _, newValue in
+                    if newValue.count > 50 {
+                        viewModel.editingName = String(newValue.prefix(50))
+                    }
+                }
         }
     }
 

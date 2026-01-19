@@ -1,0 +1,250 @@
+/*
+  Localizable.strings (Spanish)
+  Cosmo Trader
+
+  Spanish localization for Cosmo Trader app.
+  TODO: Complete all translations
+*/
+
+// =============================================================================
+// MARK: - Onboarding
+// =============================================================================
+
+"onboarding.welcome.title" = "COSMO TRADER";
+"onboarding.welcome.subtitle" = "Inteligencia Astrológica del Mercado";
+"onboarding.welcome.description" = "Astrología basada en datos para traders serios";
+"onboarding.welcome.tagline" = "Donde las estrellas se encuentran con el mercado";
+
+"onboarding.sign.title" = "SELECCIONA TU SIGNO";
+"onboarding.sign.prompt" = "¿Cuándo naciste?";
+"onboarding.sign.description" = "Tu signo zodiacal determina tu compatibilidad cósmica con las acciones";
+
+"onboarding.name.title" = "¿CUÁL ES TU NOMBRE?";
+"onboarding.name.prompt" = "Así aparecerás en tu perfil cósmico";
+"onboarding.name.placeholder" = "Tu nombre";
+
+"onboarding.stock.title" = "ELIGE TU PRIMERA ACCIÓN";
+"onboarding.stock.prompt" = "Selecciona una acción para agregar a tu portafolio inicial";
+
+"onboarding.disclaimer.title" = "AVISO IMPORTANTE";
+"onboarding.disclaimer.text" = "Cosmo Trader es solo para fines informativos y de entretenimiento y no constituye asesoramiento financiero. El rendimiento pasado no garantiza resultados futuros. Siempre investiga antes de tomar decisiones de inversión.";
+"onboarding.disclaimer.accept" = "Entiendo";
+
+"onboarding.complete.title" = "BIENVENIDO AL COSMOS";
+"onboarding.complete.message" = "Tu viaje de trading cósmico comienza ahora";
+
+"onboarding.continue" = "Continuar";
+"onboarding.skip" = "Omitir";
+"onboarding.back" = "Atrás";
+"onboarding.launch" = "Iniciar Terminal";
+
+// =============================================================================
+// MARK: - Tab Bar
+// =============================================================================
+
+"tabs.discover" = "Descubrir";
+"tabs.cosmos" = "Cosmos";
+"tabs.portfolio" = "Portafolio";
+"tabs.profile" = "Perfil";
+
+// =============================================================================
+// MARK: - Discover
+// =============================================================================
+
+"discover.title" = "DESCUBRIR";
+"discover.subtitle" = "Desliza Tus Coincidencias Cósmicas";
+
+"discover.empty.title" = "Todo Visto";
+"discover.empty.message" = "Has visto todas las acciones disponibles. Vuelve más tarde para más coincidencias cósmicas.";
+"discover.empty.reset" = "Restablecer Omitidas";
+
+"discover.swipe.hint" = "Desliza a la derecha para gustar, izquierda para omitir";
+"discover.swipe.like" = "ME GUSTA";
+"discover.swipe.skip" = "OMITIR";
+"discover.swipe.details" = "Ver Detalles";
+
+"discover.filter.title" = "Filtrar Acciones";
+"discover.filter.element" = "Elemento";
+"discover.filter.sector" = "Sector";
+"discover.filter.sort" = "Ordenar Por";
+"discover.filter.all" = "Todos";
+"discover.filter.apply" = "Aplicar Filtros";
+"discover.filter.reset" = "Restablecer";
+
+"discover.sort.compatibility" = "Compatibilidad";
+"discover.sort.performance" = "Rendimiento";
+"discover.sort.alphabetical" = "Alfabético";
+"discover.sort.price" = "Precio";
+
+"discover.contrarian.title" = "Contrario Cósmico";
+"discover.contrarian.description" = "Mostrar primero las acciones menos compatibles";
+
+// =============================================================================
+// MARK: - Cosmos
+// =============================================================================
+
+"cosmos.title" = "HORÓSCOPO DIARIO";
+"cosmos.subtitle" = "Tu Guía de Trading Cósmico";
+
+"cosmos.greeting.morning" = "Buenos días";
+"cosmos.greeting.afternoon" = "Buenas tardes";
+"cosmos.greeting.evening" = "Buenas noches";
+
+"cosmos.moon.title" = "Fase Lunar";
+"cosmos.moon.new" = "Luna Nueva";
+"cosmos.moon.waxingCrescent" = "Luna Creciente";
+"cosmos.moon.firstQuarter" = "Cuarto Creciente";
+"cosmos.moon.waxingGibbous" = "Gibosa Creciente";
+"cosmos.moon.full" = "Luna Llena";
+"cosmos.moon.waningGibbous" = "Gibosa Menguante";
+"cosmos.moon.lastQuarter" = "Cuarto Menguante";
+"cosmos.moon.waningCrescent" = "Luna Menguante";
+
+"cosmos.mercury.retrograde" = "Mercurio Retrógrado";
+"cosmos.mercury.direct" = "Mercurio Directo";
+"cosmos.mercury.warning" = "Se aconseja cautela para nuevas inversiones";
+"cosmos.mercury.clear" = "Cielos despejados para operar";
+
+// =============================================================================
+// MARK: - Portfolio
+// =============================================================================
+
+"portfolio.title" = "PORTAFOLIO";
+"portfolio.subtitle" = "Tus Posiciones Cósmicas";
+
+"portfolio.empty.title" = "Sin Acciones Aún";
+"portfolio.empty.message" = "Comienza a deslizar en Descubrir para construir tu portafolio cósmico.";
+"portfolio.empty.cta" = "Ir a Descubrir";
+
+"portfolio.total" = "Valor Total";
+"portfolio.change.today" = "Cambio de Hoy";
+"portfolio.change.allTime" = "Todo el Tiempo";
+"portfolio.compatibility" = "Compatibilidad del Portafolio";
+"portfolio.holdings" = "Posiciones";
+"portfolio.watchlist" = "Lista de Seguimiento";
+
+// =============================================================================
+// MARK: - Zodiac Signs
+// =============================================================================
+
+"zodiac.aries" = "Aries";
+"zodiac.aries.symbol" = "El Carnero";
+"zodiac.aries.dates" = "21 Mar - 19 Abr";
+
+"zodiac.taurus" = "Tauro";
+"zodiac.taurus.symbol" = "El Toro";
+"zodiac.taurus.dates" = "20 Abr - 20 May";
+
+"zodiac.gemini" = "Géminis";
+"zodiac.gemini.symbol" = "Los Gemelos";
+"zodiac.gemini.dates" = "21 May - 20 Jun";
+
+"zodiac.cancer" = "Cáncer";
+"zodiac.cancer.symbol" = "El Cangrejo";
+"zodiac.cancer.dates" = "21 Jun - 22 Jul";
+
+"zodiac.leo" = "Leo";
+"zodiac.leo.symbol" = "El León";
+"zodiac.leo.dates" = "23 Jul - 22 Ago";
+
+"zodiac.virgo" = "Virgo";
+"zodiac.virgo.symbol" = "La Virgen";
+"zodiac.virgo.dates" = "23 Ago - 22 Sep";
+
+"zodiac.libra" = "Libra";
+"zodiac.libra.symbol" = "La Balanza";
+"zodiac.libra.dates" = "23 Sep - 22 Oct";
+
+"zodiac.scorpio" = "Escorpio";
+"zodiac.scorpio.symbol" = "El Escorpión";
+"zodiac.scorpio.dates" = "23 Oct - 21 Nov";
+
+"zodiac.sagittarius" = "Sagitario";
+"zodiac.sagittarius.symbol" = "El Arquero";
+"zodiac.sagittarius.dates" = "22 Nov - 21 Dic";
+
+"zodiac.capricorn" = "Capricornio";
+"zodiac.capricorn.symbol" = "La Cabra";
+"zodiac.capricorn.dates" = "22 Dic - 19 Ene";
+
+"zodiac.aquarius" = "Acuario";
+"zodiac.aquarius.symbol" = "El Aguador";
+"zodiac.aquarius.dates" = "20 Ene - 18 Feb";
+
+"zodiac.pisces" = "Piscis";
+"zodiac.pisces.symbol" = "Los Peces";
+"zodiac.pisces.dates" = "19 Feb - 20 Mar";
+
+// =============================================================================
+// MARK: - Elements
+// =============================================================================
+
+"element.fire" = "Fuego";
+"element.fire.description" = "Apasionado, enérgico, audaz";
+"element.fire.signs" = "Aries, Leo, Sagitario";
+
+"element.earth" = "Tierra";
+"element.earth.description" = "Práctico, centrado, paciente";
+"element.earth.signs" = "Tauro, Virgo, Capricornio";
+
+"element.air" = "Aire";
+"element.air.description" = "Intelectual, comunicativo, analítico";
+"element.air.signs" = "Géminis, Libra, Acuario";
+
+"element.water" = "Agua";
+"element.water.description" = "Intuitivo, emocional, perceptivo";
+"element.water.signs" = "Cáncer, Escorpio, Piscis";
+
+// =============================================================================
+// MARK: - Common Actions
+// =============================================================================
+
+"common.ok" = "OK";
+"common.cancel" = "Cancelar";
+"common.done" = "Listo";
+"common.save" = "Guardar";
+"common.delete" = "Eliminar";
+"common.edit" = "Editar";
+"common.add" = "Agregar";
+"common.remove" = "Quitar";
+"common.close" = "Cerrar";
+"common.back" = "Atrás";
+"common.next" = "Siguiente";
+"common.confirm" = "Confirmar";
+"common.continue" = "Continuar";
+"common.skip" = "Omitir";
+"common.retry" = "Reintentar";
+"common.refresh" = "Actualizar";
+"common.loading" = "Cargando...";
+"common.share" = "Compartir";
+"common.copy" = "Copiar";
+"common.search" = "Buscar";
+"common.filter" = "Filtrar";
+"common.sort" = "Ordenar";
+"common.settings" = "Configuración";
+"common.help" = "Ayuda";
+"common.more" = "Más";
+"common.less" = "Menos";
+"common.show.all" = "Mostrar Todo";
+"common.hide" = "Ocultar";
+"common.select" = "Seleccionar";
+"common.selected" = "Seleccionado";
+"common.none" = "Ninguno";
+"common.all" = "Todos";
+"common.yes" = "Sí";
+"common.no" = "No";
+
+// =============================================================================
+// MARK: - Errors
+// =============================================================================
+
+"error.title" = "Algo Salió Mal";
+"error.generic" = "Ocurrió un error inesperado. Por favor intenta de nuevo.";
+"error.network" = "Error de Red";
+"error.network.message" = "Por favor verifica tu conexión a internet.";
+"error.offline" = "Sin Conexión";
+"error.offline.message" = "Conéctate a internet para ver los precios más recientes.";
+"error.retry" = "Reintentar";
+"error.dismiss" = "Cerrar";
+
+// TODO: Complete remaining translations...

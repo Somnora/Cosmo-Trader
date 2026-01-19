@@ -2,51 +2,84 @@ import Foundation
 import Combine
 
 // MARK: - StockQuote
-// ==================
-// Response model for Finnhub quote endpoint
 
+/// Real-time stock price data from the Finnhub API.
+///
+/// `StockQuote` represents the current trading data for a stock, including price,
+/// daily change, and high/low values. The property names match Finnhub's JSON response
+/// format (single-letter keys), with computed properties providing friendly access.
+///
+/// ## Example
+/// ```swift
+/// let quote = try await StockAPIService.shared.getQuote(symbol: "AAPL")
+/// print("\(quote.formattedPrice) \(quote.formattedPercentage)")
+/// // Output: "$185.92 +1.25%"
+/// ```
+///
+/// ## API Response Mapping
+/// | Property | Finnhub Key | Description |
+/// |----------|-------------|-------------|
+/// | `c` | `c` | Current price |
+/// | `d` | `d` | Dollar change |
+/// | `dp` | `dp` | Percent change |
+/// | `h` | `h` | Day high |
+/// | `l` | `l` | Day low |
+/// | `o` | `o` | Open price |
+/// | `pc` | `pc` | Previous close |
 struct StockQuote: Codable {
-    /// Current price
+    /// Current trading price (Finnhub key: `c`).
     let c: Double
-    /// Change
+
+    /// Dollar change from previous close (Finnhub key: `d`).
+    /// - Note: May be nil for some symbols; computed from `c - pc` as fallback.
     let d: Double?
-    /// Percent change
+
+    /// Percent change from previous close (Finnhub key: `dp`).
+    /// - Note: May be nil for some symbols; computed as fallback.
     let dp: Double?
-    /// High price of the day
+
+    /// Highest price of the current trading day (Finnhub key: `h`).
     let h: Double
-    /// Low price of the day
+
+    /// Lowest price of the current trading day (Finnhub key: `l`).
     let l: Double
-    /// Open price of the day
+
+    /// Opening price of the current trading day (Finnhub key: `o`).
     let o: Double
-    /// Previous close price
+
+    /// Previous trading day's closing price (Finnhub key: `pc`).
     let pc: Double
-    /// Timestamp
+
+    /// Unix timestamp of the quote (Finnhub key: `t`).
     let t: Int?
 
-    /// Current price (alias)
+    /// Current trading price.
+    /// - Returns: The current price as a `Double`.
     var currentPrice: Double { c }
 
-    /// Price change from previous close
+    /// Dollar change from previous close.
+    /// - Returns: Price change, calculated from API value or computed from `c - pc`.
     var priceChange: Double { d ?? (c - pc) }
 
-    /// Percentage change from previous close
+    /// Percentage change from previous close.
+    /// - Returns: Percent change, calculated from API value or computed.
     var percentageChange: Double { dp ?? ((c - pc) / pc * 100) }
 
-    /// Is the price up from previous close?
+    /// Whether the stock is up or unchanged from previous close.
     var isPositive: Bool { priceChange >= 0 }
 
-    /// Formatted current price
+    /// Price formatted as currency (e.g., "$185.92").
     var formattedPrice: String {
         String(format: "$%.2f", currentPrice)
     }
 
-    /// Formatted change with sign
+    /// Dollar change with sign (e.g., "+$2.50" or "-$1.25").
     var formattedChange: String {
         let sign = priceChange >= 0 ? "+" : ""
         return String(format: "%@$%.2f", sign, priceChange)
     }
 
-    /// Formatted percentage change
+    /// Percentage change with sign (e.g., "+1.25%" or "-0.50%").
     var formattedPercentage: String {
         let sign = percentageChange >= 0 ? "+" : ""
         return String(format: "%@%.2f%%", sign, percentageChange)
@@ -54,22 +87,38 @@ struct StockQuote: Codable {
 }
 
 // MARK: - CachedQuote
-// ===================
-// Wrapper for cached quotes with timestamp
 
+/// A time-stamped wrapper for cached stock quotes.
+///
+/// `CachedQuote` tracks when a quote was fetched, enabling cache expiration
+/// and "data as of" display in offline mode.
+///
+/// ## Cache Behavior
+/// - Fresh cache (< 60s): Returned immediately, no API call
+/// - Expired cache: API call attempted; stale data used as fallback
+/// - Offline mode: Stale cache returned with timestamp indicator
 struct CachedQuote {
+    /// The cached quote data.
     let quote: StockQuote
+
+    /// When this quote was fetched from the API.
     let timestamp: Date
+
+    /// The stock symbol this quote belongs to.
     let symbol: String
 
+    /// Time elapsed since this quote was fetched, in seconds.
     var age: TimeInterval {
         Date().timeIntervalSince(timestamp)
     }
 
+    /// Whether this cache entry has exceeded the expiration threshold.
+    /// - Returns: `true` if older than ``StockAPIService/cacheExpirationSeconds``.
     var isExpired: Bool {
         age > StockAPIService.cacheExpirationSeconds
     }
 
+    /// Human-readable age string for display (e.g., "5 mins ago", "2h ago").
     var formattedAge: String {
         let minutes = Int(age / 60)
         if minutes < 1 {
@@ -86,19 +135,61 @@ struct CachedQuote {
 }
 
 // MARK: - StockAPIService
-// =======================
-// Service for fetching real-time stock data from Finnhub.
-// Features:
-// - Async/await API
-// - Request throttling (60 calls/min)
-// - In-memory caching (60 second expiration)
-// - Graceful error handling
 
+/// A service that manages real-time stock data fetching from the Finnhub API.
+///
+/// `StockAPIService` is the primary interface for fetching live stock quotes and
+/// searching for stock symbols. It handles API communication, rate limiting,
+/// caching, and error handling automatically.
+///
+/// ## Usage
+///
+/// ```swift
+/// // Fetch a single quote
+/// let quote = try await StockAPIService.shared.getQuote(symbol: "AAPL")
+/// print(quote.formattedPrice) // "$185.92"
+///
+/// // Fetch multiple quotes
+/// let quotes = await StockAPIService.shared.getMultipleQuotes(symbols: ["AAPL", "GOOGL", "MSFT"])
+///
+/// // Search for symbols
+/// let results = try await StockAPIService.shared.searchSymbols(query: "Apple")
+/// ```
+///
+/// ## Rate Limiting
+///
+/// The service enforces Finnhub's free tier limit of 60 requests per minute:
+/// - Requests are tracked with timestamps
+/// - A minimum 1-second delay is enforced between requests
+/// - ``NetworkError/rateLimited`` is thrown if limit is exceeded
+///
+/// ## Caching
+///
+/// Quotes are cached in memory for 60 seconds to reduce API calls:
+/// - Fresh cache: Returned immediately without API call
+/// - Expired cache: New API call made; stale data used as fallback on failure
+/// - Offline mode: Stale cache returned with age indicator
+///
+/// ## Thread Safety
+///
+/// This service is `@MainActor` isolated and uses locks for thread-safe cache access.
+/// All published properties update on the main thread.
+///
+/// ## Error Handling
+///
+/// All methods throw ``NetworkError`` on failure. Common errors:
+/// - ``NetworkError/noConnection``: Device is offline
+/// - ``NetworkError/rateLimited``: API rate limit exceeded
+/// - ``NetworkError/invalidSymbol(_:)``: Symbol not found
+/// - ``NetworkError/apiKeyMissing``: API key not configured
+///
+/// - Note: This service requires a valid Finnhub API key configured in ``APIConfig``.
 @MainActor
 final class StockAPIService: ObservableObject {
 
     // MARK: - Singleton
 
+    /// Shared singleton instance for app-wide use.
     static let shared = StockAPIService()
 
     // MARK: - Configuration

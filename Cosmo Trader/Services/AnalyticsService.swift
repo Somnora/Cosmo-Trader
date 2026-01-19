@@ -24,6 +24,11 @@ enum AnalyticsEvent: String {
 
     // MARK: Onboarding
     case onboardingStarted = "onboarding_started"
+    case onboardingSignSelected = "onboarding_sign_selected"
+    case onboardingDisclaimerAccepted = "onboarding_disclaimer_accepted"
+    case onboardingNotificationsPrompted = "onboarding_notifications_prompted"
+    case onboardingNotificationsGranted = "onboarding_notifications_granted"
+    case onboardingNotificationsDenied = "onboarding_notifications_denied"
     case onboardingCompleted = "onboarding_completed"
     case onboardingSkipped = "onboarding_skipped"
     case onboardingAbandoned = "onboarding_abandoned"
@@ -39,7 +44,10 @@ enum AnalyticsEvent: String {
     case watchlistAdded = "watchlist_added"
     case watchlistRemoved = "watchlist_removed"
     case portfolioViewed = "portfolio_viewed"
+    case portfolioStockTapped = "portfolio_stock_tapped"
     case stockDetailViewed = "stock_detail_viewed"
+    case stockShared = "stock_shared"
+    case chartTimeframeChanged = "chart_timeframe_changed"
 
     // MARK: Discovery (Swipe)
     case stockSwiped = "stock_swiped"
@@ -47,14 +55,18 @@ enum AnalyticsEvent: String {
     case stockSkipped = "stock_skipped"
     case discoveryCardViewed = "discovery_card_viewed"
     case discoverSessionStarted = "discover_session_started"
+    case discoverDeckEmpty = "discover_deck_empty"
+    case discoverDeckRefreshed = "discover_deck_refreshed"
 
     // MARK: Search
+    case searchOpened = "search_opened"
     case searchPerformed = "search_performed"
     case searchResultSelected = "search_result_selected"
 
     // MARK: Cosmic Features
     case horoscopeViewed = "horoscope_viewed"
     case horoscopeRefreshed = "horoscope_refreshed"
+    case horoscopeShared = "horoscope_shared"
     case compatibilityChecked = "compatibility_checked"
     case moonPhaseViewed = "moon_phase_viewed"
 
@@ -88,9 +100,16 @@ enum AnalyticsEvent: String {
     // MARK: Settings
     case settingsViewed = "settings_viewed"
     case notificationToggled = "notification_toggled"
+    case notificationSettingsChanged = "notification_settings_changed"
     case privacyPolicyViewed = "privacy_policy_viewed"
     case termsViewed = "terms_viewed"
     case disclaimerViewed = "disclaimer_viewed"
+
+    // MARK: Notifications
+    case notificationPermissionGranted = "notification_permission_granted"
+    case notificationPermissionDenied = "notification_permission_denied"
+    case notificationReceived = "notification_received"
+    case notificationTapped = "notification_tapped"
 
     // MARK: GDPR / Privacy
     case dataExported = "data_exported"
@@ -103,6 +122,13 @@ enum AnalyticsEvent: String {
     case apiError = "api_error"
     case networkError = "network_error"
     case errorDisplayed = "error_displayed"
+    case offlineDetected = "offline_detected"
+}
+
+// MARK: - Audio/Theme Events
+extension AnalyticsEvent {
+    static let terminalAudioEnabled = AnalyticsEvent(rawValue: "terminal_audio_enabled")!
+    static let terminalAudioDisabled = AnalyticsEvent(rawValue: "terminal_audio_disabled")!
 }
 
 // MARK: - Event Parameters
@@ -561,6 +587,102 @@ extension AnalyticsService {
 
     func trackSubscriptionRestored() {
         track(.subscriptionRestored)
+    }
+
+    // MARK: - Additional Event Tracking
+
+    func trackOnboardingSignSelected(sign: String, method: String) {
+        track(.onboardingSignSelected, params: AnalyticsParameters([
+            "sign": sign,
+            "method": method
+        ]))
+    }
+
+    func trackOnboardingDisclaimerAccepted() {
+        track(.onboardingDisclaimerAccepted)
+    }
+
+    func trackOnboardingNotificationsPrompted() {
+        track(.onboardingNotificationsPrompted)
+    }
+
+    func trackOnboardingNotificationsResult(granted: Bool) {
+        track(granted ? .onboardingNotificationsGranted : .onboardingNotificationsDenied)
+    }
+
+    func trackDiscoverDeckEmpty() {
+        track(.discoverDeckEmpty)
+    }
+
+    func trackDiscoverDeckRefreshed(cardCount: Int) {
+        track(.discoverDeckRefreshed, params: AnalyticsParameters([
+            "card_count": cardCount
+        ]))
+    }
+
+    func trackSearchOpened() {
+        track(.searchOpened)
+    }
+
+    func trackStockShared(symbol: String) {
+        track(.stockShared, params: AnalyticsParameters([
+            "stock_symbol": symbol
+        ]))
+    }
+
+    func trackChartTimeframeChanged(symbol: String, timeframe: String) {
+        track(.chartTimeframeChanged, params: AnalyticsParameters([
+            "stock_symbol": symbol,
+            "timeframe": timeframe
+        ]))
+    }
+
+    func trackHoroscopeShared(sunSign: String) {
+        track(.horoscopeShared, params: AnalyticsParameters([
+            "sun_sign": sunSign
+        ]))
+    }
+
+    func trackPortfolioStockTapped(symbol: String) {
+        track(.portfolioStockTapped, params: AnalyticsParameters([
+            "stock_symbol": symbol
+        ]))
+    }
+
+    func trackNotificationPermissionResult(granted: Bool) {
+        track(granted ? .notificationPermissionGranted : .notificationPermissionDenied)
+    }
+
+    func trackNotificationReceived(type: String) {
+        track(.notificationReceived, params: AnalyticsParameters([
+            "notification_type": type
+        ]))
+    }
+
+    func trackNotificationTapped(type: String, symbol: String? = nil) {
+        var params: [String: Any] = ["notification_type": type]
+        if let symbol = symbol {
+            params["stock_symbol"] = symbol
+        }
+        track(.notificationTapped, params: AnalyticsParameters(params))
+    }
+
+    func trackNotificationSettingsChanged(setting: String, enabled: Bool) {
+        track(.notificationSettingsChanged, params: AnalyticsParameters([
+            "setting": setting,
+            "enabled": enabled
+        ]))
+    }
+
+    func trackOfflineDetected() {
+        track(.offlineDetected)
+    }
+
+    func trackPortfolioViewed(stockCount: Int, totalValue: Double) {
+        track(.portfolioViewed, params: AnalyticsParameters([
+            "stock_count": stockCount,
+            "total_value": totalValue
+        ]))
     }
 }
 

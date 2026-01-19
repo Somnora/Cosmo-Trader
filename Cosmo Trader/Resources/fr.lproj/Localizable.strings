@@ -1,0 +1,216 @@
+/*
+  Localizable.strings (French)
+  Cosmo Trader
+
+  French localization for Cosmo Trader app.
+  TODO: Complete all translations
+*/
+
+// =============================================================================
+// MARK: - Onboarding
+// =============================================================================
+
+"onboarding.welcome.title" = "COSMO TRADER";
+"onboarding.welcome.subtitle" = "Intelligence Astrologique du Marché";
+"onboarding.welcome.description" = "Astrologie basée sur les données pour traders sérieux";
+"onboarding.welcome.tagline" = "Là où les étoiles rencontrent le marché";
+
+"onboarding.sign.title" = "SÉLECTIONNEZ VOTRE SIGNE";
+"onboarding.sign.prompt" = "Quand êtes-vous né?";
+"onboarding.sign.description" = "Votre signe du zodiaque détermine votre compatibilité cosmique avec les actions";
+
+"onboarding.name.title" = "QUEL EST VOTRE NOM?";
+"onboarding.name.prompt" = "C'est ainsi que vous apparaîtrez dans votre profil cosmique";
+"onboarding.name.placeholder" = "Votre nom";
+
+"onboarding.stock.title" = "CHOISISSEZ VOTRE PREMIÈRE ACTION";
+"onboarding.stock.prompt" = "Sélectionnez une action à ajouter à votre portefeuille de départ";
+
+"onboarding.disclaimer.title" = "AVIS IMPORTANT";
+"onboarding.disclaimer.text" = "Cosmo Trader est uniquement à des fins d'information et de divertissement et ne constitue pas un conseil financier. Les performances passées ne garantissent pas les résultats futurs. Faites toujours vos propres recherches avant de prendre des décisions d'investissement.";
+"onboarding.disclaimer.accept" = "Je Comprends";
+
+"onboarding.complete.title" = "BIENVENUE DANS LE COSMOS";
+"onboarding.complete.message" = "Votre voyage de trading cosmique commence maintenant";
+
+"onboarding.continue" = "Continuer";
+"onboarding.skip" = "Passer";
+"onboarding.back" = "Retour";
+"onboarding.launch" = "Lancer le Terminal";
+
+// =============================================================================
+// MARK: - Tab Bar
+// =============================================================================
+
+"tabs.discover" = "Découvrir";
+"tabs.cosmos" = "Cosmos";
+"tabs.portfolio" = "Portefeuille";
+"tabs.profile" = "Profil";
+
+// =============================================================================
+// MARK: - Discover
+// =============================================================================
+
+"discover.title" = "DÉCOUVRIR";
+"discover.subtitle" = "Faites Glisser Vos Correspondances Cosmiques";
+
+"discover.empty.title" = "Tout Vu";
+"discover.empty.message" = "Vous avez vu toutes les actions disponibles. Revenez plus tard pour plus de correspondances cosmiques.";
+"discover.empty.reset" = "Réinitialiser Ignorées";
+
+"discover.swipe.hint" = "Glissez à droite pour aimer, à gauche pour ignorer";
+"discover.swipe.like" = "J'AIME";
+"discover.swipe.skip" = "IGNORER";
+"discover.swipe.details" = "Voir Détails";
+
+// =============================================================================
+// MARK: - Cosmos
+// =============================================================================
+
+"cosmos.title" = "HOROSCOPE QUOTIDIEN";
+"cosmos.subtitle" = "Votre Guide de Trading Cosmique";
+
+"cosmos.greeting.morning" = "Bonjour";
+"cosmos.greeting.afternoon" = "Bon après-midi";
+"cosmos.greeting.evening" = "Bonsoir";
+
+"cosmos.moon.title" = "Phase Lunaire";
+"cosmos.moon.new" = "Nouvelle Lune";
+"cosmos.moon.full" = "Pleine Lune";
+
+"cosmos.mercury.retrograde" = "Mercure Rétrograde";
+"cosmos.mercury.direct" = "Mercure Direct";
+
+// =============================================================================
+// MARK: - Portfolio
+// =============================================================================
+
+"portfolio.title" = "PORTEFEUILLE";
+"portfolio.subtitle" = "Vos Positions Cosmiques";
+
+"portfolio.empty.title" = "Pas Encore d'Actions";
+"portfolio.empty.message" = "Commencez à glisser dans Découvrir pour construire votre portefeuille cosmique.";
+"portfolio.empty.cta" = "Aller à Découvrir";
+
+"portfolio.total" = "Valeur Totale";
+"portfolio.change.today" = "Changement du Jour";
+"portfolio.holdings" = "Positions";
+"portfolio.watchlist" = "Liste de Suivi";
+
+// =============================================================================
+// MARK: - Zodiac Signs
+// =============================================================================
+
+"zodiac.aries" = "Bélier";
+"zodiac.aries.symbol" = "Le Bélier";
+"zodiac.aries.dates" = "21 Mar - 19 Avr";
+
+"zodiac.taurus" = "Taureau";
+"zodiac.taurus.symbol" = "Le Taureau";
+"zodiac.taurus.dates" = "20 Avr - 20 Mai";
+
+"zodiac.gemini" = "Gémeaux";
+"zodiac.gemini.symbol" = "Les Jumeaux";
+"zodiac.gemini.dates" = "21 Mai - 20 Juin";
+
+"zodiac.cancer" = "Cancer";
+"zodiac.cancer.symbol" = "Le Crabe";
+"zodiac.cancer.dates" = "21 Juin - 22 Juil";
+
+"zodiac.leo" = "Lion";
+"zodiac.leo.symbol" = "Le Lion";
+"zodiac.leo.dates" = "23 Juil - 22 Août";
+
+"zodiac.virgo" = "Vierge";
+"zodiac.virgo.symbol" = "La Vierge";
+"zodiac.virgo.dates" = "23 Août - 22 Sep";
+
+"zodiac.libra" = "Balance";
+"zodiac.libra.symbol" = "La Balance";
+"zodiac.libra.dates" = "23 Sep - 22 Oct";
+
+"zodiac.scorpio" = "Scorpion";
+"zodiac.scorpio.symbol" = "Le Scorpion";
+"zodiac.scorpio.dates" = "23 Oct - 21 Nov";
+
+"zodiac.sagittarius" = "Sagittaire";
+"zodiac.sagittarius.symbol" = "L'Archer";
+"zodiac.sagittarius.dates" = "22 Nov - 21 Déc";
+
+"zodiac.capricorn" = "Capricorne";
+"zodiac.capricorn.symbol" = "La Chèvre";
+"zodiac.capricorn.dates" = "22 Déc - 19 Jan";
+
+"zodiac.aquarius" = "Verseau";
+"zodiac.aquarius.symbol" = "Le Porteur d'Eau";
+"zodiac.aquarius.dates" = "20 Jan - 18 Fév";
+
+"zodiac.pisces" = "Poissons";
+"zodiac.pisces.symbol" = "Les Poissons";
+"zodiac.pisces.dates" = "19 Fév - 20 Mar";
+
+// =============================================================================
+// MARK: - Elements
+// =============================================================================
+
+"element.fire" = "Feu";
+"element.fire.description" = "Passionné, énergique, audacieux";
+"element.fire.signs" = "Bélier, Lion, Sagittaire";
+
+"element.earth" = "Terre";
+"element.earth.description" = "Pratique, ancré, patient";
+"element.earth.signs" = "Taureau, Vierge, Capricorne";
+
+"element.air" = "Air";
+"element.air.description" = "Intellectuel, communicatif, analytique";
+"element.air.signs" = "Gémeaux, Balance, Verseau";
+
+"element.water" = "Eau";
+"element.water.description" = "Intuitif, émotionnel, perspicace";
+"element.water.signs" = "Cancer, Scorpion, Poissons";
+
+// =============================================================================
+// MARK: - Common Actions
+// =============================================================================
+
+"common.ok" = "OK";
+"common.cancel" = "Annuler";
+"common.done" = "Terminé";
+"common.save" = "Enregistrer";
+"common.delete" = "Supprimer";
+"common.edit" = "Modifier";
+"common.add" = "Ajouter";
+"common.remove" = "Retirer";
+"common.close" = "Fermer";
+"common.back" = "Retour";
+"common.next" = "Suivant";
+"common.confirm" = "Confirmer";
+"common.continue" = "Continuer";
+"common.skip" = "Passer";
+"common.retry" = "Réessayer";
+"common.refresh" = "Actualiser";
+"common.loading" = "Chargement...";
+"common.share" = "Partager";
+"common.copy" = "Copier";
+"common.search" = "Rechercher";
+"common.filter" = "Filtrer";
+"common.sort" = "Trier";
+"common.settings" = "Paramètres";
+"common.help" = "Aide";
+"common.yes" = "Oui";
+"common.no" = "Non";
+
+// =============================================================================
+// MARK: - Errors
+// =============================================================================
+
+"error.title" = "Une Erreur s'est Produite";
+"error.generic" = "Une erreur inattendue s'est produite. Veuillez réessayer.";
+"error.network" = "Erreur Réseau";
+"error.network.message" = "Veuillez vérifier votre connexion internet.";
+"error.offline" = "Hors Ligne";
+"error.offline.message" = "Connectez-vous à internet pour voir les derniers prix.";
+"error.retry" = "Réessayer";
+"error.dismiss" = "Fermer";
+
+// TODO: Complete remaining translations...

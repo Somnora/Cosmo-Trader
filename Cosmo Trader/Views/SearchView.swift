@@ -62,6 +62,7 @@ struct SearchView: View {
             .navigationBarHidden(true)
             .onAppear {
                 isSearchFieldFocused = true
+                AnalyticsService.shared.trackSearchOpened()
             }
             .sheet(item: $selectedStock) { stock in
                 StockDetailView(stock: stock)

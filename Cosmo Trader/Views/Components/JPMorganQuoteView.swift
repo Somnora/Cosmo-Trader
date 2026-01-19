@@ -206,7 +206,10 @@ struct OnboardingDisclaimerStepView: View {
 
             // "I Understand" button
             if showButton {
-                Button(action: onAcknowledge) {
+                Button(action: {
+                    AnalyticsService.shared.trackOnboardingDisclaimerAccepted()
+                    onAcknowledge()
+                }) {
                     Text("I Understand")
                         .font(.system(size: 14, weight: .semibold, design: .monospaced))
                         .foregroundColor(CosmicTheme.terminalBlack)

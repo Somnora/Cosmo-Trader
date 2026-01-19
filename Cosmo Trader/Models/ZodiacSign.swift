@@ -1,36 +1,72 @@
 import Foundation
 import SwiftUI
 
-// MARK: - ZodiacSign Enum
-// =======================
-// This enum represents all 12 zodiac signs in Western astrology.
-//
-// WHY AN ENUM (not a struct or class)?
-// ------------------------------------
-// 1. FIXED SET: There are exactly 12 zodiac signs - they never change
-// 2. TYPE SAFETY: You can't accidentally create an invalid sign like "Banana"
-// 3. EXHAUSTIVE: Swift forces you to handle all cases in switch statements
-// 4. LIGHTWEIGHT: Enums are value types, very efficient in memory
-//
-// PROTOCOLS WE CONFORM TO:
-// ------------------------
-// - String (RawRepresentable): Each case has a string value ("aries", "taurus", etc.)
-// - CaseIterable: Gives us ZodiacSign.allCases to loop through all signs
-// - Identifiable: Required by SwiftUI to use in ForEach loops
-// - Codable: Allows saving/loading from JSON (for persistence)
+// MARK: - ZodiacSign
 
+/// Represents one of the 12 zodiac signs in Western astrology.
+///
+/// `ZodiacSign` is a core model used throughout the app to determine user profiles,
+/// stock "personalities" (based on IPO date), and compatibility calculations.
+///
+/// ## Usage
+///
+/// ```swift
+/// // Get user's sign from birth date
+/// let userSign = ZodiacSign.from(date: user.birthDate)
+///
+/// // Access sign properties
+/// print(userSign.symbol)        // "♈"
+/// print(userSign.displayName)   // "Aries"
+/// print(userSign.element)       // .fire
+///
+/// // Calculate compatibility
+/// let score = CompatibilityCalculator.calculate(
+///     userSign: userSign,
+///     stockSign: stock.zodiacSign
+/// )
+/// ```
+///
+/// ## Elements
+///
+/// Each sign belongs to one of four elements that influence compatibility:
+///
+/// | Element | Signs | Traits |
+/// |---------|-------|--------|
+/// | Fire | Aries, Leo, Sagittarius | Passionate, energetic |
+/// | Earth | Taurus, Virgo, Capricorn | Practical, grounded |
+/// | Air | Gemini, Libra, Aquarius | Intellectual, analytical |
+/// | Water | Cancer, Scorpio, Pisces | Intuitive, emotional |
+///
+/// ## Why an Enum?
+///
+/// 1. **Fixed set**: Exactly 12 signs that never change
+/// 2. **Type safety**: Can't create invalid signs
+/// 3. **Exhaustive**: Swift enforces handling all cases
+/// 4. **Efficient**: Value type with minimal memory footprint
 enum ZodiacSign: String, CaseIterable, Identifiable, Codable {
+    /// The Ram (Mar 21 - Apr 19) - Fire sign
     case aries
+    /// The Bull (Apr 20 - May 20) - Earth sign
     case taurus
+    /// The Twins (May 21 - Jun 20) - Air sign
     case gemini
+    /// The Crab (Jun 21 - Jul 22) - Water sign
     case cancer
+    /// The Lion (Jul 23 - Aug 22) - Fire sign
     case leo
+    /// The Maiden (Aug 23 - Sep 22) - Earth sign
     case virgo
+    /// The Scales (Sep 23 - Oct 22) - Air sign
     case libra
+    /// The Scorpion (Oct 23 - Nov 21) - Water sign
     case scorpio
+    /// The Archer (Nov 22 - Dec 21) - Fire sign
     case sagittarius
+    /// The Goat (Dec 22 - Jan 19) - Earth sign
     case capricorn
+    /// The Water Bearer (Jan 20 - Feb 18) - Air sign
     case aquarius
+    /// The Fish (Feb 19 - Mar 20) - Water sign
     case pisces
 
     // MARK: - Identifiable Conformance

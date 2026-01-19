@@ -349,10 +349,12 @@ class ChartPatternService {
         let ma50 = movingAverage(closes, period: 50)
         let ma200 = movingAverage(closes, period: 200)
 
-        guard ma50.count >= 2, ma200.count >= 2 else { return nil }
+        guard ma50.count >= 2,
+              ma200.count >= 2,
+              let lastOHLC = ohlc.last,
+              let currentMA50 = ma50.last,
+              let currentMA200 = ma200.last else { return nil }
 
-        let currentMA50 = ma50.last!
-        let currentMA200 = ma200.last!
         let prevMA50 = ma50[ma50.count - 2]
         let prevMA200 = ma200[ma200.count - 2]
 
@@ -361,8 +363,8 @@ class ChartPatternService {
             return DetectedPattern(
                 pattern: .goldenCross,
                 confidence: 92,
-                detectedAt: ohlc.last!.date,
-                priceAtDetection: ohlc.last!.close,
+                detectedAt: lastOHLC.date,
+                priceAtDetection: lastOHLC.close,
                 details: "50-day MA ($\(String(format: "%.2f", currentMA50))) crossed above 200-day MA ($\(String(format: "%.2f", currentMA200)))"
             )
         }
@@ -372,8 +374,8 @@ class ChartPatternService {
             return DetectedPattern(
                 pattern: .deathCross,
                 confidence: 92,
-                detectedAt: ohlc.last!.date,
-                priceAtDetection: ohlc.last!.close,
+                detectedAt: lastOHLC.date,
+                priceAtDetection: lastOHLC.close,
                 details: "50-day MA ($\(String(format: "%.2f", currentMA50))) crossed below 200-day MA ($\(String(format: "%.2f", currentMA200)))"
             )
         }
@@ -396,14 +398,15 @@ class ChartPatternService {
     // MARK: - RSI Detection
 
     private func detectRSIExtreme(ohlc: [OHLCData]) -> DetectedPattern? {
-        guard let currentRSI = calculateRSI(ohlc: ohlc, period: 14) else { return nil }
+        guard let currentRSI = calculateRSI(ohlc: ohlc, period: 14),
+              let lastOHLC = ohlc.last else { return nil }
 
         if currentRSI > 70 {
             return DetectedPattern(
                 pattern: .overbought,
                 confidence: currentRSI,
-                detectedAt: ohlc.last!.date,
-                priceAtDetection: ohlc.last!.close,
+                detectedAt: lastOHLC.date,
+                priceAtDetection: lastOHLC.close,
                 details: "RSI at \(String(format: "%.1f", currentRSI)) - above 70 threshold"
             )
         }
@@ -412,8 +415,8 @@ class ChartPatternService {
             return DetectedPattern(
                 pattern: .oversold,
                 confidence: 100 - currentRSI,
-                detectedAt: ohlc.last!.date,
-                priceAtDetection: ohlc.last!.close,
+                detectedAt: lastOHLC.date,
+                priceAtDetection: lastOHLC.close,
                 details: "RSI at \(String(format: "%.1f", currentRSI)) - below 30 threshold"
             )
         }

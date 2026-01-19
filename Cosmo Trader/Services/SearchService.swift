@@ -2,35 +2,84 @@
 //  SearchService.swift
 //  Cosmo Trader
 //
-//  Manages stock symbol search with debouncing and cancellation.
-//  Provides a clean interface for the SearchView to consume.
-//
 
 import Foundation
 import Combine
 
-// MARK: - Search Service
+// MARK: - SearchService
 
+/// A service that manages stock symbol search with debouncing and result caching.
+///
+/// `SearchService` provides a responsive search experience by debouncing user input
+/// and managing search state. It integrates with ``StockAPIService`` for the actual
+/// API calls and maintains a history of recent searches.
+///
+/// ## Usage
+///
+/// The service is designed to be bound directly to a SwiftUI `TextField`:
+///
+/// ```swift
+/// @State private var searchService = SearchService.shared
+///
+/// TextField("Search", text: $searchService.searchQuery)
+///
+/// ForEach(searchService.results) { result in
+///     Text(result.symbol)
+/// }
+/// ```
+///
+/// ## Debouncing
+///
+/// Search requests are debounced by 300ms to prevent excessive API calls:
+/// - User types "APP" → waits 300ms → search executes
+/// - User types "APPL" before 300ms → previous search cancelled
+/// - Only the final query is sent to the API
+///
+/// ## Recent Searches
+///
+/// The service maintains a persistent list of recent searches:
+/// - Limited to 10 most recent searches
+/// - Automatically deduplicated (same symbol moves to top)
+/// - Persisted to UserDefaults
+///
+/// ## Thread Safety
+///
+/// This service is `@MainActor` isolated. All state changes occur on the main thread,
+/// making it safe to bind directly to SwiftUI views.
 @MainActor
 @Observable
 final class SearchService {
 
     // MARK: - Singleton
 
+    /// Shared singleton instance for app-wide use.
     static let shared = SearchService()
 
-    // MARK: - Published State
+    // MARK: - Observable State
 
-    /// Current search results
+    /// Current search results from the Finnhub API.
+    ///
+    /// Updated automatically when ``searchQuery`` changes (after debounce).
+    /// Empty when no search is active or query is cleared.
     var results: [SymbolMatch] = []
 
-    /// Whether a search is in progress
+    /// Whether a search request is currently in flight.
+    ///
+    /// Use this to show loading indicators in the UI.
     var isSearching: Bool = false
 
-    /// Current error message, if any
+    /// Current error message, if any.
+    ///
+    /// Set when a search fails (network error, rate limit, etc.).
+    /// Cleared when a new search starts.
     var errorMessage: String?
 
-    /// The current search query
+    /// The current search query text.
+    ///
+    /// Setting this property triggers a debounced search. The search executes
+    /// 300ms after the last change, allowing the user to finish typing.
+    ///
+    /// - Note: Empty or whitespace-only queries clear results immediately.
     var searchQuery: String = "" {
         didSet {
             debounceSearch()
@@ -39,27 +88,29 @@ final class SearchService {
 
     // MARK: - Recent Searches
 
-    /// Recently searched symbols (persisted)
+    /// Recently searched stock symbols, persisted across app launches.
+    ///
+    /// Most recent search is at index 0. Limited to ``maxRecentSearches`` entries.
     var recentSearches: [RecentSearch] = []
 
-    /// Maximum number of recent searches to keep
+    /// Maximum number of recent searches to retain (default: 10).
     private let maxRecentSearches = 10
 
-    /// UserDefaults key for recent searches
+    /// UserDefaults key for persisting recent searches.
     private let recentSearchesKey = "recentStockSearches"
 
     // MARK: - Private Properties
 
-    /// Debounce delay in milliseconds
-    private let debounceDelay: UInt64 = 300_000_000 // 300ms in nanoseconds
+    /// Debounce delay in nanoseconds (300ms).
+    private let debounceDelay: UInt64 = 300_000_000
 
-    /// Current search task (for cancellation)
+    /// Current search task, used for cancellation when query changes.
     private var searchTask: Task<Void, Never>?
 
-    /// Stock API service
+    /// Reference to the stock API service for search requests.
     private let stockAPI = StockAPIService.shared
 
-    // MARK: - Init
+    // MARK: - Initialization
 
     private init() {
         loadRecentSearches()
@@ -67,7 +118,10 @@ final class SearchService {
 
     // MARK: - Public Methods
 
-    /// Clear all search results and query
+    /// Clears all search state and cancels any pending search.
+    ///
+    /// Call this when dismissing the search interface or when the user
+    /// explicitly clears the search field.
     func clearSearch() {
         searchTask?.cancel()
         searchQuery = ""
@@ -76,16 +130,28 @@ final class SearchService {
         isSearching = false
     }
 
-    /// Perform an immediate search (no debouncing)
+    /// Performs an immediate search, bypassing the debounce delay.
+    ///
+    /// Use this for programmatic searches where immediate results are needed,
+    /// such as deep linking or restoring search state.
+    ///
+    /// - Parameter query: The search query to execute.
     func searchNow(_ query: String) async {
         searchTask?.cancel()
         searchQuery = query
         await performSearch(query: query)
     }
 
-    /// Add a symbol to recent searches
+    /// Adds a stock to the recent searches list.
+    ///
+    /// If the symbol already exists in recent searches, it's moved to the top.
+    /// The list is automatically trimmed to ``maxRecentSearches`` entries.
+    ///
+    /// - Parameters:
+    ///   - symbol: The stock ticker symbol (e.g., "AAPL").
+    ///   - name: The company name (e.g., "Apple Inc.").
     func addToRecentSearches(symbol: String, name: String) {
-        // Remove if already exists
+        // Remove if already exists (will be re-added at front)
         recentSearches.removeAll { $0.symbol == symbol }
 
         // Add to front
@@ -100,13 +166,15 @@ final class SearchService {
         saveRecentSearches()
     }
 
-    /// Clear all recent searches
+    /// Removes all recent searches.
     func clearRecentSearches() {
         recentSearches = []
         saveRecentSearches()
     }
 
-    /// Remove a single recent search
+    /// Removes a specific entry from recent searches.
+    ///
+    /// - Parameter search: The ``RecentSearch`` entry to remove.
     func removeRecentSearch(_ search: RecentSearch) {
         recentSearches.removeAll { $0.id == search.id }
         saveRecentSearches()
@@ -196,14 +264,32 @@ final class SearchService {
     }
 }
 
-// MARK: - Recent Search Model
+// MARK: - RecentSearch
 
+/// A persisted record of a stock the user has previously searched for.
+///
+/// `RecentSearch` entries are displayed in the search interface when
+/// the search field is empty, providing quick access to previously
+/// viewed stocks.
 struct RecentSearch: Codable, Identifiable, Hashable {
+    /// Unique identifier for this search entry.
     let id: UUID
+
+    /// The stock ticker symbol (e.g., "AAPL").
     let symbol: String
+
+    /// The company name (e.g., "Apple Inc.").
     let name: String
+
+    /// When this search was performed.
     let date: Date
 
+    /// Creates a new recent search entry.
+    ///
+    /// - Parameters:
+    ///   - symbol: The stock ticker symbol.
+    ///   - name: The company name.
+    ///   - date: When the search occurred.
     init(symbol: String, name: String, date: Date) {
         self.id = UUID()
         self.symbol = symbol
@@ -211,6 +297,7 @@ struct RecentSearch: Codable, Identifiable, Hashable {
         self.date = date
     }
 
+    /// Human-readable relative time string (e.g., "2h ago", "yesterday").
     var formattedDate: String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
@@ -222,7 +309,10 @@ struct RecentSearch: Codable, Identifiable, Hashable {
 
 extension SearchService {
 
-    /// Popular stock suggestions for when search is empty
+    /// Popular stock suggestions displayed when search field is empty.
+    ///
+    /// These represent commonly traded stocks that users frequently search for.
+    /// Used as fallback suggestions when the user has no recent searches.
     static let popularSuggestions: [(symbol: String, name: String)] = [
         ("AAPL", "Apple Inc."),
         ("MSFT", "Microsoft Corp."),
