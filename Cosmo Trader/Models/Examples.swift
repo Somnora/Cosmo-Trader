@@ -66,8 +66,9 @@ enum ZodiacExamples {
 
     // MARK: - Step-by-Step Demonstration
 
-    /// Demonstrates the full calculation for a specific date
+    /// Demonstrates the full calculation for a specific date (DEBUG only)
     static func demonstrateCalculation(month: Int, day: Int) {
+        #if DEBUG
         print("═══════════════════════════════════════════════════════════")
         print("ZODIAC CALCULATION FOR: \(monthName(month)) \(day)")
         print("═══════════════════════════════════════════════════════════")
@@ -119,6 +120,7 @@ enum ZodiacExamples {
                 return
             }
         }
+        #endif
     }
 
     /// Helper to get month name
@@ -134,8 +136,9 @@ enum ZodiacExamples {
 
     // MARK: - Verification Examples
 
-    /// Famous birthdays to verify the calculation
+    /// Famous birthdays to verify the calculation (DEBUG only)
     static func verifyFamousBirthdays() {
+        #if DEBUG
         print("\n")
         print("═══════════════════════════════════════════════════════════")
         print("FAMOUS BIRTHDAYS - ZODIAC VERIFICATION")
@@ -165,10 +168,12 @@ enum ZodiacExamples {
             print("   Calculated: \(calculatedSign.displayName) \(calculatedSign.symbol)")
             print("")
         }
+        #endif
     }
 
-    /// Company founding dates to verify stock zodiac signs
+    /// Company founding dates to verify stock zodiac signs (DEBUG only)
     static func verifyCompanyZodiacs() {
+        #if DEBUG
         print("\n")
         print("═══════════════════════════════════════════════════════════")
         print("TECH COMPANIES - ZODIAC SIGNS BY FOUNDING DATE")
@@ -192,12 +197,14 @@ enum ZodiacExamples {
             print("   Zodiac: \(sign.displayName) \(sign.symbol) (\(sign.element.displayName) \(sign.element.emoji))")
             print("")
         }
+        #endif
     }
 
     // MARK: - Edge Case Testing
 
-    /// Test the Capricorn boundary (year crossover)
+    /// Test the Capricorn boundary (year crossover) (DEBUG only)
     static func testCapricornBoundary() {
+        #if DEBUG
         print("\n")
         print("═══════════════════════════════════════════════════════════")
         print("CAPRICORN BOUNDARY TEST (Year Crossover)")
@@ -222,6 +229,7 @@ enum ZodiacExamples {
             print("   Got: \(calculated.displayName)")
             print("")
         }
+        #endif
     }
 
     // MARK: - Run All Examples
@@ -249,8 +257,9 @@ enum ZodiacExamples {
 
 enum PortfolioCompatibilityExample {
 
-    /// Demonstrate how portfolio compatibility works
+    /// Demonstrate how portfolio compatibility works (DEBUG only)
     static func demonstrateCompatibility() {
+        #if DEBUG
         print("\n")
         print("═══════════════════════════════════════════════════════════")
         print("PORTFOLIO COMPATIBILITY EXAMPLE")
@@ -293,6 +302,7 @@ enum PortfolioCompatibilityExample {
         print("   Same element stocks: \(user.sameElementStocks.count)/\(user.portfolio.count)")
         print("\n💫 COSMIC INSIGHT:")
         print("   \(user.cosmicInsight)")
+        #endif
     }
 }
 

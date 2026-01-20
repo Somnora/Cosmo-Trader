@@ -389,7 +389,7 @@ class AppState {
             return true
 
         } catch {
-            print("Failed to recover from backup: \(error)")
+            Log.error("Failed to recover from backup: \(error)")
             return false
         }
     }
@@ -519,7 +519,7 @@ class AppState {
         lastSaveTimestamp = nil
         isOfflineMode = false
 
-        print("[AppState] All user data has been deleted")
+        Log.debug("[AppState] All user data has been deleted")
     }
 }
 

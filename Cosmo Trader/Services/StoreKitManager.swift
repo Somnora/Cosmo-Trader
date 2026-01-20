@@ -287,7 +287,7 @@ final class StoreKitManager {
                     await transaction?.finish()
 
                 } catch {
-                    print("[StoreKit] Transaction update verification failed: \(error)")
+                    Log.error("[StoreKit] Transaction update verification failed: \(error)")
                 }
             }
         }
@@ -318,7 +318,7 @@ final class StoreKitManager {
             let receiptData = try Data(contentsOf: receiptURL)
             return receiptData
         } catch {
-            print("[StoreKit] Failed to read receipt: \(error)")
+            Log.error("[StoreKit] Failed to read receipt: \(error)")
             return nil
         }
     }
