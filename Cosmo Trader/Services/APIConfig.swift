@@ -80,16 +80,44 @@ enum APIConfig {
 
     /// Load secrets from plist file (legacy support)
     private static func loadSecrets() -> [String: Any] {
-        guard let path = Bundle.main.path(forResource: "Secrets", ofType: "plist") else {
-            return [:]
+        // First try bundled Secrets.plist
+        if let path = Bundle.main.path(forResource: "Secrets", ofType: "plist"),
+           let dict = NSDictionary(contentsOfFile: path) as? [String: Any] {
+            return dict
         }
 
-        guard let dict = NSDictionary(contentsOfFile: path) as? [String: Any] else {
-            return [:]
+        // For DEBUG builds, try project directory
+        #if DEBUG
+        if let dict = loadSecretsFromProjectDirectory() {
+            return dict
         }
+        #endif
 
-        return dict
+        return [:]
     }
+
+    #if DEBUG
+    /// Load secrets from project directory (DEBUG only)
+    private static func loadSecretsFromProjectDirectory() -> [String: Any]? {
+        let sourceFile = #file
+        let sourceDirectory = (sourceFile as NSString).deletingLastPathComponent
+
+        let possiblePaths = [
+            (sourceDirectory as NSString).appendingPathComponent("Secrets.plist"),
+            ((sourceDirectory as NSString).deletingLastPathComponent as NSString).appendingPathComponent("Secrets.plist"),
+            ((sourceDirectory as NSString).deletingLastPathComponent as NSString).appendingPathComponent("Configuration/Secrets.plist")
+        ]
+
+        for path in possiblePaths {
+            if FileManager.default.fileExists(atPath: path),
+               let dict = NSDictionary(contentsOfFile: path) as? [String: Any] {
+                return dict
+            }
+        }
+
+        return nil
+    }
+    #endif
 
     /// Reload secrets (useful for testing)
     static func reload() {

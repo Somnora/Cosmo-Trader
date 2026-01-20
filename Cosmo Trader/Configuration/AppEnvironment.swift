@@ -204,9 +204,9 @@ struct EnvironmentConfig {
 
     // MARK: - Private Helpers
 
-    /// Read API key from Info.plist, falling back to Secrets.plist
+    /// Read API key from Info.plist, falling back to Secrets.plist (from project directory in DEBUG)
     private static func readAPIKey(_ envKey: EnvironmentKey, secretsKey: String) -> String {
-        // First try Info.plist (from xcconfig)
+        // 1. First try Info.plist (from xcconfig) - works for Release builds with injected keys
         if let value = envKey.value,
            !value.isEmpty,
            !value.hasPrefix("$("),
@@ -214,7 +214,14 @@ struct EnvironmentConfig {
             return value
         }
 
-        // Fall back to Secrets.plist
+        // 2. Try reading Secrets.plist from project directory (DEBUG builds only)
+        #if DEBUG
+        if let value = readSecretFromProjectDirectory(secretsKey) {
+            return value
+        }
+        #endif
+
+        // 3. Fall back to bundled Secrets.plist (legacy support)
         if let path = Bundle.main.path(forResource: "Secrets", ofType: "plist"),
            let dict = NSDictionary(contentsOfFile: path) as? [String: Any],
            let value = dict[secretsKey] as? String,
@@ -224,8 +231,54 @@ struct EnvironmentConfig {
             return value
         }
 
+        // No key found - print helpful error
+        #if DEBUG
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        print("ERROR: \(secretsKey) not found!")
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        print("")
+        print("For DEBUG builds:")
+        print("  1. Create Secrets.plist in the project folder")
+        print("  2. Add key '\(secretsKey)' with your API key")
+        print("  3. Path: Cosmo Trader/Cosmo Trader/Configuration/Secrets.plist")
+        print("")
+        print("For RELEASE builds:")
+        print("  1. Set \(secretsKey) in your CI/CD environment")
+        print("  2. Or add to Secrets.xcconfig")
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        #endif
+
         return ""
     }
+
+    #if DEBUG
+    /// Read a secret from Secrets.plist in the project directory (not bundled)
+    private static func readSecretFromProjectDirectory(_ key: String) -> String? {
+        // Get the source file directory and navigate to find Secrets.plist
+        let sourceFile = #file
+        let sourceDirectory = (sourceFile as NSString).deletingLastPathComponent
+
+        // Try common locations relative to this source file
+        let possiblePaths = [
+            (sourceDirectory as NSString).appendingPathComponent("Secrets.plist"),
+            ((sourceDirectory as NSString).deletingLastPathComponent as NSString).appendingPathComponent("Secrets.plist"),
+            ((sourceDirectory as NSString).deletingLastPathComponent as NSString).appendingPathComponent("Configuration/Secrets.plist")
+        ]
+
+        for path in possiblePaths {
+            if FileManager.default.fileExists(atPath: path),
+               let dict = NSDictionary(contentsOfFile: path) as? [String: Any],
+               let value = dict[key] as? String,
+               !value.isEmpty,
+               !value.hasPrefix("$("),
+               value != "YOUR_\(key)_HERE" {
+                return value
+            }
+        }
+
+        return nil
+    }
+    #endif
 
     // MARK: - Validation
 
