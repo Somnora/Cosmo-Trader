@@ -538,10 +538,3 @@ enum StandoutReason {
     case concentration
     case largestHolding
 }
-
-// MARK: - Analytics Events
-
-extension AnalyticsEvent {
-    static let portfolioAscendantViewed = AnalyticsEvent(rawValue: "portfolio_ascendant_viewed")!
-    static let portfolioAscendantShared = AnalyticsEvent(rawValue: "portfolio_ascendant_shared")!
-}

@@ -130,9 +130,7 @@ struct MercuryRetrogradeBanner: View {
                     pulseAnimation = true
                 }
             }
-            if let event = AnalyticsEvent.mercuryRetrogradeViewed {
-                AnalyticsService.shared.track(event)
-            }
+            AnalyticsService.shared.track(.mercuryRetrogradeViewed)
         }
         .sheet(isPresented: $showDetail) {
             MercuryRetrogradeDetailSheet()

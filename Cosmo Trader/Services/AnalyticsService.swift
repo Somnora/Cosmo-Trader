@@ -123,6 +123,81 @@ enum AnalyticsEvent: String {
     case networkError = "network_error"
     case errorDisplayed = "error_displayed"
     case offlineDetected = "offline_detected"
+
+    // MARK: Confluence Alerts
+    case confluenceAlertSent = "confluence_alert_sent"
+
+    // MARK: Cosmic Contrarian
+    case cosmicContrarianEnabled = "cosmic_contrarian_enabled"
+    case cosmicContrarianDisabled = "cosmic_contrarian_disabled"
+
+    // MARK: Cosmic Obituary
+    case cosmicObituaryAdded = "cosmic_obituary_added"
+    case cosmicObituaryShared = "cosmic_obituary_shared"
+    case cosmicObituaryViewed = "cosmic_obituary_viewed"
+
+    // MARK: Cosmic Rival
+    case cosmicRivalViewed = "cosmic_rival_viewed"
+
+    // MARK: Cosmic Ticker
+    case cosmicTickerViewed = "cosmic_ticker_viewed"
+
+    // MARK: Daily Ritual
+    case dailyRitualStarted = "daily_ritual_started"
+    case dailyRitualCompleted = "daily_ritual_completed"
+    case dailyRitualStepViewed = "daily_ritual_step_viewed"
+
+    // MARK: Earnings Calendar
+    case earningsCalendarViewed = "earnings_calendar_viewed"
+    case earningsHoroscopeViewed = "earnings_horoscope_viewed"
+    case earningsStockSelected = "earnings_stock_selected"
+
+    // MARK: Karmic Ledger
+    case karmicLedgerViewed = "karmic_ledger_viewed"
+    case karmicLessonRecorded = "karmic_lesson_recorded"
+    case karmicWisdomViewed = "karmic_wisdom_viewed"
+
+    // MARK: Mercury Retrograde
+    case mercuryRetrogradeViewed = "mercury_retrograde_viewed"
+
+    // MARK: Notifications (Extended)
+    case notificationOpened = "notification_opened"
+    case testNotificationSent = "test_notification_sent"
+
+    // MARK: On This Day
+    case onThisDayViewed = "on_this_day_viewed"
+    case onThisDayShared = "on_this_day_shared"
+
+    // MARK: Portfolio Ascendant
+    case portfolioAscendantViewed = "portfolio_ascendant_viewed"
+    case portfolioAscendantShared = "portfolio_ascendant_shared"
+    case portfolioMilestoneReached = "portfolio_milestone_reached"
+    case portfolioTensionViewed = "portfolio_tension_viewed"
+
+    // MARK: Referral (Extended)
+    case referralShareTapped = "referral_share_tapped"
+
+    // MARK: Saturn Return
+    case saturnReturnViewed = "saturn_return_viewed"
+    case saturnReturnAlertTapped = "saturn_return_alert_tapped"
+
+    // MARK: Sign Season
+    case signSeasonViewed = "sign_season_viewed"
+    case signSeasonSpotlightTapped = "sign_season_spotlight_tapped"
+    case signSeasonHoroscopeViewed = "sign_season_horoscope_viewed"
+
+    // MARK: Sign Stack
+    case signStackGenerated = "sign_stack_generated"
+    case signStackShared = "sign_stack_shared"
+
+    // MARK: Terminal Audio
+    case terminalAudioEnabled = "terminal_audio_enabled"
+    case terminalAudioDisabled = "terminal_audio_disabled"
+
+    // MARK: Void of Course
+    case vocDetailViewed = "voc_detail_viewed"
+    case vocWarningViewed = "voc_warning_viewed"
+    case vocWarningDismissed = "voc_warning_dismissed"
 }
 
 // MARK: - Event Parameters

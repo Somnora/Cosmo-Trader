@@ -141,12 +141,6 @@ extension Notification.Name {
     static let openCosmos = Notification.Name("openCosmos")
 }
 
-// MARK: - Analytics Event Extension
-
-extension AnalyticsEvent {
-    static let notificationOpened = AnalyticsEvent(rawValue: "notification_opened")!
-}
-
 /// CosmicTraderApp
 /// ---------------
 /// This is the ENTRY POINT of our app - where everything starts!

@@ -312,9 +312,3 @@ enum CosmicTickerType: String, CaseIterable {
     case season = "Season"
     case quip = "Quip"
 }
-
-// MARK: - Analytics Events
-
-extension AnalyticsEvent {
-    static let cosmicTickerViewed = AnalyticsEvent(rawValue: "cosmic_ticker_viewed")!
-}

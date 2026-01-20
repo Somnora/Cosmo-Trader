@@ -593,11 +593,3 @@ extension ZodiacSign {
         }
     }
 }
-
-// MARK: - Analytics Events
-
-extension AnalyticsEvent {
-    static let dailyRitualStarted = AnalyticsEvent(rawValue: "daily_ritual_started")!
-    static let dailyRitualCompleted = AnalyticsEvent(rawValue: "daily_ritual_completed")!
-    static let dailyRitualStepViewed = AnalyticsEvent(rawValue: "daily_ritual_step_viewed")!
-}

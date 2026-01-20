@@ -494,10 +494,3 @@ final class ToneGenerator {
         audioEngine.stop()
     }
 }
-
-// MARK: - Analytics Events
-
-extension AnalyticsEvent {
-    static let terminalAudioEnabled = AnalyticsEvent(rawValue: "terminal_audio_enabled")!
-    static let terminalAudioDisabled = AnalyticsEvent(rawValue: "terminal_audio_disabled")!
-}

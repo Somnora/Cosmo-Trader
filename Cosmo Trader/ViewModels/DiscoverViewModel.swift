@@ -421,10 +421,3 @@ struct StockCard: Identifiable {
         compatibility.score <= 40
     }
 }
-
-// MARK: - Analytics Events
-
-extension AnalyticsEvent {
-    static let cosmicContrarianEnabled = AnalyticsEvent(rawValue: "cosmic_contrarian_enabled")!
-    static let cosmicContrarianDisabled = AnalyticsEvent(rawValue: "cosmic_contrarian_disabled")!
-}

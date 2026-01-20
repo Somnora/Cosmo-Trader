@@ -328,14 +328,6 @@ enum ReferralResult {
     }
 }
 
-// MARK: - Analytics Events Extension
-
-extension AnalyticsEvent {
-    // Note: Main referral events (referralCodeUsed, referralCompleted, referralRewardRedeemed, referralRewardApplied)
-    // are defined in AnalyticsService.swift AnalyticsEvent enum
-    static let referralShareTapped = AnalyticsEvent(rawValue: "referral_share_tapped")!
-}
-
 // MARK: - Leaderboard (Mock Data for Now)
 
 struct ReferralLeaderboard {

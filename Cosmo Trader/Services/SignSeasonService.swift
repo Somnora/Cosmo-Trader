@@ -408,11 +408,3 @@ struct SeasonHoroscope: Identifiable {
         elementStocks.reduce(0) { $0 + $1.totalValue }
     }
 }
-
-// MARK: - Analytics Events
-
-extension AnalyticsEvent {
-    static let signSeasonViewed = AnalyticsEvent(rawValue: "sign_season_viewed")!
-    static let signSeasonHoroscopeViewed = AnalyticsEvent(rawValue: "sign_season_horoscope_viewed")!
-    static let signSeasonSpotlightTapped = AnalyticsEvent(rawValue: "sign_season_spotlight_tapped")!
-}

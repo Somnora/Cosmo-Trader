@@ -483,11 +483,3 @@ extension ZodiacSign {
         return Calendar.current.date(from: components) ?? Date()
     }
 }
-
-// MARK: - Analytics Events
-
-extension AnalyticsEvent {
-    static let karmicLessonRecorded = AnalyticsEvent(rawValue: "karmic_lesson_recorded")!
-    static let karmicLedgerViewed = AnalyticsEvent(rawValue: "karmic_ledger_viewed")!
-    static let karmicWisdomViewed = AnalyticsEvent(rawValue: "karmic_wisdom_viewed")!
-}

@@ -640,11 +640,3 @@ struct CosmicFactor: Identifiable {
         }
     }
 }
-
-// MARK: - Analytics Events
-
-extension AnalyticsEvent {
-    static let earningsCalendarViewed = AnalyticsEvent(rawValue: "earnings_calendar_viewed")!
-    static let earningsHoroscopeViewed = AnalyticsEvent(rawValue: "earnings_horoscope_viewed")!
-    static let earningsStockSelected = AnalyticsEvent(rawValue: "earnings_stock_selected")!
-}

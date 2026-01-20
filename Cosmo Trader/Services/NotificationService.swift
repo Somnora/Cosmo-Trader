@@ -784,14 +784,6 @@ final class NotificationService {
     }
 }
 
-// MARK: - Analytics Events Extension
-
-extension AnalyticsEvent {
-    static let testNotificationSent = AnalyticsEvent(rawValue: "test_notification_sent")!
-    static let confluenceAlertSent = AnalyticsEvent(rawValue: "confluence_alert_sent")!
-    static let portfolioMilestoneReached = AnalyticsEvent(rawValue: "portfolio_milestone_reached")!
-}
-
 // MARK: - Notification Permission View
 // =====================================
 // Shown after onboarding to request notification permission

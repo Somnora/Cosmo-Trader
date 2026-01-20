@@ -453,10 +453,3 @@ struct SaturnReturnHistoricalInsight: Identifiable {
     let historicalEvent: String?
     let outcome: String?
 }
-
-// MARK: - Analytics Events
-
-extension AnalyticsEvent {
-    static let saturnReturnViewed = AnalyticsEvent(rawValue: "saturn_return_viewed")!
-    static let saturnReturnAlertTapped = AnalyticsEvent(rawValue: "saturn_return_alert_tapped")!
-}

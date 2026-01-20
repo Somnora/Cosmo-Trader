@@ -268,10 +268,3 @@ struct SignStackElement: Identifiable {
         "\(Int(percentage))%"
     }
 }
-
-// MARK: - Analytics Events
-
-extension AnalyticsEvent {
-    static let signStackGenerated = AnalyticsEvent(rawValue: "sign_stack_generated")!
-    static let signStackShared = AnalyticsEvent(rawValue: "sign_stack_shared")!
-}

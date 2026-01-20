@@ -284,6 +284,3 @@ enum RetrogradeStatus: String, CaseIterable {
 
 // MARK: - Analytics Events
 
-extension AnalyticsEvent {
-    static let mercuryRetrogradeViewed: AnalyticsEvent? = AnalyticsEvent(rawValue: "mercury_retrograde_viewed")
-}

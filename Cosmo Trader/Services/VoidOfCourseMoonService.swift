@@ -373,11 +373,3 @@ enum VOCStatus {
         }
     }
 }
-
-// MARK: - Analytics Events
-
-extension AnalyticsEvent {
-    static let vocWarningViewed = AnalyticsEvent(rawValue: "voc_warning_viewed")!
-    static let vocWarningDismissed = AnalyticsEvent(rawValue: "voc_warning_dismissed")!
-    static let vocDetailViewed = AnalyticsEvent(rawValue: "voc_detail_viewed")!
-}

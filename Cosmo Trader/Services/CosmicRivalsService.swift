@@ -274,10 +274,3 @@ struct CosmicBalance: Identifiable {
         }
     }
 }
-
-// MARK: - Analytics Events
-
-extension AnalyticsEvent {
-    static let cosmicRivalViewed = AnalyticsEvent(rawValue: "cosmic_rival_viewed")!
-    static let portfolioTensionViewed = AnalyticsEvent(rawValue: "portfolio_tension_viewed")!
-}

@@ -624,10 +624,3 @@ extension HistoricalMarketEvent {
         ),
     ]
 }
-
-// MARK: - Analytics Events
-
-extension AnalyticsEvent {
-    static let onThisDayViewed = AnalyticsEvent(rawValue: "on_this_day_viewed")!
-    static let onThisDayShared = AnalyticsEvent(rawValue: "on_this_day_shared")!
-}

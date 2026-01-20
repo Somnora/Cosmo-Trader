@@ -563,11 +563,3 @@ enum CauseOfDeath: String, Codable, CaseIterable {
         }
     }
 }
-
-// MARK: - Analytics Events
-
-extension AnalyticsEvent {
-    static let cosmicObituaryViewed = AnalyticsEvent(rawValue: "cosmic_obituary_viewed")!
-    static let cosmicObituaryShared = AnalyticsEvent(rawValue: "cosmic_obituary_shared")!
-    static let cosmicObituaryAdded = AnalyticsEvent(rawValue: "cosmic_obituary_added")!
-}
