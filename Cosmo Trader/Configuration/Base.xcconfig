@@ -6,7 +6,8 @@
 
 // MARK: - App Identity
 PRODUCT_NAME = Cosmo Trader
-PRODUCT_BUNDLE_IDENTIFIER = com.cosmotrader.app
+COSMO_RELEASE_BUNDLE_IDENTIFIER = com.Somnora.Cosmo-Trader
+PRODUCT_BUNDLE_IDENTIFIER = $(COSMO_RELEASE_BUNDLE_IDENTIFIER)
 
 // MARK: - Deployment
 IPHONEOS_DEPLOYMENT_TARGET = 17.0
@@ -31,5 +32,5 @@ INFOPLIST_PREFIX_HEADER =
 // MARK: - API Keys (to be overridden by environment configs)
 // These are placeholders - actual values come from Secrets.xcconfig
 FINNHUB_API_KEY =
-MIXPANEL_TOKEN =
+BACKEND_BASE_URL =
 APP_ENVIRONMENT = development

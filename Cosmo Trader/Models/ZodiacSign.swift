@@ -96,6 +96,11 @@ enum ZodiacSign: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    /// Text presentation variant of the symbol (prevents emoji rendering)
+    var textSymbol: String {
+        symbol + "\u{FE0E}"
+    }
+
     /// Human-readable name with proper capitalization
     /// WHY: "aries" looks ugly, "Aries" looks proper
     var displayName: String {
@@ -345,13 +350,13 @@ extension ZodiacSign {
             rawValue.capitalized
         }
 
-        /// Emoji representation of the element
-        var emoji: String {
+        /// SF Symbol representation of the element
+        var sfSymbol: String {
             switch self {
-            case .fire:  return "🔥"
-            case .earth: return "🌍"
-            case .air:   return "💨"
-            case .water: return "💧"
+            case .fire:  return "flame.fill"
+            case .earth: return "leaf.fill"
+            case .air:   return "wind"
+            case .water: return "drop.fill"
             }
         }
 
@@ -687,7 +692,7 @@ extension ZodiacSign {
  EXAMPLE 3: Check element traits
  -------------------------------
  let sign = ZodiacSign.leo
- print(sign.element.emoji)        // "🔥"
+ print(sign.element.sfSymbol)     // "flame.fill"
  print(sign.element.tradingStyle) // "Aggressive growth investing..."
 
  EXAMPLE 4: Check compatibility

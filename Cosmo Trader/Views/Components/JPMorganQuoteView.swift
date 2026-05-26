@@ -1,9 +1,8 @@
 import SwiftUI
 
-// MARK: - J.P. Morgan Quote View
+// MARK: - Premium Quote View
 // ==============================
-// "Millionaires don't use astrology, billionaires do."
-// A reusable component displaying the famous J.P. Morgan quote.
+// A reusable component for premium positioning copy.
 // Design: Terminal monospace font, slightly dimmed, let it breathe.
 
 struct JPMorganQuoteView: View {
@@ -24,14 +23,14 @@ struct JPMorganQuoteView: View {
     var body: some View {
         VStack(alignment: .trailing, spacing: quoteSpacing) {
             // The quote
-            Text("\"Millionaires don't use astrology, billionaires do.\"")
+            Text("\"A playful lens for serious watchlists.\"")
                 .font(quoteFont)
                 .foregroundColor(quoteColor)
                 .multilineTextAlignment(.center)
                 .lineSpacing(lineSpacing)
 
             // Attribution
-            Text("— J.P. Morgan")
+            Text("Cosmo Trader")
                 .font(attributionFont)
                 .foregroundColor(attributionColor)
         }
@@ -143,6 +142,7 @@ struct OnboardingQuoteStepView: View {
                         )
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("onboarding.quoteContinueButton")
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
 
@@ -222,6 +222,7 @@ struct OnboardingDisclaimerStepView: View {
                         )
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("onboarding.disclaimerAcceptButton")
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
 

@@ -22,7 +22,7 @@ struct PortfolioAscendantCard: View {
                     HStack(spacing: 8) {
                         Image(systemName: "theatermasks.fill")
                             .font(.title3)
-                            .foregroundColor(.purple)
+                            .foregroundColor(CosmicTheme.accentBlue)
 
                         Text("Portfolio Ascendant")
                             .font(TerminalFont.body(14, weight: .semibold))
@@ -58,14 +58,14 @@ struct PortfolioAscendantCard: View {
 
                         Divider()
                             .frame(height: 30)
-                            .background(CosmicTheme.textMuted.opacity(0.3))
+                            .background(CosmicTheme.textMuted.opacity(0.4))
 
                         // Ascendant (Perceived)
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(spacing: 4) {
-                                Image(systemName: "sparkles")
+                                Image(systemName: "scope")
                                     .font(.caption2)
-                                    .foregroundColor(.purple)
+                                    .foregroundColor(CosmicTheme.accentBlue)
                                 Text("RISING")
                                     .font(TerminalFont.caption(9, weight: .bold))
                                     .foregroundColor(CosmicTheme.textMuted)
@@ -73,7 +73,7 @@ struct PortfolioAscendantCard: View {
 
                             Text(reading.ascendantAnalysis.perceivedAs)
                                 .font(TerminalFont.caption(11))
-                                .foregroundColor(.purple)
+                                .foregroundColor(CosmicTheme.accentBlue)
                                 .lineLimit(1)
                         }
                     }
@@ -83,17 +83,17 @@ struct PortfolioAscendantCard: View {
                         HStack(spacing: 6) {
                             Image(systemName: "theatermasks.fill")
                                 .font(.caption2)
-                                .foregroundColor(.purple)
+                                .foregroundColor(CosmicTheme.accentBlue)
 
                             Text("Dramatic contrast detected")
                                 .font(TerminalFont.caption(10))
-                                .foregroundColor(.purple)
+                                .foregroundColor(CosmicTheme.accentBlue)
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
                         .background(
                             Capsule()
-                                .fill(Color.purple.opacity(0.15))
+                                .fill(CosmicTheme.accentBlue.opacity(0.15))
                         )
                     }
                 } else {
@@ -108,7 +108,7 @@ struct PortfolioAscendantCard: View {
                     .fill(CosmicTheme.cardBackground)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.purple.opacity(0.3), lineWidth: 1)
+                            .stroke(CosmicTheme.accentBlue.opacity(0.3), lineWidth: 1)
                     )
             )
         }
@@ -190,12 +190,12 @@ struct PortfolioAscendantSheet: View {
             // Masks icon
             ZStack {
                 Circle()
-                    .fill(Color.purple.opacity(0.15))
+                    .fill(CosmicTheme.accentBlue.opacity(0.15))
                     .frame(width: 80, height: 80)
 
                 Image(systemName: "theatermasks.fill")
                     .font(.system(size: 36))
-                    .foregroundColor(.purple)
+                    .foregroundColor(CosmicTheme.accentBlue)
             }
 
             VStack(spacing: 4) {
@@ -228,9 +228,9 @@ struct PortfolioAscendantSheet: View {
 
             TabButton(
                 title: "Ascendant (Perceived)",
-                icon: "sparkles",
+                icon: "scope",
                 isSelected: selectedTab == 1,
-                color: .purple
+                color: CosmicTheme.accentBlue
             ) {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     selectedTab = 1
@@ -310,18 +310,18 @@ struct PortfolioAscendantSheet: View {
         VStack(alignment: .leading, spacing: 16) {
             // Social label badge
             HStack {
-                Image(systemName: "sparkles")
-                    .foregroundColor(.purple)
+                Image(systemName: "scope")
+                    .foregroundColor(CosmicTheme.accentBlue)
 
                 Text(reading.ascendantAnalysis.perceivedAs)
                     .font(TerminalFont.body(16, weight: .semibold))
-                    .foregroundColor(.purple)
+                    .foregroundColor(CosmicTheme.accentBlue)
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.purple.opacity(0.1))
+                    .fill(CosmicTheme.accentBlue.opacity(0.1))
             )
 
             // Description
@@ -343,8 +343,7 @@ struct PortfolioAscendantSheet: View {
                         .foregroundColor(CosmicTheme.textMuted)
 
                     HStack(spacing: 12) {
-                        Text(standout.zodiacSign.symbol)
-                            .font(.title)
+                        ZodiacMark(sign: standout.zodiacSign, size: 28, style: .element)
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(standout.symbol)
@@ -391,10 +390,10 @@ struct PortfolioAscendantSheet: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.purple.opacity(0.08))
+                    .fill(CosmicTheme.accentBlue.opacity(0.08))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.purple.opacity(0.2), lineWidth: 1)
+                            .stroke(CosmicTheme.accentBlue.opacity(0.2), lineWidth: 1)
                     )
             )
         }
@@ -438,8 +437,8 @@ struct PortfolioAscendantSheet: View {
                     .foregroundColor(CosmicTheme.textMuted)
 
                 VStack(spacing: 4) {
-                    Image(systemName: "sparkles")
-                        .foregroundColor(.purple)
+                    Image(systemName: "scope")
+                        .foregroundColor(CosmicTheme.accentBlue)
                     Text(reading.contrast.ascendantSummary)
                         .font(TerminalFont.caption(10))
                         .foregroundColor(CosmicTheme.textSecondary)
@@ -449,7 +448,7 @@ struct PortfolioAscendantSheet: View {
                 .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.purple.opacity(0.1))
+                        .fill(CosmicTheme.accentBlue.opacity(0.1))
                 )
             }
         }
@@ -484,12 +483,12 @@ struct PortfolioAscendantSheet: View {
                     Text("Share My Duality")
                 }
                 .font(TerminalFont.body(14, weight: .medium))
-                .foregroundColor(.purple)
+                .foregroundColor(CosmicTheme.accentBlue)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
                 .background(
                     Capsule()
-                        .stroke(Color.purple, lineWidth: 1)
+                        .stroke(CosmicTheme.accentBlue, lineWidth: 1)
                 )
             }
         }
@@ -497,10 +496,10 @@ struct PortfolioAscendantSheet: View {
         .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color.purple.opacity(0.08))
+                .fill(CosmicTheme.accentBlue.opacity(0.08))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.purple.opacity(0.3), lineWidth: 1)
+                        .stroke(CosmicTheme.accentBlue.opacity(0.3), lineWidth: 1)
                 )
         )
     }
@@ -547,8 +546,9 @@ private struct ElementBar: View {
     var body: some View {
         HStack(spacing: 12) {
             HStack(spacing: 6) {
-                Text(element.emoji)
+                Image(systemName: element.sfSymbol)
                     .font(.body)
+                    .foregroundColor(element.color)
 
                 Text(element.displayName)
                     .font(TerminalFont.caption(12))
@@ -559,7 +559,7 @@ private struct ElementBar: View {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(CosmicTheme.textMuted.opacity(0.2))
+                        .fill(CosmicTheme.textMuted.opacity(0.3))
                         .frame(height: 8)
 
                     RoundedRectangle(cornerRadius: 4)
@@ -590,12 +590,12 @@ struct PortfolioAscendantBadge: View {
             Text(ascendantLabel)
                 .font(TerminalFont.caption(10))
         }
-        .foregroundColor(.purple)
+        .foregroundColor(CosmicTheme.accentBlue)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(
             Capsule()
-                .fill(Color.purple.opacity(0.15))
+                .fill(CosmicTheme.accentBlue.opacity(0.15))
         )
     }
 }

@@ -77,7 +77,7 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "APP_ENVIRONMENT"
-            value = "debug"
+            value = "development"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>

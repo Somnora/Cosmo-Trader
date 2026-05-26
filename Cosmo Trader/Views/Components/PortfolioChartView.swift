@@ -48,10 +48,31 @@ struct PortfolioChartView: View {
         portfolioReturn >= 0 ? CosmicTheme.positive : CosmicTheme.negative
     }
 
+    /// Tightened Y-axis domain so the area mark doesn't fill the entire chart frame.
+    /// Pads the data range by ~10% above and below, with a floor that
+    /// keeps tightly-clustered values from collapsing all axis labels
+    /// onto a single integer thousand.
+    private var chartYDomain: ClosedRange<Double> {
+        let allValues = portfolioData.map(\.value) + benchmarkData.map(\.value)
+        guard let lo = allValues.min(), let hi = allValues.max(), hi > lo else {
+            let fallback = max(currentValue, 1)
+            return (fallback * 0.95)...(fallback * 1.05)
+        }
+        let rawSpan = hi - lo
+        let mid = (hi + lo) / 2
+        // Floor the span at ~3% of the midpoint so a flat-ish portfolio
+        // still gets enough spread for the y-axis labels to differ.
+        let span = max(rawSpan, mid * 0.03)
+        let pad = span * 0.10
+        let center = (hi + lo) / 2
+        let halfSpan = span / 2
+        return max(0, center - halfSpan - pad)...(center + halfSpan + pad)
+    }
+
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 18) {
             // Header
             chartHeader
 
@@ -82,27 +103,23 @@ struct PortfolioChartView: View {
     private var chartHeader: some View {
         HStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("PORTFOLIO VALUE")
+                Text(selectedPoint == nil ? "PERIOD CHANGE" : "VALUE AT")
                     .font(TerminalFont.data(10))
                     .foregroundColor(CosmicTheme.textMuted)
                     .tracking(1)
 
                 if let point = selectedPoint {
                     Text(formatCurrency(point.value))
-                        .font(TerminalFont.price(28))
+                        .font(TerminalFont.price(24))
                         .foregroundColor(CosmicTheme.textPrimary)
 
                     Text(formatDate(point.date))
                         .font(TerminalFont.data(11))
                         .foregroundColor(CosmicTheme.textMuted)
                 } else {
-                    Text(formatCurrency(currentValue))
-                        .font(TerminalFont.price(28))
-                        .foregroundColor(CosmicTheme.textPrimary)
-
-                    HStack(spacing: 6) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(formatPercent(portfolioReturn))
-                            .font(TerminalFont.data(13, weight: .semibold))
+                            .font(TerminalFont.price(24, weight: .semibold))
                             .foregroundColor(chartColor)
 
                         Text(selectedTimeframe.description)
@@ -115,18 +132,28 @@ struct PortfolioChartView: View {
             Spacer()
 
             // Zodiac composition indicator
-            VStack(alignment: .trailing, spacing: 4) {
-                Text("YOUR SIGN")
-                    .font(TerminalFont.data(9))
-                    .foregroundColor(CosmicTheme.textMuted)
-                    .tracking(0.5)
-
+            HStack(spacing: 6) {
                 ZodiacSymbolView(
                     sign: userSign,
-                    size: 24,
+                    size: 14,
                     color: CosmicTheme.gold
                 )
+
+                Text(userSign.displayName.uppercased())
+                    .font(TerminalFont.data(9, weight: .semibold))
+                    .tracking(1)
+                    .foregroundColor(CosmicTheme.gold)
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(
+                Capsule()
+                    .fill(CosmicTheme.gold.opacity(0.10))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(CosmicTheme.gold.opacity(0.25), lineWidth: 0.5)
+            )
         }
     }
 
@@ -155,11 +182,12 @@ struct PortfolioChartView: View {
             HStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.caption2)
-                    .foregroundColor(CosmicTheme.textMuted)
+                    .foregroundColor(CosmicTheme.textSecondary)
 
                 Text(label)
-                    .font(TerminalFont.data(9))
-                    .foregroundColor(CosmicTheme.textMuted)
+                    .font(TerminalFont.data(9, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .tracking(0.8)
                     .lineLimit(1)
             }
 
@@ -169,7 +197,11 @@ struct PortfolioChartView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
-        .background(CosmicTheme.cardBackground.opacity(0.5))
+        .background(CosmicTheme.panelElevated)
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(CosmicTheme.borderStrong, lineWidth: 0.5)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
@@ -184,8 +216,8 @@ struct PortfolioChartView: View {
                     y: .value("Value", point.value),
                     series: .value("Series", "Benchmark")
                 )
-                .foregroundStyle(CosmicTheme.textMuted.opacity(0.5))
-                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                .foregroundStyle(CosmicTheme.textSecondary.opacity(0.7))
+                .lineStyle(StrokeStyle(lineWidth: 1.2, dash: [4, 4]))
                 .interpolationMethod(.catmullRom)
             }
 
@@ -193,7 +225,8 @@ struct PortfolioChartView: View {
             ForEach(portfolioData) { point in
                 AreaMark(
                     x: .value("Time", point.date),
-                    y: .value("Value", point.value)
+                    yStart: .value("Baseline", chartYDomain.lowerBound),
+                    yEnd: .value("Value", point.value)
                 )
                 .foregroundStyle(
                     LinearGradient(
@@ -227,11 +260,11 @@ struct PortfolioChartView: View {
                 .symbolSize(100)
 
                 RuleMark(x: .value("Time", selected.date))
-                    .foregroundStyle(CosmicTheme.textMuted.opacity(0.3))
+                    .foregroundStyle(CosmicTheme.textMuted.opacity(0.4))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
             }
         }
-        .chartYScale(domain: .automatic(includesZero: false))
+        .chartYScale(domain: chartYDomain)
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 4)) { value in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 4]))
@@ -255,6 +288,11 @@ struct PortfolioChartView: View {
             }
         }
         .chartLegend(.hidden)
+        .chartPlotStyle { plotArea in
+            plotArea
+                .padding(.trailing, 8)
+                .padding(.bottom, 4)
+        }
         .chartOverlay { proxy in
             GeometryReader { geometry in
                 Rectangle()
@@ -274,7 +312,7 @@ struct PortfolioChartView: View {
                     )
             }
         }
-        .frame(height: 180)
+        .frame(height: 200)
     }
 
     // MARK: - Timeframe Selector
@@ -317,6 +355,7 @@ struct PortfolioChartView: View {
                 .font(TerminalFont.data(11))
                 .foregroundColor(CosmicTheme.textSecondary)
                 .italic()
+                .fixedSize(horizontal: false, vertical: true)
 
             Spacer()
         }
@@ -341,8 +380,8 @@ struct PortfolioChartView: View {
     private func generatePortfolioData() -> [PortfolioPoint] {
         let calendar = Calendar.current
         let now = Date()
-        let seed = portfolio.map { $0.symbol.hashValue }.reduce(0, +) + selectedTimeframe.hashValue
-        var generator = SeededRandomGenerator(seed: UInt64(abs(seed)))
+        let seed = portfolio.map { $0.symbol.hashValue }.reduce(selectedTimeframe.hashValue) { $0 &+ $1 }
+        var generator = SeededRandomGenerator(seed: seedValue(from: seed))
 
         let pointCount: Int
         let component: Calendar.Component
@@ -410,8 +449,8 @@ struct PortfolioChartView: View {
         guard let startValue = portfolioData.first?.value else { return [] }
 
         // S&P 500 average annual return ~10%
-        let seed = selectedTimeframe.hashValue + 12345
-        var generator = SeededRandomGenerator(seed: UInt64(abs(seed)))
+        let seed = selectedTimeframe.hashValue &+ 12345
+        var generator = SeededRandomGenerator(seed: seedValue(from: seed))
 
         let dailyReturn = 0.10 / 252 // 10% annual / 252 trading days
         let periodReturn = dailyReturn * Double(selectedTimeframe.tradingDays)
@@ -444,21 +483,25 @@ struct PortfolioChartView: View {
 
         if isOutperforming {
             if diff > 5 {
-                return "Your \(userSign.displayName) intuition is crushing the market! +\(String(format: "%.1f", diff))% cosmic alpha."
+                return "Your \(userSign.displayName) allocation is outperforming by +\(String(format: "%.1f", diff))%."
             } else if diff > 2 {
-                return "Outperforming the S&P 500. The stars favor your \(userSign.element.displayName) selections."
+                return "Outperforming the S&P 500. \(userSign.element.displayName) exposure is helping."
             } else {
-                return "Slightly ahead of the benchmark. Your cosmic portfolio holds steady."
+                return "Slightly ahead of the benchmark. Portfolio structure is holding steady."
             }
         } else {
             if diff > 5 {
-                return "The market tests your \(userSign.displayName) resolve. Consider cosmic rebalancing."
+                return "The market is testing your \(userSign.displayName) exposure. Review rebalancing."
             } else if diff > 2 {
-                return "Trailing the S&P 500. Patience - the cosmos rewards long-term vision."
+                return "Trailing the S&P 500. Patience is useful if the long-term thesis still holds."
             } else {
-                return "Tracking close to the benchmark. Cosmic equilibrium maintained."
+                return "Tracking close to the benchmark. Exposure is roughly balanced."
             }
         }
+    }
+
+    private func seedValue(from value: Int) -> UInt64 {
+        UInt64(bitPattern: Int64(value))
     }
 
     private func formatCurrency(_ value: Double) -> String {
@@ -489,11 +532,27 @@ struct PortfolioChartView: View {
         return formatter.string(from: date)
     }
 
+    /// Formats a y-axis tick using a span-aware precision. When the
+    /// visible value range is small (e.g., a portfolio bouncing between
+    /// $8.9K and $9.3K), every tick collapsed to "$9K" with the prior
+    /// `%.0fK` rule. Use the chart's domain to pick enough digits that
+    /// adjacent labels read distinctly.
     private func formatAxisValue(_ value: Double) -> String {
+        let span = chartYDomain.upperBound - chartYDomain.lowerBound
         if value >= 1_000_000 {
-            return String(format: "$%.1fM", value / 1_000_000)
+            let unit = value / 1_000_000
+            let digits = span / 1_000_000 < 5 ? 2 : 1
+            return String(format: "$%.\(digits)fM", unit)
         } else if value >= 1_000 {
-            return String(format: "$%.0fK", value / 1_000)
+            let unit = value / 1_000
+            // Pick digit count from the *visible* span so labels don't all
+            // round to the same integer thousand.
+            let spanK = span / 1_000
+            let digits: Int
+            if spanK < 1 { digits = 2 }
+            else if spanK < 10 { digits = 1 }
+            else { digits = 0 }
+            return String(format: "$%.\(digits)fK", unit)
         } else {
             return String(format: "$%.0f", value)
         }

@@ -2,12 +2,11 @@
 //  WidgetDataManager.swift
 //  Cosmo Trader
 //
-//  Manages widget data sharing between main app and widget extension.
-//  Writes lunar data to App Group UserDefaults for widget access.
+//  Future-scope widget data sharing for a deferred widget extension.
+//  This file is intentionally excluded from v1 app target membership.
 //
 
 import Foundation
-import WidgetKit
 
 // MARK: - Widget Data Manager
 
@@ -25,6 +24,7 @@ final class WidgetDataManager {
     private let horoscopeDataKey = "widgetHoroscopeData"
     private let portfolioDataKey = "widgetPortfolioData"
     private let lastUpdateKey = "widgetLastUpdate"
+    private let framingLevelKey = "widgetFramingLevel"
 
     // MARK: - Properties
 
@@ -53,7 +53,7 @@ final class WidgetDataManager {
         let widgetData = WidgetLunarData(
             date: lunarData.date,
             phaseName: lunarData.phase.rawValue,
-            phaseEmoji: lunarData.phase.emoji,
+            phaseEmoji: lunarData.phase.sfSymbol,
             illumination: lunarData.illumination,
             isWaxing: lunarData.isWaxing,
             daysUntilFullMoon: lunarData.daysUntilFullMoon,
@@ -78,7 +78,7 @@ final class WidgetDataManager {
         let widgetData = WidgetHoroscopeData(
             date: Date(),
             signName: sign.displayName,
-            signSymbol: sign.symbol,
+            signSymbol: sign.textSymbol,
             signElement: sign.element.displayName,
             horoscopeText: horoscopeText,
             luckyNumber: Int.random(in: 1...9),
@@ -120,13 +120,36 @@ final class WidgetDataManager {
         reloadWidgetTimelines()
     }
 
-    /// Force reload all widget timelines
-    /// Call this after any data change that should be reflected immediately
+    /// Future hook for widget timeline reloads.
+    /// v1 ships without a widget extension, app group, or widget capability.
     func reloadWidgetTimelines() {
-        WidgetCenter.shared.reloadAllTimelines()
         #if DEBUG
-        print("[WidgetDataManager] Widget timelines reloaded")
+        print("[WidgetDataManager] Widget reload skipped; widgets are deferred for v1")
         #endif
+    }
+
+    /// Update the signal framing level for widgets
+    /// - Parameter level: The SignalFramingLevel from user preferences
+    func updateFramingLevel(_ level: SignalFramingLevel) {
+        guard let defaults = sharedDefaults else { return }
+
+        let levelValue: Int
+        switch level {
+        case .rational: levelValue = 0
+        case .leanRational: levelValue = 1
+        case .balanced: levelValue = 2
+        case .leanMystical: levelValue = 3
+        case .mystical: levelValue = 4
+        }
+
+        defaults.set(levelValue, forKey: framingLevelKey)
+        defaults.synchronize()
+        #if DEBUG
+        print("[WidgetDataManager] Framing level updated to: \(level.displayName)")
+        #endif
+
+        // Reload widgets to reflect new framing
+        reloadWidgetTimelines()
     }
 
     /// Check if widget data needs refresh

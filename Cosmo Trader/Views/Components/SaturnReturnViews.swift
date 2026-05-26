@@ -188,7 +188,7 @@ struct SaturnReturnCard: View {
             // Progress ring
             ZStack {
                 Circle()
-                    .stroke(CosmicTheme.textMuted.opacity(0.2), lineWidth: 4)
+                    .stroke(CosmicTheme.textMuted.opacity(0.3), lineWidth: 4)
                     .frame(width: 50, height: 50)
 
                 Circle()
@@ -487,7 +487,7 @@ struct SaturnReturnDetailSheet: View {
                 watchItem(
                     icon: "arrow.triangle.branch",
                     title: "Strategic Pivots",
-                    description: "New market entries, product line changes, or M&A activity"
+                    description: "New market launches, product line changes, or M&A activity"
                 )
 
                 watchItem(

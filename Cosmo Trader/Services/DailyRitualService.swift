@@ -471,11 +471,11 @@ enum MarketSentiment {
     case neutral
     case bearish
 
-    var emoji: String {
+    var sfSymbol: String {
         switch self {
-        case .bullish: return "📈"
-        case .neutral: return "➡️"
-        case .bearish: return "📉"
+        case .bullish: return "chart.line.uptrend.xyaxis"
+        case .neutral: return "arrow.right"
+        case .bearish: return "chart.line.downtrend.xyaxis"
         }
     }
 

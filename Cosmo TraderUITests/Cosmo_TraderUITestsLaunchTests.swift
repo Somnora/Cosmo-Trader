@@ -20,13 +20,18 @@ final class Cosmo_TraderUITestsLaunchTests: XCTestCase {
     @MainActor
     func testLaunch() throws {
         let app = XCUIApplication()
+        app.launchArguments = [
+            "--screenshot-mode",
+            "--skip-onboarding",
+            "--disable-firebase"
+        ]
         app.launch()
 
-        // Insert steps here to perform after app launch but before taking a screenshot,
-        // such as logging into a test account or navigating somewhere in the app
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.otherElements["screen.today"].waitForExistence(timeout: 10))
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = "Launch Screen"
+        attachment.name = "Screenshot Ready Today"
         attachment.lifetime = .keepAlways
         add(attachment)
     }

@@ -316,7 +316,8 @@ struct IPODetailView: View {
                         .foregroundColor(CosmicTheme.textMuted)
 
                     HStack(spacing: 6) {
-                        Text(compatibility.rating.emoji)
+                        Image(systemName: compatibility.rating.sfSymbol)
+                            .foregroundColor(ratingColor)
                         Text(compatibility.rating.displayName.uppercased())
                             .font(TerminalFont.data(12, weight: .semibold))
                             .foregroundColor(ratingColor)

@@ -341,8 +341,9 @@ struct ZodiacLeaderboardView: View {
 
     private func elementCard(element: ZodiacSign.Element, avgReturn: Double) -> some View {
         VStack(spacing: 6) {
-            Text(element.emoji)
+            Image(systemName: element.sfSymbol)
                 .font(.title3)
+                .foregroundColor(element.color)
 
             Text(element.displayName.uppercased())
                 .font(TerminalFont.data(9))
@@ -540,7 +541,7 @@ struct SignDetailSheet: View {
 
             // Rating badge
             HStack(spacing: 6) {
-                Text(perf.performanceRating.emoji)
+                Image(systemName: perf.performanceRating.sfSymbol)
                 Text(perf.performanceRating.rawValue.uppercased())
                     .font(TerminalFont.data(11, weight: .semibold))
             }

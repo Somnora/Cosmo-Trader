@@ -208,8 +208,9 @@ struct CosmicMoodGauge: View {
         VStack(spacing: 8) {
             // Cosmic mood name
             HStack(spacing: 8) {
-                Text(moodData.moodLevel.emoji)
+                Image(systemName: moodData.moodLevel.sfSymbol)
                     .font(.title2)
+                    .foregroundColor(moodData.moodLevel.color)
 
                 Text(moodData.moodLevel.rawValue)
                     .font(TerminalFont.headline(size.moodNameFontSize))
@@ -472,8 +473,9 @@ struct CosmicMoodWidget: View {
                         .foregroundColor(CosmicTheme.textMuted)
 
                     HStack(spacing: 6) {
-                        Text(moodData.moodLevel.emoji)
+                        Image(systemName: moodData.moodLevel.sfSymbol)
                             .font(.system(size: 14))
+                            .foregroundColor(moodData.moodLevel.color)
                         Text(moodData.moodLevel.rawValue)
                             .font(TerminalFont.headline(15))
                             .foregroundColor(moodData.moodLevel.color)

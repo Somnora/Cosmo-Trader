@@ -34,56 +34,65 @@ struct ContentView: View {
             OfflineBanner()
 
             TabView(selection: selectedTab) {
-            // Portfolio Tab - Home/main view
-            PortfolioView()
+                // Today Tab - Daily Brief (Home)
+                NavigationStack {
+                    DailyBriefBackendView()
+                }
+                .accessibilityIdentifier("screen.today")
                 .tabItem {
-                    Label("Portfolio", systemImage: appState.selectedTab == .portfolio ? "house.fill" : "house")
+                    Label("Today", systemImage: appState.selectedTab == .today ? "sun.max.fill" : "sun.max")
+                }
+                .tag(Tab.today)
+
+                // Portfolio Tab - Holdings view
+                PortfolioView()
+                .accessibilityIdentifier("screen.portfolio")
+                .tabItem {
+                    Label("Portfolio", systemImage: appState.selectedTab == .portfolio ? "chart.pie.fill" : "chart.pie")
                 }
                 .tag(Tab.portfolio)
 
-            // Discover Tab - Swipe on stocks
-            DiscoverView()
+                // Discover Tab - Swipe on stocks
+                DiscoverView()
+                .accessibilityIdentifier("screen.discover")
                 .tabItem {
                     Label("Discover", systemImage: appState.selectedTab == .discover ? "safari.fill" : "safari")
                 }
                 .tag(Tab.discover)
 
-            // IPO Tab - Upcoming cosmic births
-            IPOListView()
-                .tabItem {
-                    Label("IPOs", systemImage: appState.selectedTab == .ipos ? "sparkle" : "sparkle")
-                }
-                .tag(Tab.ipos)
-
-            // Cosmos Tab - Daily horoscope
-            CosmosView()
+                // Cosmos Tab - Daily horoscope
+                CosmosView()
+                .accessibilityIdentifier("screen.cosmos")
                 .tabItem {
                     Label("Cosmos", systemImage: appState.selectedTab == .cosmos ? "moon.stars.fill" : "moon.stars")
                 }
                 .tag(Tab.cosmos)
 
-            // Profile Tab - User settings
-            ProfileView()
+                // Profile Tab - User settings
+                ProfileView()
+                .accessibilityIdentifier("screen.profile")
                 .tabItem {
                     Label("Profile", systemImage: appState.selectedTab == .profile ? "person.fill" : "person")
                 }
                 .tag(Tab.profile)
-        }
-        .tint(CosmicTheme.gold)
-        .onAppear {
-            configureTabBarAppearance()
-            // Track app opened and refresh user properties
-            AnalyticsService.shared.trackAppOpened()
-            AnalyticsService.shared.refreshUserProperties(from: appState)
-            // Start ambient audio if enabled
-            audioService.startAmbientLoop()
-        }
-        .onChange(of: appState.selectedTab) { oldTab, newTab in
-            // Track tab switches
-            AnalyticsService.shared.trackTabSwitch(newTab.analyticsName)
-            // Play tab switch sound
-            audioService.playTabSwitch()
-        }
+            }
+            .tint(CosmicTheme.gold)
+            .toolbarBackground(CosmicTheme.background, for: .tabBar)
+            .toolbarBackground(.visible, for: .tabBar)
+            .onAppear {
+                configureTabBarAppearance()
+                // Track app opened and refresh user properties
+                AnalyticsService.shared.trackAppOpened()
+                AnalyticsService.shared.refreshUserProperties(from: appState)
+                // Start ambient audio if enabled
+                audioService.startAmbientLoop()
+            }
+            .onChange(of: appState.selectedTab) { oldTab, newTab in
+                // Track tab switches
+                AnalyticsService.shared.trackTabSwitch(newTab.analyticsName)
+                // Play tab switch sound
+                audioService.playTabSwitch()
+            }
         }
     }
 
@@ -119,22 +128,51 @@ struct ContentView: View {
     }
 }
 
+// MARK: - Adaptive Layout Helpers
+
+extension View {
+    /// Constrains content to a readable max width on regular-width canvases
+    /// (iPad), leaving compact (iPhone) layouts untouched. Defaults are tuned
+    /// so that the 13" iPad portrait canvas (1032pt) shows a confident,
+    /// centered column with restrained gutters rather than a stranded
+    /// phone-width card.
+    func iPadReadableContent(maxWidth: CGFloat = 980, alignment: Alignment = .top) -> some View {
+        modifier(IPadReadableContentModifier(maxWidth: maxWidth, alignment: alignment))
+    }
+}
+
+private struct IPadReadableContentModifier: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    let maxWidth: CGFloat
+    let alignment: Alignment
+
+    func body(content: Content) -> some View {
+        if horizontalSizeClass == .regular {
+            content
+                .frame(maxWidth: maxWidth, alignment: alignment)
+                .frame(maxWidth: .infinity, alignment: alignment)
+        } else {
+            content
+        }
+    }
+}
+
 // MARK: - Tab Enum
 
 /// Type-safe enum for our tabs
 enum Tab: Hashable {
+    case today
     case portfolio
     case discover
-    case ipos
     case cosmos
     case profile
 
     /// Name for analytics tracking
     var analyticsName: String {
         switch self {
+        case .today: return "Today"
         case .portfolio: return "Portfolio"
         case .discover: return "Discover"
-        case .ipos: return "IPOs"
         case .cosmos: return "Cosmos"
         case .profile: return "Profile"
         }

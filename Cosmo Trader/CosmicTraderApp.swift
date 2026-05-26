@@ -1,14 +1,10 @@
 import SwiftUI
 import UIKit
-import WidgetKit
 import UserNotifications
-#if canImport(FirebaseCore)
-import FirebaseCore
-#endif
 
 // MARK: - App Delegate
 // ====================
-// Handles push notification registration and foreground delivery
+// Handles local notification foreground delivery and taps.
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
@@ -41,28 +37,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // Clear API caches
         StockAPIService.shared.clearCache()
         VolumeService.shared.clearCache()
-    }
-
-    // MARK: - Remote Notification Registration
-
-    func application(
-        _ application: UIApplication,
-        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
-    ) {
-        let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-        #if DEBUG
-        print("📱 Push notification token: \(token)")
-        #endif
-        // Future: Send token to backend for server-side push notifications
-    }
-
-    func application(
-        _ application: UIApplication,
-        didFailToRegisterForRemoteNotificationsWithError error: Error
-    ) {
-        #if DEBUG
-        print("❌ Failed to register for remote notifications: \(error.localizedDescription)")
-        #endif
     }
 
     // MARK: - UNUserNotificationCenterDelegate
@@ -170,34 +144,31 @@ struct CosmicTraderApp: App {
 
     /// Initialize any app-wide settings when the app launches
     init() {
+        #if DEBUG
+        // For CoreGraphics NaN tracing, set scheme env var CG_NUMERICS_SHOW_BACKTRACE=1.
+        #endif
+        configureFirebaseIfAvailable()
         configureAppAppearance()
-        configureCrashReporting()
         configureAnalytics()
-        configureWidgets()
         // Note: Deferred API diagnostic test to after app launch for better startup performance
         // The test will run after the launch screen completes
     }
 
-    // MARK: - Widget Configuration
-
-    /// Update widget data on app launch
-    private func configureWidgets() {
-        Task { @MainActor in
-            // Update widget with current lunar data
-            WidgetDataManager.shared.updateWidgetData()
+    /// Configure Firebase when plist is available.
+    /// Add `GoogleService-Info_CT.plist` at the project root for device testing.
+    private func configureFirebaseIfAvailable() {
+        if AppState.shouldDisableFirebase {
+            Log.debug("[Firebase] Disabled by launch argument.")
+            return
         }
-    }
 
-    // MARK: - Crash Reporting Configuration
-
-    /// Configure Firebase and Crashlytics for crash reporting
-    private func configureCrashReporting() {
-        Task { @MainActor in
-            // Initialize Crashlytics
-            CrashReportingService.shared.initialize()
-
-            // Log app launch
-            CrashReportingService.shared.logLifecycleEvent("App launched")
+        guard FirebaseConfigurator.configureIfPossible() else {
+            #if DEBUG
+            Log.warning("[Firebase] GoogleService-Info plist missing in Debug. Firebase is disabled.")
+            #else
+            fatalError("Missing GoogleService-Info.plist required for Release build.")
+            #endif
+            return
         }
     }
 
@@ -205,7 +176,7 @@ struct CosmicTraderApp: App {
 
     /// Configure and initialize analytics
     private func configureAnalytics() {
-        // Initialize Mixpanel from Secrets.plist
+        // Initialize analytics from runtime configuration.
         Task { @MainActor in
             AnalyticsService.shared.initialize()
 
@@ -253,7 +224,8 @@ struct RootView: View {
 
     @Environment(AppState.self) private var appState
     @Environment(\.scenePhase) private var scenePhase
-    @State private var showLaunchScreen = true
+    @State private var showLaunchScreen = !(AppState.isUITesting || AppState.isScreenshotMode)
+    @State private var hasAttemptedAuthBootstrap = false
 
     var body: some View {
         ZStack {
@@ -279,6 +251,8 @@ struct RootView: View {
             }
         }
         .onAppear {
+            guard showLaunchScreen else { return }
+
             // Dismiss launch screen after animation completes (~4 seconds)
             DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
                 withAnimation(.easeOut(duration: 0.5)) {
@@ -286,10 +260,24 @@ struct RootView: View {
                 }
             }
         }
+        .task {
+            guard !hasAttemptedAuthBootstrap else { return }
+            hasAttemptedAuthBootstrap = true
+            guard FirebaseConfigurator.isConfigured else { return }
+            await AuthManager.shared.ensureSignedIn(appState: appState)
+        }
         .onChange(of: scenePhase) { oldPhase, newPhase in
-            if newPhase == .active {
-                // Update widget data when app becomes active
-                WidgetDataManager.shared.updateWidgetData()
+            switch newPhase {
+            case .active:
+                // Start service timers
+                CosmicTickerService.shared.startRefreshTimer()
+                MercuryRetrogradeService.shared.startRefreshTimer()
+            case .background, .inactive:
+                // Stop service timers to save battery
+                CosmicTickerService.shared.stopRefreshTimer()
+                MercuryRetrogradeService.shared.stopRefreshTimer()
+            @unknown default:
+                break
             }
         }
     }

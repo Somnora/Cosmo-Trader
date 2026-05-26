@@ -168,19 +168,8 @@ enum CosmicEventType: String, CaseIterable {
         }
     }
 
-    var emoji: String {
-        switch self {
-        case .mercuryRetrograde: return "☿️"
-        case .fullMoon: return "🌕"
-        case .newMoon: return "🌑"
-        case .lunarEclipse: return "🌒"
-        case .solarEclipse: return "🌘"
-        case .planetaryIngress: return "➡️"
-        case .venusRetrograde: return "♀️"
-        case .marsRetrograde: return "♂️"
-        case .jupiterRetrograde: return "♃"
-        case .saturnRetrograde: return "♄"
-        }
+    var sfSymbol: String {
+        defaultIcon  // Use the existing SF Symbol icons
     }
 
     /// Whether this event type typically causes market "turbulence"
@@ -228,7 +217,7 @@ enum EventIntensity: String, CaseIterable {
 
 // MARK: - Market Sector
 
-enum MarketSector: String, CaseIterable {
+enum MarketSector: String, CaseIterable, Codable {
     case technology = "Technology"
     case finance = "Finance"
     case healthcare = "Healthcare"
@@ -273,9 +262,9 @@ struct MockCosmicEvents {
                 type: .mercuryRetrograde,
                 title: "Mercury Retrograde",
                 subtitle: "in Sagittarius",
-                description: "The cosmic trickster is at it again. Mercury stations retrograde in truth-seeking Sagittarius, turning our grand plans into cosmic comedy. Expect miscommunications, tech glitches, and your ex to mysteriously resurface.",
-                advice: "Triple-check every trade confirmation. Read the fine print twice. Maybe three times. Actually, just screenshot everything.",
-                warningMessage: "Maybe don't YOLO into crypto this week. Just a thought.",
+                description: "Mercury stations retrograde in truth-seeking Sagittarius, raising communication and execution risk. Expect confusing headlines, tech friction, and delayed confirmations.",
+                advice: "Mercury retrograde is good for re-reading your notes, not for rushing them. Slow down before you act on anything.",
+                warningMessage: "Crypto headlines may read more chaotic than usual; treat with patience.",
                 startDate: calendar.date(byAdding: .day, value: -5, to: today)!,
                 endDate: calendar.date(byAdding: .day, value: 16, to: today)!,
                 intensity: .intense,
@@ -288,8 +277,8 @@ struct MockCosmicEvents {
                 type: .fullMoon,
                 title: "Full Moon",
                 subtitle: "in Cancer",
-                description: "Emotions are running high and your portfolio might feel the cosmic tide. This nurturing lunar peak illuminates matters of security, home, and what truly makes you feel safe. Including your savings account.",
-                advice: "Avoid making impulsive trades based on feelings. That gut instinct? It might just be anxiety. Sleep on it.",
+                description: "Full moon conditions can heighten volatility around security, home, and rate-sensitive assets. Real estate, consumer, and healthcare exposure may deserve a closer read.",
+                advice: "Avoid emotion-led reactions. If the thesis still holds after a cooling-off period, re-read your criteria before acting.",
                 warningMessage: nil,
                 startDate: calendar.date(byAdding: .day, value: 3, to: today)!,
                 endDate: calendar.date(byAdding: .day, value: 4, to: today)!,
@@ -303,8 +292,8 @@ struct MockCosmicEvents {
                 type: .newMoon,
                 title: "New Moon",
                 subtitle: "in Capricorn",
-                description: "The ambitious goat energy meets lunar new beginnings. A powerful time to set long-term financial goals and get serious about your portfolio strategy. The stars favor discipline over dreams.",
-                advice: "Perfect time to research that blue-chip stock you've been eyeing. Plant seeds now for Q2 harvest.",
+                description: "Capricorn's long-range discipline meets a new moon reset. This favors portfolio planning, risk budgets, and durable balance-sheet stories.",
+                advice: "Research quality names and define what would make them worth adding before price action forces the decision.",
                 warningMessage: nil,
                 startDate: calendar.date(byAdding: .day, value: 18, to: today)!,
                 endDate: calendar.date(byAdding: .day, value: 19, to: today)!,
@@ -318,8 +307,8 @@ struct MockCosmicEvents {
                 type: .planetaryIngress,
                 title: "Venus Enters Aquarius",
                 subtitle: "Innovation meets value",
-                description: "The planet of value and attraction enters the sign of innovation and rebellion. Suddenly, those unconventional investments look a lot more appealing. Tech stocks get a cosmic glow-up.",
-                advice: "Good time to explore innovative sectors. Just remember: disruptive doesn't always mean profitable.",
+                description: "The planet of value enters innovation-minded Aquarius. Unconventional and technology-led assets may screen better, but valuation discipline still matters.",
+                advice: "Explore innovative sectors, then separate narrative from profitability.",
                 warningMessage: nil,
                 startDate: calendar.date(byAdding: .day, value: 8, to: today)!,
                 endDate: calendar.date(byAdding: .day, value: 32, to: today)!,
@@ -333,7 +322,7 @@ struct MockCosmicEvents {
                 type: .lunarEclipse,
                 title: "Lunar Eclipse",
                 subtitle: "in Leo",
-                description: "A dramatic cosmic curtain call in the sign of the spotlight. Hidden truths emerge, especially around leadership and creative ventures. Some CEOs might be sweating right now.",
+                description: "A dramatic eclipse window in Leo can surface leadership, branding, and creative-sector surprises. Watch companies where executive narrative drives valuation.",
                 advice: "Watch for surprising earnings reports and unexpected executive announcements. Stay nimble.",
                 warningMessage: "High volatility window. Consider reducing position sizes.",
                 startDate: calendar.date(byAdding: .day, value: 25, to: today)!,
@@ -348,9 +337,9 @@ struct MockCosmicEvents {
                 type: .marsRetrograde,
                 title: "Mars Retrograde",
                 subtitle: "in Virgo",
-                description: "The planet of action and aggression takes a cosmic nap in detail-oriented Virgo. Projects stall, energy dips, and that aggressive trading strategy suddenly feels exhausting.",
-                advice: "Review and refine rather than initiate. Your analysis paralysis might actually be cosmic wisdom for once.",
-                warningMessage: "Avoid starting new high-risk positions. Patience, warrior.",
+                description: "The planet of action turns retrograde in detail-oriented Virgo. Aggressive strategies may lose momentum while operational issues get harder to ignore.",
+                advice: "Review and refine rather than initiate. Slower analysis is useful if it improves execution quality.",
+                warningMessage: "Avoid starting new high-risk positions without a defined exit.",
                 startDate: calendar.date(byAdding: .day, value: 35, to: today)!,
                 endDate: calendar.date(byAdding: .day, value: 95, to: today)!,
                 intensity: .moderate,
@@ -363,7 +352,7 @@ struct MockCosmicEvents {
                 type: .planetaryIngress,
                 title: "Jupiter Enters Gemini",
                 subtitle: "Expansion meets curiosity",
-                description: "The planet of luck and expansion enters the sign of communication and duality. Information is currency, and those who can process data fastest win. Hello, AI stocks.",
+                description: "The planet of expansion enters communication-driven Gemini. Information velocity, AI infrastructure, and multi-channel distribution may command attention.",
                 advice: "Diversification is your friend. Jupiter in Gemini rewards spreading your bets across multiple opportunities.",
                 warningMessage: nil,
                 startDate: calendar.date(byAdding: .day, value: 45, to: today)!,
@@ -378,8 +367,8 @@ struct MockCosmicEvents {
                 type: .solarEclipse,
                 title: "Solar Eclipse",
                 subtitle: "in Aries",
-                description: "A blazing reset in the sign of new beginnings. Solar eclipses bring sudden shifts and fresh starts. The universe is hitting refresh on your financial identity.",
-                advice: "Be ready to pivot. Old strategies may suddenly become obsolete. Watch for breakthrough opportunities.",
+                description: "A solar eclipse in Aries marks a reset window for risk appetite, identity, and first-mover narratives. Sudden shifts can change which strategies still fit.",
+                advice: "Be ready to pivot if the thesis changes. Watch for genuine breakouts, not just adrenaline.",
                 warningMessage: "Major market-moving potential. Keep cash reserves ready.",
                 startDate: calendar.date(byAdding: .day, value: 52, to: today)!,
                 endDate: calendar.date(byAdding: .day, value: 53, to: today)!,
@@ -393,9 +382,9 @@ struct MockCosmicEvents {
                 type: .venusRetrograde,
                 title: "Venus Retrograde",
                 subtitle: "in Scorpio",
-                description: "The planet of value goes inward in intense Scorpio. Time to reassess what you truly value in your portfolio. Those emotional attachments to losing stocks? Yeah, we need to talk.",
-                advice: "Review holdings you've been sentimental about. Is it love or denial?",
-                warningMessage: "Avoid major luxury purchases. That Tesla might look different in 6 weeks.",
+                description: "The planet of value turns inward in Scorpio. This is a reassessment window for conviction, liquidity, and emotional attachment to losing positions.",
+                advice: "Review holdings you defend out of habit. Separate long-term thesis from sunk cost.",
+                warningMessage: "Avoid large discretionary purchases or luxury-led trades without fresh validation.",
                 startDate: calendar.date(byAdding: .day, value: 60, to: today)!,
                 endDate: calendar.date(byAdding: .day, value: 102, to: today)!,
                 intensity: .moderate,
@@ -408,8 +397,8 @@ struct MockCosmicEvents {
                 type: .fullMoon,
                 title: "Full Moon",
                 subtitle: "in Scorpio",
-                description: "The most intense full moon of the year. Secrets surface, power dynamics shift, and your deepest financial fears might come up for air. Transformation is non-negotiable.",
-                advice: "Great time for portfolio deep-cleaning. What's really dragging you down?",
+                description: "A high-intensity full moon in Scorpio can bring hidden leverage, power dynamics, and concentrated financial fears to the surface.",
+                advice: "Use the window for portfolio cleanup. Identify which positions are dragging return or distorting risk.",
                 warningMessage: nil,
                 startDate: calendar.date(byAdding: .day, value: 70, to: today)!,
                 endDate: calendar.date(byAdding: .day, value: 71, to: today)!,
@@ -423,8 +412,8 @@ struct MockCosmicEvents {
                 type: .saturnRetrograde,
                 title: "Saturn Retrograde",
                 subtitle: "in Pisces",
-                description: "The cosmic taskmaster goes introspective. Structures you thought were solid might wobble. Time to reinforce your portfolio foundation—or admit some strategies were built on vibes.",
-                advice: "Review your risk management. Are your stop-losses actually set?",
+                description: "Saturn retrograde turns the discipline lens inward. Structures that looked stable may need proof: cash flow, risk controls, and position rules.",
+                advice: "Review your risk management. Are your guardrails actually written down?",
                 warningMessage: nil,
                 startDate: calendar.date(byAdding: .day, value: 80, to: today)!,
                 endDate: calendar.date(byAdding: .day, value: 220, to: today)!,
@@ -438,8 +427,8 @@ struct MockCosmicEvents {
                 type: .newMoon,
                 title: "New Moon",
                 subtitle: "in Pisces",
-                description: "The dreamiest new moon invites you to invest with intuition. Imagination meets manifestation. What do you really want your portfolio to become?",
-                advice: "Set intentions for your investment journey. Vision boards allowed.",
+                description: "A Pisces new moon supports imagination and thematic thinking, but it needs guardrails. Intuition can help source ideas; validation keeps the read grounded.",
+                advice: "Set portfolio intentions, then translate them into criteria, watchlist names, and risk limits.",
                 warningMessage: nil,
                 startDate: calendar.date(byAdding: .day, value: 90, to: today)!,
                 endDate: calendar.date(byAdding: .day, value: 91, to: today)!,

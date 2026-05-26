@@ -122,29 +122,29 @@ class ProfileViewModel {
         guard let user = user else { return [] }
         switch user.sunSign {
         case .aries:
-            return ["Bold decision-making", "First-mover advantage", "High risk tolerance"]
+            return ["Drawn to bold themes", "Notices fresh starts", "Comfortable with intensity"]
         case .taurus:
-            return ["Patient long-term focus", "Value recognition", "Steady accumulation"]
+            return ["Patient with slow cycles", "Attentive to durability", "Prefers steady rhythm"]
         case .gemini:
-            return ["Quick information processing", "Diversification instincts", "Adaptable strategies"]
+            return ["Quick with new information", "Curious across categories", "Adaptable in perspective"]
         case .cancer:
-            return ["Intuitive market timing", "Protective of gains", "Strong risk management"]
+            return ["Protective of familiar themes", "Attentive to emotional tone", "Careful with comfort zones"]
         case .leo:
-            return ["Confident positioning", "Brand recognition", "Leadership stock picks"]
+            return ["Confident sense of style", "Drawn to brand-name leaders", "Notices standout stories"]
         case .virgo:
-            return ["Detail-oriented analysis", "Thorough due diligence", "Optimization skills"]
+            return ["Detail-oriented reading", "Thorough with context", "Prefers organized information"]
         case .libra:
-            return ["Portfolio balance", "Partnership opportunities", "Fair value assessment"]
+            return ["Drawn to balance", "Attentive to relationships", "Notices symmetry and fairness"]
         case .scorpio:
-            return ["Deep research ability", "Contrarian insights", "Transformation plays"]
+            return ["Comfortable with depth", "Notices hidden pressure", "Drawn to transformation stories"]
         case .sagittarius:
-            return ["Global market vision", "Growth stock intuition", "Optimistic outlook"]
+            return ["Wide-angle curiosity", "Drawn to growth stories", "Naturally optimistic lens"]
         case .capricorn:
-            return ["Disciplined approach", "Long-term planning", "Institutional quality picks"]
+            return ["Disciplined attention", "Patient with long arcs", "Drawn to established quality"]
         case .aquarius:
-            return ["Innovation spotting", "Tech sector strength", "Unconventional wins"]
+            return ["Notices innovation early", "Drawn to future-facing themes", "Comfortable with unusual angles"]
         case .pisces:
-            return ["Intuitive timing", "Creative sector insights", "Emotional intelligence"]
+            return ["Intuitive pattern sense", "Drawn to creative themes", "Attentive to emotional undercurrents"]
         }
     }
 
@@ -153,29 +153,29 @@ class ProfileViewModel {
         guard let user = user else { return [] }
         switch user.sunSign {
         case .aries:
-            return ["Impatient with slow gains", "Overtrading tendency", "Ignores red flags"]
+            return ["Impatient with slow rhythms", "Easily bored by quiet periods", "May miss softer warnings"]
         case .taurus:
-            return ["Misses momentum plays", "Stubborn on losing positions", "Change-resistant"]
+            return ["Slow to welcome change", "Attached to familiar stories", "May resist fresh evidence"]
         case .gemini:
-            return ["Analysis paralysis", "Scattered focus", "Overthinks entries"]
+            return ["Scattered attention", "Overthinks simple reads", "May chase too many threads"]
         case .cancer:
-            return ["Emotional attachment", "Fear-based selling", "Comfort zone bias"]
+            return ["Strong emotional attachment", "Cautious about uncertainty", "Comfort-zone bias"]
         case .leo:
-            return ["Ego-driven decisions", "Overlooks small caps", "Pride prevents pivots"]
+            return ["Pride can color the read", "May overlook quieter names", "Slow to soften a strong opinion"]
         case .virgo:
-            return ["Perfectionism delays", "Misses forest for trees", "Overcautious"]
+            return ["Perfectionism delays clarity", "Can miss the forest for trees", "Sometimes overcautious"]
         case .libra:
-            return ["Decision paralysis", "Avoids necessary risks", "People-pleasing trades"]
+            return ["Can linger in comparison", "Avoids uncomfortable tension", "Too influenced by outside tone"]
         case .scorpio:
-            return ["Obsessive positions", "Revenge trading", "Trust issues with advice"]
+            return ["Can fixate on one story", "Intensity clouds neutrality", "Slow to trust outside context"]
         case .sagittarius:
-            return ["Overextended positions", "Ignores details", "Premature optimism"]
+            return ["Can stretch a narrative", "May skip small details", "Premature optimism"]
         case .capricorn:
-            return ["Misses disruption plays", "Too conservative", "Slow to adapt"]
+            return ["Skeptical of disruption", "Sometimes too guarded", "Slow to adapt tone"]
         case .aquarius:
-            return ["Contrarian for its own sake", "Detached from fundamentals", "Too early on trends"]
+            return ["Different for its own sake", "Can feel detached from basics", "Often early to new themes"]
         case .pisces:
-            return ["Wishful thinking", "Boundary issues", "Easily influenced"]
+            return ["Wishful thinking", "Blurry boundaries", "Easily influenced by mood"]
         }
     }
 
@@ -255,14 +255,16 @@ class ProfileViewModel {
         })
     }
 
-    /// All-time gain/loss (mocked for now)
-    var allTimeGainLoss: Double {
-        guard let user = user else { return 0 }
-        // Mock: assume 15% gain on portfolio
-        return user.totalPortfolioValue * 0.15
+    /// All-time gain/loss - HIDDEN until cost basis tracking is implemented
+    /// This property returns mock data and should NOT be displayed to users.
+    /// TODO: Implement real calculation from cost basis when we track purchase prices
+    private var allTimeGainLoss: Double {
+        // Placeholder - returns 0 until we have real cost basis data
+        return 0
     }
 
-    var formattedAllTimeGainLoss: String {
+    /// Formatted all-time gain/loss - HIDDEN until cost basis tracking is implemented
+    private var formattedAllTimeGainLoss: String {
         let sign = allTimeGainLoss >= 0 ? "+" : ""
         return sign + formatCurrency(allTimeGainLoss)
     }
@@ -321,8 +323,8 @@ class ProfileViewModel {
         return """
         My Cosmic Investor Profile
 
-        \(user.sunSign.symbol) \(user.sunSign.displayName) Investor
-        Element: \(user.sunSign.element.emoji) \(user.sunSign.element.displayName)
+        \(user.sunSign.textSymbol) \(user.sunSign.displayName) Investor
+        Element: \(user.sunSign.element.displayName)
         Modality: \(user.sunSign.modality.displayName)
 
         "\(user.sunSign.corporatePersonality)"
@@ -372,7 +374,7 @@ struct SettingItem: Identifiable {
         // Notifications
         SettingItem(name: "Daily Horoscope", icon: "sparkles", category: .notifications, isEnabled: true),
         SettingItem(name: "Astro Alerts", icon: "moon.stars.fill", category: .notifications, isEnabled: true),
-        SettingItem(name: "Price Alerts", icon: "chart.line.uptrend.xyaxis", category: .notifications, isEnabled: false),
+        SettingItem(name: "Portfolio Check Reminders", icon: "chart.line.uptrend.xyaxis", category: .notifications, isEnabled: false),
         SettingItem(name: "Weekly Digest", icon: "envelope.fill", category: .notifications, isEnabled: true),
 
         // Appearance

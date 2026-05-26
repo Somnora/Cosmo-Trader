@@ -1,16 +1,18 @@
 import Foundation
-#if canImport(Mixpanel)
-import Mixpanel
-#endif
 
 // MARK: - Analytics Service
 // ==========================
-// Lightweight analytics tracking for app usage insights.
-// Integrated with Mixpanel for production analytics.
+// LOCAL-ONLY event recorder. No third-party SDK is linked in this build.
 //
-// PRIVACY: No personally identifiable information is collected.
-// All events are anonymous and focused on feature usage patterns.
-// Users can opt-out of analytics tracking via settings.
+// PRIVACY (v1 stance):
+// - Events stay in an in-memory queue and (in DEBUG) print to the console.
+// - Nothing leaves the device.
+// - The `setOptOut(_:)` hook clears the queue and stops further appends.
+// - All identifiers used here (e.g. the local `analytics_anonymous_id`)
+//   are device-local and not shared with any analytics vendor.
+// - Method signatures forbid raw free-text inputs (search queries, error
+//   `localizedDescription`s, etc.) so that if a tracking SDK is added in
+//   the future, sensitive strings cannot accidentally be sent.
 
 // MARK: - Analytics Events
 
@@ -69,6 +71,11 @@ enum AnalyticsEvent: String {
     case horoscopeShared = "horoscope_shared"
     case compatibilityChecked = "compatibility_checked"
     case moonPhaseViewed = "moon_phase_viewed"
+    case astroOverlayViewed = "astro_overlay_viewed"
+    case astroOverlayToggled = "astro_overlay_toggled"
+    case astroOverlayFilterChanged = "astro_overlay_filter_changed"
+    case astroOverlayEventSelected = "astro_overlay_event_selected"
+    case astroCorrelationSummaryViewed = "astro_correlation_summary_viewed"
 
     // MARK: Cosmic Roast (Viral Feature)
     case roastGenerated = "roast_generated"
@@ -240,11 +247,26 @@ struct AnalyticsParameters {
         ])
     }
 
-    static func error(type: String, message: String) -> AnalyticsParameters {
-        AnalyticsParameters([
-            "error_type": type,
-            "error_message": message
-        ])
+    /// Build a privacy-safe error payload. **Never** accepts
+    /// `error.localizedDescription` or any free-text message — those can
+    /// leak URLs, backend payloads, or user-entered text.
+    static func error(
+        domain: String,
+        code: Int,
+        screen: String? = nil,
+        feature: String? = nil,
+        networkStatus: String? = nil,
+        isRetriable: Bool? = nil
+    ) -> AnalyticsParameters {
+        var params: [String: Any] = [
+            "error_domain": domain,
+            "error_code": code
+        ]
+        if let screen { params["screen"] = screen }
+        if let feature { params["feature"] = feature }
+        if let networkStatus { params["network_status"] = networkStatus }
+        if let isRetriable { params["is_retriable"] = isRetriable }
+        return AnalyticsParameters(params)
     }
 
     static func feature(_ featureName: String) -> AnalyticsParameters {
@@ -266,10 +288,9 @@ final class AnalyticsService {
     private var debugModeEnabled: Bool = false
     private var sessionStartTime: Date?
     private var eventQueue: [(event: AnalyticsEvent, params: AnalyticsParameters?, timestamp: Date)] = []
-    private var anonymousId: String?
 
-    /// The Mixpanel provider instance
-    private let provider = MixpanelProvider.shared
+    /// Max events held in memory. Local-only; never transmitted.
+    private let maxQueuedEvents = 500
 
     private init() {
         loadOptOutPreference()
@@ -277,18 +298,8 @@ final class AnalyticsService {
 
     // MARK: - Initialization
 
-    /// Initialize analytics with Mixpanel token from Secrets.plist
     func initialize() {
-        provider.initializeFromSecrets()
-        provider.loadOptOutPreference()
-
-        // Generate and set anonymous ID
-        anonymousId = provider.getOrCreateAnonymousId()
-        if let anonId = anonymousId {
-            provider.identify(anonymousId: anonId)
-        }
-
-        // Set debug mode based on build configuration
+        // Local-only: nothing to wire up to a remote provider.
         #if DEBUG
         setDebugMode(true)
         #else
@@ -296,7 +307,7 @@ final class AnalyticsService {
         #endif
 
         startSession()
-        log("Analytics initialized")
+        log("Analytics initialized (local-only, v1)")
     }
 
     // MARK: - Configuration
@@ -307,14 +318,16 @@ final class AnalyticsService {
         log("Analytics \(enabled ? "enabled" : "disabled")")
     }
 
-    /// Set opt-out status for privacy-conscious users
+    /// Set opt-out status for privacy-conscious users.
+    /// Local-only means there is no remote service to inform; we simply
+    /// clear the in-memory queue and stop accepting further events.
     func setOptOut(_ optOut: Bool) {
         isOptedOut = optOut
-        provider.setOptOut(optOut)
         UserDefaults.standard.set(optOut, forKey: "analytics_opted_out")
 
         if optOut {
-            log("User opted out of analytics tracking")
+            eventQueue.removeAll()
+            log("User opted out of analytics — in-memory event queue cleared")
         } else {
             log("User opted in to analytics tracking")
         }
@@ -333,7 +346,6 @@ final class AnalyticsService {
     /// Enable or disable debug mode for development
     func setDebugMode(_ enabled: Bool) {
         debugModeEnabled = enabled
-        provider.setDebugMode(enabled)
         log("Debug mode \(enabled ? "enabled" : "disabled")")
     }
 
@@ -364,16 +376,28 @@ final class AnalyticsService {
 
         let timestamp = Date()
 
-        // Queue event for batch processing (future implementation)
+        // Local-only: append to in-memory queue and drop oldest if over cap.
         eventQueue.append((event, params, timestamp))
+        if eventQueue.count > maxQueuedEvents {
+            eventQueue.removeFirst(eventQueue.count - maxQueuedEvents)
+        }
 
-        // Log to console in debug mode
+        // Log to console in debug mode only.
         #if DEBUG
         logEvent(event, params: params, timestamp: timestamp)
         #endif
+    }
 
-        // Send to analytics provider
-        sendToProvider(event: event, params: params)
+    // MARK: - Inspection (for tests)
+
+    /// Snapshot of currently-buffered events. Local-only.
+    var bufferedEvents: [(event: AnalyticsEvent, params: AnalyticsParameters?, timestamp: Date)] {
+        eventQueue
+    }
+
+    /// Clear the in-memory event queue. Used by tests and on opt-out.
+    func clearEventBuffer() {
+        eventQueue.removeAll()
     }
 
     // MARK: - Convenience Methods
@@ -390,8 +414,28 @@ final class AnalyticsService {
         track(action, params: .stock(symbol, sign: sign))
     }
 
-    func trackError(_ error: Error, type: String = "unknown") {
-        track(.apiError, params: .error(type: type, message: error.localizedDescription))
+    /// Record an error event with **structured** fields only. Never accepts
+    /// `error.localizedDescription` or other free-text strings — those can
+    /// leak URLs, backend responses, or user-entered text.
+    ///
+    /// Call sites are expected to translate a domain `Error` into a domain
+    /// string and a stable numeric code (see `NetworkError`-style enums).
+    func trackError(
+        domain: String,
+        code: Int,
+        screen: String? = nil,
+        feature: String? = nil,
+        networkStatus: String? = nil,
+        isRetriable: Bool? = nil
+    ) {
+        track(.apiError, params: .error(
+            domain: domain,
+            code: code,
+            screen: screen,
+            feature: feature,
+            networkStatus: networkStatus,
+            isRetriable: isRetriable
+        ))
     }
 
     // MARK: - Private Helpers
@@ -418,58 +462,17 @@ final class AnalyticsService {
         #endif
     }
 
-    // MARK: - Provider Integration
+    /// Flush is a no-op in v1 (local-only). Kept so existing call sites
+    /// compile; if a tracking SDK is wired up later, this is where its
+    /// flush hook would go.
+    func flush() {}
 
-    /// Send event to Mixpanel analytics provider
-    private func sendToProvider(event: AnalyticsEvent, params: AnalyticsParameters?) {
-        provider.track(event: event, params: params)
-    }
-
-    /// Flush events to server immediately
-    func flush() {
-        provider.flush()
-    }
-
-    /// Reset user identity (call on logout)
+    /// Reset on logout. With Path A (no tracking) there's nothing remote
+    /// to reset, but we drop the in-memory queue so it can't leak across
+    /// sessions on shared devices.
     func resetIdentity() {
-        provider.reset()
-        anonymousId = provider.getOrCreateAnonymousId()
-        if let anonId = anonymousId {
-            provider.identify(anonymousId: anonId)
-        }
-        log("User identity reset")
-    }
-
-    // MARK: - Super Properties
-
-    /// Set super properties that are sent with every event
-    func setSuperProperties(_ properties: [String: Any]) {
-        var analyticsProps: [String: AnalyticsValue] = [:]
-        for (key, value) in properties {
-            if let stringValue = value as? String {
-                analyticsProps[key] = stringValue
-            } else if let intValue = value as? Int {
-                analyticsProps[key] = intValue
-            } else if let doubleValue = value as? Double {
-                analyticsProps[key] = doubleValue
-            } else if let boolValue = value as? Bool {
-                analyticsProps[key] = boolValue
-            }
-        }
-        provider.setSuperProperties(analyticsProps)
-    }
-
-    /// Set default super properties based on app state
-    func setDefaultSuperProperties(sunSign: String?, isPremium: Bool) {
-        var properties: [String: AnalyticsValue] = [
-            "app_version": Bundle.main.appVersion,
-            "build_number": Bundle.main.buildNumber,
-            "is_premium": isPremium
-        ]
-        if let sign = sunSign {
-            properties["sun_sign"] = sign
-        }
-        provider.setSuperProperties(properties)
+        eventQueue.removeAll()
+        log("Local analytics buffer cleared on identity reset")
     }
 }
 
@@ -545,19 +548,37 @@ extension AnalyticsService {
     }
 
     // MARK: - Search Tracking
+    //
+    // PRIVACY: Search analytics intentionally do NOT include the raw
+    // free-text query. Only privacy-safe properties (length, result count,
+    // selected symbol, etc.) are recorded.
 
-    func trackSearch(query: String, resultCount: Int) {
+    func trackSearchPerformed(
+        queryLength: Int,
+        resultCount: Int,
+        searchSource: String
+    ) {
         track(.searchPerformed, params: AnalyticsParameters([
-            "search_query": query,
-            "result_count": resultCount
+            "query_length": max(0, queryLength),
+            "result_count": max(0, resultCount),
+            "had_results": resultCount > 0,
+            "search_source": searchSource
         ]))
     }
 
-    func trackSearchResultSelected(query: String, symbol: String, position: Int) {
+    func trackSearchResultSelected(
+        queryLength: Int,
+        position: Int,
+        selectedSymbol: String,
+        assetType: String,
+        searchSource: String
+    ) {
         track(.searchResultSelected, params: AnalyticsParameters([
-            "search_query": query,
-            "stock_symbol": symbol,
-            "result_position": position
+            "query_length": max(0, queryLength),
+            "result_position": max(0, position),
+            "selected_symbol": selectedSymbol,
+            "asset_type": assetType,
+            "search_source": searchSource
         ]))
     }
 
@@ -706,6 +727,42 @@ extension AnalyticsService {
         ]))
     }
 
+    func trackAstroOverlayViewed(symbol: String, timeframe: String) {
+        track(.astroOverlayViewed, params: AnalyticsParameters([
+            "stock_symbol": symbol,
+            "timeframe": timeframe
+        ]))
+    }
+
+    func trackAstroOverlayToggled(symbol: String, enabled: Bool) {
+        track(.astroOverlayToggled, params: AnalyticsParameters([
+            "stock_symbol": symbol,
+            "enabled": enabled
+        ]))
+    }
+
+    func trackAstroOverlayFilterChanged(symbol: String, filter: String, enabled: Bool) {
+        track(.astroOverlayFilterChanged, params: AnalyticsParameters([
+            "stock_symbol": symbol,
+            "filter": filter,
+            "enabled": enabled
+        ]))
+    }
+
+    func trackAstroOverlayEventSelected(symbol: String, eventKind: String) {
+        track(.astroOverlayEventSelected, params: AnalyticsParameters([
+            "stock_symbol": symbol,
+            "event_kind": eventKind
+        ]))
+    }
+
+    func trackAstroCorrelationSummaryViewed(symbol: String, summaryKind: String) {
+        track(.astroCorrelationSummaryViewed, params: AnalyticsParameters([
+            "stock_symbol": symbol,
+            "summary_kind": summaryKind
+        ]))
+    }
+
     func trackHoroscopeShared(sunSign: String) {
         track(.horoscopeShared, params: AnalyticsParameters([
             "sun_sign": sunSign
@@ -792,7 +849,8 @@ extension AnalyticsService {
         Self._userProperties
     }
 
-    /// Update user properties
+    /// Update local user-property snapshot. Nothing is transmitted —
+    /// the snapshot only enriches in-DEBUG log output for `trackWithContext`.
     func setUserProperties(
         sunSign: String? = nil,
         portfolioSize: Int? = nil,
@@ -815,24 +873,6 @@ extension AnalyticsService {
         #if DEBUG
         log("User properties updated: \(Self._userProperties.dictionary)")
         #endif
-
-        // Send to analytics provider
-        sendUserPropertiesToProvider(Self._userProperties)
-    }
-
-    /// Send user properties to analytics provider
-    private func sendUserPropertiesToProvider(_ properties: AnalyticsUserProperties) {
-        var analyticsProps: [String: AnalyticsValue] = [
-            "portfolio_size": properties.portfolioSize,
-            "account_age_days": properties.accountAgeDays,
-            "is_premium": properties.isPremium,
-            "app_version": properties.appVersion,
-            "device_type": properties.deviceType
-        ]
-        if let sign = properties.sunSign {
-            analyticsProps["sun_sign"] = sign
-        }
-        provider.setUserProfileProperties(analyticsProps)
     }
 
     /// Refresh user properties from current app state
@@ -897,8 +937,15 @@ extension Bundle {
  AnalyticsService.shared.trackRoastGenerated(forSign: "Leo")
  AnalyticsService.shared.trackRoastShared(forSign: "Leo")
 
- // Track error
- AnalyticsService.shared.trackError(someError, type: "network")
+ // Track error (structured fields only — never localizedDescription)
+ AnalyticsService.shared.trackError(
+     domain: "com.cosmotrader.NetworkError",
+     code: 1001,
+     screen: "Portfolio",
+     feature: "refresh",
+     networkStatus: "offline",
+     isRetriable: true
+ )
 
  // Track paywall
  AnalyticsService.shared.trackPaywallViewed(source: "cosmic_roast")

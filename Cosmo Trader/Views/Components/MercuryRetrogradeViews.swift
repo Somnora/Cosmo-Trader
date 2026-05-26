@@ -47,8 +47,9 @@ struct MercuryRetrogradeBanner: View {
                                 .foregroundColor(service.isRetrograde ? service.statusColor : CosmicTheme.textPrimary)
 
                             if service.isRetrograde {
-                                Text("☿️")
+                                Image(systemName: "arrow.uturn.backward.circle")
                                     .font(.caption)
+                                    .foregroundColor(service.statusColor)
                             }
                         }
 
@@ -65,7 +66,7 @@ struct MercuryRetrogradeBanner: View {
                         // Progress ring
                         ZStack {
                             Circle()
-                                .stroke(CosmicTheme.textMuted.opacity(0.3), lineWidth: 3)
+                                .stroke(CosmicTheme.textMuted.opacity(0.4), lineWidth: 3)
                                 .frame(width: 36, height: 36)
 
                             Circle()
@@ -101,7 +102,7 @@ struct MercuryRetrogradeBanner: View {
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
                             Rectangle()
-                                .fill(CosmicTheme.textMuted.opacity(0.2))
+                                .fill(CosmicTheme.textMuted.opacity(0.3))
                                 .frame(height: 3)
 
                             Rectangle()
@@ -152,7 +153,7 @@ struct MercuryRetrogradeCompactBanner: View {
 
             // Text
             if service.isRetrograde {
-                Text("☿️ RETROGRADE")
+                Text("MERCURY RX")
                     .font(TerminalFont.caption(10, weight: .bold))
                     .foregroundColor(service.statusColor)
 
@@ -160,7 +161,7 @@ struct MercuryRetrogradeCompactBanner: View {
                     .font(TerminalFont.caption(10))
                     .foregroundColor(CosmicTheme.textSecondary)
             } else {
-                Text("☿️ Direct")
+                Text("Mercury Direct")
                     .font(TerminalFont.caption(10, weight: .medium))
                     .foregroundColor(CosmicTheme.textSecondary)
 
@@ -235,7 +236,7 @@ struct MercuryRetrogradeDetailSheet: View {
                         .font(.system(size: 56))
                         .foregroundColor(service.statusColor)
                 } else {
-                    Text("☿")
+                    Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 56))
                         .foregroundColor(service.statusColor)
                 }
@@ -261,7 +262,7 @@ struct MercuryRetrogradeDetailSheet: View {
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(CosmicTheme.textMuted.opacity(0.2))
+                                .fill(CosmicTheme.textMuted.opacity(0.3))
                                 .frame(height: 8)
 
                             RoundedRectangle(cornerRadius: 4)
@@ -291,8 +292,9 @@ struct MercuryRetrogradeDetailSheet: View {
     private var statusCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(service.status.emoji)
+                Image(systemName: service.status.sfSymbol)
                     .font(.title2)
+                    .foregroundColor(CosmicTheme.gold)
 
                 Text("Current Status")
                     .font(TerminalFont.body(14, weight: .semibold))
@@ -326,7 +328,7 @@ struct MercuryRetrogradeDetailSheet: View {
                 adviceRow(icon: "chart.line.uptrend.xyaxis", text: service.tradingAdvice)
 
                 Divider()
-                    .background(CosmicTheme.textMuted.opacity(0.3))
+                    .background(CosmicTheme.textMuted.opacity(0.4))
 
                 adviceRow(
                     icon: "exclamationmark.triangle.fill",
@@ -335,7 +337,7 @@ struct MercuryRetrogradeDetailSheet: View {
                 )
 
                 Divider()
-                    .background(CosmicTheme.textMuted.opacity(0.3))
+                    .background(CosmicTheme.textMuted.opacity(0.4))
 
                 adviceRow(
                     icon: "lightbulb.fill",
@@ -411,9 +413,9 @@ struct MercuryRetrogradeDetailSheet: View {
 
             Spacer()
 
-            // Mercury symbol
-            Text("☿️")
+            Image(systemName: "arrow.uturn.backward.circle")
                 .font(.title3)
+                .foregroundColor(CosmicTheme.textMuted)
         }
         .padding(.vertical, 4)
     }
@@ -435,7 +437,7 @@ struct MercuryRetrogradeInlineStatus: View {
                     .font(TerminalFont.caption(9, weight: .bold))
                     .foregroundColor(.orange)
             } else {
-                Text("☿")
+                Image(systemName: "checkmark.circle")
                     .font(.caption2)
                     .foregroundColor(.green)
             }

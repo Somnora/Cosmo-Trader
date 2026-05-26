@@ -12,15 +12,15 @@
 
 "onboarding.welcome.title" = "COSMO TRADER";
 "onboarding.welcome.subtitle" = "Astrological Market Intelligence";
-"onboarding.welcome.description" = "Data-driven astrology for serious traders";
-"onboarding.welcome.tagline" = "Where the stars meet the market";
+"onboarding.welcome.description" = "A curated astrological lens for the markets you already watch.";
+"onboarding.welcome.tagline" = "Market data with astrological context";
 
 "onboarding.sign.title" = "SELECT YOUR SIGN";
 "onboarding.sign.prompt" = "When were you born?";
 "onboarding.sign.description" = "Your zodiac sign determines your cosmic compatibility with stocks";
 
 "onboarding.name.title" = "WHAT'S YOUR NAME?";
-"onboarding.name.prompt" = "This is how you'll appear in your cosmic profile";
+"onboarding.name.prompt" = "This is how you'll appear in your investor profile";
 "onboarding.name.placeholder" = "Your name";
 
 "onboarding.stock.title" = "PICK YOUR FIRST STOCK";
@@ -30,8 +30,8 @@
 "onboarding.disclaimer.text" = "Cosmo Trader is for informational and entertainment purposes only and does not constitute financial advice. Past performance does not guarantee future results. Always do your own research before making investment decisions.";
 "onboarding.disclaimer.accept" = "I Understand";
 
-"onboarding.complete.title" = "WELCOME TO THE COSMOS";
-"onboarding.complete.message" = "Your cosmic trading journey begins now";
+"onboarding.complete.title" = "TERMINAL READY";
+"onboarding.complete.message" = "Your market astrology reading is ready";
 
 "onboarding.continue" = "Continue";
 "onboarding.skip" = "Skip";
@@ -52,10 +52,10 @@
 // =============================================================================
 
 "discover.title" = "DISCOVER";
-"discover.subtitle" = "Swipe Your Cosmic Matches";
+"discover.subtitle" = "Browse names that fit your chart";
 
 "discover.empty.title" = "All Caught Up";
-"discover.empty.message" = "You've seen all available stocks. Check back later for more cosmic matches.";
+"discover.empty.message" = "You've seen all available stocks. Check back later for new candidates.";
 "discover.empty.reset" = "Reset Skipped";
 
 "discover.swipe.hint" = "Swipe right to like, left to skip";
@@ -76,15 +76,15 @@
 "discover.sort.alphabetical" = "Alphabetical";
 "discover.sort.price" = "Price";
 
-"discover.contrarian.title" = "Cosmic Contrarian";
-"discover.contrarian.description" = "Show least compatible stocks first";
+"discover.contrarian.title" = "Inverse Lens";
+"discover.contrarian.description" = "Show low-fit names first";
 
 // =============================================================================
 // MARK: - Cosmos
 // =============================================================================
 
 "cosmos.title" = "DAILY HOROSCOPE";
-"cosmos.subtitle" = "Your Cosmic Trading Guidance";
+"cosmos.subtitle" = "Market astrology conditions";
 
 "cosmos.greeting.morning" = "Good morning";
 "cosmos.greeting.afternoon" = "Good afternoon";
@@ -102,30 +102,30 @@
 
 "cosmos.mercury.retrograde" = "Mercury Retrograde";
 "cosmos.mercury.direct" = "Mercury Direct";
-"cosmos.mercury.warning" = "Caution advised for new investments";
-"cosmos.mercury.clear" = "Clear skies for trading";
+"cosmos.mercury.warning" = "Worth slowing down before new commitments";
+"cosmos.mercury.clear" = "Execution conditions are clear";
 
 "cosmos.voc.title" = "Void of Course Moon";
 "cosmos.voc.active" = "Moon is void of course";
 "cosmos.voc.clear" = "Moon is active";
-"cosmos.voc.warning" = "Avoid major decisions";
+"cosmos.voc.warning" = "A pause can help before big choices";
 
 "cosmos.signSeason.title" = "Current Sign Season";
 "cosmos.signSeason.description" = "%@ season is in effect";
 
-"cosmos.ritual.title" = "Daily Ritual";
+"cosmos.ritual.title" = "Daily Review";
 "cosmos.ritual.completed" = "Completed";
-"cosmos.ritual.pending" = "Start Ritual";
+"cosmos.ritual.pending" = "Start Review";
 
 // =============================================================================
 // MARK: - Portfolio
 // =============================================================================
 
 "portfolio.title" = "PORTFOLIO";
-"portfolio.subtitle" = "Your Cosmic Holdings";
+"portfolio.subtitle" = "Holdings and exposure";
 
 "portfolio.empty.title" = "No Stocks Yet";
-"portfolio.empty.message" = "Start swiping in Discover to build your cosmic portfolio.";
+"portfolio.empty.message" = "Add holdings to generate a portfolio-specific daily reading.";
 "portfolio.empty.cta" = "Go to Discover";
 
 "portfolio.total" = "Total Value";
@@ -277,8 +277,8 @@
 "subscription.feature.horoscope" = "Daily Horoscope";
 "subscription.feature.compatibility" = "Compatibility Scores";
 "subscription.feature.patterns" = "Chart Pattern Analysis";
-"subscription.feature.alerts" = "Price Alerts";
-"subscription.feature.widgets" = "Home Screen Widgets";
+"subscription.feature.alerts" = "Portfolio Reminders";
+"subscription.feature.widgets" = "Featured Reading Layouts";
 "subscription.feature.themes" = "Premium Themes";
 
 "subscription.price.monthly" = "%@/month";
@@ -299,7 +299,7 @@
 
 "notifications.title" = "Notifications";
 "notifications.enable" = "Enable Notifications";
-"notifications.enable.description" = "Get cosmic updates and price alerts";
+"notifications.enable.description" = "Schedule local cosmic updates";
 
 "notifications.daily.horoscope" = "Daily Horoscope";
 "notifications.daily.horoscope.description" = "Morning cosmic guidance";
@@ -314,8 +314,8 @@
 "notifications.voc" = "Void of Course Moon";
 "notifications.voc.description" = "Alerts during void periods";
 
-"notifications.price.alerts" = "Price Alerts";
-"notifications.price.alerts.description" = "Stock price movement notifications";
+"notifications.price.alerts" = "Portfolio Check Reminders";
+"notifications.price.alerts.description" = "Local reminders from in-app portfolio checks";
 
 "notifications.earnings" = "Earnings Alerts";
 "notifications.earnings.description" = "Upcoming earnings reminders";
@@ -334,16 +334,16 @@
 "error.network.message" = "Please check your internet connection.";
 
 "error.server" = "Server Error";
-"error.server.message" = "Our cosmic servers are experiencing turbulence.";
+"error.server.message" = "Signal service is temporarily unavailable.";
 
 "error.timeout" = "Request Timeout";
-"error.timeout.message" = "The stars are taking too long to align.";
+"error.timeout.message" = "Market signal timed out.";
 
 "error.rate.limit" = "Rate Limit";
-"error.rate.limit.message" = "You've consulted the cosmos too frequently.";
+"error.rate.limit.message" = "Too many refreshes. Wait a moment before trying again.";
 
 "error.invalid.symbol" = "Invalid Symbol";
-"error.invalid.symbol.message" = "We couldn't find '%@' in our galaxy of stocks.";
+"error.invalid.symbol.message" = "We couldn't find '%@' in supported stocks.";
 
 "error.offline" = "You're Offline";
 "error.offline.message" = "Connect to the internet to see latest prices.";

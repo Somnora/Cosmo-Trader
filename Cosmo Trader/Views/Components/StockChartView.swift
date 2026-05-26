@@ -30,17 +30,32 @@ struct StockChartView: View {
     }
 
     private var priceRange: ClosedRange<Double> {
-        let prices = chartData.map { $0.price }
-        let minPrice = prices.min() ?? 0
-        let maxPrice = prices.max() ?? 100
-        let padding = (maxPrice - minPrice) * 0.1
-        return (minPrice - padding)...(maxPrice + padding)
+        let prices = chartData.map(\.price).filter(\.isFinite)
+        guard let minPrice = prices.min(), let maxPrice = prices.max() else { return 0...1 }
+
+        let magnitude = max(max(abs(minPrice), abs(maxPrice)), 1)
+        let spread = max(maxPrice - minPrice, magnitude * 0.01)
+        let padding = spread * 0.1
+        let lower = (minPrice - padding).isFinite ? (minPrice - padding) : 0
+        let upper = (maxPrice + padding).isFinite ? (maxPrice + padding) : 1
+
+        if lower == upper {
+            return (lower - 1)...(upper + 1)
+        }
+        return lower...upper
     }
 
     private var performanceText: String {
         guard let first = chartData.first, let last = chartData.last else { return "" }
+        guard first.price.isFinite, last.price.isFinite else { return "N/A" }
         let change = last.price - first.price
-        let percentChange = (change / first.price) * 100
+        let percentChange: Double
+        if first.price == 0 {
+            percentChange = 0
+        } else {
+            let calculated = (change / first.price) * 100
+            percentChange = calculated.isFinite ? calculated : 0
+        }
         let sign = change >= 0 ? "+" : ""
         return String(format: "%@$%.2f (%@%.2f%%)", sign, abs(change), sign, percentChange)
     }
@@ -155,7 +170,7 @@ struct StockChartView: View {
                 .symbolSize(100)
 
                 RuleMark(x: .value("Time", point.date))
-                    .foregroundStyle(CosmicTheme.textMuted.opacity(0.3))
+                    .foregroundStyle(CosmicTheme.textMuted.opacity(0.4))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
             }
         }
@@ -235,7 +250,18 @@ struct StockChartView: View {
     // MARK: - Helpers
 
     private func loadChartData() {
-        chartData = stock.chartData(for: selectedTimeframe)
+        let points = stock.chartData(for: selectedTimeframe).filter { $0.price.isFinite }
+        if points.count >= 2 {
+            chartData = points
+            return
+        }
+
+        let fallbackPrice = stock.currentPrice.isFinite ? stock.currentPrice : 0
+        let now = Date()
+        chartData = [
+            PricePoint(date: now.addingTimeInterval(-60), price: fallbackPrice),
+            PricePoint(date: now, price: fallbackPrice)
+        ]
     }
 
     private func selectPoint(nearestTo date: Date) {

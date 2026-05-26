@@ -85,7 +85,7 @@ class HoroscopeViewModel {
     /// User's sun sign display
     var userSignDisplay: String {
         guard let user = user else { return "" }
-        return "\(user.sunSign.symbol) \(user.sunSign.displayName)"
+        return "\(user.sunSign.textSymbol) \(user.sunSign.displayName)"
     }
 
     /// Greeting based on time of day
@@ -101,7 +101,7 @@ class HoroscopeViewModel {
 
     /// Horoscope reading text
     var readingText: String {
-        horoscope?.reading ?? "The stars are aligning your reading..."
+        horoscope?.reading ?? "Preparing your market astrology reading..."
     }
 
     /// Dominant element in portfolio (for display)

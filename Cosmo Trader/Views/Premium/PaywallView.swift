@@ -14,12 +14,40 @@ struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedPlan: PaywallPlan = .yearly
     @State private var isProcessing = false
-    @State private var showTrialStarted = false
     @State private var showError = false
     @State private var errorMessage = ""
+    @State private var showTerms = false
+    @State private var showPrivacy = false
 
     private let subscriptionManager = SubscriptionManager.shared
     private let storeKitManager = StoreKitManager.shared
+
+    // MARK: - Pricing Helpers
+
+    private var selectedProduct: Product? {
+        switch selectedPlan {
+        case .monthly:
+            return storeKitManager.monthlyProduct
+        case .yearly:
+            return storeKitManager.yearlyProduct
+        case .lifetime:
+            return storeKitManager.lifetimeProduct
+        }
+    }
+
+    private var selectedSubscriptionHasIntroOffer: Bool {
+        guard selectedPlan != .lifetime,
+              let product = selectedProduct,
+              let subscription = product.subscription else {
+            return false
+        }
+        return subscription.introductoryOffer != nil
+    }
+
+    private var purchaseButtonTitle: String {
+        if selectedPlan == .lifetime { return "UNLOCK LIFETIME" }
+        return selectedSubscriptionHasIntroOffer ? "START FREE TRIAL" : "SUBSCRIBE"
+    }
 
     // MARK: - Body
 
@@ -39,7 +67,7 @@ struct PaywallView: View {
                     benefitsSection
                         .padding(.top, 32)
 
-                    // J.P. Morgan quote - reinforces credibility
+                    // Premium positioning quote
                     JPMorganQuoteView(size: .compact)
                         .frame(maxWidth: .infinity)
                         .padding(.top, 28)
@@ -71,15 +99,16 @@ struct PaywallView: View {
                 Spacer()
             }
         }
-        .overlay {
-            if showTrialStarted {
-                trialStartedOverlay
-            }
-        }
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(errorMessage)
+        }
+        .sheet(isPresented: $showTerms) {
+            TermsOfServiceView()
+        }
+        .sheet(isPresented: $showPrivacy) {
+            PrivacyPolicyView()
         }
         .task {
             // Load products when view appears
@@ -115,7 +144,7 @@ struct PaywallView: View {
                     .foregroundColor(CosmicTheme.gold)
                     .tracking(4)
 
-                Text("Unlock the full cosmic experience")
+                Text("The full curated reading - without limits")
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundColor(CosmicTheme.textSecondary)
             }
@@ -125,7 +154,7 @@ struct PaywallView: View {
                 Rectangle()
                     .fill(CosmicTheme.gold.opacity(0.3))
                     .frame(height: 0.5)
-                Text("*")
+                Text("★")
                     .font(.system(size: 10))
                     .foregroundColor(CosmicTheme.gold.opacity(0.5))
                 Rectangle()
@@ -151,8 +180,9 @@ struct PaywallView: View {
 
             // Benefits grid
             VStack(spacing: 0) {
-                ForEach(Array(OracleTierBenefits.all.prefix(6).enumerated()), id: \.element.id) { index, benefit in
-                    benefitRow(benefit, isLast: index == 5)
+                let benefits = OracleTierBenefits.all
+                ForEach(Array(benefits.enumerated()), id: \.element.id) { index, benefit in
+                    benefitRow(benefit, isLast: index == benefits.count - 1)
                 }
             }
             .background(
@@ -229,6 +259,25 @@ struct PaywallView: View {
                         price: SubscriptionManager.oracleTierYearlyPrice,
                         period: "/year",
                         savings: "SAVE 33%"
+                    )
+                }
+
+                // Lifetime plan option
+                if let lifetime = storeKitManager.lifetimeProduct {
+                    planOption(
+                        plan: .lifetime,
+                        title: "LIFETIME",
+                        price: lifetime.displayPrice,
+                        period: "once",
+                        savings: "BEST VALUE"
+                    )
+                } else {
+                    planOption(
+                        plan: .lifetime,
+                        title: "LIFETIME",
+                        price: SubscriptionManager.oracleTierLifetimePrice,
+                        period: "once",
+                        savings: "BEST VALUE"
                     )
                 }
 
@@ -358,7 +407,7 @@ struct PaywallView: View {
                             .progressViewStyle(CircularProgressViewStyle(tint: CosmicTheme.terminalBlack))
                             .scaleEffect(0.8)
                     } else {
-                        Text("SUBSCRIBE")
+                        Text(purchaseButtonTitle)
                             .font(.system(size: 14, weight: .bold, design: .monospaced))
                             .tracking(2)
                     }
@@ -372,39 +421,29 @@ struct PaywallView: View {
                 )
             }
             .buttonStyle(.plain)
-            .disabled(isProcessing)
+            .disabled(isProcessing || selectedProduct == nil)
 
-            // Trial button (if not used)
-            if !subscriptionManager.hasUsedTrial() {
+            // Restore purchases + manage subscription
+            HStack(spacing: 16) {
                 Button {
-                    startTrial()
+                    restorePurchases()
                 } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "gift")
-                            .font(.system(size: 12))
-                        Text("Start \(SubscriptionManager.trialDuration)-Day Free Trial")
-                            .font(.system(size: 12, design: .monospaced))
-                    }
-                    .foregroundColor(CosmicTheme.gold)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .strokeBorder(CosmicTheme.gold.opacity(0.5), lineWidth: 0.5)
-                    )
+                    Text("Restore Purchases")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(CosmicTheme.textSecondary)
                 }
                 .buttonStyle(.plain)
-            }
 
-            // Restore purchases
-            Button {
-                restorePurchases()
-            } label: {
-                Text("Restore Purchases")
+                Text("·")
                     .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(CosmicTheme.textSecondary)
+                    .foregroundColor(CosmicTheme.borderDim)
+
+                Link(destination: URL(string: "https://apps.apple.com/account/subscriptions")!) {
+                    Text("Manage Subscription")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                }
             }
-            .buttonStyle(.plain)
         }
     }
 
@@ -415,7 +454,7 @@ struct PaywallView: View {
             // Legal links
             HStack(spacing: 16) {
                 Button {
-                    // Open terms
+                    showTerms = true
                 } label: {
                     Text("Terms")
                         .font(.system(size: 10, design: .monospaced))
@@ -428,7 +467,7 @@ struct PaywallView: View {
                     .foregroundColor(CosmicTheme.borderDim)
 
                 Button {
-                    // Open privacy
+                    showPrivacy = true
                 } label: {
                     Text("Privacy")
                         .font(.system(size: 10, design: .monospaced))
@@ -438,13 +477,25 @@ struct PaywallView: View {
             }
 
             // Disclaimer
-            Text("Payment will be charged to your Apple ID account. Subscription automatically renews unless canceled at least 24 hours before the end of the current period.")
+            Text(footerDisclaimerText)
                 .font(.system(size: 9, design: .monospaced))
                 .foregroundColor(CosmicTheme.textSecondary.opacity(0.7))
                 .multilineTextAlignment(.center)
                 .lineSpacing(3)
                 .padding(.horizontal, 16)
         }
+    }
+
+    private var footerDisclaimerText: String {
+        if selectedPlan == .lifetime {
+            return "Payment will be charged to your Apple ID account. This is a one-time purchase and does not auto-renew."
+        }
+
+        let renewalText = "Payment will be charged to your Apple ID account. Subscription automatically renews unless canceled at least 24 hours before the end of the current period."
+        if selectedSubscriptionHasIntroOffer {
+            return "\(renewalText) Introductory offer availability is determined by Apple and may vary by account."
+        }
+        return renewalText
     }
 
     // MARK: - Close Button
@@ -470,48 +521,6 @@ struct PaywallView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Trial Started Overlay
-
-    private var trialStartedOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.9)
-                .ignoresSafeArea()
-
-            VStack(spacing: 24) {
-                Image(systemName: "checkmark.circle")
-                    .font(.system(size: 48, weight: .light))
-                    .foregroundColor(CosmicTheme.gold)
-
-                VStack(spacing: 8) {
-                    Text("TRIAL ACTIVATED")
-                        .font(.system(size: 18, weight: .bold, design: .monospaced))
-                        .foregroundColor(CosmicTheme.gold)
-                        .tracking(2)
-
-                    Text("\(SubscriptionManager.trialDuration) days of Oracle Tier access")
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundColor(CosmicTheme.textSecondary)
-                }
-
-                Button {
-                    dismiss()
-                } label: {
-                    Text("LET'S GO")
-                        .font(.system(size: 12, weight: .bold, design: .monospaced))
-                        .tracking(2)
-                        .foregroundColor(CosmicTheme.terminalBlack)
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(CosmicTheme.gold)
-                        )
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
     // MARK: - Actions
 
     private func processSubscription() {
@@ -520,15 +529,7 @@ struct PaywallView: View {
         Task {
             do {
                 // Get the selected product
-                let product: Product?
-                switch selectedPlan {
-                case .monthly:
-                    product = storeKitManager.monthlyProduct
-                case .yearly:
-                    product = storeKitManager.yearlyProduct
-                }
-
-                guard let selectedProduct = product else {
+                guard let selectedProduct else {
                     await MainActor.run {
                         isProcessing = false
                         errorMessage = "Product not available. Please try again."
@@ -547,7 +548,7 @@ struct PaywallView: View {
                     AnalyticsService.shared.trackSubscriptionStarted(
                         tier: "oracle",
                         source: "paywall",
-                        trialEnabled: false
+                        trialEnabled: selectedSubscriptionHasIntroOffer
                     )
 
                     dismiss()
@@ -576,21 +577,6 @@ struct PaywallView: View {
         }
     }
 
-    private func startTrial() {
-        subscriptionManager.startFreeTrial()
-
-        // Track trial started
-        AnalyticsService.shared.trackTrialStarted(source: "paywall")
-
-        withAnimation {
-            showTrialStarted = true
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            dismiss()
-        }
-    }
-
     private func restorePurchases() {
         isProcessing = true
 
@@ -603,8 +589,12 @@ struct PaywallView: View {
                     AnalyticsService.shared.trackSubscriptionRestored()
                     dismiss()
                 } else {
-                    // No purchases to restore
-                    errorMessage = "No previous purchases found to restore."
+                    // No purchases restored or restore error
+                    if let error = subscriptionManager.purchaseError {
+                        errorMessage = error.errorDescription ?? "Restore failed. Please try again."
+                    } else {
+                        errorMessage = "No previous purchases found to restore."
+                    }
                     showError = true
                 }
             }
@@ -617,6 +607,7 @@ struct PaywallView: View {
 enum PaywallPlan {
     case monthly
     case yearly
+    case lifetime
 }
 
 // MARK: - Compact Paywall
@@ -649,10 +640,11 @@ struct CompactPaywallView: View {
 
             // Quick benefits
             VStack(alignment: .leading, spacing: 8) {
-                quickBenefit("Real-time market data")
-                quickBenefit("Unlimited swipes & stocks")
-                quickBenefit("Advanced horoscopes")
-                quickBenefit("Lunar phase alerts")
+                quickBenefit("Unlimited Discover swipes")
+                quickBenefit("Refresh your reading anytime")
+                quickBenefit("Track more portfolio holdings")
+                quickBenefit("Generate more Cosmic Roasts")
+                quickBenefit("Moon-in-sign local alert")
             }
             .padding(16)
             .background(
@@ -664,10 +656,19 @@ struct CompactPaywallView: View {
             )
 
             // Price
-            HStack(alignment: .lastTextBaseline, spacing: 4) {
-                Text(displayPrice)
-                    .font(.system(size: 24, weight: .bold, design: .monospaced))
-                    .foregroundColor(CosmicTheme.gold)
+            VStack(spacing: 6) {
+                HStack(alignment: .lastTextBaseline, spacing: 4) {
+                    Text(displayPrice)
+                        .font(.system(size: 24, weight: .bold, design: .monospaced))
+                        .foregroundColor(CosmicTheme.gold)
+                }
+
+                // Optionally show "Lifetime available"
+                if storeKitManager.lifetimeProduct != nil {
+                    Text("Lifetime available")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                }
             }
 
             // Actions

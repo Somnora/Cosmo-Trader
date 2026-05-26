@@ -181,21 +181,21 @@ final class SignStackService {
     // MARK: - Share Text Generation
 
     func generateShareText(for stack: SignStackData) -> String {
-        var text = "My Sign Stack \(stack.userSign.symbol)\n\n"
+        var text = "My Sign Stack \(stack.userSign.textSymbol)\n\n"
         text += "\"\(stack.cosmicTitle)\"\n"
         text += "\(stack.investingStyle)\n\n"
 
         if !stack.topHoldings.isEmpty {
             text += "Top Holdings:\n"
             for holding in stack.topHoldings {
-                text += "\(holding.symbol) \(holding.sign.symbol)\n"
+                text += "\(holding.symbol) \(holding.sign.textSymbol)\n"
             }
             text += "\n"
         }
 
         text += "Element Mix: "
         let significantElements = stack.elementBreakdown.filter { $0.percentage > 10 }
-        text += significantElements.map { "\($0.element.emoji)\(Int($0.percentage))%" }.joined(separator: " ")
+        text += significantElements.map { "\($0.element.displayName) \(Int($0.percentage))%" }.joined(separator: " ")
         text += "\n\n"
 
         text += "#CosmoTrader #SignStack #\(stack.userSign.displayName)"

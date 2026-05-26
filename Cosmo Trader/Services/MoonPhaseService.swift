@@ -28,7 +28,7 @@ final class MoonPhaseService {
         components.hour = 18
         components.minute = 14
         components.timeZone = TimeZone(identifier: "UTC")
-        return Calendar.current.date(from: components)!
+        return Calendar.current.date(from: components) ?? Date(timeIntervalSince1970: 0)
     }()
 
     /// Sidereal month (moon's orbit through zodiac signs)
@@ -42,7 +42,7 @@ final class MoonPhaseService {
         components.day = 1
         components.hour = 0
         components.timeZone = TimeZone(identifier: "UTC")
-        return Calendar.current.date(from: components)!
+        return Calendar.current.date(from: components) ?? Date(timeIntervalSince1970: 0)
     }()
 
     // MARK: - State
@@ -252,7 +252,7 @@ final class MoonPhaseService {
         if let dayBefore = Calendar.current.date(byAdding: .day, value: -1, to: nextFull) {
             scheduleNotification(
                 identifier: "fullMoonEve",
-                title: "🌕 Full Moon Tomorrow",
+                title: "Full Moon Tomorrow",
                 body: "Expect heightened market volatility. The market's emotions may run high.",
                 date: dayBefore
             )
@@ -261,7 +261,7 @@ final class MoonPhaseService {
         // Day of notification
         scheduleNotification(
             identifier: "fullMoonAlert",
-            title: "🌕 Full Moon Today",
+            title: "Full Moon Today",
             body: "Peak lunar energy. Some traders watch for increased price swings around full moons.",
             date: nextFull
         )
@@ -273,7 +273,7 @@ final class MoonPhaseService {
         // Day of notification
         scheduleNotification(
             identifier: "newMoonAlert",
-            title: "🌑 New Moon Today",
+            title: "New Moon Today",
             body: "Fresh lunar cycle beginning. Some traders view this as a good time to research new positions.",
             date: nextNew
         )
@@ -282,7 +282,7 @@ final class MoonPhaseService {
         if let dayBefore = Calendar.current.date(byAdding: .day, value: -1, to: nextNew) {
             scheduleNotification(
                 identifier: "newMoonEve",
-                title: "🌑 New Moon Tomorrow",
+                title: "New Moon Tomorrow",
                 body: "New cycle begins tomorrow. Consider what positions you'd like to initiate.",
                 date: dayBefore
             )

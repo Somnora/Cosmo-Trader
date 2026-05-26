@@ -199,7 +199,7 @@ struct CosmicSignalCard: View {
                 infoBox(
                     icon: "sparkles",
                     message: compatNote,
-                    color: CosmicTheme.cosmicPurple
+                    color: CosmicTheme.accentBlue
                 )
             }
 
@@ -377,7 +377,7 @@ struct CosmicSignalsSection: View {
                         .font(.caption)
                         .foregroundColor(CosmicTheme.gold)
 
-                    Text("COSMIC SIGNALS")
+                    Text("COSMIC NOTES")
                         .font(TerminalFont.data(11, weight: .semibold))
                         .foregroundColor(CosmicTheme.textPrimary)
                         .tracking(1)
@@ -492,7 +492,7 @@ struct CosmicSignalBadge: View {
 
 // MARK: - Preview
 
-#Preview("Cosmic Signal Card") {
+#Preview("Cosmic Note Card") {
     ZStack {
         CosmicTheme.background.ignoresSafeArea()
 
@@ -508,13 +508,13 @@ struct CosmicSignalBadge: View {
                             priceAtDetection: 178.52,
                             details: "50-day MA crossed above 200-day MA"
                         ),
-                        headline: "GOLDEN CROSS — Major Bullish Signal",
-                        body: "The 50-day moving average has crossed above the 200-day. Historically, this signals sustained upward momentum.",
+                        headline: "GOLDEN CROSS - Major Pattern Note",
+                        body: "The 50-day moving average has crossed above the 200-day. Historically, this pattern can accompany sustained upward momentum.",
                         cosmicAlignment: .stronglyAligned,
                         retrogradeWarning: nil,
                         moonPhaseNote: "Waxing Moon: Building energy favors bullish patterns.",
                         compatibilityNote: "Your Leo energy aligns well with this Aries stock.",
-                        actionAdvice: "Consider building a position if other indicators confirm."
+                        actionAdvice: "Use this as context alongside your own notes."
                     )
                 )
 
@@ -528,12 +528,12 @@ struct CosmicSignalBadge: View {
                             details: "RSI at 78.5 - above 70 threshold"
                         ),
                         headline: "Overbought Territory — Cool Down Expected",
-                        body: "RSI has pushed above 70, indicating potentially unsustainable buying pressure.",
+                        body: "RSI has pushed above 70, indicating potentially unsustainable demand pressure.",
                         cosmicAlignment: .conflicted,
                         retrogradeWarning: "Mercury Retrograde Active: Exercise extra caution.",
                         moonPhaseNote: "Full Moon Energy: Volatility may spike.",
                         compatibilityNote: "Challenging alignment with your sign.",
-                        actionAdvice: "Consider taking partial profits. Wait for pullback to add."
+                        actionAdvice: "Use this as context alongside your own notes."
                     )
                 )
             }
@@ -543,7 +543,7 @@ struct CosmicSignalBadge: View {
     .preferredColorScheme(.dark)
 }
 
-#Preview("Cosmic Signals Section - Empty") {
+#Preview("Cosmic Notes Section - Empty") {
     ZStack {
         CosmicTheme.background.ignoresSafeArea()
 
@@ -553,7 +553,7 @@ struct CosmicSignalBadge: View {
     .preferredColorScheme(.dark)
 }
 
-#Preview("Cosmic Signals Section - Loading") {
+#Preview("Cosmic Notes Section - Loading") {
     ZStack {
         CosmicTheme.background.ignoresSafeArea()
 

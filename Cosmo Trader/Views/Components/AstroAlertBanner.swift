@@ -112,7 +112,7 @@ struct AstroAlertBanner: View {
     private var expandedContent: some View {
         VStack(alignment: .leading, spacing: 12) {
             Divider()
-                .background(CosmicTheme.textMuted.opacity(0.3))
+                .background(CosmicTheme.textMuted.opacity(0.4))
 
             // Advice section
             VStack(alignment: .leading, spacing: 8) {
@@ -301,7 +301,7 @@ struct CosmicEventCard: View {
                         HStack(spacing: 3) {
                             ForEach(0..<3, id: \.self) { i in
                                 Circle()
-                                    .fill(i < intensityLevel ? event.themeColor : CosmicTheme.textMuted.opacity(0.3))
+                                    .fill(i < intensityLevel ? event.themeColor : CosmicTheme.textMuted.opacity(0.4))
                                     .frame(width: 6, height: 6)
                             }
                         }
@@ -312,7 +312,7 @@ struct CosmicEventCard: View {
                 if isExpanded {
                     VStack(alignment: .leading, spacing: 12) {
                         Divider()
-                            .background(CosmicTheme.textMuted.opacity(0.3))
+                            .background(CosmicTheme.textMuted.opacity(0.4))
 
                         Text(event.description)
                             .font(.subheadline)
@@ -385,7 +385,7 @@ struct CosmicEventCard: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 20)
                             .stroke(
-                                event.isActive ? event.themeColor.opacity(0.4) : CosmicTheme.textMuted.opacity(0.2),
+                                event.isActive ? event.themeColor.opacity(0.4) : CosmicTheme.textMuted.opacity(0.3),
                                 lineWidth: event.isActive ? 2 : 1
                             )
                     )
@@ -459,7 +459,7 @@ struct UpcomingEventRow: View {
             HStack(spacing: 2) {
                 ForEach(0..<3, id: \.self) { i in
                     Circle()
-                        .fill(i < intensityLevel ? event.themeColor : CosmicTheme.textMuted.opacity(0.3))
+                        .fill(i < intensityLevel ? event.themeColor : CosmicTheme.textMuted.opacity(0.4))
                         .frame(width: 5, height: 5)
                 }
             }

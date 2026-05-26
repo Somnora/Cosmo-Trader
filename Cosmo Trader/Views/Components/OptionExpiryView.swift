@@ -2,16 +2,15 @@ import SwiftUI
 
 // MARK: - OptionExpiryView
 // =========================
-// Terminal-style display of option expiration compatibility.
-// Shows upcoming monthly expirations with cosmic alignment scores.
+// Terminal-style display of monthly cosmic calendar dates.
 
 struct OptionExpiryView: View {
 
     // MARK: - Properties
 
     let userSign: ZodiacSign
-    @State private var expiries: [ExpiryCompatibility] = []
-    @State private var selectedExpiry: ExpiryCompatibility?
+    @State private var calendarDates: [ExpiryCompatibility] = []
+    @State private var selectedDate: ExpiryCompatibility?
 
     // MARK: - Body
 
@@ -32,23 +31,23 @@ struct OptionExpiryView: View {
                 .fill(CosmicTheme.border)
                 .frame(height: 1)
 
-            // Expiry rows
-            ForEach(expiries) { expiry in
-                expiryRow(expiry)
+            // Calendar rows
+            ForEach(calendarDates) { calendarDate in
+                calendarDateRow(calendarDate)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            if selectedExpiry?.id == expiry.id {
-                                selectedExpiry = nil
+                            if selectedDate?.id == calendarDate.id {
+                                selectedDate = nil
                             } else {
-                                selectedExpiry = expiry
+                                selectedDate = calendarDate
                             }
                         }
                     }
 
                 // Expanded detail
-                if selectedExpiry?.id == expiry.id {
-                    expiryDetail(expiry)
+                if selectedDate?.id == calendarDate.id {
+                    calendarDateDetail(calendarDate)
                 }
 
                 Rectangle()
@@ -66,7 +65,7 @@ struct OptionExpiryView: View {
                 .stroke(CosmicTheme.border, lineWidth: 1)
         )
         .onAppear {
-            loadExpiries()
+            loadCalendarDates()
         }
     }
 
@@ -80,13 +79,13 @@ struct OptionExpiryView: View {
                         .font(.caption)
                         .foregroundColor(CosmicTheme.gold)
 
-                    Text("OPTION EXPIRY ALIGNMENT")
+                    Text("MONTHLY COSMIC CALENDAR")
                         .font(TerminalFont.data(11, weight: .semibold))
                         .foregroundColor(CosmicTheme.textPrimary)
                         .tracking(1)
                 }
 
-                Text("Monthly expirations aligned with your \(userSign.displayName) energy")
+                Text("Monthly cosmic dates aligned with your \(userSign.displayName) energy")
                     .font(TerminalFont.data(10))
                     .foregroundColor(CosmicTheme.textMuted)
             }
@@ -95,10 +94,8 @@ struct OptionExpiryView: View {
 
             // User sign badge
             VStack(spacing: 2) {
-                ZodiacSymbolView(sign: userSign, size: 18, color: CosmicTheme.gold)
-                Text(userSign.symbol)
-                    .font(.caption2)
-                    .foregroundColor(CosmicTheme.textMuted)
+                ZodiacMark(sign: userSign, size: 18, style: .badge)
+                ZodiacMark(sign: userSign, size: 11, style: .badge, color: CosmicTheme.textMuted)
             }
         }
         .padding(12)
@@ -127,38 +124,38 @@ struct OptionExpiryView: View {
         .background(CosmicTheme.background)
     }
 
-    // MARK: - Expiry Row
+    // MARK: - Calendar Date Row
 
-    private func expiryRow(_ expiry: ExpiryCompatibility) -> some View {
-        let isBest = expiries.first?.id == expiry.id
-        let isSelected = selectedExpiry?.id == expiry.id
+    private func calendarDateRow(_ calendarDate: ExpiryCompatibility) -> some View {
+        let isBest = calendarDates.first?.id == calendarDate.id
+        let isSelected = selectedDate?.id == calendarDate.id
 
         return HStack(spacing: 0) {
             // Date
-            Text(expiry.formattedDate)
+            Text(calendarDate.formattedDate)
                 .font(TerminalFont.data(12, weight: .medium))
                 .foregroundColor(CosmicTheme.textPrimary)
                 .frame(width: 60, alignment: .leading)
 
             // Zodiac sign
             HStack(spacing: 6) {
-                Text(expiry.zodiacSign.symbol)
-                    .font(.caption)
-                Text(expiry.zodiacSign.displayName)
+                ZodiacMark(sign: calendarDate.zodiacSign, size: .tiny, style: .element)
+                Text(calendarDate.zodiacSign.displayName)
                     .font(TerminalFont.data(11))
                     .foregroundColor(CosmicTheme.textSecondary)
             }
             .frame(width: 90, alignment: .leading)
 
             // Score
-            Text("\(expiry.score)%")
+            Text("\(calendarDate.score)%")
                 .font(TerminalFont.price(12))
-                .foregroundColor(scoreColor(expiry.score))
+                .foregroundColor(scoreColor(calendarDate.score))
                 .frame(width: 50, alignment: .center)
 
             // Moon phase
-            Text(expiry.moonPhase.emoji)
+            calendarDate.moonPhase.sfImage
                 .font(.caption)
+                .foregroundColor(calendarDate.moonPhase.color)
                 .frame(width: 40, alignment: .center)
 
             // Status indicators
@@ -166,7 +163,7 @@ struct OptionExpiryView: View {
                 if isBest {
                     bestBadge
                 }
-                if expiry.hasWarnings {
+                if calendarDate.hasWarnings {
                     warningBadge
                 }
 
@@ -188,7 +185,7 @@ struct OptionExpiryView: View {
         HStack(spacing: 2) {
             Image(systemName: "star.fill")
                 .font(.system(size: 8))
-            Text("BEST")
+            Text("SYNC")
                 .font(TerminalFont.data(8, weight: .semibold))
         }
         .foregroundColor(CosmicTheme.gold)
@@ -206,9 +203,9 @@ struct OptionExpiryView: View {
             .foregroundColor(.orange)
     }
 
-    // MARK: - Expiry Detail
+    // MARK: - Calendar Date Detail
 
-    private func expiryDetail(_ expiry: ExpiryCompatibility) -> some View {
+    private func calendarDateDetail(_ calendarDate: ExpiryCompatibility) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             // Insight
             HStack(alignment: .top, spacing: 8) {
@@ -216,7 +213,7 @@ struct OptionExpiryView: View {
                     .font(.caption)
                     .foregroundColor(CosmicTheme.gold.opacity(0.7))
 
-                Text(expiry.insight)
+                Text(calendarDate.insight)
                     .font(TerminalFont.data(11))
                     .foregroundColor(CosmicTheme.textSecondary)
                     .italic()
@@ -224,9 +221,9 @@ struct OptionExpiryView: View {
             }
 
             // Warnings
-            if !expiry.warnings.isEmpty {
+            if !calendarDate.warnings.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
-                    ForEach(expiry.warnings) { warning in
+                    ForEach(calendarDate.warnings) { warning in
                         HStack(spacing: 8) {
                             Image(systemName: warning.icon)
                                 .font(.caption2)
@@ -242,13 +239,13 @@ struct OptionExpiryView: View {
 
             // Full date and days until
             HStack {
-                Text(expiry.fullFormattedDate)
+                Text(calendarDate.fullFormattedDate)
                     .font(TerminalFont.data(10))
                     .foregroundColor(CosmicTheme.textMuted)
 
                 Spacer()
 
-                Text("\(expiry.daysUntil) days away")
+                Text("\(calendarDate.daysUntil) days away")
                     .font(TerminalFont.data(10))
                     .foregroundColor(CosmicTheme.textMuted)
             }
@@ -283,8 +280,8 @@ struct OptionExpiryView: View {
 
     // MARK: - Helpers
 
-    private func loadExpiries() {
-        expiries = OptionCompatibilityService.getCompatibleExpirations(
+    private func loadCalendarDates() {
+        calendarDates = OptionCompatibilityService.getCompatibleExpirations(
             userSign: userSign,
             expiryCount: 6
         )
@@ -299,14 +296,14 @@ struct OptionExpiryView: View {
     }
 }
 
-// MARK: - Compact Option Expiry Card
+// MARK: - Compact Monthly Calendar Card
 // ==================================
 // A smaller card for embedding in other views.
 
 struct OptionExpiryCard: View {
 
     let userSign: ZodiacSign
-    @State private var bestExpiry: ExpiryCompatibility?
+    @State private var bestDate: ExpiryCompatibility?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -317,7 +314,7 @@ struct OptionExpiryCard: View {
                         .font(.caption2)
                         .foregroundColor(CosmicTheme.gold)
 
-                    Text("NEXT BEST EXPIRY")
+                    Text("NEXT COSMIC DATE")
                         .font(TerminalFont.data(10))
                         .foregroundColor(CosmicTheme.textMuted)
                         .tracking(1)
@@ -325,30 +322,29 @@ struct OptionExpiryCard: View {
 
                 Spacer()
 
-                if let expiry = bestExpiry {
+                if let calendarDate = bestDate {
                     HStack(spacing: 4) {
                         Image(systemName: "star.fill")
                             .font(.system(size: 8))
-                        Text("\(expiry.score)%")
+                        Text("\(calendarDate.score)%")
                             .font(TerminalFont.data(10, weight: .semibold))
                     }
                     .foregroundColor(CosmicTheme.gold)
                 }
             }
 
-            if let expiry = bestExpiry {
+            if let calendarDate = bestDate {
                 // Main content
                 HStack(spacing: 12) {
                     // Date and sign
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(expiry.formattedDate)
+                        Text(calendarDate.formattedDate)
                             .font(TerminalFont.price(18))
                             .foregroundColor(CosmicTheme.textPrimary)
 
                         HStack(spacing: 4) {
-                            Text(expiry.zodiacSign.symbol)
-                                .font(.caption)
-                            Text(expiry.zodiacSign.displayName)
+                            ZodiacMark(sign: calendarDate.zodiacSign, size: .tiny, style: .element)
+                            Text(calendarDate.zodiacSign.displayName)
                                 .font(TerminalFont.data(11))
                                 .foregroundColor(CosmicTheme.textSecondary)
                         }
@@ -358,17 +354,18 @@ struct OptionExpiryCard: View {
 
                     // Moon phase
                     VStack(spacing: 2) {
-                        Text(expiry.moonPhase.emoji)
+                        calendarDate.moonPhase.sfImage
                             .font(.title3)
+                            .foregroundColor(calendarDate.moonPhase.color)
 
-                        Text("\(expiry.daysUntil)d")
+                        Text("\(calendarDate.daysUntil)d")
                             .font(TerminalFont.data(10))
                             .foregroundColor(CosmicTheme.textMuted)
                     }
                 }
 
                 // Insight
-                Text(expiry.insight)
+                Text(calendarDate.insight)
                     .font(TerminalFont.data(10))
                     .foregroundColor(CosmicTheme.textSecondary)
                     .lineLimit(2)
@@ -387,14 +384,14 @@ struct OptionExpiryCard: View {
                 .stroke(CosmicTheme.border, lineWidth: 1)
         )
         .onAppear {
-            bestExpiry = OptionCompatibilityService.getBestExpiry(userSign: userSign)
+            bestDate = OptionCompatibilityService.getBestExpiry(userSign: userSign)
         }
     }
 }
 
 // MARK: - Preview
 
-#Preview("Option Expiry View") {
+#Preview("Monthly Cosmic Calendar") {
     ZStack {
         CosmicTheme.background.ignoresSafeArea()
 

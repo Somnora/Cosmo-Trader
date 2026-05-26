@@ -76,8 +76,8 @@ struct HoroscopeWidget: Widget {
             HoroscopeWidgetEntryView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("Daily Horoscope")
-        .description("Your cosmic forecast for the market.")
+        .configurationDisplayName("Daily Forecast")
+        .description("Your daily market forecast.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
@@ -144,6 +144,11 @@ struct SmallHoroscopeWidget: View {
 struct MediumHoroscopeWidget: View {
     let data: WidgetHoroscopeData
 
+    /// Whether to use mystical language
+    private var useMysticalLanguage: Bool {
+        WidgetDataProvider.isMysticalFraming()
+    }
+
     var body: some View {
         ZStack {
             WidgetTheme.background
@@ -160,9 +165,9 @@ struct MediumHoroscopeWidget: View {
                                 .font(.system(size: 13, weight: .bold, design: .monospaced))
                                 .foregroundColor(WidgetTheme.textPrimary)
 
-                            Text(data.signElement.uppercased() + " SIGN")
+                            Text(useMysticalLanguage ? (data.signElement.uppercased() + " SIGN") : "DAILY FORECAST")
                                 .font(.system(size: 9, weight: .medium, design: .monospaced))
-                                .foregroundColor(elementColor(data.signElement))
+                                .foregroundColor(useMysticalLanguage ? elementColor(data.signElement) : WidgetTheme.textSecondary)
                         }
                     }
 
@@ -188,29 +193,31 @@ struct MediumHoroscopeWidget: View {
 
                 Spacer()
 
-                // Bottom row
-                HStack {
-                    // Lucky number
-                    HStack(spacing: 4) {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 9))
-                            .foregroundColor(WidgetTheme.gold)
-                        Text("LUCKY: \(data.luckyNumber)")
-                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                            .foregroundColor(WidgetTheme.gold)
-                    }
+                // Bottom row (only show astrology features in mystical mode)
+                if useMysticalLanguage {
+                    HStack {
+                        // Lucky number
+                        HStack(spacing: 4) {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 9))
+                                .foregroundColor(WidgetTheme.gold)
+                            Text("LUCKY: \(data.luckyNumber)")
+                                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                .foregroundColor(WidgetTheme.gold)
+                        }
 
-                    Spacer()
+                        Spacer()
 
-                    // Best match
-                    HStack(spacing: 4) {
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 9))
-                            .foregroundColor(WidgetTheme.positive)
-                        Text(data.compatibility)
-                            .font(.system(size: 9, weight: .medium, design: .monospaced))
-                            .foregroundColor(WidgetTheme.textSecondary)
-                            .lineLimit(1)
+                        // Best match
+                        HStack(spacing: 4) {
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 9))
+                                .foregroundColor(WidgetTheme.positive)
+                            Text(data.compatibility)
+                                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                                .foregroundColor(WidgetTheme.textSecondary)
+                                .lineLimit(1)
+                        }
                     }
                 }
             }

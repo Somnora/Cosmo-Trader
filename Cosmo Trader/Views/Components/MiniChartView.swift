@@ -1,5 +1,9 @@
 import SwiftUI
 
+extension CGFloat {
+    var sanitized: CGFloat { isFinite ? self : 0 }
+}
+
 /// MiniChartView
 /// -------------
 /// Tiny sparkline chart for inline display with stock data.
@@ -101,7 +105,7 @@ struct MiniChartView: View {
                 context.fill(dotPath, with: .color(chartColor))
             }
         }
-        .frame(width: width, height: height)
+        .frame(width: width.sanitized, height: height.sanitized)
     }
 
     // MARK: - Helpers
@@ -109,16 +113,17 @@ struct MiniChartView: View {
     private func normalizedPoints(in size: CGSize) -> [CGPoint] {
         guard data.count > 1 else { return [] }
 
-        let minValue = data.min() ?? 0
-        let maxValue = data.max() ?? 1
+        let cleanedData = data.map { $0.isFinite ? $0 : 0 }
+        let minValue = cleanedData.min() ?? 0
+        let maxValue = cleanedData.max() ?? 1
         let range = max(maxValue - minValue, 0.001) // Avoid division by zero
 
         let padding: CGFloat = 2 // Small padding so line doesn't touch edges
 
-        return data.enumerated().map { index, value in
-            let x = CGFloat(index) / CGFloat(data.count - 1) * size.width
-            let normalizedY = (value - minValue) / range
-            let y = size.height - padding - (normalizedY * (size.height - padding * 2))
+        return cleanedData.enumerated().map { index, value in
+            let x = (CGFloat(index) / CGFloat(cleanedData.count - 1) * size.width).sanitized
+            let normalizedY = min(max((value - minValue) / range, 0), 1)
+            let y = (size.height - padding - (normalizedY * (size.height - padding * 2))).sanitized
             return CGPoint(x: x, y: y)
         }
     }
@@ -203,22 +208,23 @@ struct SmoothMiniChartView: View {
                 context.fill(dotPath, with: .color(chartColor))
             }
         }
-        .frame(width: width, height: height)
+        .frame(width: width.sanitized, height: height.sanitized)
     }
 
     private func normalizedPoints(in size: CGSize) -> [CGPoint] {
         guard data.count > 1 else { return [] }
 
-        let minValue = data.min() ?? 0
-        let maxValue = data.max() ?? 1
+        let cleanedData = data.map { $0.isFinite ? $0 : 0 }
+        let minValue = cleanedData.min() ?? 0
+        let maxValue = cleanedData.max() ?? 1
         let range = max(maxValue - minValue, 0.001)
 
         let padding: CGFloat = 3
 
-        return data.enumerated().map { index, value in
-            let x = CGFloat(index) / CGFloat(data.count - 1) * size.width
-            let normalizedY = (value - minValue) / range
-            let y = size.height - padding - (normalizedY * (size.height - padding * 2))
+        return cleanedData.enumerated().map { index, value in
+            let x = (CGFloat(index) / CGFloat(cleanedData.count - 1) * size.width).sanitized
+            let normalizedY = min(max((value - minValue) / range, 0), 1)
+            let y = (size.height - padding - (normalizedY * (size.height - padding * 2))).sanitized
             return CGPoint(x: x, y: y)
         }
     }
@@ -293,7 +299,7 @@ struct AnimatedMiniChartView: View {
                 chartColor,
                 style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
             )
-            .frame(width: width, height: height)
+            .frame(width: width.sanitized, height: height.sanitized)
             .onAppear {
                 withAnimation(.easeOut(duration: duration)) {
                     progress = 1
@@ -312,16 +318,17 @@ struct MiniChartShape: Shape {
         var path = Path()
         guard data.count > 1 else { return path }
 
-        let minValue = data.min() ?? 0
-        let maxValue = data.max() ?? 1
+        let cleanedData = data.map { $0.isFinite ? $0 : 0 }
+        let minValue = cleanedData.min() ?? 0
+        let maxValue = cleanedData.max() ?? 1
         let range = max(maxValue - minValue, 0.001)
 
         let padding: CGFloat = 3
 
-        let points: [CGPoint] = data.enumerated().map { index, value in
-            let x = CGFloat(index) / CGFloat(data.count - 1) * rect.width
-            let normalizedY = (value - minValue) / range
-            let y = rect.height - padding - (normalizedY * (rect.height - padding * 2))
+        let points: [CGPoint] = cleanedData.enumerated().map { index, value in
+            let x = (CGFloat(index) / CGFloat(cleanedData.count - 1) * rect.width).sanitized
+            let normalizedY = min(max((value - minValue) / range, 0), 1)
+            let y = (rect.height - padding - (normalizedY * (rect.height - padding * 2))).sanitized
             return CGPoint(x: x, y: y)
         }
 

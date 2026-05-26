@@ -184,7 +184,7 @@ enum PortfolioCompatibilityService {
         for element in result.missingElements {
             suggestions.append(RebalancingSuggestion(
                 type: .addElement,
-                icon: element.emoji,
+                icon: element.sfSymbol,
                 message: "Add \(element.displayName) sign stocks (you have 0%)",
                 priority: .high
             ))
@@ -195,7 +195,7 @@ enum PortfolioCompatibilityService {
             let percentage = result.elementBreakdown[element, default: 0]
             suggestions.append(RebalancingSuggestion(
                 type: .reduceElement,
-                icon: "⚖️",
+                icon: "scale.3d",
                 message: "Consider reducing \(element.displayName) exposure (currently \(String(format: "%.0f%%", percentage)))",
                 priority: .medium
             ))
@@ -209,8 +209,8 @@ enum PortfolioCompatibilityService {
         if let missingSign = missingSoulmates.first {
             suggestions.append(RebalancingSuggestion(
                 type: .addSign,
-                icon: "✨",
-                message: "Add \(missingSign.displayName) stocks for cosmic harmony",
+                icon: "plus.circle",
+                message: "Add \(missingSign.displayName) exposure if it improves portfolio balance",
                 priority: .medium
             ))
         }
@@ -220,8 +220,8 @@ enum PortfolioCompatibilityService {
            maxElementPercentage > 60 {
             suggestions.append(RebalancingSuggestion(
                 type: .diversify,
-                icon: "🌐",
-                message: "Diversify across elements for cosmic balance",
+                icon: "square.grid.2x2",
+                message: "Diversify across elements to reduce concentration risk",
                 priority: .high
             ))
         }
@@ -230,8 +230,8 @@ enum PortfolioCompatibilityService {
         if result.overallScore < 50 {
             suggestions.append(RebalancingSuggestion(
                 type: .cosmicBoost,
-                icon: "🚀",
-                message: "Boost alignment with same-element stocks (\(userSign.element.displayName))",
+                icon: "arrow.up.right.circle",
+                message: "Review same-element exposure (\(userSign.element.displayName)) for alignment",
                 priority: .high
             ))
         }
@@ -250,7 +250,7 @@ enum PortfolioCompatibilityService {
             dominantSign: userSign, // Default to user's sign
             dominantElement: userSign.element,
             totalShares: 0,
-            cosmicInsight: "Your cosmic portfolio awaits. Add holdings to begin your journey."
+            cosmicInsight: "Add holdings to generate a portfolio-specific market astrology read."
         )
     }
 
@@ -277,26 +277,26 @@ enum PortfolioCompatibilityService {
 
         switch rating {
         case .cosmicSoulmates:
-            return "Your portfolio vibrates at peak cosmic frequency. The \(dominantElement.displayName) energy dominates, amplifying your \(userSign.displayName) intuition."
+            return "Strong alignment across portfolio factors. \(dominantElement.displayName) exposure dominates, which may amplify your \(userSign.displayName)-style risk posture."
 
         case .highCompatibility:
             if isImbalanced {
                 return "Strong alignment, but \(dominantElement.displayName) energy is concentrated at \(String(format: "%.0f%%", maxElement?.value ?? 0)). Consider elemental diversification."
             }
-            return "Your \(userSign.displayName) energy harmonizes well with your holdings. The cosmos approves of this portfolio structure."
+            return "Your \(userSign.displayName) profile aligns well with current holdings. Structure is helping the reading."
 
         case .neutral:
             if !missingElements.isEmpty {
                 let missing = missingElements.map { $0.displayName }.joined(separator: ", ")
-                return "Balanced but uninspired. Your portfolio lacks \(missing) energy. The universe shrugs."
+                return "Balanced, but missing \(missing) exposure. Decide whether that gap is intentional diversification or an overlooked sleeve."
             }
-            return "Your portfolio exists in cosmic equilibrium. Neither blessed nor cursed. Functional."
+            return "Your portfolio is elementally balanced. No single exposure is driving the reading."
 
         case .challenging:
-            return "Your \(userSign.displayName) nature clashes with the \(dominantSign.displayName) dominance in your portfolio. Growth through friction awaits."
+            return "Your \(userSign.displayName) profile conflicts with \(dominantSign.displayName)-heavy exposure. Treat this as a risk-control prompt."
 
         case .cosmicClash:
-            return "Your portfolio actively challenges your \(userSign.displayName) essence. Either you're building character or asking for cosmic humbling."
+            return "Your portfolio runs against your \(userSign.displayName) profile. Keep position sizing and conviction under review."
         }
     }
 
@@ -313,7 +313,7 @@ enum PortfolioCompatibilityService {
             return "Fully balanced across all elements"
         case 3:
             let missing = ZodiacSign.Element.allCases.first { breakdown[$0, default: 0] == 0 }
-            return "Missing \(missing?.displayName ?? "one element") energy"
+            return "Missing \(missing?.displayName ?? "one element") exposure"
         case 2:
             return "Concentrated in two elements - moderate risk"
         case 1:
@@ -324,4 +324,3 @@ enum PortfolioCompatibilityService {
         }
     }
 }
-

@@ -16,7 +16,7 @@ struct PortfolioView: View {
     @State private var selectedStock: Stock?
     @State private var lastPriceUpdate: Date = Date()
     @State private var isFetchingPrices: Bool = false
-    @State private var stockAPI = StockAPIService.shared
+    @ObservedObject private var stockAPI = StockAPIService.shared
     @State private var showRebalancingSuggestions: Bool = false
     @State private var chartTimeframe: ChartTimeframe = .month
     @State private var showPerformanceChart: Bool = true
@@ -89,6 +89,65 @@ struct PortfolioView: View {
 
     /// Show search sheet
     @State private var showSearch: Bool = false
+    @State private var showImportPortfolio: Bool = false
+
+    // MARK: - Framing
+
+    /// User's signal framing level
+    private var framingLevel: SignalFramingLevel {
+        appState.currentUser?.signalFramingLevel ?? .balanced
+    }
+
+    /// Framed section header for cosmic health
+    private var framedHealthSectionHeader: String {
+        switch framingLevel {
+        case .rational:
+            return "PORTFOLIO ANALYSIS"
+        case .leanRational:
+            return "PORTFOLIO HEALTH"
+        default:
+            return "COSMIC PORTFOLIO HEALTH"
+        }
+    }
+
+    /// Framed section header for rebalancing
+    private var framedRebalancingSectionHeader: String {
+        switch framingLevel {
+        case .rational:
+            return "REBALANCING"
+        case .leanRational:
+            return "REBALANCING SUGGESTIONS"
+        default:
+            return "COSMIC REBALANCING"
+        }
+    }
+
+    /// Framed rebalancing intro text
+    private var framedRebalancingIntro: String {
+        switch framingLevel {
+        case .rational:
+            return "To improve diversification, consider:"
+        case .leanRational:
+            return "To improve balance, consider:"
+        default:
+            return "To improve cosmic alignment, consider:"
+        }
+    }
+
+    /// Whether the portfolio is balanced (no element dominates >40%)
+    private var isPortfolioBalanced: Bool {
+        let maxPercentage = portfolioCompatibility.elementBreakdown.values.max() ?? 0
+        return maxPercentage < 40
+    }
+
+    /// Framed cosmic insight text
+    private var framedCosmicInsight: String {
+        SignalFramingService.shared.framePortfolioBalance(
+            dominantElement: portfolioCompatibility.dominantElement,
+            isBalanced: isPortfolioBalanced,
+            level: framingLevel
+        )
+    }
 
     // MARK: - Body
 
@@ -103,8 +162,10 @@ struct PortfolioView: View {
                     // No user - show empty state
                     CosmicEmptyStateView(
                         title: "No Portfolio",
-                        message: "Complete onboarding to start building your cosmic portfolio.",
-                        icon: "chart.pie"
+                        message: "Complete onboarding, then add holdings to generate a portfolio-specific daily reading.",
+                        icon: "chart.pie",
+                        actionTitle: "Start Onboarding",
+                        action: { appState.selectedTab = .profile }
                     )
                 } else {
                 ScrollView(showsIndicators: false) {
@@ -113,6 +174,11 @@ struct PortfolioView: View {
                         portfolioHeader
 
                         dividerLine
+
+                        if !holdings.isEmpty {
+                            screenshotProofSection
+                            dividerLine
+                        }
 
                         // Performance chart section (collapsible)
                         if !holdings.isEmpty && showPerformanceChart {
@@ -150,8 +216,10 @@ struct PortfolioView: View {
                         // Timestamp footer
                         footerSection
                     }
-                    .padding(.bottom, 100)
+                    .iPadReadableContent(maxWidth: 980)
                 }
+                .contentShape(Rectangle())
+                .tabBarSafeBottomPadding()
                 .refreshable {
                     await fetchLivePrices()
                 }
@@ -161,9 +229,9 @@ struct PortfolioView: View {
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Text("PORTFOLIO")
-                        .font(TerminalFont.data(14))
-                        .foregroundColor(CosmicTheme.textSecondary)
-                        .tracking(2)
+                        .font(TerminalFont.data(13, weight: .semibold))
+                        .tracking(1.8)
+                        .foregroundColor(CosmicTheme.textPrimary)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
@@ -171,9 +239,19 @@ struct PortfolioView: View {
                         showSearch = true
                     } label: {
                         Image(systemName: "magnifyingglass")
-                            .font(.system(size: 15, weight: .medium))
+                            .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(CosmicTheme.gold)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                Circle()
+                                    .fill(CosmicTheme.cardBackground)
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(CosmicTheme.gold.opacity(0.3), lineWidth: 0.5)
+                            )
                     }
+                    .accessibilityLabel("Search stocks")
                 }
             }
             .toolbarBackground(CosmicTheme.background, for: .navigationBar)
@@ -185,10 +263,26 @@ struct PortfolioView: View {
                 SearchView()
                     .environment(appState)
             }
+            .sheet(isPresented: $showImportPortfolio) {
+                ImportPortfolioView()
+                    .environment(appState)
+            }
         }
         .task {
-            await fetchLivePrices()
+            openStockDetailForScreenshotIfNeeded()
+            if !AppState.isScreenshotMode {
+                await fetchLivePrices()
+            }
         }
+    }
+
+    private func openStockDetailForScreenshotIfNeeded() {
+        guard AppState.isScreenshotMode, selectedStock == nil else { return }
+        guard let symbol = AppState.screenshotStockDetailSymbol?.uppercased(), !symbol.isEmpty else { return }
+
+        selectedStock = holdings.first { $0.symbol.uppercased() == symbol }
+            ?? MockStockData.all.first { $0.symbol.uppercased() == symbol }
+            ?? Stock.sample
     }
 
     // MARK: - Divider
@@ -202,7 +296,7 @@ struct PortfolioView: View {
     // MARK: - Performance Chart Section
 
     private var performanceChartSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             // Section header with toggle
             HStack {
                 HStack(spacing: 8) {
@@ -241,7 +335,7 @@ struct PortfolioView: View {
                 }
             }
             .padding(.horizontal, 12)
-            .padding(.top, 8)
+            .padding(.top, 12)
 
             // Chart
             PortfolioChartView(
@@ -250,7 +344,7 @@ struct PortfolioView: View {
                 selectedTimeframe: $chartTimeframe
             )
             .padding(.horizontal, 12)
-            .padding(.bottom, 12)
+            .padding(.bottom, 18)
         }
     }
 
@@ -292,8 +386,42 @@ struct PortfolioView: View {
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 16)
+    }
+
+    private var screenshotProofSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "scope")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold)
+
+                Text("PORTFOLIO-AWARE READING")
+                    .font(TerminalFont.data(10, weight: .semibold))
+                    .foregroundColor(CosmicTheme.gold)
+                    .tracking(1)
+            }
+
+            Text(portfolioProofHeadline)
+                .font(TerminalFont.data(16, weight: .semibold))
+                .foregroundColor(CosmicTheme.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("Cosmo maps holdings, daily P/L, dominant element, and concentration before the reading lands.")
+                .font(TerminalFont.data(11))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .terminalPanel(.navy)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+    }
+
+    private var portfolioProofHeadline: String {
+        "\(holdings.count) holdings tracked. \(portfolioCompatibility.dominantElement.displayName) exposure is the active portfolio layer."
     }
 
     // MARK: - Cosmic Health Section
@@ -308,7 +436,7 @@ struct PortfolioView: View {
                         .frame(height: 1)
                         .frame(width: 20)
 
-                    Text("COSMIC PORTFOLIO HEALTH")
+                    Text(framedHealthSectionHeader)
                         .font(TerminalFont.data(10))
                         .foregroundColor(CosmicTheme.textMuted)
                         .tracking(1)
@@ -336,7 +464,7 @@ struct PortfolioView: View {
                 }
             }
             .padding(.horizontal, 12)
-            .padding(.top, 8)
+            .padding(.top, 12)
 
             // Main health display
             HStack(spacing: 0) {
@@ -359,7 +487,7 @@ struct PortfolioView: View {
 
                     // Rating badge
                     HStack(spacing: 4) {
-                        Text(portfolioCompatibility.rating.emoji)
+                        Image(systemName: portfolioCompatibility.rating.sfSymbol)
                             .font(.caption)
 
                         Text(portfolioCompatibility.rating.displayName.uppercased())
@@ -407,8 +535,9 @@ struct PortfolioView: View {
                             .tracking(1)
 
                         HStack(spacing: 6) {
-                            Text(portfolioCompatibility.dominantElement.emoji)
+                            Image(systemName: portfolioCompatibility.dominantElement.sfSymbol)
                                 .font(.caption)
+                                .foregroundColor(portfolioCompatibility.dominantElement.color)
                             Text(portfolioCompatibility.dominantElement.displayName)
                                 .font(TerminalFont.data(12))
                                 .foregroundColor(portfolioCompatibility.dominantElement.color)
@@ -419,13 +548,13 @@ struct PortfolioView: View {
             }
             .padding(.horizontal, 12)
 
-            // Cosmic insight
+            // Portfolio insight (framed)
             HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "sparkles")
+                Image(systemName: "chart.bar.xaxis")
                     .font(.caption)
                     .foregroundColor(CosmicTheme.gold.opacity(0.7))
 
-                Text(portfolioCompatibility.cosmicInsight)
+                Text(framedCosmicInsight)
                     .font(TerminalFont.data(11))
                     .foregroundColor(CosmicTheme.textSecondary)
                     .italic()
@@ -433,7 +562,7 @@ struct PortfolioView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 12)
-            .padding(.bottom, 12)
+            .padding(.bottom, 16)
         }
     }
 
@@ -443,7 +572,7 @@ struct PortfolioView: View {
             return CosmicTheme.goldGradient
         } else if score >= 65 {
             return LinearGradient(
-                colors: [CosmicTheme.accentBlue, CosmicTheme.cosmicPurple],
+                colors: [CosmicTheme.accentBlue, CosmicTheme.gold.opacity(0.85)],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -470,10 +599,10 @@ struct PortfolioView: View {
 
     private var rebalancingSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader("COSMIC REBALANCING")
+            sectionHeader(framedRebalancingSectionHeader)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("To improve cosmic alignment, consider:")
+                Text(framedRebalancingIntro)
                     .font(TerminalFont.data(10))
                     .foregroundColor(CosmicTheme.textMuted)
                     .padding(.horizontal, 12)
@@ -488,8 +617,9 @@ struct PortfolioView: View {
 
     private func suggestionRow(_ suggestion: RebalancingSuggestion) -> some View {
         HStack(spacing: 10) {
-            Text(suggestion.icon)
+            Image(systemName: suggestion.icon)
                 .font(.caption)
+                .foregroundColor(suggestionColor(for: suggestion.priority))
                 .frame(width: 20)
 
             Text(suggestion.message)
@@ -683,13 +813,88 @@ struct PortfolioView: View {
     }
 
     private var emptyState: some View {
-        CosmicEmptyStateView(
-            title: "Your Portfolio Awaits",
-            message: "Your cosmic portfolio is empty. Start discovering stocks that align with your stars.",
-            icon: "briefcase",
-            actionTitle: "Explore Discover",
-            action: nil  // Could navigate to Discover tab
-        )
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "briefcase")
+                    .font(.system(size: 26, weight: .medium))
+                    .foregroundColor(CosmicTheme.gold)
+                    .frame(width: 42, height: 42)
+                    .background(CosmicTheme.cardBackground)
+                    .overlay(
+                        Rectangle()
+                            .stroke(CosmicTheme.border, lineWidth: 1)
+                    )
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("PORTFOLIO SETUP")
+                        .font(TerminalFont.data(10, weight: .semibold))
+                        .foregroundColor(CosmicTheme.gold)
+                        .tracking(1.2)
+
+                    Text("Add your holdings to generate a daily financial astrology reading.")
+                        .font(TerminalFont.data(16, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text("Your reading gets sharper once Cosmo knows what you own. Start with 3-5 tickers, then refine shares later.")
+                        .font(TerminalFont.data(12))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                setupOutcomeRow("Today can rank holdings that deserve attention.")
+                setupOutcomeRow("Portfolio value, daily P/L, and element exposure become part of the reading.")
+                setupOutcomeRow("Discover starts explaining whether candidates balance or intensify your exposure.")
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    showImportPortfolio = true
+                } label: {
+                    Label("IMPORT", systemImage: "square.and.arrow.down")
+                        .font(TerminalFont.data(11, weight: .semibold))
+                        .foregroundColor(CosmicTheme.background)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(CosmicTheme.gold)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    showSearch = true
+                } label: {
+                    Label("ADD TICKER", systemImage: "magnifyingglass")
+                        .font(TerminalFont.data(11, weight: .semibold))
+                        .foregroundColor(CosmicTheme.gold)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .overlay(
+                            Rectangle()
+                                .stroke(CosmicTheme.gold.opacity(0.45), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(16)
+        .background(CosmicTheme.background)
+    }
+
+    private func setupOutcomeRow(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "checkmark.seal")
+                .font(.caption2)
+                .foregroundColor(CosmicTheme.textMuted)
+                .frame(width: 14)
+
+            Text(text)
+                .font(TerminalFont.data(11))
+                .foregroundColor(CosmicTheme.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     // MARK: - Watching Section

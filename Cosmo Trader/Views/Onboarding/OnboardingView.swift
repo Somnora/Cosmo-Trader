@@ -116,11 +116,11 @@ struct OnboardingView: View {
         if nameValidationError != nil {
             return .orange
         } else if userName.isEmpty {
-            return CosmicTheme.textMuted.opacity(0.3)
+            return CosmicTheme.textMuted.opacity(0.4)
         } else if InputValidator.validateName(userName) == nil {
             return CosmicTheme.gold.opacity(0.5)
         } else {
-            return CosmicTheme.textMuted.opacity(0.3)
+            return CosmicTheme.textMuted.opacity(0.4)
         }
     }
 
@@ -172,7 +172,7 @@ struct OnboardingView: View {
             // Exclude welcome, quote, disclaimer, and complete from the indicator
             ForEach(OnboardingStep.allCases.filter { $0 != .welcome && $0 != .quote && $0 != .disclaimer && $0 != .complete }, id: \.rawValue) { step in
                 Capsule()
-                    .fill(step.rawValue <= currentStep.rawValue ? CosmicTheme.gold : CosmicTheme.textMuted.opacity(0.3))
+                    .fill(step.rawValue <= currentStep.rawValue ? CosmicTheme.gold : CosmicTheme.textMuted.opacity(0.4))
                     .frame(width: step == currentStep ? 24 : 8, height: 8)
                     .animation(.spring(response: 0.3), value: currentStep)
             }
@@ -317,7 +317,7 @@ struct OnboardingView: View {
             }
 
             // Description - professional tone
-            Text("Match your investment strategy with cosmic cycles.\nData-driven astrology for serious traders.")
+            Text("Map your portfolio against market astrology cycles.\nGrounded context for playful market readers.")
                 .font(.system(size: 14, design: .monospaced))
                 .foregroundColor(CosmicTheme.textSecondary)
                 .multilineTextAlignment(.center)
@@ -356,7 +356,7 @@ struct OnboardingView: View {
                     .overlay(
                         Circle()
                             .stroke(
-                                showSignReveal ? previewSign.element.color : CosmicTheme.textMuted.opacity(0.3),
+                                showSignReveal ? previewSign.element.color : CosmicTheme.textMuted.opacity(0.4),
                                 lineWidth: 2
                             )
                     )
@@ -412,6 +412,7 @@ struct OnboardingView: View {
             }
             .accessibilityLabel("Birth date picker")
             .accessibilityHint("Select your birth date to determine your zodiac sign")
+            .accessibilityIdentifier("onboarding.birthDatePicker")
 
             // Sign reveal text
             if showSignReveal {
@@ -515,6 +516,7 @@ struct OnboardingView: View {
                     }
                 }
                 .toggleStyle(SwitchToggleStyle(tint: CosmicTheme.gold))
+                .accessibilityIdentifier("onboarding.birthTimeToggle")
                 .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 16)
@@ -592,7 +594,7 @@ struct OnboardingView: View {
                     .fontWeight(.bold)
                     .foregroundColor(CosmicTheme.textPrimary)
 
-                Text("This is how you'll appear in your cosmic profile")
+                Text("This is how you'll appear in your investor profile")
                     .font(.subheadline)
                     .foregroundColor(CosmicTheme.textSecondary)
             }
@@ -626,6 +628,7 @@ struct OnboardingView: View {
                     }
                     .accessibilityLabel("Name input field")
                     .accessibilityHint("Enter your display name")
+                    .accessibilityIdentifier("onboarding.nameField")
 
                 // Validation error message
                 if let error = nameValidationError {
@@ -708,7 +711,7 @@ struct OnboardingView: View {
                     .lineSpacing(4)
 
                 Divider()
-                    .background(CosmicTheme.textMuted.opacity(0.3))
+                    .background(CosmicTheme.textMuted.opacity(0.4))
 
                 // Element traits
                 VStack(alignment: .leading, spacing: 10) {
@@ -782,7 +785,7 @@ struct OnboardingView: View {
         VStack(spacing: 24) {
             // Header
             VStack(spacing: 8) {
-                Image(systemName: "sparkles")
+                Image(systemName: "scope")
                     .font(.system(size: 36))
                     .foregroundStyle(CosmicTheme.goldGradient)
 
@@ -791,7 +794,7 @@ struct OnboardingView: View {
                     .fontWeight(.bold)
                     .foregroundColor(CosmicTheme.textPrimary)
 
-                Text("These stocks align with your \(previewSign.displayName) energy")
+                Text("These stocks align with your \(previewSign.displayName) profile")
                     .font(.subheadline)
                     .foregroundColor(CosmicTheme.textSecondary)
             }
@@ -821,7 +824,7 @@ struct OnboardingView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(CosmicTheme.positive)
-                    Text("\(selectedStock!.symbol) selected!")
+                    Text("\(selectedStock?.symbol ?? "") selected!")
                         .fontWeight(.semibold)
                 }
                 .font(.subheadline)
@@ -893,6 +896,7 @@ struct OnboardingView: View {
                 .cornerRadius(8)
             }
             .padding(.top, 16)
+            .accessibilityIdentifier("onboarding.launchTerminalButton")
         }
     }
 
@@ -919,11 +923,12 @@ struct OnboardingView: View {
         }
         .disabled(!canProceed)
         .animation(.easeInOut(duration: 0.2), value: canProceed)
+        .accessibilityIdentifier("onboarding.primaryButton")
     }
 
     private var buttonTitle: String {
         switch currentStep {
-        case .welcome: return "Begin Your Journey"
+        case .welcome: return "Begin Setup"
         case .birthDate: return "Continue"
         case .quote: return "Continue"  // Not shown - quote has its own button
         case .disclaimer: return "I Understand"  // Not shown - disclaimer has its own button
@@ -1030,7 +1035,7 @@ struct OnboardingView: View {
 enum OnboardingStep: Int, CaseIterable {
     case welcome = 0
     case birthDate = 1
-    case quote = 2        // J.P. Morgan quote - "this is what serious people do"
+    case quote = 2        // Premium positioning quote
     case disclaimer = 3   // Legal disclaimer - must acknowledge
     case birthTime = 4
     case name = 5
@@ -1091,7 +1096,7 @@ struct StockMatchCard: View {
                 // Selection indicator
                 ZStack {
                     Circle()
-                        .stroke(isSelected ? CosmicTheme.gold : CosmicTheme.textMuted.opacity(0.3), lineWidth: 2)
+                        .stroke(isSelected ? CosmicTheme.gold : CosmicTheme.textMuted.opacity(0.4), lineWidth: 2)
                         .frame(width: 24, height: 24)
 
                     if isSelected {
@@ -1115,6 +1120,7 @@ struct StockMatchCard: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("onboarding.stockMatch.\(stock.symbol)")
     }
 }
 

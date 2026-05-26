@@ -287,7 +287,7 @@ struct MarketTimeHelper {
 
     /// Eastern timezone
     static var easternTimeZone: TimeZone {
-        TimeZone(identifier: "America/New_York")!
+        TimeZone(identifier: "America/New_York") ?? .current
     }
 
     /// Get current market status

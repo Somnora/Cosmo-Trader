@@ -29,6 +29,103 @@ struct CosmosView: View {
     @State private var viewModel = HoroscopeViewModel()
     @State private var astroService = AstroAlertService.shared
     @State private var moonService = MoonPhaseService.shared
+
+    // MARK: - Framing
+
+    /// User's signal framing level
+    private var framingLevel: SignalFramingLevel {
+        appState.currentUser?.signalFramingLevel ?? .balanced
+    }
+
+    /// Framed section title for the horoscope card
+    private var framedHoroscopeTitle: String {
+        switch framingLevel {
+        case .rational, .leanRational:
+            return "Daily Portfolio Analysis"
+        case .balanced:
+            return "Daily Portfolio Reading"
+        case .leanMystical, .mystical:
+            return "Daily Portfolio Reading"
+        }
+    }
+
+    /// Framed loading message
+    private var framedLoadingMessage: String {
+        switch framingLevel {
+        case .rational:
+            return "Generating market analysis..."
+        case .leanRational:
+            return "Analyzing portfolio exposure..."
+        case .balanced:
+            return "Synthesizing market and lunar context..."
+        case .leanMystical:
+            return "Reading cosmic market conditions..."
+        case .mystical:
+            return "Composing today's market astrology..."
+        }
+    }
+
+    /// Framed regenerate button text
+    private var framedRegenerateText: String {
+        switch framingLevel {
+        case .rational:
+            return "Refresh Analysis"
+        case .leanRational:
+            return "Refresh Market Reading"
+        case .balanced:
+            return "Refresh Reading"
+        case .leanMystical:
+            return "Refresh Reading"
+        case .mystical:
+            return "Refresh Reading"
+        }
+    }
+
+    /// Framed "no events" title
+    private var framedNoEventsTitle: String {
+        switch framingLevel {
+        case .rational, .leanRational:
+            return "No Major Events"
+        case .balanced:
+            return "No Major Cosmic Events"
+        case .leanMystical, .mystical:
+            return "Quiet Cosmic Tape"
+        }
+    }
+
+    /// Framed "no events" message
+    private var framedNoEventsMessage: String {
+        switch framingLevel {
+        case .rational:
+            return "No significant market-affecting events scheduled today."
+        case .leanRational:
+            return "No major events affecting markets today."
+        case .balanced:
+            return "No major cosmic events affecting markets today."
+        case .leanMystical:
+            return "No active cosmic catalysts are adding pressure to today's market read."
+        case .mystical:
+            return "Cosmic conditions are quiet; price action and portfolio exposure should carry more weight today."
+        }
+    }
+
+    /// Framed cosmic weather advice
+    private var framedWeatherAdvice: String {
+        let advice = astroService.todaySummary.advice
+        // For rational modes, simplify cosmic language
+        switch framingLevel {
+        case .rational:
+            return advice
+                .replacingOccurrences(of: "cosmic", with: "market")
+                .replacingOccurrences(of: "celestial", with: "current")
+                .replacingOccurrences(of: "stars", with: "indicators")
+        case .leanRational:
+            return advice
+                .replacingOccurrences(of: "cosmic ", with: "")
+        default:
+            return advice
+        }
+    }
     @State private var selectedEvent: CosmicEvent?
     @State private var showAllEvents: Bool = false
     @State private var showLunarDetail: Bool = false
@@ -51,73 +148,77 @@ struct CosmosView: View {
                 // Main content - viewModel is always ready
                 ScrollView(showsIndicators: false) {
                     LazyVStack(spacing: 24) {
-                        // 1. Date header with moon phase
-                        dateHeader
+                        if AppState.isScreenshotCalendarMode {
+                            monthlyCalendarScreenshotContent
+                        } else {
+                            // 1. Date header with moon phase
+                            dateHeader
 
-                        // 2. Moon Phase Widget (Prominent - for swing traders)
-                        moonPhaseWidget
+                            cosmosEngineStrip
 
-                        // 3. Lunar alert banner (if significant moon event)
-                        lunarAlertSection
+                            // 2. Moon Phase Widget (Prominent - for swing traders)
+                            moonPhaseWidget
 
-                        // 3a. Mercury Retrograde Countdown (always visible)
-                        MercuryRetrogradeBanner()
+                            // 3. Lunar alert banner (if significant moon event)
+                            lunarAlertSection
 
-                        // 3b. Weekly Zodiac Performance Section
-                        weeklyZodiacPerformanceSection
+                            // 3a. Mercury Retrograde Countdown (always visible)
+                            MercuryRetrogradeBanner()
 
-                        // 3c. Option Expiry Alignment Section
-                        optionExpirySection
+                            // 3b. Weekly Zodiac Performance Section
+                            weeklyZodiacPerformanceSection
 
-                        // 4. Active cosmic alert (if any important events)
-                        if let alertEvent = astroService.activeAlertEvents.first {
-                            AstroAlertBanner(
-                                event: alertEvent,
-                                onDismiss: {
-                                    withAnimation(.spring(response: 0.3)) {
-                                        astroService.dismissAlert(alertEvent)
+                            // 3c. Monthly cosmic calendar section
+                            monthlyCalendarSection
+
+                            // 4. Active cosmic alert (if any important events)
+                            if let alertEvent = astroService.activeAlertEvents.first {
+                                AstroAlertBanner(
+                                    event: alertEvent,
+                                    onDismiss: {
+                                        withAnimation(.spring(response: 0.3)) {
+                                            astroService.dismissAlert(alertEvent)
+                                        }
                                     }
-                                }
-                            )
-                            .transition(.asymmetric(
-                                insertion: .move(edge: .top).combined(with: .opacity),
-                                removal: .scale.combined(with: .opacity)
-                            ))
+                                )
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .top).combined(with: .opacity),
+                                    removal: .scale.combined(with: .opacity)
+                                ))
+                            }
+
+                            // 5. Main horoscope card
+                            horoscopeCard
+
+                            // 6. Cosmic Weather section (active events)
+                            cosmicWeatherSection
+
+                            // 7. Upcoming Events
+                            upcomingEventsSection
+
+                            // 8. Regenerate button
+                            regenerateButton
                         }
-
-                        // 5. Main horoscope card
-                        horoscopeCard
-
-                        // 6. Cosmic Weather section (active events)
-                        cosmicWeatherSection
-
-                        // 7. Upcoming Events
-                        upcomingEventsSection
-
-                        // 8. Regenerate button
-                        regenerateButton
-
-                        Spacer(minLength: 80)
                     }
                     .padding(.horizontal, 20)
-                    .padding(.top, 12)
+                    .padding(.top, 4)
+                    .iPadReadableContent(maxWidth: 980)
                 }
+                .tabBarSafeBottomPadding()
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "sparkles")
-                            .foregroundColor(CosmicTheme.gold)
-                        Text("Cosmos")
-                            .font(.headline)
-                            .foregroundColor(CosmicTheme.textPrimary)
-                    }
+                    Text("COSMOS")
+                        .font(TerminalFont.data(13, weight: .semibold))
+                        .tracking(1.8)
+                        .foregroundColor(CosmicTheme.textPrimary)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    Text(viewModel.moonPhase.emoji)
+                    viewModel.moonPhase.sfImage
                         .font(.title2)
+                        .foregroundColor(CosmicTheme.gold)
                 }
             }
             .toolbarBackground(CosmicTheme.background, for: .navigationBar)
@@ -139,6 +240,10 @@ struct CosmosView: View {
             }
         }
         .task {
+            if viewModel.user == nil, appState.currentUser != nil {
+                viewModel = HoroscopeViewModel(appState: appState)
+            }
+
             // Prevent duplicate animations on re-appear
             guard !hasAppeared else { return }
             hasAppeared = true
@@ -161,8 +266,8 @@ struct CosmosView: View {
             LinearGradient(
                 colors: [
                     CosmicTheme.background,
-                    Color(red: 0.05, green: 0.02, blue: 0.15),
-                    Color(red: 0.08, green: 0.04, blue: 0.20)
+                    CosmicTheme.deepBlue.opacity(0.78),
+                    CosmicTheme.terminalNavy.opacity(0.86)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -180,7 +285,7 @@ struct CosmosView: View {
     // MARK: - Date Header
 
     private var dateHeader: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 9) {
             // Moon phase display
             HStack(spacing: 8) {
                 Image(systemName: viewModel.moonPhaseIcon)
@@ -222,7 +327,7 @@ struct CosmosView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
+        .padding(.vertical, 10)
     }
 
     // MARK: - Moon Phase Widget (Top of View)
@@ -230,7 +335,7 @@ struct CosmosView: View {
     private var moonPhaseWidget: some View {
         let lunarData = moonService.getCurrentLunarData()
 
-        return VStack(spacing: 16) {
+        return VStack(spacing: 14) {
             // Primary: Terminal-style Lunar Market Cycle view
             Button(action: { showLunarDetail = true }) {
                 LunarCycleView(lunarData: lunarData, showDetailedStats: false)
@@ -240,6 +345,38 @@ struct CosmosView: View {
             // Secondary: Compact strip with quick countdown
             LunarCycleStrip(lunarData: lunarData)
         }
+    }
+
+    private var cosmosEngineStrip: some View {
+        let lunarData = moonService.getCurrentLunarData()
+        let eventCount = astroService.activeEvents.count
+        let holdingsCount = appState.currentUser?.portfolio.filter(\.isOwned).count ?? 0
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "function")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold)
+
+                Text("COSMIC TAPE LENS")
+                    .font(TerminalFont.data(10, weight: .semibold))
+                    .foregroundColor(CosmicTheme.gold)
+                    .tracking(1.1)
+            }
+
+            Text("\(lunarData.phase.rawValue) moon activates \(lunarData.activatedElement.displayName.lowercased()) exposure. \(eventCount == 0 ? "No major active event override." : "\(eventCount) active event\(eventCount == 1 ? "" : "s") in the tape.")")
+                .font(TerminalFont.data(13, weight: .medium))
+                .foregroundColor(CosmicTheme.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(holdingsCount > 0 ? "Mapped against \(holdingsCount) portfolio holding\(holdingsCount == 1 ? "" : "s") before the reading becomes portfolio context." : "Add holdings to turn cosmic weather into portfolio-specific context.")
+                .font(TerminalFont.data(11))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .terminalPanel(.navy)
     }
 
     // MARK: - Lunar Alert Section
@@ -265,7 +402,7 @@ struct CosmosView: View {
             // Card header
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Daily Portfolio Reading")
+                    Text(framedHoroscopeTitle)
                         .font(.subheadline)
                         .foregroundColor(CosmicTheme.textMuted)
 
@@ -303,7 +440,7 @@ struct CosmosView: View {
             // Divider with stars
             HStack {
                 Rectangle()
-                    .fill(CosmicTheme.textMuted.opacity(0.3))
+                    .fill(CosmicTheme.textMuted.opacity(0.4))
                     .frame(height: 1)
 
                 Image(systemName: "star.fill")
@@ -311,7 +448,7 @@ struct CosmosView: View {
                     .foregroundColor(CosmicTheme.gold.opacity(0.6))
 
                 Rectangle()
-                    .fill(CosmicTheme.textMuted.opacity(0.3))
+                    .fill(CosmicTheme.textMuted.opacity(0.4))
                     .frame(height: 1)
             }
 
@@ -346,7 +483,7 @@ struct CosmosView: View {
             ProgressView()
                 .tint(CosmicTheme.gold)
 
-            Text("Consulting the stars...")
+            Text(framedLoadingMessage)
                 .font(.subheadline)
                 .foregroundColor(CosmicTheme.textSecondary)
                 .italic()
@@ -378,7 +515,7 @@ struct CosmosView: View {
             // Section header
             HStack {
                 Image(systemName: "cloud.moon.fill")
-                    .foregroundColor(CosmicTheme.cosmicPurple)
+                    .foregroundColor(CosmicTheme.accentBlue)
 
                 Text("Current Cosmic Weather")
                     .font(.headline)
@@ -399,8 +536,8 @@ struct CosmosView: View {
                 .foregroundColor(summary.severity.color)
             }
 
-            // Weather advice
-            Text(astroService.todaySummary.advice)
+            // Weather advice (framed)
+            Text(framedWeatherAdvice)
                 .font(.subheadline)
                 .foregroundColor(CosmicTheme.textSecondary)
                 .italic()
@@ -413,19 +550,19 @@ struct CosmosView: View {
                     }
                 }
             } else {
-                // No active events - show calm message
+                // No active events - show calm message (framed)
                 HStack(spacing: 12) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.title2)
                         .foregroundColor(.green)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Clear Cosmic Skies")
+                        Text(framedNoEventsTitle)
                             .font(.subheadline)
                             .fontWeight(.medium)
                             .foregroundColor(CosmicTheme.textPrimary)
 
-                        Text("No major cosmic events affecting markets today")
+                        Text(framedNoEventsMessage)
                             .font(.caption)
                             .foregroundColor(CosmicTheme.textMuted)
                     }
@@ -437,7 +574,7 @@ struct CosmosView: View {
             if !viewModel.planetaryEvents.isEmpty {
                 let events = viewModel.planetaryEvents
                 Divider()
-                    .background(CosmicTheme.textMuted.opacity(0.3))
+                    .background(CosmicTheme.textMuted.opacity(0.4))
 
                 Text("Planetary Transits")
                     .font(.caption)
@@ -457,7 +594,7 @@ struct CosmosView: View {
                 .fill(CosmicTheme.cardBackground)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
-                        .stroke(CosmicTheme.cosmicPurple.opacity(0.2), lineWidth: 1)
+                        .stroke(CosmicTheme.accentBlue.opacity(0.22), lineWidth: 1)
                 )
         )
     }
@@ -508,7 +645,7 @@ struct CosmosView: View {
                     HStack(spacing: 2) {
                         ForEach(0..<3, id: \.self) { i in
                             Circle()
-                                .fill(i < intensityLevel(event) ? event.themeColor : CosmicTheme.textMuted.opacity(0.3))
+                                .fill(i < intensityLevel(event) ? event.themeColor : CosmicTheme.textMuted.opacity(0.4))
                                 .frame(width: 4, height: 4)
                         }
                     }
@@ -608,7 +745,7 @@ struct CosmosView: View {
 
                         if event.id != upcoming.prefix(4).last?.id {
                             Divider()
-                                .background(CosmicTheme.textMuted.opacity(0.2))
+                                .background(CosmicTheme.textMuted.opacity(0.3))
                         }
                     }
                 }
@@ -693,7 +830,7 @@ struct CosmosView: View {
                     .rotationEffect(.degrees(viewModel.refreshTrigger ? 360 : 0))
                     .animation(.easeInOut(duration: 0.5), value: viewModel.refreshTrigger)
 
-                Text("Consult the Stars Again")
+                Text(framedRegenerateText)
                     .font(.headline)
                     .fontWeight(.semibold)
             }
@@ -821,9 +958,41 @@ struct CosmosView: View {
         .padding(.vertical, 4)
     }
 
-    // MARK: - Option Expiry Section
+    // MARK: - Monthly Cosmic Calendar Section
 
-    private var optionExpirySection: some View {
+    private var monthlyCalendarScreenshotContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 10) {
+                Image(systemName: "calendar.badge.clock")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(CosmicTheme.goldGradient)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("MONTHLY COSMIC CALENDAR")
+                        .font(TerminalFont.data(13, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textPrimary)
+                        .tracking(1.2)
+
+                    Text("Aspects, signs, and dates for reflective context")
+                        .font(TerminalFont.data(11))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                }
+
+                Spacer()
+
+                Text((viewModel.user?.sunSign ?? .leo).displayName.uppercased())
+                    .font(TerminalFont.data(10, weight: .semibold))
+                    .foregroundColor(CosmicTheme.background)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(CosmicTheme.gold))
+            }
+
+            monthlyCalendarSection
+        }
+    }
+
+    private var monthlyCalendarSection: some View {
         OptionExpiryView(userSign: viewModel.user?.sunSign ?? .aries)
     }
 
@@ -838,7 +1007,7 @@ struct CosmosView: View {
                         LinearGradient(
                             colors: [
                                 CosmicTheme.gold.opacity(0.4),
-                                CosmicTheme.cosmicPurple.opacity(0.3),
+                                CosmicTheme.accentBlue.opacity(0.3),
                                 CosmicTheme.nebulaBlue.opacity(0.2)
                             ],
                             startPoint: .topLeading,
@@ -854,7 +1023,7 @@ struct CosmosView: View {
     private func eventTypeColor(_ type: PlanetaryEventType) -> Color {
         switch type {
         case .retrograde: return .orange
-        case .conjunction: return .purple
+        case .conjunction: return CosmicTheme.accentBlue
         case .moonPhase: return .blue
         case .transit: return CosmicTheme.gold
         }
@@ -952,7 +1121,7 @@ struct CosmicEventDetailSheet: View {
                     .foregroundColor(CosmicTheme.textSecondary)
 
                     Divider()
-                        .background(CosmicTheme.textMuted.opacity(0.3))
+                        .background(CosmicTheme.textMuted.opacity(0.4))
 
                     // Description
                     VStack(alignment: .leading, spacing: 12) {
@@ -990,7 +1159,7 @@ struct CosmicEventDetailSheet: View {
                     // Advice
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            Image(systemName: "sparkles")
+                            Image(systemName: "chart.line.uptrend.xyaxis")
                                 .foregroundColor(CosmicTheme.gold)
                             Text("Trading Advice")
                                 .font(.headline)
@@ -1299,12 +1468,10 @@ struct LunarOutlookSheet: View {
                 }
 
                 ToolbarItem(placement: .principal) {
-                    HStack(spacing: 8) {
-                        Text(lunarData.phase.emoji)
-                        Text("Lunar Outlook")
-                            .font(.headline)
-                            .foregroundColor(CosmicTheme.textPrimary)
-                    }
+                    Text("LUNAR OUTLOOK")
+                        .font(TerminalFont.data(13, weight: .semibold))
+                        .tracking(1.8)
+                        .foregroundColor(CosmicTheme.textPrimary)
                 }
             }
         }
@@ -1339,8 +1506,9 @@ struct LunarOutlookSheet: View {
 
     private func phaseExplainerRow(_ phase: MoonPhase) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Text(phase.emoji)
+            phase.sfImage
                 .font(.title2)
+                .foregroundColor(phase.color)
                 .frame(width: 36)
 
             VStack(alignment: .leading, spacing: 4) {

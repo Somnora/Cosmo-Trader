@@ -174,7 +174,7 @@ struct VolumeLeadersView: View {
                     .font(TerminalFont.data(12))
                     .foregroundColor(CosmicTheme.textMuted)
 
-                Text("Check back when volume and cosmic signals align")
+                Text("Check back when volume and cosmic context align")
                     .font(TerminalFont.data(11))
                     .foregroundColor(CosmicTheme.textMuted)
                     .italic()
@@ -504,7 +504,7 @@ struct CosmicConfluenceAlert: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(
                     LinearGradient(
-                        colors: [CosmicTheme.gold.opacity(0.5), CosmicTheme.cosmicPurple.opacity(0.3)],
+                        colors: [CosmicTheme.gold.opacity(0.5), CosmicTheme.accentBlue.opacity(0.3)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),

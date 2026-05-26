@@ -81,7 +81,7 @@ struct MoonPhaseTimelineProvider: TimelineProvider {
         return WidgetLunarData(
             date: date,
             phaseName: phase.name,
-            phaseEmoji: phase.emoji,
+            phaseEmoji: phase.sfSymbol,
             illumination: illumination,
             isWaxing: age < 14.76,
             daysUntilFullMoon: calculateDaysUntilFull(age: age),
@@ -167,7 +167,7 @@ struct MoonPhaseWidget: Widget {
                 .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Moon Phase")
-        .description("Track lunar cycles and cosmic trading signals.")
+        .description("Track lunar cycles and market timing signals.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }

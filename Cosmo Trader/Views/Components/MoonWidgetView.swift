@@ -56,8 +56,8 @@ struct MoonWidgetView: View {
     // MARK: - Accessibility
 
     private var accessibilityLabel: String {
-        let signal = lunarData.phase.tradingSignal
-        return "\(lunarData.phase.rawValue), \(lunarData.formattedIllumination) illuminated. Trading signal: \(signal.headline)"
+        let reading = lunarData.phase.tradingSignal
+        return "\(lunarData.phase.rawValue), \(lunarData.formattedIllumination) illuminated. Lunar read: \(reading.headline)"
     }
 
     // MARK: - Moon Display
@@ -115,15 +115,15 @@ struct MoonWidgetView: View {
 
             // Days until significant phases
             HStack(spacing: 12) {
-                phaseCountdown("FULL", days: lunarData.daysUntilFullMoon, emoji: "🌕")
-                phaseCountdown("NEW", days: lunarData.daysUntilNewMoon, emoji: "🌑")
+                phaseCountdown("FULL", days: lunarData.daysUntilFullMoon, icon: "circle.fill")
+                phaseCountdown("NEW", days: lunarData.daysUntilNewMoon, icon: "circle")
             }
         }
     }
 
-    private func phaseCountdown(_ label: String, days: Int, emoji: String) -> some View {
+    private func phaseCountdown(_ label: String, days: Int, icon: String) -> some View {
         HStack(spacing: 3) {
-            Text(emoji)
+            Image(systemName: icon)
                 .font(.system(size: 10))
 
             Text("\(days)d")
@@ -262,9 +262,10 @@ struct MoonSignalStrip: View {
         let signal = lunarData.phase.tradingSignal
 
         HStack(spacing: 8) {
-            // Moon emoji
-            Text(lunarData.phase.emoji)
+            // Moon icon
+            lunarData.phase.sfImage
                 .font(.system(size: 14))
+                .foregroundColor(CosmicTheme.gold)
 
             // Phase
             Text(lunarData.phase.rawValue.uppercased())

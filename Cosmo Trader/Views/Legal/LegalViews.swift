@@ -25,22 +25,24 @@ struct PrivacyPolicyView: View {
                     LegalSection(
                         title: "DATA WE COLLECT",
                         content: """
-                        Cosmo Trader collects minimal data necessary to provide our services:
+                        Cosmo Trader is designed to keep your data on your device. The following information is involved when you use the app:
 
-                        • Birth Date: Used solely to calculate your zodiac sign for personalized cosmic insights. Stored locally on your device.
+                        • **Profile Information:** Your birth date is used to calculate your zodiac sign. Your display name is used for personalization. This is stored only on your device.
 
-                        • Portfolio Data: Stock symbols, quantities, and purchase information you choose to enter. Stored locally on your device.
+                        • **Portfolio Data:** Stock symbols and quantities you enter are stored only on your device.
 
-                        • App Usage: Anonymous analytics to improve the app experience. No personally identifiable information is collected.
+                        • **Anonymous Account ID:** When you open the app we sign you in to Firebase Authentication anonymously so the app can talk to its backend (for example, to fetch your personalized daily brief). This anonymous ID is not linked to your real identity and is not used for advertising or tracking across other apps or websites.
+
+                        • **No Behavioural Tracking:** We do not run any third-party advertising or behavioural-analytics SDKs. We do not link app usage to your identity for tracking across other companies' apps or websites.
                         """
                     )
 
                     LegalSection(
                         title: "DATA STORAGE",
                         content: """
-                        All personal data is stored locally on your device using secure iOS storage mechanisms. We do not transmit your personal information to external servers.
+                        Your profile and portfolio are stored only on your device.
 
-                        Your zodiac profile, portfolio holdings, and preferences remain on your device unless you explicitly choose to share them.
+                        Calls to the Cosmo Trader backend use your anonymous Firebase account for authentication; they do not include your name, email, or birth date.
                         """
                     )
 
@@ -49,25 +51,23 @@ struct PrivacyPolicyView: View {
                         content: """
                         We use the following third-party services:
 
-                        • Stock Market APIs: To fetch real-time and historical stock price data. Only stock symbols are transmitted, no personal information.
+                        • **Stock Market APIs (Finnhub):** To fetch stock price data. Only stock symbols are sent.
+                        • **Firebase Authentication (Google):** To sign you in anonymously so the app can talk to our backend.
+                        • **Apple App Store:** For subscription management.
 
-                        • Apple App Store: For subscription management and payment processing.
-
-                        We do not sell, trade, or transfer your personal information to third parties.
+                        We do not run third-party advertising, marketing, or behavioural-analytics SDKs in this release. We do not sell your data.
                         """
                     )
 
                     LegalSection(
                         title: "YOUR RIGHTS",
                         content: """
-                        You have the right to:
+                        You have full control over your data:
 
-                        • Access your data at any time within the app
-                        • Delete all your data by uninstalling the app
-                        • Opt out of analytics in device settings
-                        • Request information about data processing
+                        • **Access & Export:** Use the "Export My Data" feature in your Profile to get a complete JSON file of your information.
+                        • **Deletion:** Use the "Delete All Data" feature in your Profile to permanently erase your profile, portfolio, watchlist, preferences, and usage counters from this device. An anonymous sign-in session and an anonymous device identifier used for backend requests are not cleared by this action and remain until you delete the app.
 
-                        For data requests, contact: privacy@cosmotrader.app
+                        For data inquiries, contact: privacy@cosmotrader.app
                         """
                     )
 
@@ -567,9 +567,9 @@ struct AboutView: View {
                         content: """
                         Stock market data provided by Finnhub.io
 
-                        Finnhub provides real-time market data, company information, and financial metrics used throughout this application.
+                        Finnhub provides the market data, company information, and financial metrics used throughout this application.
 
-                        Data may be delayed up to 15 minutes for free tier users.
+                        Data may be delayed up to 15 minutes.
 
                         Visit finnhub.io for more information.
                         """
@@ -641,6 +641,8 @@ struct AboutView: View {
 // MARK: - Debug Info Section
 
 struct DebugInfoSection: View {
+    @State private var distribution: BuildInfo.Distribution?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Section header
@@ -680,10 +682,8 @@ struct DebugInfoSection: View {
                 DebugInfoRow(label: "Device", value: BuildInfo.deviceModel)
                 DebugInfoRow(label: "iOS", value: BuildInfo.osVersion)
 
-                if BuildInfo.isTestFlight {
-                    DebugInfoRow(label: "Distribution", value: "TestFlight")
-                } else if BuildInfo.isAppStore {
-                    DebugInfoRow(label: "Distribution", value: "App Store")
+                if let distribution {
+                    DebugInfoRow(label: "Distribution", value: distribution.rawValue)
                 }
             }
         }
@@ -696,6 +696,9 @@ struct DebugInfoSection: View {
                         .stroke(Color.green.opacity(0.3), lineWidth: 1)
                 )
         )
+        .task {
+            distribution = await BuildInfo.distribution()
+        }
     }
 }
 

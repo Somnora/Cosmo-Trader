@@ -17,12 +17,12 @@ struct KarmicLedgerCard: View {
                 // Icon
                 ZStack {
                     Circle()
-                        .fill(Color.purple.opacity(0.2))
+                        .fill(CosmicTheme.accentBlue.opacity(0.2))
                         .frame(width: 44, height: 44)
 
                     Image(systemName: "book.closed.fill")
                         .font(.title3)
-                        .foregroundColor(.purple)
+                        .foregroundColor(CosmicTheme.accentBlue)
                 }
 
                 // Content
@@ -128,12 +128,12 @@ struct KarmicLedgerSheet: View {
             // Book icon
             ZStack {
                 Circle()
-                    .fill(Color.purple.opacity(0.15))
+                    .fill(CosmicTheme.accentBlue.opacity(0.15))
                     .frame(width: 80, height: 80)
 
                 Image(systemName: "book.closed.fill")
                     .font(.system(size: 36))
-                    .foregroundColor(.purple)
+                    .foregroundColor(CosmicTheme.accentBlue)
             }
 
             // Title
@@ -163,7 +163,7 @@ struct KarmicLedgerSheet: View {
 
                 if let troublesome = karmicService.troublesomeElement {
                     StatBadge(
-                        value: troublesome.element.emoji,
+                        value: troublesome.element.displayName,
                         label: "Trouble"
                     )
                 }
@@ -296,8 +296,7 @@ struct KarmicEntryRow: View {
                 HStack {
                     // Stock info
                     HStack(spacing: 8) {
-                        Text(entry.stockSign.symbol)
-                            .font(.title3)
+                        ZodiacMark(sign: entry.stockSign, size: 20, style: .element)
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(entry.stockSymbol)
@@ -388,13 +387,12 @@ struct KarmicEntryDetailSheet: View {
             ScrollView {
                 VStack(spacing: 24) {
                     // Stock header
-                    VStack(spacing: 12) {
-                        Text(entry.stockSign.symbol)
-                            .font(.system(size: 56))
+                VStack(spacing: 12) {
+                    ZodiacMark(sign: entry.stockSign, size: 56, style: .element)
 
-                        Text(entry.stockSymbol)
-                            .font(.system(size: 24, weight: .bold, design: .monospaced))
-                            .foregroundColor(CosmicTheme.textPrimary)
+                    Text(entry.stockSymbol)
+                        .font(.system(size: 24, weight: .bold, design: .monospaced))
+                        .foregroundColor(CosmicTheme.textPrimary)
 
                         Text(entry.stockName)
                             .font(TerminalFont.caption(12))
@@ -445,13 +443,20 @@ struct KarmicEntryDetailSheet: View {
 
                         VStack(spacing: 0) {
                             DetailRow(label: "Date", value: entry.formattedDate)
-                            Divider().background(CosmicTheme.textMuted.opacity(0.2))
+                            Divider().background(CosmicTheme.textMuted.opacity(0.3))
                             DetailRow(label: "Moon Phase", value: entry.moonPhase.rawValue)
-                            Divider().background(CosmicTheme.textMuted.opacity(0.2))
+                            Divider().background(CosmicTheme.textMuted.opacity(0.3))
                             DetailRow(label: "Moon Sign", value: entry.moonSign.displayName)
-                            Divider().background(CosmicTheme.textMuted.opacity(0.2))
-                            DetailRow(label: "Stock Sign", value: "\(entry.stockSign.symbol) \(entry.stockSign.displayName)")
-                            Divider().background(CosmicTheme.textMuted.opacity(0.2))
+                            Divider().background(CosmicTheme.textMuted.opacity(0.3))
+                            DetailRow(label: "Stock Sign") {
+                                HStack(spacing: 6) {
+                                    ZodiacMark(sign: entry.stockSign, size: 12, style: .element)
+                                    Text(entry.stockSign.displayName)
+                                        .font(TerminalFont.caption(12))
+                                        .foregroundColor(CosmicTheme.textPrimary)
+                                }
+                            }
+                            Divider().background(CosmicTheme.textMuted.opacity(0.3))
                             DetailRow(label: "Mercury Retrograde", value: entry.isMercuryRetrograde ? "Yes" : "No")
                         }
                         .background(
@@ -498,9 +503,21 @@ struct KarmicEntryDetailSheet: View {
 
 // MARK: - Detail Row
 
-private struct DetailRow: View {
+private struct DetailRow<Value: View>: View {
     let label: String
-    let value: String
+    let value: Value
+
+    init(label: String, value: String) where Value == Text {
+        self.label = label
+        self.value = Text(value)
+            .font(TerminalFont.caption(12))
+            .foregroundColor(CosmicTheme.textPrimary)
+    }
+
+    init(label: String, @ViewBuilder value: () -> Value) {
+        self.label = label
+        self.value = value()
+    }
 
     var body: some View {
         HStack {
@@ -510,9 +527,7 @@ private struct DetailRow: View {
 
             Spacer()
 
-            Text(value)
-                .font(TerminalFont.caption(12))
-                .foregroundColor(CosmicTheme.textPrimary)
+            value
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -658,7 +673,8 @@ private struct ElementLossRow: View {
         VStack(spacing: 8) {
             HStack {
                 HStack(spacing: 8) {
-                    Text(element.emoji)
+                    Image(systemName: element.sfSymbol)
+                        .foregroundColor(element.color)
                     Text(element.displayName)
                         .font(TerminalFont.body(14))
                         .foregroundColor(CosmicTheme.textPrimary)
@@ -675,7 +691,7 @@ private struct ElementLossRow: View {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(CosmicTheme.textMuted.opacity(0.2))
+                        .fill(CosmicTheme.textMuted.opacity(0.3))
                         .frame(height: 6)
 
                     RoundedRectangle(cornerRadius: 4)
@@ -722,7 +738,11 @@ struct AddKarmicEntrySheet: View {
 
                     Picker("Zodiac Sign", selection: $selectedSign) {
                         ForEach(ZodiacSign.allCases, id: \.self) { sign in
-                            Text("\(sign.symbol) \(sign.displayName)").tag(sign)
+                            HStack(spacing: 8) {
+                                ZodiacMark(sign: sign, size: 14, style: .element)
+                                Text(sign.displayName)
+                            }
+                            .tag(sign)
                         }
                     }
                 }
@@ -799,7 +819,7 @@ struct KarmicLedgerBanner: View {
                 HStack(spacing: 12) {
                     Image(systemName: "book.closed.fill")
                         .font(.title3)
-                        .foregroundColor(.purple)
+                        .foregroundColor(CosmicTheme.accentBlue)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Karmic Ledger")
@@ -824,10 +844,10 @@ struct KarmicLedgerBanner: View {
                 .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.purple.opacity(0.1))
+                        .fill(CosmicTheme.accentBlue.opacity(0.1))
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.purple.opacity(0.3), lineWidth: 1)
+                                .stroke(CosmicTheme.accentBlue.opacity(0.3), lineWidth: 1)
                         )
                 )
             }

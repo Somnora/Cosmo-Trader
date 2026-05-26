@@ -28,6 +28,9 @@ class AppState {
     /// The current user's profile (nil if not onboarded)
     var currentUser: UserProfile?
 
+    /// Firebase Auth uid (if signed in)
+    var firebaseUID: String?
+
     /// Has the user completed onboarding?
     var hasCompletedOnboarding: Bool {
         currentUser != nil
@@ -49,7 +52,7 @@ class AppState {
     var isOfflineMode: Bool = false
 
     /// Currently selected tab (for cross-tab navigation)
-    var selectedTab: Tab = .portfolio
+    var selectedTab: Tab = .today
 
     // MARK: - Storage Keys
 
@@ -61,12 +64,152 @@ class AppState {
     // MARK: - Initialization
 
     init() {
+        if configureForAutomationIfNeeded() {
+            return
+        }
+
         loadUserFromStorage()
     }
 
     /// Initialize with a specific user (for previews/testing)
     init(user: UserProfile?) {
         self.currentUser = user
+    }
+
+    static var launchArguments: Set<String> {
+        Set(CommandLine.arguments)
+    }
+
+    static var isUITesting: Bool {
+        launchArguments.contains("--uitesting")
+    }
+
+    static var isScreenshotMode: Bool {
+        launchArguments.contains("--screenshot-mode")
+    }
+
+    static var shouldDisableFirebase: Bool {
+        launchArguments.contains("--disable-firebase")
+    }
+
+    static var isScreenshotCalendarMode: Bool {
+        launchArguments.contains("--tab-calendar")
+    }
+
+    static var screenshotStockDetailSymbol: String? {
+        if let explicitSymbol = launchArguments.first(where: { $0.hasPrefix("--stock-detail=") })?
+            .replacingOccurrences(of: "--stock-detail=", with: "")
+        {
+            return explicitSymbol
+        }
+
+        return launchArguments.contains("--tab-stock-detail") ? "AAPL" : nil
+    }
+
+    static var shouldFocusAstroOverlayScreenshot: Bool {
+        launchArguments.contains("--focus-astro-overlay")
+    }
+
+    @discardableResult
+    private func configureForAutomationIfNeeded() -> Bool {
+        let arguments = Self.launchArguments
+        guard arguments.contains("--uitesting") || arguments.contains("--screenshot-mode") else { return false }
+
+        configureSubscriptionStateForAutomation(arguments: arguments)
+
+        if arguments.contains("--reset-onboarding") {
+            clearStoredUserForAutomation()
+            currentUser = nil
+            return true
+        }
+
+        guard arguments.contains("--skip-onboarding") else {
+            return true
+        }
+
+        currentUser = makeAutomationUser(arguments: arguments)
+        selectedTab = makeAutomationStartTab(arguments: arguments)
+        saveUserToStorage()
+        UserDefaults.standard.set(true, forKey: hasOnboardedKey)
+        return true
+    }
+
+    private func makeAutomationStartTab(arguments: Set<String>) -> Tab {
+        if arguments.contains("--tab-today") { return .today }
+        if arguments.contains("--tab-stock-detail") { return .portfolio }
+        if arguments.contains("--tab-portfolio") { return .portfolio }
+        if arguments.contains("--tab-discover") { return .discover }
+        if arguments.contains("--tab-calendar") { return .cosmos }
+        if arguments.contains("--tab-cosmos") { return .cosmos }
+        if arguments.contains("--tab-profile") { return .profile }
+        return .today
+    }
+
+    private func makeAutomationUser(arguments: Set<String>) -> UserProfile {
+        if arguments.contains("--empty-discover") {
+            return UserProfile(
+                displayName: "Empty Discover",
+                email: "empty.discover@cosmictrader.com",
+                birthMonth: 4,
+                birthDay: 10,
+                birthYear: 2000,
+                portfolio: [],
+                skippedStocks: MockStockData.all.map(\.symbol)
+            )
+        }
+
+        if arguments.contains("--empty-portfolio") {
+            return UserProfile.newUser
+        }
+
+        if arguments.contains("--sample-stocks") {
+            return UserProfile(
+                displayName: "Discover Tester",
+                email: "discover.tester@cosmictrader.com",
+                birthMonth: 8,
+                birthDay: 15,
+                birthYear: 1990,
+                portfolio: [],
+                watchlist: [],
+                skippedStocks: []
+            )
+        }
+
+        return UserProfile.sample
+    }
+
+    private func configureSubscriptionStateForAutomation(arguments: Set<String>) {
+        let isPremium = arguments.contains("--premium-user")
+
+        if isPremium {
+            let expirationDate = Calendar.current.date(byAdding: .year, value: 1, to: Date()) ?? Date()
+            UserDefaults.standard.set(true, forKey: "subscription_isPremium")
+            UserDefaults.standard.set(expirationDate, forKey: "subscription_expirationDate")
+            UserDefaults.standard.removeObject(forKey: "subscription_trialStartDate")
+            UserDefaults.standard.removeObject(forKey: "subscription_trialUsed")
+        } else {
+            UserDefaults.standard.set(false, forKey: "subscription_isPremium")
+            UserDefaults.standard.removeObject(forKey: "subscription_expirationDate")
+            UserDefaults.standard.removeObject(forKey: "subscription_trialStartDate")
+            UserDefaults.standard.removeObject(forKey: "subscription_trialUsed")
+        }
+
+        UserDefaults.standard.removeObject(forKey: "subscription_dailySwipeCount")
+        UserDefaults.standard.removeObject(forKey: "subscription_lastSwipeDate")
+        UserDefaults.standard.removeObject(forKey: "subscription_horoscopeCountToday")
+        UserDefaults.standard.removeObject(forKey: "subscription_lastHoroscopeDate")
+        UserDefaults.standard.removeObject(forKey: "subscription_roastCountToday")
+        UserDefaults.standard.removeObject(forKey: "subscription_lastRoastDate")
+    }
+
+    private func clearStoredUserForAutomation() {
+        UserDefaults.standard.removeObject(forKey: userProfileKey)
+        UserDefaults.standard.removeObject(forKey: backupProfileKey)
+        UserDefaults.standard.removeObject(forKey: lastSaveKey)
+        UserDefaults.standard.set(false, forKey: hasOnboardedKey)
+        firebaseUID = nil
+        didRecoverFromCorruption = false
+        errorState.clear()
     }
 
     // MARK: - Onboarding
@@ -109,6 +252,7 @@ class AppState {
     /// Reset onboarding (for testing or logout)
     func resetOnboarding() {
         currentUser = nil
+        firebaseUID = nil
         UserDefaults.standard.removeObject(forKey: userProfileKey)
         UserDefaults.standard.removeObject(forKey: backupProfileKey)
         UserDefaults.standard.set(false, forKey: hasOnboardedKey)
@@ -184,6 +328,38 @@ class AppState {
         saveUserToStorage()
     }
 
+    // MARK: - Signal Framing
+
+    /// Update the user's global signal framing level
+    func updateSignalFramingLevel(_ level: SignalFramingLevel) {
+        guard var user = currentUser else { return }
+        user.signalFramingLevel = level
+        currentUser = user
+        saveUserToStorage()
+    }
+
+    /// Set or remove a per-stock signal framing override
+    /// - Parameters:
+    ///   - symbol: The stock symbol
+    ///   - level: The framing level to set, or nil to remove the override
+    func setStockFramingOverride(symbol: String, level: SignalFramingLevel?) {
+        guard var user = currentUser else { return }
+
+        if let level = level {
+            user.stockFramingOverrides[symbol] = level
+        } else {
+            user.stockFramingOverrides.removeValue(forKey: symbol)
+        }
+
+        currentUser = user
+        saveUserToStorage()
+    }
+
+    /// Get the effective framing level for a stock (uses override or global)
+    func framingLevel(for symbol: String) -> SignalFramingLevel {
+        currentUser?.framingLevel(for: symbol) ?? .balanced
+    }
+
     // MARK: - Portfolio Management
 
     /// Add a stock to the portfolio
@@ -244,9 +420,19 @@ class AppState {
     func addToWatchlist(_ symbol: String) {
         guard var user = currentUser else { return }
 
+        let wasEmpty = user.watchlist.isEmpty
         user.addToWatchlist(symbol)
         currentUser = user
         saveUserToStorage()
+
+        if wasEmpty {
+            Task { @MainActor in
+                await ReferralService.shared.qualifyReferralIfNeeded(
+                    milestone: .firstWatchlistAdd,
+                    storageKey: ReferralMilestone.firstWatchlistAdd.qualificationStorageKey
+                )
+            }
+        }
     }
 
     /// Remove a stock from the watchlist

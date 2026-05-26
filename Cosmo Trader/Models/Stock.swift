@@ -268,6 +268,19 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         ceoZodiacSign?.element
     }
 
+    private func deterministicSeed(_ parts: String...) -> UInt64 {
+        var hash: UInt64 = 1469598103934665603
+        for part in parts {
+            for byte in part.utf8 {
+                hash ^= UInt64(byte)
+                hash &*= 1099511628211
+            }
+            hash ^= 0xff
+            hash &*= 1099511628211
+        }
+        return hash
+    }
+
     /// Whether the CEO info is available
     var hasCEOInfo: Bool {
         ceoName != nil && ceoBirthDate != nil
@@ -280,8 +293,7 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
     var priceHistory: [Double] {
         // Generate deterministic pseudo-random history based on symbol hash
         var history: [Double] = []
-        let seed = symbol.hashValue
-        var generator = SeededRandomGenerator(seed: UInt64(abs(seed)))
+        var generator = SeededRandomGenerator(seed: deterministicSeed(symbol, "priceHistory"))
 
         // Start from a base price (current price minus recent change extrapolated)
         let basePrice = currentPrice - (priceChange * 5)
@@ -318,8 +330,7 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
     func chartData(for timeframe: ChartTimeframe) -> [PricePoint] {
         let calendar = Calendar.current
         let now = Date()
-        let seed = symbol.hashValue + timeframe.hashValue
-        var generator = SeededRandomGenerator(seed: UInt64(abs(seed)))
+        var generator = SeededRandomGenerator(seed: deterministicSeed(symbol, timeframe.rawValue))
 
         // Determine number of points and interval based on timeframe
         // Reduced "all" from 60 to 36 points (3 years) for stability
@@ -424,8 +435,7 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
 
     /// Key statistics for the stock
     var keyStats: StockKeyStats {
-        let seed = symbol.hashValue
-        var generator = SeededRandomGenerator(seed: UInt64(abs(seed)))
+        var generator = SeededRandomGenerator(seed: deterministicSeed(symbol, "keyStats"))
 
         // Generate realistic mock stats
         let dayHigh = currentPrice * (1 + Double.random(in: 0.005...0.025, using: &generator))
@@ -975,7 +985,7 @@ struct StockKeyStats {
  )
  print(apple.zodiacSign.displayName)  // "Aries"
  print(apple.zodiacSign.symbol)       // "♈"
- print(apple.element.emoji)           // "🔥" (Fire)
+ print(apple.element.sfSymbol)        // "flame.fill" (Fire)
 
  EXAMPLE 2: Check compatibility with user's sign
  -----------------------------------------------

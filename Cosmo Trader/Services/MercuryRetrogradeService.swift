@@ -49,7 +49,7 @@ final class MercuryRetrogradeService {
     private init() {
         self.astroService = AstroAlertService.shared
         refreshStatus()
-        startRefreshTimer()
+        // Timer will be started by App when scene becomes active
     }
 
     // MARK: - Public Methods
@@ -241,15 +241,31 @@ final class MercuryRetrogradeService {
         ("Nov 9", "Nov 29", "Sagittarius")
     ]
 
-    // MARK: - Private Methods
+    // MARK: - Timer Management
 
-    private func startRefreshTimer() {
+    @objc private func handleRefreshTimer() {
+        refreshStatus()
+    }
+
+    /// Start the refresh timer (called when app becomes active)
+    func startRefreshTimer() {
+        // Prevent duplicate timers
+        stopRefreshTimer()
+
         // Refresh every hour
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in
-            Task { @MainActor in
-                MercuryRetrogradeService.shared.refreshStatus()
-            }
-        }
+        refreshTimer = Timer.scheduledTimer(
+            timeInterval: 3600,
+            target: self,
+            selector: #selector(handleRefreshTimer),
+            userInfo: nil,
+            repeats: true
+        )
+    }
+
+    /// Stop the refresh timer (called when app goes to background)
+    func stopRefreshTimer() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
     }
 }
 
@@ -271,16 +287,15 @@ enum RetrogradeStatus: String, CaseIterable {
         }
     }
 
-    var emoji: String {
+    var sfSymbol: String {
         switch self {
-        case .active: return "☿️"
-        case .stormBeginning: return "⚡️"
-        case .stormEnding: return "🌤"
-        case .preShadow: return "⚠️"
-        case .clear: return "✅"
+        case .active: return "arrow.uturn.backward.circle.fill"
+        case .stormBeginning: return "bolt.fill"
+        case .stormEnding: return "cloud.sun.fill"
+        case .preShadow: return "exclamationmark.triangle.fill"
+        case .clear: return "checkmark.circle.fill"
         }
     }
 }
 
 // MARK: - Analytics Events
-

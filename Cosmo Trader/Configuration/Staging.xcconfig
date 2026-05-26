@@ -14,7 +14,7 @@
 APP_ENVIRONMENT = staging
 
 // MARK: - App Identity (suffix for staging builds)
-PRODUCT_BUNDLE_IDENTIFIER = com.cosmotrader.app.staging
+PRODUCT_BUNDLE_IDENTIFIER = $(COSMO_RELEASE_BUNDLE_IDENTIFIER)
 PRODUCT_NAME = Cosmo Trader STG
 
 // MARK: - Build Settings
@@ -33,4 +33,3 @@ VERBOSE_LOGGING = YES
 // These are overridden by Secrets.xcconfig if it exists
 // Use staging-specific keys if available:
 // FINNHUB_API_KEY_STAGING = (from Secrets.xcconfig)
-// MIXPANEL_TOKEN_STAGING = (from Secrets.xcconfig)

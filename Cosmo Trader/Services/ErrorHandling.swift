@@ -86,27 +86,27 @@ enum NetworkError: Error, LocalizedError, Equatable {
         }
     }
 
-    // MARK: - Cosmic Messages
+    // MARK: - User-Facing Messages
 
-    /// User-friendly cosmic-themed message
+    /// User-friendly market astrology message
     var cosmicMessage: String {
         switch self {
         case .noConnection:
-            return "The cosmic signals are blocked. Check your connection to the universe."
+            return "Market signal unavailable. Check your connection."
         case .timeout:
-            return "The stars are taking too long to align. Please try again."
+            return "Market signal timed out. Please try again."
         case .serverError:
-            return "The celestial servers are experiencing turbulence."
+            return "Signal service is temporarily unavailable."
         case .rateLimited:
-            return "You've consulted the cosmos too frequently. Wait a moment before asking again."
+            return "Too many refreshes. Wait a moment before trying again."
         case .invalidResponse:
-            return "The astral transmission was unclear. Try again."
+            return "The signal response was unclear. Try again."
         case .decodingError:
-            return "We couldn't interpret the cosmic data. Something got lost in translation."
+            return "We couldn't interpret the market astrology data."
         case .invalidSymbol(let symbol):
-            return "We couldn't find '\(symbol)' in our galaxy of stocks."
+            return "We couldn't find '\(symbol)' in supported stocks."
         case .apiKeyMissing:
-            return "The cosmic gateway requires configuration."
+            return "Market data requires configuration."
         case .unknown:
             return "An unexpected disturbance in the cosmic field occurred."
         }
@@ -295,11 +295,11 @@ enum ValidationError: Error, LocalizedError, Equatable {
     var cosmicMessage: String {
         switch self {
         case .emptyName:
-            return "Every celestial being needs a name."
+            return "Enter a name to personalize your profile."
         case .nameTooLong:
-            return "Your cosmic identity is a bit too long for our star charts."
+            return "Your display name is too long."
         case .invalidCharacters:
-            return "Your name contains characters unknown to our cosmic alphabet."
+            return "Your name contains unsupported characters."
         case .futureBirthDate:
             return "Time travel hasn't been invented yet!"
         case .unreasonableBirthDate:

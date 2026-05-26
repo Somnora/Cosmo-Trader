@@ -457,7 +457,7 @@ enum L10n {
 
     // MARK: - Widgets
 
-    /// Localized strings for home screen widgets.
+    /// Localized strings reserved for future widget surfaces.
     enum Widget {
         static let portfolioTitle = LocalizedStringKey("widget.portfolio.title")
         static let portfolioDescription = LocalizedStringKey("widget.portfolio.description")

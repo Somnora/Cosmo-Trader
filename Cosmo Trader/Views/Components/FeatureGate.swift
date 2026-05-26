@@ -188,10 +188,12 @@ struct FeatureUpgradeSheet: View {
                 .tracking(1)
 
             VStack(alignment: .leading, spacing: 6) {
-                benefitRow("Real-time market data")
                 benefitRow("Unlimited Discovery swipes")
-                benefitRow("Advanced horoscopes")
-                benefitRow("Lunar phase alerts")
+                benefitRow("Refresh your reading anytime")
+                benefitRow("Track more portfolio holdings")
+                benefitRow("Cosmic Correlation Lab")
+                benefitRow("Generate more Cosmic Roasts")
+                benefitRow("Moon-in-sign local alert")
             }
         }
         .padding(16)
@@ -668,7 +670,7 @@ struct CompactUpgradePrompt: View {
         VStack(spacing: 24) {
             FeatureGate(feature: .realTimeData) {
                 VStack {
-                    Text("REAL-TIME DATA")
+                    Text("ORACLE FEATURE")
                         .font(.system(size: 14, weight: .bold, design: .monospaced))
                     Text("$145.23")
                         .font(.system(size: 32, weight: .bold, design: .monospaced))

@@ -14,7 +14,7 @@
 APP_ENVIRONMENT = development
 
 // MARK: - App Identity (suffix for dev builds)
-PRODUCT_BUNDLE_IDENTIFIER = com.cosmotrader.app.dev
+PRODUCT_BUNDLE_IDENTIFIER = $(COSMO_RELEASE_BUNDLE_IDENTIFIER)
 PRODUCT_NAME = Cosmo Trader Dev
 
 // MARK: - Build Settings
@@ -32,4 +32,3 @@ VERBOSE_LOGGING = YES
 // MARK: - API Keys (placeholders - actual values from Secrets.xcconfig)
 // These are overridden by Secrets.xcconfig if it exists
 // FINNHUB_API_KEY = (from Secrets.xcconfig)
-// MIXPANEL_TOKEN = (from Secrets.xcconfig)

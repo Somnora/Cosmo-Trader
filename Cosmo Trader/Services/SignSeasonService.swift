@@ -376,7 +376,7 @@ struct SignSeason: Identifiable {
         "\(sign.displayName) Season begins \(formattedStartDate). Your \(sign.element.displayName) Sector stocks are activated."
     }
 
-    /// Notification text for push notifications
+    /// Notification text for local notifications
     var notificationText: String {
         "Sun enters \(sign.displayName). Your \(sign.element.displayName) Sector is in focus."
     }

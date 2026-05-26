@@ -47,13 +47,13 @@ struct ZodiacWeeklyPerformance: Identifiable {
         case weak = "Weak"
         case struggling = "Struggling"
 
-        var emoji: String {
+        var sfSymbol: String {
             switch self {
-            case .exceptional: return "🔥"
-            case .strong: return "✨"
-            case .modest: return "📈"
-            case .weak: return "📉"
-            case .struggling: return "💀"
+            case .exceptional: return "flame.fill"
+            case .strong: return "sparkles"
+            case .modest: return "chart.line.uptrend.xyaxis"
+            case .weak: return "chart.line.downtrend.xyaxis"
+            case .struggling: return "exclamationmark.triangle.fill"
             }
         }
     }
@@ -186,7 +186,7 @@ enum ZodiacPerformanceService {
     ) -> String {
         guard let topPerformer = performances.first,
               let bottomPerformer = performances.last else {
-            return "The cosmos await more data to reveal their patterns."
+            return "More performance data is needed before the zodiac pattern is useful."
         }
 
         // Find user's sign ranking
@@ -237,15 +237,15 @@ enum ZodiacPerformanceService {
         let sign = performance.sign
 
         if rank == 1 {
-            return "Leading the cosmic leaderboard! \(sign.displayName) energy is being rewarded."
+            return "\(sign.displayName) leads the zodiac performance board this week."
         } else if rank <= 3 {
-            return "Strong week for \(sign.displayName). The stars are aligned."
+            return "Strong week for \(sign.displayName). Market and sign signals are aligned."
         } else if rank <= 6 {
             return "Middle of the pack. \(sign.displayName) holds steady."
         } else if rank <= 9 {
-            return "Below average week. \(sign.displayName) awaits better cosmic timing."
+            return "Below average week. \(sign.displayName) may need better timing."
         } else {
-            return "Challenging week for \(sign.displayName). Consider it a cosmic test."
+            return "Challenging week for \(sign.displayName). Treat it as a risk-control signal."
         }
     }
 
@@ -390,13 +390,13 @@ enum ZodiacPerformanceService {
 
         let insight: String
         if rank == 1 {
-            insight = "Your sign leads the cosmos this week! \(userPerf.formattedReturn)"
+            insight = "Your sign leads this week's zodiac board: \(userPerf.formattedReturn)"
         } else if rank <= 3 {
-            insight = "Top 3 finish! \(userSign.displayName) is cosmically blessed at \(userPerf.formattedReturn)"
+            insight = "Top 3 finish. \(userSign.displayName) is outperforming at \(userPerf.formattedReturn)"
         } else if isOutperforming {
             insight = "\(userSign.displayName) beats the market average at #\(rank)"
         } else {
-            insight = "\(userSign.displayName) at #\(rank) - the stars suggest patience"
+            insight = "\(userSign.displayName) at #\(rank) - patience is the cleaner read"
         }
 
         return (rank: rank, insight: insight, isOutperforming: isOutperforming)

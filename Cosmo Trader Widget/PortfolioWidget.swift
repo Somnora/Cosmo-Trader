@@ -145,6 +145,11 @@ struct SmallPortfolioWidget: View {
 struct MediumPortfolioWidget: View {
     let data: WidgetPortfolioData
 
+    /// Whether to use mystical language (reads from shared framing level)
+    private var useMysticalLanguage: Bool {
+        WidgetDataProvider.isMysticalFraming()
+    }
+
     var body: some View {
         ZStack {
             WidgetTheme.background
@@ -152,7 +157,7 @@ struct MediumPortfolioWidget: View {
             VStack(spacing: 10) {
                 // Header row
                 HStack {
-                    Text("COSMIC PORTFOLIO")
+                    Text(useMysticalLanguage ? "COSMIC PORTFOLIO" : "PORTFOLIO")
                         .font(.system(size: 10, weight: .bold, design: .monospaced))
                         .foregroundColor(WidgetTheme.textMuted)
 
@@ -205,17 +210,19 @@ struct MediumPortfolioWidget: View {
                     }
                 }
 
-                // Compatibility footer
-                HStack(spacing: 4) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 9))
-                        .foregroundColor(WidgetTheme.gold)
+                // Compatibility footer (only show in mystical mode)
+                if useMysticalLanguage {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 9))
+                            .foregroundColor(WidgetTheme.gold)
 
-                    Text("\(data.overallCompatibility)% compatible with your sign")
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
-                        .foregroundColor(WidgetTheme.textMuted)
+                        Text("\(data.overallCompatibility)% compatible with your sign")
+                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            .foregroundColor(WidgetTheme.textMuted)
 
-                    Spacer()
+                        Spacer()
+                    }
                 }
             }
             .padding(14)

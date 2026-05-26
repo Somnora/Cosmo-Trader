@@ -17,6 +17,8 @@ struct StockDetailView: View {
 
     // MARK: - Properties
 
+    private static let astroOverlayScrollID = "stockDetail.astroOverlay"
+
     let stock: Stock
 
     /// Shared app state
@@ -58,7 +60,7 @@ struct StockDetailView: View {
     }
 
     /// Animation states
-    @State private var appearAnimation: Bool = false
+    @State private var appearAnimation: Bool = AppState.isScreenshotMode
     @State private var showShareSheet: Bool = false
     @State private var showAddedConfirmation: Bool = false
     @State private var confirmationMessage: String = ""
@@ -74,7 +76,73 @@ struct StockDetailView: View {
 
     /// Cosmic pattern state
     @State private var cosmicInsights: [CosmicPatternInsight] = []
-    @State private var isLoadingPatterns: Bool = true
+    @State private var isLoadingPatterns: Bool = !AppState.isScreenshotMode
+
+    /// Per-stock framing override (premium feature)
+    @State private var showFramingOverrideSheet: Bool = false
+
+    /// Current effective framing level for this stock
+    private var effectiveFramingLevel: SignalFramingLevel {
+        user?.framingLevel(for: stock.symbol) ?? .balanced
+    }
+
+    /// Whether this stock has a custom framing override
+    private var hasFramingOverride: Bool {
+        user?.stockFramingOverrides[stock.symbol] != nil
+    }
+
+    /// Framed zodiac personality description
+    private var framedPersonalityDescription: String {
+        SignalFramingService.shared.frameZodiacPersonality(
+            sign: stock.zodiacSign,
+            level: effectiveFramingLevel
+        )
+    }
+
+    /// Framed corporate personality description
+    private var framedCorporatePersonality: String {
+        SignalFramingService.shared.frameCorporatePersonality(
+            sign: stock.zodiacSign,
+            level: effectiveFramingLevel
+        )
+    }
+
+    /// Framed section header for corporate personality
+    private var framedCorporateSectionHeader: String {
+        switch effectiveFramingLevel {
+        case .rational:
+            return "Investment Characteristics"
+        case .leanRational:
+            return "As an Investment, This Company..."
+        default:
+            return "As an Investor, This Company Is..."
+        }
+    }
+
+    /// Framed element dynamic description
+    private var framedElementDynamic: String {
+        guard let userSign = user?.sunSign else {
+            return safeCompatibility.elementDynamic
+        }
+        return SignalFramingService.shared.frameElementDynamic(
+            userElement: userSign.element,
+            stockElement: stock.zodiacSign.element,
+            level: effectiveFramingLevel
+        )
+    }
+
+    /// Framed CEO leadership insight
+    private var framedCEOInsight: String {
+        guard let ceoName = stock.ceoName,
+              let ceoSign = stock.ceoZodiacSign else {
+            return ""
+        }
+        return SignalFramingService.shared.frameCEOInsight(
+            ceoName: ceoName,
+            ceoSign: ceoSign,
+            level: effectiveFramingLevel
+        )
+    }
 
     // MARK: - Init
 
@@ -86,82 +154,102 @@ struct StockDetailView: View {
     // MARK: - Body
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 24) {
-                // 1. Header Section
-                headerSection
+        ScrollViewReader { proxy in
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 24) {
+                    // 1. Header Section
+                    headerSection
 
-                // 2. Price Chart Section
-                chartSection
+                    // 2. Price Chart Section
+                    chartSection
+                        .id(Self.astroOverlayScrollID)
 
-                // 3. Key Statistics
-                keyStatsSection
+                    // 3. Key Statistics
+                    keyStatsSection
 
-                // 3.5. Cosmic Signals (Technical + Astro Analysis)
-                cosmicSignalsSection
+                    // 3.5. Cosmic Signals (Technical + Astro Analysis)
+                    cosmicSignalsSection
 
-                // 4. Compatibility Section
-                compatibilitySection
+                    // 4. Compatibility Section
+                    compatibilitySection
 
-                // 3. Astrological Profile
-                astrologicalProfileSection
+                    // 4.5 Signal Framing Override (Premium)
+                    framingOverrideSection
 
-                // 3.5 CEO Compatibility (if CEO info available)
-                if stock.hasCEOInfo {
-                    ceoCompatibilitySection
+                    // 3. Astrological Profile
+                    astrologicalProfileSection
+
+                    // 3.5 CEO Compatibility (if CEO info available)
+                    if stock.hasCEOInfo {
+                        ceoCompatibilitySection
+                    }
+
+                    // 4. Saturn Return Analysis (if company is approaching/in Saturn Return)
+                    SaturnReturnCard(stock: stock)
+
+                    // 5. Cosmic Rivals (opposition stocks)
+                    CosmicRivalCard(stock: stock, allStocks: MockStockData.all)
+
+                    // 6. Upcoming Earnings with Cosmic Horoscope
+                    StockEarningsSection(stock: stock)
+
+                    // 7. Financial Stats
+                    financialStatsSection
+
+                    // 5. Action Buttons
+                    actionButtons
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, CosmicTheme.tabBarClearance + 24)
+                .iPadReadableContent(maxWidth: 920)
+            }
+            .background(backgroundGradient)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text(stock.symbol)
+                        .font(.headline)
+                        .foregroundColor(CosmicTheme.textPrimary)
                 }
 
-                // 4. Saturn Return Analysis (if company is approaching/in Saturn Return)
-                SaturnReturnCard(stock: stock)
-
-                // 5. Cosmic Rivals (opposition stocks)
-                CosmicRivalCard(stock: stock, allStocks: MockStockData.all)
-
-                // 6. Upcoming Earnings with Cosmic Horoscope
-                StockEarningsSection(stock: stock)
-
-                // 7. Financial Stats
-                financialStatsSection
-
-                // 5. Action Buttons
-                actionButtons
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 100)
-        }
-        .background(backgroundGradient)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text(stock.symbol)
-                    .font(.headline)
-                    .foregroundColor(CosmicTheme.textPrimary)
-            }
-
-            ToolbarItem(placement: .topBarTrailing) {
-                Button(action: {
-                    HapticFeedback.light()
-                    showShareSheet = true
-                }) {
-                    Image(systemName: "square.and.arrow.up")
-                        .foregroundColor(CosmicTheme.textSecondary)
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: {
+                        HapticFeedback.light()
+                        showShareSheet = true
+                    }) {
+                        Image(systemName: "square.and.arrow.up")
+                            .foregroundColor(CosmicTheme.textSecondary)
+                    }
                 }
             }
-        }
-        .toolbarBackground(CosmicTheme.background, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .onAppear {
-            withAnimation(.easeOut(duration: 0.5)) {
-                appearAnimation = true
+            .toolbarBackground(CosmicTheme.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .onAppear {
+                withAnimation(.easeOut(duration: 0.5)) {
+                    appearAnimation = true
+                }
             }
-        }
-        .task {
-            await fetchLivePrice()
-            await loadCosmicPatterns()
-        }
-        .sheet(isPresented: $showShareSheet) {
-            shareSheet
+            .task {
+                if AppState.isScreenshotMode {
+                    isLoadingPrice = false
+                    isLoadingPatterns = false
+                } else {
+                    await fetchLivePrice()
+                    await loadCosmicPatterns()
+                }
+
+                if AppState.shouldFocusAstroOverlayScreenshot {
+                    try? await Task.sleep(nanoseconds: 600_000_000)
+                    proxy.scrollTo(Self.astroOverlayScrollID, anchor: .top)
+                }
+            }
+            .sheet(isPresented: $showShareSheet) {
+                shareSheet
+            }
+            .sheet(isPresented: $showFramingOverrideSheet) {
+                framingOverrideSheet
+            }
         }
     }
 
@@ -207,41 +295,44 @@ struct StockDetailView: View {
 
     private var headerSection: some View {
         VStack(spacing: 20) {
-            HStack(alignment: .top) {
-                // Company logo placeholder
+            HStack(alignment: .top, spacing: 14) {
+                // Ticker plate. Shows the FULL symbol (not the first two
+                // letters) so DIS reads as "DIS", not "DI". Uses
+                // monospace + minimumScaleFactor so 1-5 char tickers
+                // all fit cleanly.
                 ZStack {
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(CosmicTheme.secondaryBackground)
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(CosmicTheme.panelElevated)
                         .frame(width: 72, height: 72)
 
-                    Text(String(stock.symbol.prefix(2)))
-                        .font(.title)
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(CosmicTheme.gold.opacity(0.35), lineWidth: 1)
+                        .frame(width: 72, height: 72)
+
+                    Text(stock.symbol)
+                        .font(TerminalFont.ticker(22))
                         .fontWeight(.bold)
                         .foregroundColor(CosmicTheme.gold)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.55)
+                        .padding(.horizontal, 6)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(stock.name)
-                        .font(.title2)
-                        .fontWeight(.bold)
+                        .font(.title3)
+                        .fontWeight(.semibold)
                         .foregroundColor(CosmicTheme.textPrimary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
+                        .fixedSize(horizontal: false, vertical: true)
 
-                    HStack(spacing: 8) {
-                        Text(stock.symbol)
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(CosmicTheme.gold)
-
-                        Text("•")
-                            .foregroundColor(CosmicTheme.textMuted)
-
-                        Text(stock.sector)
-                            .font(.subheadline)
-                            .foregroundColor(CosmicTheme.textSecondary)
-                    }
+                    Text(stock.sector)
+                        .font(.subheadline)
+                        .foregroundColor(CosmicTheme.textSecondary)
+                        .lineLimit(1)
                 }
-
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 // Zodiac badge
                 zodiacBadge
@@ -344,8 +435,12 @@ struct StockDetailView: View {
                 }
             }
 
-            // Error indicator
-            if let error = priceError {
+            // Error indicator. Only surface user-actionable connectivity
+            // states; suppress configuration/diagnostic errors like
+            // `apiKeyMissing` ("Contact support") since we already
+            // render the cached price and that copy reads as a bug to
+            // the user.
+            if let error = priceError, shouldSurface(error) {
                 HStack(spacing: 4) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.caption2)
@@ -367,6 +462,18 @@ struct StockDetailView: View {
         )
     }
 
+    /// Whether to surface a price-fetch error to the user inline.
+    /// Configuration errors (no API key) read as scary support copy
+    /// even though the cached price is fine, so we hide them here.
+    private func shouldSurface(_ error: NetworkError) -> Bool {
+        switch error {
+        case .apiKeyMissing, .invalidSymbol:
+            return false
+        default:
+            return true
+        }
+    }
+
     /// Generate mock chart data based on stock performance
     private func generateMockChartData() -> [Double] {
         let basePrice = liveStock.currentPrice
@@ -377,11 +484,20 @@ struct StockDetailView: View {
     // MARK: - Chart Section
 
     private var chartSection: some View {
-        VStack(spacing: 0) {
-            StockChartView(
-                stock: liveStock,
-                selectedTimeframe: $selectedTimeframe
-            )
+        VStack(spacing: 14) {
+            if SubscriptionManager.shared.canAccess(.historicalAstroOverlay) || AppState.isScreenshotMode {
+                HistoricalAstroChartView(
+                    stock: liveStock,
+                    selectedTimeframe: $selectedTimeframe
+                )
+            } else {
+                StockChartView(
+                    stock: liveStock,
+                    selectedTimeframe: $selectedTimeframe
+                )
+
+                HistoricalAstroOverlayLockedCard()
+            }
         }
         .padding(16)
         .background(cardBackground)
@@ -434,10 +550,10 @@ struct StockDetailView: View {
         VStack(spacing: 20) {
             // Section header
             HStack {
-                Image(systemName: "sparkles")
+                Image(systemName: "scope")
                     .foregroundColor(CosmicTheme.gold)
 
-                Text("Cosmic Compatibility")
+                Text("Cosmic Match")
                     .font(.headline)
                     .fontWeight(.semibold)
                     .foregroundColor(CosmicTheme.textPrimary)
@@ -462,7 +578,8 @@ struct StockDetailView: View {
                         .foregroundColor(CosmicTheme.textSecondary)
 
                     HStack(spacing: 6) {
-                        Text(safeCompatibility.rating.emoji)
+                        Image(systemName: safeCompatibility.rating.sfSymbol)
+                            .foregroundColor(ratingColor)
                         Text(safeCompatibility.rating.displayName.uppercased())
                             .font(TerminalFont.data(12, weight: .semibold))
                             .foregroundColor(ratingColor)
@@ -506,10 +623,10 @@ struct StockDetailView: View {
 
     private var cosmicMatchBadge: some View {
         HStack(spacing: 4) {
-            Image(systemName: "sparkles")
-                .font(.caption2)
+                Image(systemName: "scope")
+                    .font(.caption2)
 
-            Text("COSMIC MATCH")
+                Text("COSMIC MATCH")
                 .font(.caption2)
                 .fontWeight(.bold)
         }
@@ -544,7 +661,7 @@ struct StockDetailView: View {
                         .font(TerminalFont.data(11, weight: .semibold))
                         .foregroundColor(CosmicTheme.textPrimary)
 
-                    Text(safeCompatibility.elementDynamic)
+                    Text(framedElementDynamic)
                         .font(TerminalFont.data(11))
                         .foregroundColor(CosmicTheme.textSecondary)
                         .lineLimit(2)
@@ -552,7 +669,7 @@ struct StockDetailView: View {
             }
 
             Divider()
-                .background(CosmicTheme.textMuted.opacity(0.3))
+                .background(CosmicTheme.textMuted.opacity(0.4))
 
             // Sign connection
             HStack(spacing: 12) {
@@ -586,7 +703,7 @@ struct StockDetailView: View {
         } else if (user?.sunSign ?? .aries).element == stock.zodiacSign.element {
             return "Same element - natural elemental harmony"
         } else if (user?.sunSign ?? .aries).isCompatible(with: stock.zodiacSign) {
-            return "Traditional compatibility - cosmic alignment"
+            return "Traditional compatibility - aligned energy"
         } else {
             return "Contrasting energies - potential for growth"
         }
@@ -627,23 +744,23 @@ struct StockDetailView: View {
                     }
                 }
 
-                Text(stock.zodiacSign.personalityDescription)
+                Text(framedPersonalityDescription)
                     .font(.subheadline)
                     .foregroundColor(CosmicTheme.textSecondary)
                     .lineSpacing(4)
             }
 
             Divider()
-                .background(CosmicTheme.textMuted.opacity(0.3))
+                .background(CosmicTheme.textMuted.opacity(0.4))
 
-            // Corporate personality
+            // Corporate personality (framed)
             VStack(alignment: .leading, spacing: 8) {
-                Text("As an Investor, This Company Is...")
+                Text(framedCorporateSectionHeader)
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(CosmicTheme.textMuted)
 
-                Text(stock.zodiacSign.corporatePersonality)
+                Text(framedCorporatePersonality)
                     .font(.body)
                     .foregroundColor(CosmicTheme.textPrimary)
                     .lineSpacing(4)
@@ -674,7 +791,7 @@ struct StockDetailView: View {
 
             Divider()
                 .frame(height: 40)
-                .background(CosmicTheme.textMuted.opacity(0.3))
+                .background(CosmicTheme.textMuted.opacity(0.4))
 
             // Element
             VStack(alignment: .leading, spacing: 4) {
@@ -694,7 +811,7 @@ struct StockDetailView: View {
 
             Divider()
                 .frame(height: 40)
-                .background(CosmicTheme.textMuted.opacity(0.3))
+                .background(CosmicTheme.textMuted.opacity(0.4))
 
             // Modality
             VStack(alignment: .leading, spacing: 4) {
@@ -723,9 +840,9 @@ struct StockDetailView: View {
             // Section header
             HStack {
                 Image(systemName: "person.fill.checkmark")
-                    .foregroundColor(CosmicTheme.cosmicPurple)
+                    .foregroundColor(CosmicTheme.accentBlue)
 
-                Text("CEO COSMIC PROFILE")
+                Text("CEO ASTRO PROFILE")
                     .font(TerminalFont.data(12, weight: .semibold))
                     .foregroundColor(CosmicTheme.textPrimary)
 
@@ -777,7 +894,7 @@ struct StockDetailView: View {
                     }
 
                     Divider()
-                        .background(CosmicTheme.textMuted.opacity(0.3))
+                        .background(CosmicTheme.textMuted.opacity(0.4))
 
                     // CEO-User compatibility
                     HStack(spacing: 16) {
@@ -820,9 +937,9 @@ struct StockDetailView: View {
                     // Leadership insight
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "lightbulb.fill")
-                            .foregroundColor(CosmicTheme.cosmicPurple)
+                            .foregroundColor(CosmicTheme.accentBlue)
 
-                        Text(ceoLeadershipInsight)
+                        Text(framedCEOInsight)
                             .font(TerminalFont.data(11))
                             .foregroundColor(CosmicTheme.textSecondary)
                             .italic()
@@ -830,7 +947,7 @@ struct StockDetailView: View {
                     .padding(12)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(CosmicTheme.cosmicPurple.opacity(0.1))
+                            .fill(CosmicTheme.accentBlue.opacity(0.1))
                     )
                 }
             }
@@ -870,7 +987,7 @@ struct StockDetailView: View {
     private func ceoCompatibilityDots(_ index: Int) -> Color {
         let score = ceoCompatibilityScore
         let threshold = [50, 70, 85]
-        return score >= threshold[index] ? ceoCompatibilityColor : CosmicTheme.textMuted.opacity(0.3)
+        return score >= threshold[index] ? ceoCompatibilityColor : CosmicTheme.textMuted.opacity(0.4)
     }
 
     private var ceoCompatibilityDescription: String {
@@ -882,7 +999,7 @@ struct StockDetailView: View {
         } else if (user?.sunSign ?? .aries).element == ceoSign.element {
             return "Same elemental energy creates intuitive trust in their leadership decisions."
         } else if score >= 85 {
-            return "Excellent cosmic alignment - the CEO's vision resonates with your investment style."
+            return "Excellent alignment - the CEO's profile fits your investment style."
         } else if score >= 70 {
             return "Good compatibility - their leadership approach complements your investor energy."
         } else if score >= 50 {
@@ -922,6 +1039,231 @@ struct StockDetailView: View {
         case .pisces:
             return "\(firstName)'s Pisces creativity brings imaginative solutions. Empathetic leadership with strong brand storytelling."
         }
+    }
+
+    // MARK: - Framing Override Section (Premium)
+
+    private var framingOverrideSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Section header
+            HStack {
+                Image(systemName: "slider.horizontal.below.square.filled.and.square")
+                    .foregroundColor(CosmicTheme.gold)
+
+                Text("SIGNAL FRAMING")
+                    .font(TerminalFont.data(12, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textPrimary)
+
+                Spacer()
+
+                // Current level badge
+                SignalFramingIndicator(level: effectiveFramingLevel)
+            }
+
+            // Framing info
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(hasFramingOverride ? "Custom Framing" : "Using Global Setting")
+                            .font(TerminalFont.data(12, weight: .semibold))
+                            .foregroundColor(CosmicTheme.textPrimary)
+
+                        Text(effectiveFramingLevel.description)
+                            .font(TerminalFont.data(11))
+                            .foregroundColor(CosmicTheme.textSecondary)
+                            .lineLimit(2)
+                    }
+
+                    Spacer()
+
+                    // Customize button
+                    if SubscriptionManager.shared.isPremium {
+                        Button(action: { showFramingOverrideSheet = true }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: hasFramingOverride ? "pencil" : "plus")
+                                    .font(.caption)
+                                Text(hasFramingOverride ? "Edit" : "Customize")
+                                    .font(TerminalFont.data(11, weight: .semibold))
+                            }
+                            .foregroundColor(CosmicTheme.gold)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(CosmicTheme.gold.opacity(0.15))
+                        }
+                    } else {
+                        // Premium locked
+                        HStack(spacing: 4) {
+                            Image(systemName: "lock.fill")
+                                .font(.caption2)
+                            Text("ORACLE")
+                                .font(TerminalFont.data(9, weight: .bold))
+                        }
+                        .foregroundColor(CosmicTheme.gold)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(CosmicTheme.gold.opacity(0.15))
+                    }
+                }
+
+                // Sample framed text
+                Text(framingSampleText)
+                    .font(TerminalFont.data(10))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .italic()
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(CosmicTheme.secondaryBackground)
+            }
+        }
+        .padding(20)
+        .background(cardBackground)
+        .opacity(appearAnimation ? 1 : 0)
+        .offset(y: appearAnimation ? 0 : 20)
+        .animation(.easeOut(duration: 0.5).delay(0.15), value: appearAnimation)
+    }
+
+    /// Sample text showing how this stock's signals would be framed
+    private var framingSampleText: String {
+        SignalFramingService.shared.frameCompatibility(
+            userSign: user?.sunSign ?? .aries,
+            stockSign: stock.zodiacSign,
+            rating: safeCompatibility.rating,
+            level: effectiveFramingLevel
+        )
+    }
+
+    // MARK: - Framing Override Sheet
+
+    private var framingOverrideSheet: some View {
+        NavigationStack {
+            ZStack {
+                CosmicTheme.background.ignoresSafeArea()
+
+                VStack(spacing: 24) {
+                    // Stock info header
+                    HStack(spacing: 12) {
+                        ZodiacSymbolView(sign: stock.zodiacSign, size: 40, color: elementColor)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(stock.symbol)
+                                .font(TerminalFont.headline(18))
+                                .foregroundColor(CosmicTheme.textPrimary)
+
+                            Text("Reading Framing Override")
+                                .font(TerminalFont.data(12))
+                                .foregroundColor(CosmicTheme.textSecondary)
+                        }
+
+                        Spacer()
+                    }
+                    .padding(20)
+                    .background(CosmicTheme.cardBackground)
+
+                    // Option to use global or custom
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("FRAMING PREFERENCE")
+                            .font(TerminalFont.data(10, weight: .semibold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .tracking(1)
+
+                        // Use global toggle
+                        Button(action: { removeFramingOverride() }) {
+                            HStack {
+                                Image(systemName: hasFramingOverride ? "circle" : "checkmark.circle.fill")
+                                    .foregroundColor(hasFramingOverride ? CosmicTheme.textMuted : CosmicTheme.gold)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Use Global Setting")
+                                        .font(TerminalFont.data(14, weight: .semibold))
+                                        .foregroundColor(CosmicTheme.textPrimary)
+
+                                    if let globalLevel = user?.signalFramingLevel {
+                                        Text("Currently: \(globalLevel.displayName)")
+                                            .font(TerminalFont.data(11))
+                                            .foregroundColor(CosmicTheme.textSecondary)
+                                    }
+                                }
+
+                                Spacer()
+                            }
+                            .padding(16)
+                            .background(CosmicTheme.cardBackground)
+                        }
+                        .buttonStyle(.plain)
+
+                        // Custom framing slider
+                        VStack(alignment: .leading, spacing: 16) {
+                            Button(action: { enableCustomFraming() }) {
+                                HStack {
+                                    Image(systemName: hasFramingOverride ? "checkmark.circle.fill" : "circle")
+                                        .foregroundColor(hasFramingOverride ? CosmicTheme.gold : CosmicTheme.textMuted)
+
+                                    Text("Custom for \(stock.symbol)")
+                                        .font(TerminalFont.data(14, weight: .semibold))
+                                        .foregroundColor(CosmicTheme.textPrimary)
+
+                                    Spacer()
+                                }
+                            }
+                            .buttonStyle(.plain)
+
+                            if hasFramingOverride {
+                                SignalFramingSlider(level: stockFramingBinding)
+                                    .padding(.horizontal, 4)
+                            }
+                        }
+                        .padding(16)
+                        .background(CosmicTheme.cardBackground)
+                    }
+                    .padding(.horizontal, 20)
+
+                    Spacer()
+
+                    // Info text
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "info.circle")
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textMuted)
+
+                        Text("Custom framing lets you view this stock's readings differently from your global setting. Useful if you prefer more rational analysis for some stocks and cosmic framing for others.")
+                            .font(TerminalFont.data(11))
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+                    .padding(20)
+                }
+            }
+            .navigationTitle("Reading Framing")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        showFramingOverrideSheet = false
+                    }
+                    .foregroundColor(CosmicTheme.gold)
+                }
+            }
+            .toolbarBackground(CosmicTheme.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+        }
+        .presentationDetents([.medium])
+    }
+
+    /// Binding for the stock-specific framing level (persisted via AppState)
+    private var stockFramingBinding: Binding<SignalFramingLevel> {
+        Binding(
+            get: { appState.framingLevel(for: stock.symbol) },
+            set: { appState.setStockFramingOverride(symbol: stock.symbol, level: $0) }
+        )
+    }
+
+    private func removeFramingOverride() {
+        appState.setStockFramingOverride(symbol: stock.symbol, level: nil)
+    }
+
+    private func enableCustomFraming() {
+        // Initialize with global setting
+        let globalLevel = user?.signalFramingLevel ?? .balanced
+        appState.setStockFramingOverride(symbol: stock.symbol, level: globalLevel)
     }
 
     // MARK: - Financial Stats Section
@@ -1157,7 +1499,7 @@ struct StockDetailView: View {
                             .fill(CosmicTheme.cardBackground)
                     )
 
-                    Text("Share your cosmic stock match!")
+                    Text("Share your stock reading profile.")
                         .font(.subheadline)
                         .foregroundColor(CosmicTheme.textMuted)
 
@@ -1165,7 +1507,7 @@ struct StockDetailView: View {
                 }
                 .padding(20)
             }
-            .navigationTitle("Share Cosmic Profile")
+            .navigationTitle("Share Reading Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -1234,7 +1576,7 @@ struct StockDetailView: View {
             return CosmicTheme.goldGradient
         } else if safeCompatibility.score >= 65 {
             return LinearGradient(
-                colors: [CosmicTheme.cosmicPurple, CosmicTheme.nebulaBlue],
+                colors: [CosmicTheme.accentBlue, CosmicTheme.nebulaBlue],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -1254,14 +1596,14 @@ struct StockDetailView: View {
 
         // Create shareable text
         let shareText = """
-        Check out $\(stock.symbol) on Cosmo Trader! 🌟
+        Check out $\(stock.symbol) on Cosmo Trader.
 
         \(stock.name)
         Price: \(stock.formattedPrice)
-        Zodiac: \(zodiacSign.symbol) \(zodiacSign.rawValue)
+        Zodiac: \(zodiacSign.textSymbol) \(zodiacSign.rawValue)
         My Compatibility: \(safeCompatibility.score)%
 
-        Download Cosmo Trader to find stocks written in your stars ✨
+        Download Cosmo Trader to compare market data with an astrology lens.
         """
 
         // Create share activity

@@ -510,7 +510,7 @@ struct VOCMoonDetailSheet: View {
                     .fontWeight(.medium)
                     .foregroundColor(CosmicTheme.textPrimary)
 
-                Text("\(period.fromSign.symbol) → \(period.toSign.symbol) • \(period.durationFormatted)")
+                Text("\(period.fromSign.textSymbol) → \(period.toSign.textSymbol) • \(period.durationFormatted)")
                     .font(.caption2)
                     .foregroundColor(CosmicTheme.textSecondary)
             }
@@ -525,7 +525,7 @@ struct VOCMoonDetailSheet: View {
                 .padding(.vertical, 4)
                 .background(
                     Capsule()
-                        .fill(CosmicTheme.textMuted.opacity(0.15))
+                        .fill(CosmicTheme.textMuted.opacity(0.25))
                 )
         }
         .padding(.vertical, 6)

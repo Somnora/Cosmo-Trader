@@ -22,6 +22,9 @@ enum WidgetConstants {
 
     /// Last update timestamp key
     static let lastUpdateKey = "widgetLastUpdate"
+
+    /// Signal framing level key (0=rational, 1=leanRational, 2=balanced, 3=leanMystical, 4=mystical)
+    static let framingLevelKey = "widgetFramingLevel"
 }
 
 // MARK: - Widget Lunar Data
@@ -123,7 +126,7 @@ struct WidgetHoroscopeData: Codable {
     static let placeholder = WidgetHoroscopeData(
         date: Date(),
         signName: "Scorpio",
-        signSymbol: "♏",
+        signSymbol: "♏\u{FE0E}",
         signElement: "Water",
         horoscopeText: "Venus favors bold moves in your financial sector. Consider reviewing Fire sign stocks today.",
         luckyNumber: 7,
@@ -335,5 +338,28 @@ enum WidgetDataProvider {
     static func needsRefresh() -> Bool {
         guard let lastUpdate = lastUpdateTime() else { return true }
         return Date().timeIntervalSince(lastUpdate) > 3600 // 1 hour
+    }
+
+    // MARK: - Framing Level
+
+    /// Read framing level from App Group (0=rational to 4=mystical)
+    static func readFramingLevel() -> Int {
+        sharedDefaults?.integer(forKey: WidgetConstants.framingLevelKey) ?? 2 // Default to balanced
+    }
+
+    /// Write framing level to App Group
+    static func writeFramingLevel(_ level: Int) {
+        sharedDefaults?.set(level, forKey: WidgetConstants.framingLevelKey)
+        sharedDefaults?.synchronize()
+    }
+
+    /// Check if framing should use mystical language
+    static func isMysticalFraming() -> Bool {
+        readFramingLevel() >= 2 // balanced or higher
+    }
+
+    /// Check if framing should be fully rational (no astrology)
+    static func isRationalFraming() -> Bool {
+        readFramingLevel() <= 1 // rational or leanRational
     }
 }

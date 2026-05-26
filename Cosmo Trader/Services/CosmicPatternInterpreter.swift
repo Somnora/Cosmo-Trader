@@ -176,9 +176,9 @@ class CosmicPatternInterpreter {
         case .eveningstar:
             return "Evening Star — Twilight Warning"
         case .goldenCross:
-            return "GOLDEN CROSS — Major Bullish Signal"
+            return "GOLDEN CROSS - Major Pattern Note"
         case .deathCross:
-            return "DEATH CROSS — Major Bearish Signal"
+            return "DEATH CROSS - Major Pattern Note"
         case .breakoutUp:
             return "Bullish Breakout — Resistance Shattered"
         case .breakoutDown:
@@ -210,46 +210,46 @@ class CosmicPatternInterpreter {
     private func baseBody(for pattern: ChartPattern) -> String {
         switch pattern {
         case .goldenCross:
-            return "The 50-day moving average has crossed above the 200-day. Historically, this signals sustained upward momentum. Long-term holders take note — the cosmos favor patience here."
+            return "The 50-day moving average has crossed above the 200-day. Historically, this pattern can accompany sustained upward momentum. Long-term holders can read it as context for patience."
 
         case .deathCross:
-            return "The 50-day moving average has crossed below the 200-day. This often precedes extended downward pressure. Defensive positioning and stop-losses become crucial."
+            return "The 50-day moving average has crossed below the 200-day. This often precedes extended downward pressure. Defensive context and clear review criteria matter here."
 
         case .doji:
-            return "Neither bulls nor bears could claim victory. A doji signals equilibrium — the next move could go either way. Wait for confirmation before committing."
+            return "Neither bulls nor bears could claim victory. A doji marks equilibrium - the next move could go either way. Wait for clearer context before leaning on it."
 
         case .hammer:
-            return "After testing lower prices, buyers stepped in forcefully. This classic reversal signal suggests the downtrend may be exhausting itself. The market found support."
+            return "After testing lower prices, demand stepped in forcefully. This classic reversal pattern suggests the downtrend may be exhausting itself. The market found support."
 
         case .shootingStar:
-            return "Prices spiked but couldn't hold their gains. Sellers overwhelmed buyers at higher levels. Upward momentum may be fading — consider protecting gains."
+            return "Prices spiked but couldn't hold their gains. Supply overwhelmed demand at higher levels. Upward momentum may be fading, so read the setup carefully."
 
         case .engulfingBullish:
             return "A powerful green candle has completely engulfed the prior day's losses. Bulls have seized control. This pattern often marks the start of upward momentum."
 
         case .engulfingBearish:
-            return "A decisive red candle has swallowed the prior day's gains. Bears have taken charge. Caution is warranted as selling pressure may continue."
+            return "A decisive red candle has swallowed the prior day's gains. Bears have taken charge. Caution is warranted as supply pressure may continue."
 
         case .morningstar:
-            return "A three-candle reversal pattern has formed at the bottom. The morning star heralds a potential dawn for this stock. Watch for follow-through buying."
+            return "A three-candle reversal pattern has formed at the bottom. The morning star heralds a potential dawn for this stock. Watch whether demand follows through."
 
         case .eveningstar:
-            return "A three-candle reversal pattern has formed at the top. The evening star warns of potential decline. Consider taking profits or tightening stops."
+            return "A three-candle reversal pattern has formed at the top. The evening star warns of potential decline. Re-read your risk notes before reacting."
 
         case .overbought:
-            return "RSI has pushed above 70, indicating potentially unsustainable buying pressure. Profit-taking often follows these extremes. The rubber band is stretched."
+            return "RSI has pushed above 70, indicating potentially unsustainable demand pressure. Cooling often follows these extremes. The rubber band is stretched."
 
         case .oversold:
-            return "RSI has fallen below 30, indicating potentially excessive selling. Value hunters often emerge at these levels. Reversal potential exists."
+            return "RSI has fallen below 30, indicating potentially excessive supply pressure. Value watchers often emerge at these levels. Reversal potential exists."
 
         case .breakoutUp:
-            return "Price has broken through a significant resistance level. Breakouts can lead to rapid upward moves as traders chase the new trend."
+            return "Price has broken through a significant resistance level. Breakouts can lead to rapid upward moves as attention follows the new trend."
 
         case .breakoutDown:
-            return "Price has broken below key support. Breakdowns can accelerate as stop-losses trigger and sellers gain control."
+            return "Price has broken below key support. Breakdowns can accelerate as supply pressure gains control."
 
         case .supportTest:
-            return "Price is testing a key support level. How it reacts here will determine the next move. Watch for buying interest at this level."
+            return "Price is testing a key support level. How it reacts here will shape the next read. Watch whether demand appears at this level."
 
         case .resistanceTest:
             return "Price is testing overhead resistance. A breakthrough could ignite a rally, but rejection could lead to pullback."
@@ -272,10 +272,10 @@ class CosmicPatternInterpreter {
 
         switch pattern.sentiment {
         case .bullish:
-            return "\(baseWarning): Exercise extra caution with new positions. Bullish signals may give false hope during retrograde. Consider waiting for retrograde to end."
+            return "\(baseWarning): Exercise extra caution with fresh narratives. Constructive patterns may read noisier during retrograde. Consider waiting for retrograde to end."
 
         case .bearish:
-            return "\(baseWarning): Bearish patterns can be amplified during retrograde. Avoid panic selling — communication breakdowns create temporary chaos."
+            return "\(baseWarning): Cooling patterns can be amplified during retrograde. Avoid panic reactions - communication breakdowns create temporary chaos."
 
         case .neutral:
             return "\(baseWarning): Indecision patterns during retrograde often resolve unexpectedly. Patience is your ally. Double-check all information."
@@ -287,23 +287,23 @@ class CosmicPatternInterpreter {
     private func generateMoonPhaseNote(moonPhase: MoonPhase, pattern: ChartPattern) -> String {
         switch moonPhase {
         case .fullMoon:
-            return "\(moonPhase.emoji) Full Moon Energy: Emotions and volatility run high. The pattern's signal may manifest more dramatically than usual. Trade with heightened awareness."
+            return "[\(moonPhase.rawValue)] Full Moon Energy: Emotions and volatility run high. The pattern may read more dramatically than usual. Keep the context grounded."
 
         case .newMoon:
-            return "\(moonPhase.emoji) New Moon Energy: A time for new beginnings. If the pattern suggests reversal, this lunar phase supports that transition. Plant seeds now."
+            return "[\(moonPhase.rawValue)] New Moon Energy: A time for new beginnings. If the pattern suggests reversal, this lunar phase supports that transition. Plant seeds now."
 
         case .waxingCrescent, .waxingGibbous, .firstQuarter:
             if pattern.sentiment == .bullish {
-                return "\(moonPhase.emoji) Waxing Moon: Building energy favors bullish patterns. Growth signals have cosmic tailwind."
+                return "[\(moonPhase.rawValue)] Waxing Moon: Building energy favors constructive patterns. Growth themes have cosmic tailwind."
             } else {
-                return "\(moonPhase.emoji) Waxing Moon: Growing lunar energy may dampen bearish signals. Bulls have natural support."
+                return "[\(moonPhase.rawValue)] Waxing Moon: Growing lunar energy may soften cooling patterns. Constructive themes have natural support."
             }
 
         case .waningCrescent, .waningGibbous, .lastQuarter:
             if pattern.sentiment == .bearish {
-                return "\(moonPhase.emoji) Waning Moon: Diminishing energy aligns with bearish signals. A time to release and take profits."
+                return "[\(moonPhase.rawValue)] Waning Moon: Diminishing energy aligns with cooling patterns. A time to release stale assumptions."
             } else {
-                return "\(moonPhase.emoji) Waning Moon: Reduced lunar energy may slow bullish momentum. Patience required."
+                return "[\(moonPhase.rawValue)] Waning Moon: Reduced lunar energy may slow bullish momentum. Patience required."
             }
         }
     }
@@ -315,19 +315,19 @@ class CosmicPatternInterpreter {
 
         switch rating {
         case .cosmicSoulmates:
-            return "Your \(userSign.displayName) energy is cosmically aligned with this \(stockSign.displayName) stock. Trust your intuition here."
+            return "Your \(userSign.displayName) profile is strongly aligned with this \(stockSign.displayName) stock. Let intuition support, not replace, the thesis."
 
         case .highCompatibility:
-            return "\(userSign.displayName) and \(stockSign.displayName) share harmonious energy. The stars favor your judgment on this one."
+            return "\(userSign.displayName) and \(stockSign.displayName) share harmonious energy. Use the alignment as context for your judgment."
 
         case .neutral:
-            return "Neutral cosmic alignment between \(userSign.displayName) and \(stockSign.displayName). Let the technical signal guide you."
+            return "Neutral cosmic alignment between \(userSign.displayName) and \(stockSign.displayName). Let the technical context inform your read."
 
         case .challenging:
-            return "\(userSign.displayName) faces growth lessons with \(stockSign.displayName) stocks. Extra due diligence recommended."
+            return "\(userSign.displayName) faces growth lessons with \(stockSign.displayName) stocks. Extra due diligence keeps the reading grounded."
 
         case .cosmicClash:
-            return "Challenging cosmic tension between your \(userSign.displayName) and this \(stockSign.displayName) stock. Proceed with elevated caution."
+            return "Challenging cosmic tension between your \(userSign.displayName) profile and this \(stockSign.displayName) stock. Proceed with elevated caution."
         }
     }
 
@@ -339,11 +339,11 @@ class CosmicPatternInterpreter {
         // Base advice from pattern
         switch pattern.pattern.sentiment {
         case .bullish:
-            advice = "Consider building a position if other indicators confirm."
+            advice = "Use this as context alongside your own notes."
         case .bearish:
-            advice = "Consider reducing exposure or tightening stop-losses."
+            advice = "Use this as context alongside your own notes."
         case .neutral:
-            advice = "Wait for confirmation before taking action."
+            advice = "Wait for clearer context before leaning on it."
         }
 
         // Modify for retrograde

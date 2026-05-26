@@ -20,13 +20,13 @@ struct SearchView: View {
     // MARK: - State
 
     @State private var searchService = SearchService.shared
-    @State private var selectedStock: Stock?
+    @State private var navPath = NavigationPath()
     @FocusState private var isSearchFieldFocused: Bool
 
     // MARK: - Body
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navPath) {
             ZStack {
                 // Background
                 CosmicTheme.background
@@ -64,7 +64,7 @@ struct SearchView: View {
                 isSearchFieldFocused = true
                 AnalyticsService.shared.trackSearchOpened()
             }
-            .sheet(item: $selectedStock) { stock in
+            .navigationDestination(for: Stock.self) { stock in
                 StockDetailView(stock: stock)
                     .environment(appState)
             }
@@ -159,6 +159,10 @@ struct SearchView: View {
 
     private var emptyStateContent: some View {
         VStack(spacing: 24) {
+            if searchService.recentSearches.isEmpty {
+                setupPrimer
+            }
+
             // Recent searches
             if !searchService.recentSearches.isEmpty {
                 recentSearchesSection
@@ -168,6 +172,35 @@ struct SearchView: View {
             popularSuggestionsSection
         }
         .padding(.top, 8)
+    }
+
+    private var setupPrimer: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "scope")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold)
+
+                Text("BUILD THE READING")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(CosmicTheme.gold)
+                    .tracking(1)
+            }
+
+            Text("Search a symbol, open the stock detail, then add it to Portfolio. Start with 3-5 tickers; shares can be refined later.")
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(CosmicTheme.cardBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.border, lineWidth: 1)
+        )
+        .padding(.horizontal, 16)
     }
 
     // MARK: - Recent Searches
@@ -275,7 +308,7 @@ struct SearchView: View {
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .foregroundColor(CosmicTheme.textSecondary)
 
-            Text("Try a different symbol or company name")
+            Text("Try a different symbol or add a popular ticker to begin portfolio setup")
                 .font(.system(size: 10, weight: .regular, design: .monospaced))
                 .foregroundColor(CosmicTheme.textMuted)
         }
@@ -291,18 +324,18 @@ struct SearchView: View {
 
         // Find stock in mock data or create a placeholder
         if let mockStock = MockStockData.all.first(where: { $0.symbol == result.symbol }) {
-            selectedStock = mockStock
+            navPath.append(mockStock)
         } else {
             // Create placeholder stock for non-mock symbols
-            selectedStock = createPlaceholderStock(symbol: result.symbol, name: result.description)
+            navPath.append(createPlaceholderStock(symbol: result.symbol, name: result.description))
         }
     }
 
     private func selectRecentSearch(_ recent: RecentSearch) {
         if let mockStock = MockStockData.all.first(where: { $0.symbol == recent.symbol }) {
-            selectedStock = mockStock
+            navPath.append(mockStock)
         } else {
-            selectedStock = createPlaceholderStock(symbol: recent.symbol, name: recent.name)
+            navPath.append(createPlaceholderStock(symbol: recent.symbol, name: recent.name))
         }
     }
 
@@ -310,9 +343,9 @@ struct SearchView: View {
         searchService.addToRecentSearches(symbol: symbol, name: name)
 
         if let mockStock = MockStockData.all.first(where: { $0.symbol == symbol }) {
-            selectedStock = mockStock
+            navPath.append(mockStock)
         } else {
-            selectedStock = createPlaceholderStock(symbol: symbol, name: name)
+            navPath.append(createPlaceholderStock(symbol: symbol, name: name))
         }
     }
 

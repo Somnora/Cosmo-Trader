@@ -63,7 +63,14 @@ struct StockQuote: Codable {
 
     /// Percentage change from previous close.
     /// - Returns: Percent change, calculated from API value or computed.
-    var percentageChange: Double { dp ?? ((c - pc) / pc * 100) }
+    var percentageChange: Double {
+        if let dp, dp.isFinite {
+            return dp
+        }
+        guard pc.isFinite, pc != 0 else { return 0 }
+        let computed = (c - pc) / pc * 100
+        return computed.isFinite ? computed : 0
+    }
 
     /// Whether the stock is up or unchanged from previous close.
     var isPositive: Bool { priceChange >= 0 }
@@ -260,6 +267,9 @@ final class StockAPIService: ObservableObject {
             throw NetworkError.noConnection
         }
 
+        // Ensure API key is configured
+        try requireFinnhubConfiguration()
+
         // Throttle requests
         try await throttleIfNeeded()
 
@@ -319,12 +329,12 @@ final class StockAPIService: ObservableObject {
 
         } catch let error as NetworkError {
             lastError = error
-            log("❌ API Error for \(upperSymbol): \(error.cosmicMessage)")
+            logNetworkErrorIfNeeded(error, context: "API Error for \(upperSymbol)")
             throw error
         } catch {
             let networkError = mapError(error)
             lastError = networkError
-            log("❌ Network Error for \(upperSymbol): \(networkError.cosmicMessage)")
+            logNetworkErrorIfNeeded(networkError, context: "Network Error for \(upperSymbol)")
             throw networkError
         }
     }
@@ -333,23 +343,61 @@ final class StockAPIService: ObservableObject {
     /// - Parameter symbols: Array of ticker symbols
     /// - Returns: Dictionary mapping symbols to quotes
     func getMultipleQuotes(symbols: [String]) async -> [String: StockQuote] {
+        guard APIConfig.isFinnhubConfigured else {
+            ConfigWarnings.warnOnce(
+                key: "FINNHUB_API_KEY_MISSING",
+                message: "Finnhub API key missing. Stock requests will use cached or placeholder data."
+            )
+            lastError = .apiKeyMissing
+            let cachedQuotes = getCachedQuotes(for: symbols)
+            if !cachedQuotes.isEmpty {
+                isOfflineMode = true
+            }
+            return cachedQuotes
+        }
+
         var results: [String: StockQuote] = [:]
 
         isLoading = true
         defer { isLoading = false }
 
-        for symbol in symbols {
-            do {
-                let quote = try await getQuote(symbol: symbol)
-                results[symbol.uppercased()] = quote
-            } catch {
-                log("⚠️ Failed to fetch \(symbol): \(error.localizedDescription)")
-                // Continue with other symbols
+        // Use TaskGroup for parallel fetching with concurrency limit
+        await withTaskGroup(of: (String, StockQuote?).self) { group in
+            // Limit concurrency to avoid hitting rate limits too fast
+            let maxConcurrent = 5
+            var activeTasks = 0
+
+            for symbol in symbols {
+                if activeTasks >= maxConcurrent {
+                    if let result = await group.next() {
+                        activeTasks -= 1
+                        if let quote = result.1 {
+                            results[result.0] = quote
+                        }
+                    }
+                }
+
+                activeTasks += 1
+                group.addTask {
+                    // Slight random jitter to prevent thundering herd on API
+                    // Reduced for better responsiveness (5-20ms)
+                    try? await Task.sleep(nanoseconds: UInt64.random(in: 5_000_000...20_000_000))
+
+                    do {
+                        let quote = try await self.getQuote(symbol: symbol)
+                        return (symbol.uppercased(), quote)
+                    } catch {
+                        await self.log("⚠️ Failed to fetch \(symbol): \(error.localizedDescription)")
+                        return (symbol.uppercased(), nil)
+                    }
+                }
             }
 
-            // Small delay between requests to avoid rate limiting
-            if symbol != symbols.last {
-                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+            // Collect remaining results
+            for await result in group {
+                if let quote = result.1 {
+                    results[result.0] = quote
+                }
             }
         }
 
@@ -488,6 +536,22 @@ final class StockAPIService: ObservableObject {
         requestTimestamps.append(Date())
     }
 
+    private func requireFinnhubConfiguration() throws {
+        guard APIConfig.isFinnhubConfigured else {
+            lastError = .apiKeyMissing
+            ConfigWarnings.warnOnce(
+                key: "FINNHUB_API_KEY_MISSING",
+                message: "Finnhub API key missing. Stock requests will use cached or placeholder data."
+            )
+            throw NetworkError.apiKeyMissing
+        }
+    }
+
+    private func logNetworkErrorIfNeeded(_ error: NetworkError, context: String) {
+        guard error != .apiKeyMissing else { return }
+        log("❌ \(context): \(error.cosmicMessage)")
+    }
+
     // MARK: - Error Mapping
 
     private func mapError(_ error: Error) -> NetworkError {
@@ -526,17 +590,17 @@ extension Stock {
     /// Create a copy with updated price data from a quote
     func withQuote(_ quote: StockQuote) -> Stock {
         var updated = self
-        updated.currentPrice = quote.currentPrice
-        updated.priceChange = quote.priceChange
-        updated.percentageChange = quote.percentageChange
+        updated.currentPrice = quote.currentPrice.isFinite ? quote.currentPrice : currentPrice
+        updated.priceChange = quote.priceChange.isFinite ? quote.priceChange : priceChange
+        updated.percentageChange = quote.percentageChange.isFinite ? quote.percentageChange : percentageChange
         return updated
     }
 
     /// Update this stock's prices in place
     mutating func updateWithQuote(_ quote: StockQuote) {
-        currentPrice = quote.currentPrice
-        priceChange = quote.priceChange
-        percentageChange = quote.percentageChange
+        currentPrice = quote.currentPrice.isFinite ? quote.currentPrice : currentPrice
+        priceChange = quote.priceChange.isFinite ? quote.priceChange : priceChange
+        percentageChange = quote.percentageChange.isFinite ? quote.percentageChange : percentageChange
     }
 }
 
@@ -575,6 +639,9 @@ extension StockAPIService {
     func searchSymbols(query: String) async throws -> [SymbolMatch] {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedQuery.isEmpty else { return [] }
+
+        // Ensure API key is configured
+        try requireFinnhubConfiguration()
 
         // Build URL for symbol search
         guard let url = APIConfig.finnhubURL(endpoint: "search", params: ["q": trimmedQuery]) else {
@@ -620,13 +687,369 @@ extension StockAPIService {
             return Array(filtered)
 
         } catch let error as NetworkError {
-            log("❌ Search Error: \(error.cosmicMessage)")
+            logNetworkErrorIfNeeded(error, context: "Search Error")
             throw error
         } catch {
             let networkError = mapError(error)
-            log("❌ Search Error: \(networkError.cosmicMessage)")
+            logNetworkErrorIfNeeded(networkError, context: "Search Error")
             throw networkError
         }
+    }
+}
+
+// MARK: - Finnhub IPO Response Models
+// ====================================
+
+/// Response model for Finnhub IPO calendar endpoint
+struct FinnhubIPOResponse: Codable {
+    let ipoCalendar: [FinnhubIPO]
+}
+
+/// Individual IPO data from Finnhub
+struct FinnhubIPO: Codable {
+    let symbol: String
+    let date: String
+    let exchange: String?
+    let name: String
+    let price: String?  // Can be range like "15-17" or single price
+    let shares: Int?
+    let status: String?
+}
+
+// MARK: - IPO Calendar Methods
+// ============================
+
+extension StockAPIService {
+
+    /// Fetch IPO calendar for a date range
+    /// - Parameters:
+    ///   - from: Start date
+    ///   - to: End date
+    /// - Returns: Array of FinnhubIPO objects
+    func fetchIPOCalendar(from: Date, to: Date) async throws -> [FinnhubIPO] {
+        // Check network connectivity
+        guard NetworkMonitor.shared.isConnected else {
+            throw NetworkError.noConnection
+        }
+
+        // Ensure API key is configured
+        try requireFinnhubConfiguration()
+
+        // Throttle requests
+        try await throttleIfNeeded()
+
+        // Format dates
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let fromStr = dateFormatter.string(from: from)
+        let toStr = dateFormatter.string(from: to)
+
+        // Build URL
+        guard let url = APIConfig.finnhubURL(
+            endpoint: "calendar/ipo",
+            params: ["from": fromStr, "to": toStr]
+        ) else {
+            throw NetworkError.invalidResponse
+        }
+
+        log("🌐 Fetching IPO calendar from \(fromStr) to \(toStr)...")
+
+        do {
+            // Make request
+            let (data, response) = try await session.data(from: url)
+
+            // Check HTTP status
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NetworkError.invalidResponse
+            }
+
+            // Record request timestamp for throttling
+            recordRequest()
+
+            // Handle HTTP errors
+            switch httpResponse.statusCode {
+            case 200:
+                break // Success
+            case 401:
+                throw NetworkError.apiKeyMissing
+            case 429:
+                throw NetworkError.rateLimited
+            case 500...599:
+                throw NetworkError.serverError(statusCode: httpResponse.statusCode)
+            default:
+                throw NetworkError.unknown("HTTP \(httpResponse.statusCode)")
+            }
+
+            // Decode response
+            let ipoResponse = try JSONDecoder().decode(FinnhubIPOResponse.self, from: data)
+
+            log("✅ Fetched \(ipoResponse.ipoCalendar.count) IPOs")
+
+            lastUpdateTime = Date()
+            lastError = nil
+            isOfflineMode = false
+
+            return ipoResponse.ipoCalendar
+
+        } catch let error as NetworkError {
+            lastError = error
+            logNetworkErrorIfNeeded(error, context: "IPO Calendar Error")
+            throw error
+        } catch let error as DecodingError {
+            log("❌ IPO Calendar Decoding Error: \(error)")
+            throw NetworkError.unknown("Failed to decode IPO data")
+        } catch {
+            let networkError = mapError(error)
+            lastError = networkError
+            log("❌ IPO Calendar Network Error: \(networkError.cosmicMessage)")
+            throw networkError
+        }
+    }
+}
+
+// MARK: - Finnhub Earnings Response Models
+// ========================================
+
+/// Response model for Finnhub earnings calendar endpoint
+struct FinnhubEarningsResponse: Codable {
+    let earningsCalendar: [FinnhubEarnings]
+}
+
+/// Individual earnings data from Finnhub
+struct FinnhubEarnings: Codable {
+    let date: String
+    let epsActual: Double?
+    let epsEstimate: Double?
+    let hour: String?  // "bmo" (before market open), "amc" (after market close), "dmh" (during market hours)
+    let quarter: Int?
+    let revenueActual: Double?
+    let revenueEstimate: Double?
+    let symbol: String
+    let year: Int?
+}
+
+// MARK: - Earnings Calendar Methods
+// =================================
+
+extension StockAPIService {
+
+    /// Fetch earnings calendar for a date range
+    /// - Parameters:
+    ///   - from: Start date
+    ///   - to: End date
+    /// - Returns: Array of FinnhubEarnings objects
+    func fetchEarningsCalendar(from: Date, to: Date) async throws -> [FinnhubEarnings] {
+        // Check network connectivity
+        guard NetworkMonitor.shared.isConnected else {
+            throw NetworkError.noConnection
+        }
+
+        // Ensure API key is configured
+        try requireFinnhubConfiguration()
+
+        // Throttle requests
+        try await throttleIfNeeded()
+
+        // Format dates
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let fromStr = dateFormatter.string(from: from)
+        let toStr = dateFormatter.string(from: to)
+
+        // Build URL
+        guard let url = APIConfig.finnhubURL(
+            endpoint: "calendar/earnings",
+            params: ["from": fromStr, "to": toStr]
+        ) else {
+            throw NetworkError.invalidResponse
+        }
+
+        log("🌐 Fetching earnings calendar from \(fromStr) to \(toStr)...")
+
+        do {
+            // Make request
+            let (data, response) = try await session.data(from: url)
+
+            // Check HTTP status
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NetworkError.invalidResponse
+            }
+
+            // Record request timestamp for throttling
+            recordRequest()
+
+            // Handle HTTP errors
+            switch httpResponse.statusCode {
+            case 200:
+                break // Success
+            case 401:
+                throw NetworkError.apiKeyMissing
+            case 429:
+                throw NetworkError.rateLimited
+            case 500...599:
+                throw NetworkError.serverError(statusCode: httpResponse.statusCode)
+            default:
+                throw NetworkError.unknown("HTTP \(httpResponse.statusCode)")
+            }
+
+            // Decode response
+            let earningsResponse = try JSONDecoder().decode(FinnhubEarningsResponse.self, from: data)
+
+            log("✅ Fetched \(earningsResponse.earningsCalendar.count) earnings events")
+
+            lastUpdateTime = Date()
+            lastError = nil
+            isOfflineMode = false
+
+            return earningsResponse.earningsCalendar
+
+        } catch let error as NetworkError {
+            lastError = error
+            logNetworkErrorIfNeeded(error, context: "Earnings Calendar Error")
+            throw error
+        } catch let error as DecodingError {
+            log("❌ Earnings Calendar Decoding Error: \(error)")
+            throw NetworkError.unknown("Failed to decode earnings data")
+        } catch {
+            let networkError = mapError(error)
+            lastError = networkError
+            log("❌ Earnings Calendar Network Error: \(networkError.cosmicMessage)")
+            throw networkError
+        }
+    }
+}
+
+// MARK: - FinnhubCandleResponse Volume Extensions
+// ================================================
+
+extension FinnhubCandleResponse {
+    /// Check if the response has valid volume data
+    var hasValidVolumeData: Bool {
+        s == "ok" && (v?.isEmpty == false)
+    }
+
+    /// Latest volume from the candles
+    var latestVolume: Int? {
+        v?.last
+    }
+
+    /// Average volume across all candles
+    var averageVolume: Double? {
+        guard let volumes = v, !volumes.isEmpty else { return nil }
+        let sum = volumes.reduce(0, +)
+        return Double(sum) / Double(volumes.count)
+    }
+}
+
+// MARK: - Candles Methods
+// =======================
+
+extension StockAPIService {
+
+    /// Fetch stock candles (OHLCV data) for a date range
+    /// - Parameters:
+    ///   - symbol: Stock ticker symbol
+    ///   - resolution: Candle resolution (1, 5, 15, 30, 60, D, W, M)
+    ///   - from: Start date
+    ///   - to: End date
+    /// - Returns: FinnhubCandleResponse with OHLCV data
+    func fetchCandles(symbol: String, resolution: String, from: Date, to: Date) async throws -> FinnhubCandleResponse {
+        // Check network connectivity
+        guard NetworkMonitor.shared.isConnected else {
+            throw NetworkError.noConnection
+        }
+
+        // Ensure API key is configured
+        try requireFinnhubConfiguration()
+
+        // Throttle requests
+        try await throttleIfNeeded()
+
+        // Convert dates to timestamps
+        let fromTimestamp = Int(from.timeIntervalSince1970)
+        let toTimestamp = Int(to.timeIntervalSince1970)
+
+        // Build URL
+        guard let url = APIConfig.finnhubURL(
+            endpoint: "stock/candle",
+            params: [
+                "symbol": symbol.uppercased(),
+                "resolution": resolution,
+                "from": String(fromTimestamp),
+                "to": String(toTimestamp)
+            ]
+        ) else {
+            throw NetworkError.invalidResponse
+        }
+
+        log("🌐 Fetching candles for \(symbol) (\(resolution))...")
+
+        do {
+            // Make request
+            let (data, response) = try await session.data(from: url)
+
+            // Check HTTP status
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NetworkError.invalidResponse
+            }
+
+            // Record request timestamp for throttling
+            recordRequest()
+
+            // Handle HTTP errors
+            switch httpResponse.statusCode {
+            case 200:
+                break // Success
+            case 401:
+                throw NetworkError.apiKeyMissing
+            case 429:
+                throw NetworkError.rateLimited
+            case 500...599:
+                throw NetworkError.serverError(statusCode: httpResponse.statusCode)
+            default:
+                throw NetworkError.unknown("HTTP \(httpResponse.statusCode)")
+            }
+
+            // Decode response
+            let candleResponse = try JSONDecoder().decode(FinnhubCandleResponse.self, from: data)
+
+            if candleResponse.s == "no_data" {
+                log("⚠️ No candle data available for \(symbol)")
+            } else {
+                log("✅ Fetched \(candleResponse.v?.count ?? 0) candles for \(symbol)")
+            }
+
+            lastUpdateTime = Date()
+            lastError = nil
+            isOfflineMode = false
+
+            return candleResponse
+
+        } catch let error as NetworkError {
+            lastError = error
+            logNetworkErrorIfNeeded(error, context: "Candles Error for \(symbol)")
+            throw error
+        } catch let error as DecodingError {
+            log("❌ Candles Decoding Error: \(error)")
+            throw NetworkError.unknown("Failed to decode candle data")
+        } catch {
+            let networkError = mapError(error)
+            lastError = networkError
+            log("❌ Candles Network Error: \(networkError.cosmicMessage)")
+            throw networkError
+        }
+    }
+
+    /// Fetch recent candles for volume calculation (last 30 days)
+    /// - Parameter symbol: Stock ticker symbol
+    /// - Returns: FinnhubCandleResponse with daily OHLCV data
+    func fetchRecentCandles(symbol: String) async throws -> FinnhubCandleResponse {
+        let calendar = Calendar.current
+        let to = Date()
+        guard let from = calendar.date(byAdding: .day, value: -30, to: to) else {
+            throw NetworkError.unknown("Failed to calculate date range")
+        }
+        return try await fetchCandles(symbol: symbol, resolution: "D", from: from, to: to)
     }
 }
 

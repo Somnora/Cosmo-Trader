@@ -25,14 +25,35 @@ struct CosmicTheme {
     /// Tertiary - same as secondary, no hierarchy needed
     static let tertiaryBackground = Color(hex: "0A0A0A")
 
+    /// Panel - slightly elevated dark surface for layering
+    static let panelElevated = Color(hex: "0E0F11")
+
+    /// Panel - dark navy emphasis (primary cockpit panels)
+    static let panelNavy = Color(hex: "081627")
+
+    /// Panel - brighter navy callout (secondary signal panels)
+    static let panelSteel = Color(hex: "0C2238")
+
+    /// Panel - muted gold callout backdrop
+    static let panelGold = Color(hex: "151005")
+
     // MARK: - Borders
     // Thin 1px lines only. No shadows.
 
     /// Standard border - thin gray line
-    static let border = Color(hex: "1A1A1A")
+    static let border = Color(hex: "242629")
 
     /// Dim border (alias)
-    static let borderDim = Color(hex: "1A1A1A")
+    static let borderDim = Color(hex: "1F2123")
+
+    /// Slightly stronger border for emphasis
+    static let borderStrong = Color(hex: "33363B")
+
+    /// Navy hairline for emphasis panels
+    static let borderNavy = Color(hex: "1F3957")
+
+    /// Gold hairline for callouts
+    static let borderGold = Color(hex: "3A2B0A")
 
     /// Divider lines
     static let divider = Color(hex: "1A1A1A")
@@ -69,29 +90,41 @@ struct CosmicTheme {
     /// Dim gold for backgrounds
     static let dimGold = Color(hex: "1A1500")
 
-    /// Blue accents - steel, not cosmic
-    static let cosmicBlue = Color(hex: "0A0A0A")
-    static let deepBlue = Color(hex: "0A0A0A")
+    /// Blue accents - dark terminal navy, not AI-purple space wash
+    static let cosmicBlue = Color(hex: "071A2F")
+    static let deepBlue = Color(hex: "04111F")
     static let accentBlue = Color(hex: "336699")
+    static let terminalNavy = Color(hex: "071A2F")
+    static let steelBlue = Color(hex: "5A7790")
 
     // MARK: - Text Colors
+    // Tuned for practical readability on OLED dark panels while preserving
+    // the muted terminal feel. Body and label tones lifted from the
+    // earlier passes where they were too close to background grey.
 
-    /// Primary text - NOT pure white, slightly dim
-    static let textPrimary = Color(hex: "CCCCCC")
+    /// Primary text - bright but not pure white
+    static let textPrimary = Color(hex: "E6E6E6")
 
-    /// Secondary text - labels, less important
-    static let textSecondary = Color(hex: "666666")
+    /// Secondary text - body copy on dark panels
+    static let textSecondary = Color(hex: "9CA0A6")
 
-    /// Muted text - hints, timestamps
-    static let textMuted = Color(hex: "444444")
+    /// Muted text - hints, timestamps, captions
+    static let textMuted = Color(hex: "6E737A")
 
     /// Disabled text
-    static let textDisabled = Color(hex: "333333")
+    static let textDisabled = Color(hex: "3A3D42")
+
+    // MARK: - Tab Bar / Layout
+
+    /// Clearance below scrollable content so it never sits beneath the
+    /// floating system tab bar. Covers a 49pt tab bar + worst-case home
+    /// indicator inset plus a small breathing room.
+    static let tabBarClearance: CGFloat = 120
 
     // MARK: - Legacy Aliases
 
-    static let cosmicPurple = Color(hex: "0A0A0A")  // No purple. Ever.
-    static let nebulaBlue = Color(hex: "0A0A0A")    // No nebula nonsense.
+    static let cosmicPurple = Color(hex: "071A2F")  // Legacy alias: use dark navy, never purple.
+    static let nebulaBlue = Color(hex: "0B223D")    // Legacy alias: deep terminal blue, not neon.
 
     // MARK: - Gradients (FLAT - no actual gradients)
 
@@ -222,9 +255,67 @@ struct TerminalFont {
     }
 }
 
+// MARK: - Terminal Panel Styling
+// Adds tasteful dimensionality to cards via tinted dark surfaces with
+// hairline strokes. Keeps the OLED black background dominant; panels
+// only lift slightly so the eye can read hierarchy without losing the
+// terminal feel.
+
+enum TerminalPanelEmphasis {
+    /// Standard near-black card surface
+    case standard
+    /// Slightly lifted neutral surface for secondary blocks
+    case elevated
+    /// Dark navy emphasis - primary cockpit/control panels
+    case navy
+    /// Brighter navy/steel - secondary signal panels
+    case steel
+    /// Muted gold callout backdrop (use sparingly)
+    case gold
+
+    var fill: Color {
+        switch self {
+        case .standard: return CosmicTheme.cardBackground
+        case .elevated: return CosmicTheme.panelElevated
+        case .navy:     return CosmicTheme.panelNavy
+        case .steel:    return CosmicTheme.panelSteel
+        case .gold:     return CosmicTheme.panelGold
+        }
+    }
+
+    var stroke: Color {
+        switch self {
+        case .standard: return CosmicTheme.border
+        case .elevated: return CosmicTheme.borderStrong
+        case .navy:     return CosmicTheme.borderNavy
+        case .steel:    return CosmicTheme.borderNavy
+        case .gold:     return CosmicTheme.borderGold
+        }
+    }
+}
+
 // MARK: - View Extensions
 
 extension View {
+    /// Terminal panel with tinted background and hairline stroke. Sharp
+    /// corners by default; pass a small cornerRadius for subtly rounded
+    /// settings cards.
+    func terminalPanel(
+        _ emphasis: TerminalPanelEmphasis = .standard,
+        cornerRadius: CGFloat = 0,
+        strokeWidth: CGFloat = 1
+    ) -> some View {
+        self
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(emphasis.fill)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(emphasis.stroke, lineWidth: strokeWidth)
+            )
+    }
+
     /// Terminal style - NO rounded corners, 1px border
     func terminalCard() -> some View {
         self
@@ -271,6 +362,15 @@ extension View {
     /// Flat black background
     func voidBackground(gradient: Bool = false) -> some View {
         self.background(CosmicTheme.background)
+    }
+
+    /// Adds breathing room below scrollable tab content so it never
+    /// sits flush against — or beneath — the system tab bar. Apply once
+    /// at the ScrollView/List level. Use `extra` to fine-tune.
+    func tabBarSafeBottomPadding(extra: CGFloat = 0) -> some View {
+        self.safeAreaInset(edge: .bottom, spacing: 0) {
+            Color.clear.frame(height: CosmicTheme.tabBarClearance + extra)
+        }
     }
 
     /// NO scanlines - too decorative

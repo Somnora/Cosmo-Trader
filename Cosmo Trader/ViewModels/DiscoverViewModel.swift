@@ -3,9 +3,9 @@ import SwiftUI
 
 // MARK: - DiscoverViewModel
 
-/// ViewModel for the stock discovery "swipe" interface.
+/// ViewModel for the stock discovery interface.
 ///
-/// `DiscoverViewModel` manages the "Tinder for stocks" experience, handling the card deck,
+/// `DiscoverViewModel` manages the operational stock discovery experience, handling the card deck,
 /// swipe gestures, filtering, and sorting. It integrates with ``AppState`` to track
 /// watchlist additions and skipped stocks.
 ///
@@ -40,7 +40,7 @@ import SwiftUI
 /// |-------|--------|--------|
 /// | Right | Like | Added to watchlist |
 /// | Left | Skip | Hidden from deck |
-/// | Up | Details | Opens stock detail sheet |
+/// | Up | Signal | Opens stock detail sheet |
 ///
 /// ## Filtering
 ///
@@ -80,10 +80,7 @@ class DiscoverViewModel {
     /// How cards are sorted in the deck.
     var sortOption: SortOption = .compatibility
 
-    /// When enabled, shows least compatible stocks first.
-    ///
-    /// "Cosmic Contrarian Mode" inverts the compatibility sort,
-    /// useful for users who want to go against their zodiac alignment.
+    /// When enabled, shows least compatible stocks first for diversification review.
     var cosmicContrarianMode: Bool = false
 
     /// Whether the filter sheet is currently presented.
@@ -91,9 +88,6 @@ class DiscoverViewModel {
 
     /// Stock currently being viewed in the detail sheet (from swipe up).
     var detailStock: Stock?
-
-    /// Whether a card removal animation is in progress.
-    var removingCard: Bool = false
 
     /// Work item for debouncing filter changes.
     private var filterDebounceWork: DispatchWorkItem?
@@ -184,7 +178,7 @@ class DiscoverViewModel {
         }
         var stocks = filteredStocks
 
-        // In Cosmic Contrarian mode, prioritize least compatible stocks
+        // In contrarian mode, prioritize least compatible stocks
         if cosmicContrarianMode {
             // Sort by LOWEST compatibility first
             stocks.sort { stock1, stock2 in
@@ -210,12 +204,13 @@ class DiscoverViewModel {
             }
         }
 
-        // Create stock cards with compatibility
+        // Create stock cards with compatibility and portfolio-aware context
         let previousCount = cardDeck.count
         cardDeck = stocks.map { stock in
             StockCard(
                 stock: stock,
-                compatibility: user.compatibility(with: stock)
+                compatibility: user.compatibility(with: stock),
+                whyToday: whyToday(for: stock, user: user)
             )
         }
 
@@ -256,28 +251,23 @@ class DiscoverViewModel {
         )
     }
 
-    /// Swipe up - view detail
-    func viewDetail(_ stock: Stock) {
+    /// View detail
+    func viewDetail(_ stock: Stock, source: String = "discover") {
         detailStock = stock
 
-        // Track swipe up (view detail)
-        AnalyticsService.shared.trackStockDetailOpened(symbol: stock.symbol, source: "discover_swipe")
+        AnalyticsService.shared.trackStockDetailOpened(symbol: stock.symbol, source: source)
     }
 
     /// Remove the top card from deck
     private func removeTopCard() {
         guard !cardDeck.isEmpty else { return }
-        removingCard = true
+        _ = withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+            cardDeck.removeFirst()
+        }
 
-        // Small delay for animation
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            self?.cardDeck.removeFirst()
-            self?.removingCard = false
-
-            // Track if deck is now empty
-            if self?.cardDeck.isEmpty == true {
-                AnalyticsService.shared.trackDiscoverDeckEmpty()
-            }
+        // Track if deck is now empty
+        if cardDeck.isEmpty {
+            AnalyticsService.shared.trackDiscoverDeckEmpty()
         }
     }
 
@@ -352,11 +342,11 @@ class DiscoverViewModel {
     /// Get the contrarian insight text based on user's sign
     var contrarianInsight: String {
         guard let userSign = user?.sunSign else {
-            return "Discover stocks that challenge your cosmic comfort zone."
+            return "Discover stocks outside your usual cosmic profile."
         }
         let oppositeElement = userSign.element.oppositeElement
 
-        return "Against your \(userSign.element.displayName) nature. Growth means discomfort. Here are \(oppositeElement.displayName) stocks that challenge your cosmic comfort zone."
+        return "Outside your \(userSign.element.displayName) profile. These \(oppositeElement.displayName) names can diversify the reading if the thesis is strong."
     }
 
     /// Get stocks that are cosmically opposed to user
@@ -366,6 +356,71 @@ class DiscoverViewModel {
             // Opposite sign or opposite element
             stock.zodiacSign == userSign.oppositeSign ||
             stock.zodiacSign.element == userSign.element.oppositeElement
+        }
+    }
+
+    private func whyToday(for stock: Stock, user: UserProfile) -> String {
+        let holdings = user.portfolio.filter(\.isOwned)
+        let lunarData = MoonPhaseService.shared.getCurrentLunarData()
+
+        guard !holdings.isEmpty else {
+            if stock.zodiacSign.element == lunarData.activatedElement {
+                return "\(lunarData.phase.rawValue) activates \(stock.zodiacSign.element.displayName.lowercased()) exposure; useful starter candidate for setup."
+            }
+            return "Useful starter candidate. Add holdings so Today can compare real portfolio exposure."
+        }
+
+        let role = portfolioRole(for: stock, holdings: holdings)
+
+        if abs(stock.percentageChange) >= 3 {
+            let direction = stock.percentageChange >= 0 ? "Momentum is elevated" : "Volatility is elevated"
+            return "\(direction); \(role)"
+        }
+
+        if stock.zodiacSign.element == lunarData.activatedElement {
+            return "\(lunarData.phase.rawValue) activates \(stock.zodiacSign.element.displayName.lowercased()) exposure; \(role)"
+        }
+
+        let mood = CosmicMoodService.shared.getCurrentMood()
+        if mood.value >= 75 {
+            return "Risk appetite is elevated; \(role)"
+        }
+
+        if mood.value <= 40 {
+            return "Low-conviction tape; \(role)"
+        }
+
+        return role
+    }
+
+    private func portfolioRole(for stock: Stock, holdings: [Stock]) -> String {
+        let element = stock.zodiacSign.element
+        let sameElementWeight = exposureWeight(
+            holdings.filter { $0.zodiacSign.element == element }
+        )
+        let totalWeight = exposureWeight(holdings)
+        let elementShare = totalWeight > 0 ? sameElementWeight / totalWeight : 0
+        let hasElement = sameElementWeight > 0
+        let sectorCount = holdings.filter { $0.sector == stock.sector }.count
+
+        if elementShare >= 0.45 {
+            return "intensifies \(element.displayName.lowercased())-heavy exposure; lean reading."
+        }
+
+        if !hasElement {
+            return "adds \(element.displayName.lowercased()) exposure your portfolio does not carry yet."
+        }
+
+        if sectorCount > 0 {
+            return "adds another \(stock.sector.lowercased()) name; compare concentration before saving."
+        }
+
+        return "broadens the mix with \(stock.sector.lowercased()) exposure."
+    }
+
+    private func exposureWeight(_ holdings: [Stock]) -> Double {
+        holdings.reduce(0) { total, stock in
+            total + max(stock.totalValue, stock.sharesOwned)
         }
     }
 }
@@ -410,13 +465,14 @@ struct StockCard: Identifiable {
     let id = UUID()
     let stock: Stock
     let compatibility: CompatibilityResult
+    var whyToday: String = "Review alongside today's portfolio posture before saving."
 
-    /// Is this a "Cosmic Match" (85%+ compatibility)?
+    /// Is this a high cosmic fit (85%+ compatibility)?
     var isCosmicMatch: Bool {
         compatibility.score >= 85
     }
 
-    /// Is this a "Cosmic Challenge" (low compatibility)?
+    /// Is this a low-fit challenge?
     var isCosmicChallenge: Bool {
         compatibility.score <= 40
     }

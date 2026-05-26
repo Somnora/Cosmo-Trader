@@ -259,7 +259,11 @@ struct BidAskDisplayView: View {
     var showSpread: Bool = true
 
     private var spread: Double { ask - bid }
-    private var spreadPercent: Double { (spread / bid) * 100 }
+    private var spreadPercent: Double {
+        guard bid.isFinite, bid != 0, spread.isFinite else { return 0 }
+        let percent = (spread / bid) * 100
+        return percent.isFinite ? percent : 0
+    }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -326,8 +330,10 @@ struct DayRangeDisplayView: View {
     var label: String = "Day Range"
 
     private var position: Double {
-        guard high > low else { return 0.5 }
-        return (current - low) / (high - low)
+        guard high.isFinite, low.isFinite, current.isFinite, high > low else { return 0.5 }
+        let normalized = (current - low) / (high - low)
+        guard normalized.isFinite else { return 0.5 }
+        return min(max(normalized, 0), 1)
     }
 
     var body: some View {
@@ -368,7 +374,7 @@ struct DayRangeDisplayView: View {
                         .fill(CosmicTheme.gold)
                         .frame(width: 10, height: 10)
                         .shadow(color: CosmicTheme.gold.opacity(0.5), radius: 4)
-                        .offset(x: position * (geometry.size.width - 10))
+                        .offset(x: (CGFloat(position).sanitized * max(geometry.size.width - 10, 0).sanitized).sanitized)
                 }
             }
             .frame(height: 10)

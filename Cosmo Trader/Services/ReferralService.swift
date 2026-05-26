@@ -22,6 +22,7 @@ final class ReferralService {
         static let referredUsers = "referral_referredUsers"
         static let earnedRewardDays = "referral_earnedRewardDays"
         static let redeemedRewardDays = "referral_redeemedRewardDays"
+        static let referralId = "referral_id"
     }
 
     // MARK: - Properties
@@ -40,6 +41,22 @@ final class ReferralService {
 
     /// Reward days already applied/redeemed
     private(set) var redeemedRewardDays: Int = 0
+
+    /// Latest referral id returned by backend
+    private(set) var referralId: String?
+
+    /// Prevent duplicate apply requests
+    private var isApplyInFlight: Bool = false
+
+    /// Prevent UI spam on redeem
+    private var isRedeemInFlight: Bool = false
+
+    /// Leaderboard state
+    private(set) var leaderboardEntries: [ReferralLeaderboard.LeaderboardEntry] = []
+    private(set) var leaderboardError: String?
+    private(set) var isLeaderboardLoading: Bool = false
+
+    private let apiClient: CosmoAPIClient = CosmoAPIClient()
 
     // MARK: - Constants
 
@@ -122,7 +139,13 @@ final class ReferralService {
 
     /// Apply a referral code during signup
     /// Returns success/failure with message
-    func applyReferralCode(_ code: String) -> ReferralResult {
+    func applyReferralCode(_ code: String) async -> ReferralResult {
+        guard !isApplyInFlight else {
+            return .failure("Referral is already being applied.")
+        }
+        isApplyInFlight = true
+        defer { isApplyInFlight = false }
+
         let cleanCode = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
 
         // Validation
@@ -143,20 +166,29 @@ final class ReferralService {
             return .failure("Invalid referral code format")
         }
 
-        // Apply the code
-        usedReferralCode = cleanCode
+        let request = ReferralApplyRequest(
+            code: cleanCode,
+            deviceId: DeviceIDProvider.shared.getOrCreateDeviceId()
+        )
 
-        // Award the new user their bonus
-        earnedRewardDays = min(earnedRewardDays + Self.rewardDaysPerReferral, Self.maxRewardDays)
+        do {
+            let response = try await apiClient.applyReferral(request)
+            usedReferralCode = cleanCode
+            referralId = response.referralId
 
-        saveToStorage()
+            // Award the new user their bonus
+            earnedRewardDays = min(earnedRewardDays + Self.rewardDaysPerReferral, Self.maxRewardDays)
+            saveToStorage()
 
-        // Track analytics
-        AnalyticsService.shared.track(.referralCodeUsed, params: AnalyticsParameters([
-            "code": cleanCode
-        ]))
-
-        return .success("Welcome! You've earned \(Self.rewardDaysPerReferral) days of Oracle Tier!")
+            AnalyticsService.shared.track(.referralCodeUsed, params: AnalyticsParameters([
+                "code": cleanCode
+            ]))
+            return .success("Welcome! You've earned \(Self.rewardDaysPerReferral) days of Oracle Tier!")
+        } catch let error as CosmoAPIError {
+            return .failure(error.errorDescription ?? "Request failed.")
+        } catch {
+            return .failure(error.localizedDescription)
+        }
     }
 
     /// Record that someone used our referral code
@@ -186,22 +218,33 @@ final class ReferralService {
     }
 
     /// Redeem available reward days (apply to subscription)
-    func redeemRewardDays(_ days: Int) -> Bool {
+    func redeemRewardDays(_ days: Int) async -> ReferralResult {
         guard days > 0, days <= availableRewardDays else {
-            return false
+            return .failure("No rewards available to redeem.")
         }
 
-        redeemedRewardDays += days
-        saveToStorage()
+        guard !isRedeemInFlight else {
+            return .failure("Redeem already in progress.")
+        }
+        isRedeemInFlight = true
+        defer { isRedeemInFlight = false }
 
-        // Extend the user's trial/subscription with the referral reward
-        SubscriptionManager.shared.extendTrial(byDays: days)
+        do {
+            _ = try await apiClient.redeemReferralRewards()
+            // Update local balance for UI only. Premium is granted server-side.
+            redeemedRewardDays += days
+            saveToStorage()
 
-        AnalyticsService.shared.track(.referralRewardRedeemed, params: AnalyticsParameters([
-            "days_redeemed": days
-        ]))
+            AnalyticsService.shared.track(.referralRewardRedeemed, params: AnalyticsParameters([
+                "days_redeemed": days
+            ]))
 
-        return true
+            return .success("Rewards redeemed.")
+        } catch let error as CosmoAPIError {
+            return .failure(error.errorDescription ?? "Request failed.")
+        } catch {
+            return .failure(error.localizedDescription)
+        }
     }
 
     // MARK: - Validation
@@ -225,16 +268,19 @@ final class ReferralService {
     // MARK: - Share Text
 
     /// Generate share text for inviting friends
-    func generateShareText(appStoreLink: String = "[App Store Link]") -> String {
-        """
-        I'm tracking my portfolio with the stars on Cosmo Trader ✨
+    func generateShareText(appStoreLink: String? = nil) -> String {
+        var sections = [
+            "I'm tracking my portfolio through Cosmo Trader's market astrology lens.",
+            "Stocks get zodiac birth charts, compatibility reads, and a Cosmic Roast.",
+            "Use my code \(myReferralCode) if you're trying it."
+        ]
 
-        It assigns zodiac signs to stocks and tells you your cosmic compatibility. Plus you can get roasted by the universe.
+        if let appStoreLink,
+           !appStoreLink.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            sections.append(appStoreLink)
+        }
 
-        Use my code \(myReferralCode) for a free week of Oracle Tier!
-
-        \(appStoreLink)
-        """
+        return sections.joined(separator: "\n\n")
     }
 
     // MARK: - Persistence
@@ -245,6 +291,7 @@ final class ReferralService {
         defaults.set(usedReferralCode, forKey: StorageKeys.usedReferralCode)
         defaults.set(earnedRewardDays, forKey: StorageKeys.earnedRewardDays)
         defaults.set(redeemedRewardDays, forKey: StorageKeys.redeemedRewardDays)
+        defaults.set(referralId, forKey: StorageKeys.referralId)
 
         // Encode referred users
         if let encoded = try? JSONEncoder().encode(referredUsers) {
@@ -258,11 +305,55 @@ final class ReferralService {
         usedReferralCode = defaults.string(forKey: StorageKeys.usedReferralCode)
         earnedRewardDays = defaults.integer(forKey: StorageKeys.earnedRewardDays)
         redeemedRewardDays = defaults.integer(forKey: StorageKeys.redeemedRewardDays)
+        referralId = defaults.string(forKey: StorageKeys.referralId)
 
         // Decode referred users
         if let data = defaults.data(forKey: StorageKeys.referredUsers),
            let decoded = try? JSONDecoder().decode([ReferredUser].self, from: data) {
             referredUsers = decoded
+        }
+    }
+
+    // MARK: - Qualification Milestones
+
+    func qualifyReferralIfNeeded(milestone: ReferralMilestone, storageKey: String) async {
+        let defaults = UserDefaults.standard
+        if defaults.bool(forKey: storageKey) {
+            return
+        }
+
+        do {
+            _ = try await apiClient.qualifyReferral(milestone: milestone)
+            defaults.set(true, forKey: storageKey)
+        } catch {
+            Log.warning("[ReferralService] Qualify failed for \(milestone.rawValue): \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Leaderboard
+
+    func loadLeaderboard(limit: Int = 50) async {
+        guard !isLeaderboardLoading else { return }
+        isLeaderboardLoading = true
+        leaderboardError = nil
+        defer { isLeaderboardLoading = false }
+
+        do {
+            let response = try await apiClient.referralLeaderboard(limit: limit)
+            leaderboardEntries = response.leaders.enumerated().map { index, item in
+                ReferralLeaderboard.LeaderboardEntry(
+                    rank: index + 1,
+                    anonymizedName: item.anonymizedName,
+                    referralCount: item.referralRewardCount,
+                    zodiacSign: ZodiacSign.allCases.randomElement() ?? .aries
+                )
+            }
+        } catch let error as CosmoAPIError {
+            leaderboardError = error.errorDescription
+            leaderboardEntries = []
+        } catch {
+            leaderboardError = error.localizedDescription
+            leaderboardEntries = []
         }
     }
 
@@ -280,6 +371,10 @@ final class ReferralService {
         referredUsers = []
         earnedRewardDays = 0
         redeemedRewardDays = 0
+        referralId = nil
+        ReferralMilestone.allCases.forEach {
+            UserDefaults.standard.removeObject(forKey: $0.qualificationStorageKey)
+        }
         saveToStorage()
     }
     #endif
@@ -328,7 +423,8 @@ enum ReferralResult {
     }
 }
 
-// MARK: - Leaderboard (Mock Data for Now)
+// MARK: - Leaderboard
+// ====================
 
 struct ReferralLeaderboard {
 
@@ -349,17 +445,5 @@ struct ReferralLeaderboard {
         }
     }
 
-    /// Mock leaderboard data (would come from backend in production)
-    static let mockTopRecruiters: [LeaderboardEntry] = [
-        LeaderboardEntry(rank: 1, anonymizedName: "Cosmic****", referralCount: 47, zodiacSign: .leo),
-        LeaderboardEntry(rank: 2, anonymizedName: "Star_****", referralCount: 38, zodiacSign: .sagittarius),
-        LeaderboardEntry(rank: 3, anonymizedName: "Luna****", referralCount: 31, zodiacSign: .cancer),
-        LeaderboardEntry(rank: 4, anonymizedName: "Astro****", referralCount: 24, zodiacSign: .aquarius),
-        LeaderboardEntry(rank: 5, anonymizedName: "Orbit****", referralCount: 19, zodiacSign: .aries),
-        LeaderboardEntry(rank: 6, anonymizedName: "Nebul****", referralCount: 15, zodiacSign: .pisces),
-        LeaderboardEntry(rank: 7, anonymizedName: "Solar****", referralCount: 12, zodiacSign: .virgo),
-        LeaderboardEntry(rank: 8, anonymizedName: "Comet****", referralCount: 9, zodiacSign: .gemini),
-        LeaderboardEntry(rank: 9, anonymizedName: "Galax****", referralCount: 7, zodiacSign: .scorpio),
-        LeaderboardEntry(rank: 10, anonymizedName: "Plane****", referralCount: 5, zodiacSign: .taurus),
-    ]
+    // Data is loaded from backend via ReferralService.loadLeaderboard
 }

@@ -51,7 +51,7 @@ final class CosmicTickerService {
         self.retrogradeService = MercuryRetrogradeService.shared
         self.seasonService = SignSeasonService.shared
         refreshTicker()
-        startRefreshTimer()
+        // Timer will be started by App when scene becomes active
     }
 
     // MARK: - Public Methods
@@ -114,7 +114,7 @@ final class CosmicTickerService {
         let lunarData = moonService.getCurrentLunarData()
         messages.append(TickerItem(
             type: .cosmic(.moon),
-            text: "\(lunarData.phase.icon) MOON IN \(lunarData.moonSign.displayName.uppercased())",
+            text: "MOON IN \(lunarData.moonSign.displayName.uppercased())",
             color: lunarData.moonSign.element.color
         ))
 
@@ -126,7 +126,7 @@ final class CosmicTickerService {
                 let endString = formatter.string(from: endTime).lowercased()
                 messages.append(TickerItem(
                     type: .cosmic(.voc),
-                    text: "⚠️ VOC ENDS \(endString.uppercased())",
+                    text: "VOC ENDS \(endString.uppercased())",
                     color: .orange
                 ))
             }
@@ -146,13 +146,13 @@ final class CosmicTickerService {
         if retrogradeService.isRetrograde {
             messages.append(TickerItem(
                 type: .cosmic(.retrograde),
-                text: "☿️ RETROGRADE DAY \(retrogradeService.currentDayOfRetrograde)",
+                text: "MERCURY RX DAY \(retrogradeService.currentDayOfRetrograde)",
                 color: .orange
             ))
         } else if retrogradeService.daysUntilNext <= 7 && retrogradeService.daysUntilNext > 0 {
             messages.append(TickerItem(
                 type: .cosmic(.retrograde),
-                text: "☿️ RX IN \(retrogradeService.daysUntilNext)D",
+                text: "MERCURY RX IN \(retrogradeService.daysUntilNext)D",
                 color: .yellow
             ))
         }
@@ -161,7 +161,7 @@ final class CosmicTickerService {
         if let activeEvent = astroService.primaryActiveEvent {
             messages.append(TickerItem(
                 type: .cosmic(.event),
-                text: "\(activeEvent.type.emoji) \(activeEvent.title.uppercased())",
+                text: "[\(activeEvent.type.rawValue)] \(activeEvent.title.uppercased())",
                 color: activeEvent.themeColor
             ))
         }
@@ -170,7 +170,7 @@ final class CosmicTickerService {
         let currentSign = seasonService.getCurrentSign()
         messages.append(TickerItem(
             type: .cosmic(.season),
-            text: "\(currentSign.symbol) \(currentSign.displayName.uppercased()) SEASON",
+            text: "\(currentSign.displayName.uppercased()) SEASON",
             color: currentSign.element.color
         ))
 
@@ -194,25 +194,25 @@ final class CosmicTickerService {
         case .fullMoon:
             quips.append(TickerItem(
                 type: .cosmic(.quip),
-                text: "🌕 FULL MOON ENERGY",
+                text: "FULL MOON: VOLATILITY ELEVATED",
                 color: .white
             ))
         case .newMoon:
             quips.append(TickerItem(
                 type: .cosmic(.quip),
-                text: "🌑 NEW BEGINNINGS",
+                text: "NEW MOON: RESET WINDOW",
                 color: CosmicTheme.textSecondary
             ))
         case .waxingCrescent, .waxingGibbous, .firstQuarter:
             quips.append(TickerItem(
                 type: .cosmic(.quip),
-                text: "📈 WAXING MOON = GROWTH",
+                text: "WAXING MOON: MOMENTUM BUILDING",
                 color: CosmicTheme.positive
             ))
         case .waningCrescent, .waningGibbous, .lastQuarter:
             quips.append(TickerItem(
                 type: .cosmic(.quip),
-                text: "📉 WANING MOON = RELEASE",
+                text: "WANING MOON: DE-RISKING WINDOW",
                 color: CosmicTheme.textSecondary
             ))
         }
@@ -222,32 +222,32 @@ final class CosmicTickerService {
         case 2: // Monday
             quips.append(TickerItem(
                 type: .cosmic(.quip),
-                text: "🌙 MOON DAY",
+                text: "MOON DAY: SENTIMENT FOCUS",
                 color: .white
             ))
         case 3: // Tuesday
             quips.append(TickerItem(
                 type: .cosmic(.quip),
-                text: "♂️ MARS RULES TODAY",
+                text: "MARS DAY: RISK APPETITE",
                 color: .red
             ))
         case 4: // Wednesday
             quips.append(TickerItem(
                 type: .cosmic(.quip),
-                text: "☿️ MERCURY'S DAY",
+                text: "MERCURY DAY: EXECUTION RISK",
                 color: .orange
             ))
         case 5: // Thursday
             quips.append(TickerItem(
                 type: .cosmic(.quip),
-                text: "♃ JUPITER EXPANSION",
-                color: .purple
+                text: "JUPITER DAY: EXPANSION BIAS",
+                color: CosmicTheme.accentBlue
             ))
         case 6: // Friday
             quips.append(TickerItem(
                 type: .cosmic(.quip),
-                text: "♀️ VENUS VIBES",
-                color: .pink
+                text: "VENUS DAY: VALUE DISCIPLINE",
+                color: CosmicTheme.gold
             ))
         default:
             break
@@ -255,23 +255,39 @@ final class CosmicTickerService {
 
         // General cosmic wisdom
         quips.append(contentsOf: [
-            TickerItem(type: .cosmic(.quip), text: "✨ STARS ALIGN", color: CosmicTheme.gold),
-            TickerItem(type: .cosmic(.quip), text: "🔮 TRUST THE PROCESS", color: .purple),
-            TickerItem(type: .cosmic(.quip), text: "⚡️ COSMIC SHIFT", color: .cyan),
+            TickerItem(type: .cosmic(.quip), text: "SIGNAL CONFIRMED", color: CosmicTheme.gold),
+            TickerItem(type: .cosmic(.quip), text: "WAIT FOR CONFIRMATION", color: CosmicTheme.accentBlue),
+            TickerItem(type: .cosmic(.quip), text: "MARKET REGIME SHIFT", color: .cyan),
         ])
 
         return quips
     }
 
-    // MARK: - Timer
+    // MARK: - Timer Management
 
-    private func startRefreshTimer() {
+    @objc private func handleRefreshTimer() {
+        refreshTicker()
+    }
+
+    /// Start the refresh timer (called when app becomes active)
+    func startRefreshTimer() {
+        // Prevent duplicate timers
+        stopRefreshTimer()
+
         // Refresh every 30 seconds
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
-            Task { @MainActor in
-                CosmicTickerService.shared.refreshTicker()
-            }
-        }
+        refreshTimer = Timer.scheduledTimer(
+            timeInterval: 30,
+            target: self,
+            selector: #selector(handleRefreshTimer),
+            userInfo: nil,
+            repeats: true
+        )
+    }
+
+    /// Stop the refresh timer (called when app goes to background)
+    func stopRefreshTimer() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
     }
 }
 

@@ -60,8 +60,8 @@ struct CosmicBalanceCard: View {
 
             Spacer()
 
-            // Sparkle icon
-            Image(systemName: "sparkles")
+            // Signal icon
+            Image(systemName: "scope")
                 .font(.title2)
                 .foregroundStyle(CosmicTheme.goldGradient)
         }
@@ -144,7 +144,7 @@ struct CosmicBalanceCard: View {
             .fill(CosmicTheme.cardBackground)
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
-                    .stroke(CosmicTheme.cosmicPurple.opacity(0.2), lineWidth: 1)
+                    .stroke(CosmicTheme.accentBlue.opacity(0.2), lineWidth: 1)
             )
     }
 
@@ -217,7 +217,7 @@ extension View {
                 ElementBreakdown(element: .fire, percentage: 24, value: 10000),
                 ElementBreakdown(element: .air, percentage: 22, value: 9000)
             ],
-            insight: "Elementally balanced — you're diversified across cosmic energies. The universe approves."
+            insight: "Elementally balanced - no single exposure dominates the read."
         )
         .padding()
     }

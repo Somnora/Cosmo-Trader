@@ -23,6 +23,7 @@ struct ImportPortfolioView: View {
     @State private var replaceExisting = false
     @State private var showSuccess = false
     @State private var expandedFormat: CSVFormat?
+    @State private var isShowingScreenshotImport = false
 
     // MARK: - Body
 
@@ -87,6 +88,9 @@ struct ImportPortfolioView: View {
                     Text("Successfully imported \(result.holdings.count) holdings to your portfolio.")
                 }
             }
+            .sheet(isPresented: $isShowingScreenshotImport) {
+                ScreenshotImportView()
+            }
         }
     }
 
@@ -105,7 +109,7 @@ struct ImportPortfolioView: View {
                     .tracking(1)
             }
 
-            Text("Export your holdings as CSV from your broker, then import them here to sync with your cosmic portfolio.")
+            Text("Import holdings to make Today operational. Screenshot import is fastest; CSV is available when you want a cleaner position file.")
                 .font(TerminalFont.data(12))
                 .foregroundColor(CosmicTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -298,19 +302,30 @@ struct ImportPortfolioView: View {
 
     private var importButton: some View {
         VStack(spacing: 12) {
+            // Screenshot Import (Primary - Recommended)
             Button(action: {
-                isShowingFilePicker = true
+                isShowingScreenshotImport = true
             }) {
                 HStack(spacing: 10) {
-                    Image(systemName: "doc.badge.plus")
+                    Image(systemName: "camera.viewfinder")
                         .font(.title3)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("SELECT CSV FILE")
-                            .font(TerminalFont.data(12, weight: .semibold))
-                            .tracking(1)
+                        HStack(spacing: 6) {
+                            Text("SCREENSHOT IMPORT")
+                                .font(TerminalFont.data(12, weight: .semibold))
+                                .tracking(1)
 
-                        Text("Choose your exported portfolio file")
+                            Text("Recommended")
+                                .font(TerminalFont.data(8, weight: .semibold))
+                                .foregroundColor(CosmicTheme.background)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(CosmicTheme.gold)
+                                .clipShape(Capsule())
+                        }
+
+                        Text("Fast setup from a broker holdings screen")
                             .font(TerminalFont.data(10))
                             .opacity(0.7)
                     }
@@ -327,6 +342,40 @@ struct ImportPortfolioView: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(CosmicTheme.gold.opacity(0.3), lineWidth: 1)
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            // CSV File Import (Secondary)
+            Button(action: {
+                isShowingFilePicker = true
+            }) {
+                HStack(spacing: 10) {
+                    Image(systemName: "doc.badge.plus")
+                        .font(.title3)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("CSV FILE IMPORT")
+                            .font(TerminalFont.data(12, weight: .semibold))
+                            .tracking(1)
+
+                        Text("Cleaner import from exported positions")
+                            .font(TerminalFont.data(10))
+                            .opacity(0.7)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                }
+                .foregroundColor(CosmicTheme.textSecondary)
+                .padding(16)
+                .background(CosmicTheme.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(CosmicTheme.border, lineWidth: 1)
                 )
             }
             .buttonStyle(PlainButtonStyle())
@@ -561,8 +610,7 @@ struct ImportPortfolioView: View {
                     .foregroundColor(CosmicTheme.textPrimary)
 
                 if let stock = holding.matchedStock {
-                    Text(stock.zodiacSign.symbol)
-                        .font(.caption2)
+                    ZodiacMark(sign: stock.zodiacSign, size: .tiny, style: .element)
                 }
             }
             .frame(width: 70, alignment: .leading)

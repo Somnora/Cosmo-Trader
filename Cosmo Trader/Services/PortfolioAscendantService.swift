@@ -69,7 +69,7 @@ final class PortfolioAscendantService {
                 dominantSign: .taurus,
                 signBreakdown: [:],
                 personality: "Empty",
-                description: "Your portfolio is a blank canvas awaiting cosmic guidance."
+                description: "Add holdings to generate a portfolio-specific signal profile."
             )
         }
 
@@ -133,7 +133,7 @@ final class PortfolioAscendantService {
         } else if air > 30 && water > 30 {
             return "Adaptive Strategist"
         } else {
-            return "Diversified Cosmic Investor"
+            return "Diversified Signal Investor"
         }
     }
 
@@ -146,7 +146,7 @@ final class PortfolioAscendantService {
         switch dominantElement {
         case .fire:
             if dominantPercent > 60 {
-                return "Your portfolio burns hot with aggressive growth plays. You're not here for dividends."
+                return "Your portfolio burns hot with growth-oriented names. Dividends are not the main character here."
             } else {
                 return "Fire energy drives your core holdings. You favor bold moves over safe bets."
             }
@@ -155,7 +155,7 @@ final class PortfolioAscendantService {
             if dominantPercent > 60 {
                 return "Rock-solid Earth energy dominates. You're building generational wealth, one dividend at a time."
             } else {
-                return "Earth grounds your portfolio. Value and stability are your north stars."
+                return "Earth grounds your portfolio. Value and stability anchor the read."
             }
 
         case .air:
@@ -394,7 +394,7 @@ final class PortfolioAscendantService {
             insight = "Your intuitive Water nature got seduced by meme energy. The heart wants dividends, the hands hold GME."
         } else if sunElement == .air && ascendantLabel.contains("Value") {
             contrastLevel = .moderate
-            insight = "An innovation-minded Air investor with value vibes? You're a walking contradiction, and honestly, it's working."
+            insight = "Innovation-minded Air exposure with value discipline. The contradiction is working."
         } else if sun.personality.contains("Conservative") && ascendant.perceivedAs.contains("Thrill") {
             contrastLevel = .dramatic
             insight = "Secretly conservative, publicly chaotic. One volatile stock is doing all the talking."
@@ -460,7 +460,7 @@ struct PortfolioAscendantReading: Identifiable {
             ),
             contrast: PortfolioContrast(
                 level: .aligned,
-                insight: "Start investing to discover your portfolio's cosmic identity.",
+                insight: "Start investing to discover your portfolio's signal identity.",
                 sunSummary: "Unknown",
                 ascendantSummary: "Unknown"
             ),
@@ -520,7 +520,7 @@ enum ContrastLevel {
         switch self {
         case .aligned: return .green
         case .moderate: return .orange
-        case .dramatic: return .purple
+        case .dramatic: return CosmicTheme.accentBlue
         }
     }
 }

@@ -164,8 +164,7 @@ struct ObituaryRow: View {
             HStack {
                 // Symbol and sign
                 HStack(spacing: 8) {
-                    Text(obituary.zodiacSign.symbol)
-                        .font(.title3)
+                    ZodiacMark(sign: obituary.zodiacSign, size: 20, style: .element)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(obituary.symbol)
@@ -321,7 +320,7 @@ struct ObituaryDetailSheet: View {
 
                     // Zodiac
                     HStack(spacing: 4) {
-                        Text(obituary.zodiacSign.symbol)
+                        ZodiacMark(sign: obituary.zodiacSign, size: 14, style: .element)
                         Text(obituary.zodiacSign.displayName)
                             .font(TerminalFont.caption(12))
                     }

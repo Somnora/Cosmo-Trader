@@ -513,7 +513,7 @@ struct CosmicObituary: Identifiable, Codable {
         """
         ⚰️ COSMIC OBITUARY
 
-        \(symbol) (\(zodiacSign.symbol) \(zodiacSign.displayName), \(formattedLifespan))
+        \(symbol) (\(zodiacSign.textSymbol) \(zodiacSign.displayName), \(formattedLifespan))
 
         "\(epitaph)"
 

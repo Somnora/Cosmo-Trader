@@ -22,11 +22,17 @@ class PortfolioViewModel {
     /// The current user's profile (contains portfolio)
     var user: UserProfile
 
-    /// Is data currently loading?
+    /// Is data currently loading/refreshing?
     var isLoading: Bool = false
 
     /// Any error message to display
     var errorMessage: String?
+
+    /// When the portfolio was last refreshed
+    var lastRefreshed: Date?
+
+    /// Whether we're showing cached data (API failed)
+    var isUsingCachedPrices: Bool = false
 
     // MARK: - Initialization
 
@@ -173,7 +179,7 @@ class PortfolioViewModel {
             }
         } else {
             // Well-balanced
-            return "Elementally balanced — you're diversified across cosmic energies. The universe approves."
+            return "Elementally balanced - no single exposure dominates the portfolio read."
         }
     }
 
@@ -191,16 +197,57 @@ class PortfolioViewModel {
 
     // MARK: - Actions
 
-    /// Refresh portfolio data
+    /// Refresh portfolio data by fetching latest prices from API
     func refreshPortfolio() async {
+        // Prevent duplicate refreshes
+        guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
+        isUsingCachedPrices = false
 
-        // Simulate network delay
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        defer { isLoading = false }
 
-        // In a real app, you'd fetch updated prices here
-        isLoading = false
+        // Get unique symbols from portfolio
+        let symbols = Array(Set(user.portfolio.filter { $0.sharesOwned > 0 }.map { $0.symbol }))
+
+        guard !symbols.isEmpty else { return }
+
+        // Fetch latest prices for all holdings
+        let quotes = await StockAPIService.shared.getMultipleQuotes(symbols: symbols)
+
+        if quotes.isEmpty {
+            // API failed entirely - check if we have cached data
+            let cached = StockAPIService.shared.getCachedQuotes(for: symbols)
+            if !cached.isEmpty {
+                // Update with cached prices
+                updatePortfolioPrices(with: cached)
+                isUsingCachedPrices = true
+                lastRefreshed = StockAPIService.shared.oldestCacheTimestamp(for: symbols)
+            } else {
+                // No data at all - keep existing prices
+                errorMessage = "Unable to fetch prices. Showing last known values."
+            }
+        } else {
+            // Update portfolio with fresh prices
+            updatePortfolioPrices(with: quotes)
+            lastRefreshed = Date()
+
+            // Check if we got all symbols (some may have failed)
+            if quotes.count < symbols.count {
+                isUsingCachedPrices = true
+            }
+        }
+    }
+
+    /// Update portfolio stock prices from quotes dictionary
+    private func updatePortfolioPrices(with quotes: [String: StockQuote]) {
+        for (index, stock) in user.portfolio.enumerated() {
+            if let quote = quotes[stock.symbol.uppercased()] {
+                user.portfolio[index].currentPrice = quote.currentPrice
+                user.portfolio[index].priceChange = quote.priceChange
+                user.portfolio[index].percentageChange = quote.percentageChange
+            }
+        }
     }
 
     /// Add a stock to the portfolio
@@ -246,12 +293,12 @@ extension UserProfile {
 
     /// A sample user with actual stock holdings for previews
     static var sampleWithHoldings: UserProfile {
-        // Create a Leo user (August 15, 1990)
+        // Create a Leo user (August 1, 1990)
         var user = UserProfile(
-            displayName: "Alex",
-            email: "alex@cosmictrader.com",
+            displayName: "Demo Operator",
+            email: "demo.operator@cosmictrader.com",
             birthMonth: 8,
-            birthDay: 15,
+            birthDay: 1,
             birthYear: 1990,
             portfolio: [],
             memberSince: Calendar.current.date(byAdding: .month, value: -8, to: Date()) ?? Date()

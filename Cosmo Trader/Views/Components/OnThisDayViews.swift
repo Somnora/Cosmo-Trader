@@ -48,8 +48,7 @@ struct OnThisDayCard: View {
 
                 // Zodiac badge
                 HStack(spacing: 4) {
-                    Text(event.zodiacSign.symbol)
-                        .font(.caption)
+                    ZodiacMark(sign: event.zodiacSign, size: .tiny, style: .element)
 
                     Text(event.zodiacSign.displayName)
                         .font(TerminalFont.caption(10, weight: .medium))
@@ -179,7 +178,7 @@ struct OnThisDayBanner: View {
 
                 // Divider
                 Rectangle()
-                    .fill(CosmicTheme.textMuted.opacity(0.3))
+                    .fill(CosmicTheme.textMuted.opacity(0.4))
                     .frame(width: 1, height: 28)
 
                 // Content
@@ -197,8 +196,7 @@ struct OnThisDayBanner: View {
                 Spacer()
 
                 // Zodiac
-                Text(event.zodiacSign.symbol)
-                    .font(.body)
+                ZodiacMark(sign: event.zodiacSign, size: .small, style: .element)
 
                 Image(systemName: "chevron.right")
                     .font(.caption2)
@@ -251,8 +249,7 @@ struct OnThisDayDetailSheet: View {
 
                         // Zodiac badge
                         HStack(spacing: 8) {
-                            Text(event.zodiacSign.symbol)
-                                .font(.title2)
+                            ZodiacMark(sign: event.zodiacSign, size: 22, style: .element)
 
                             Text(event.zodiacSign.displayName)
                                 .font(TerminalFont.body(16, weight: .semibold))
@@ -273,7 +270,7 @@ struct OnThisDayDetailSheet: View {
                     .padding(.top, 20)
 
                     Divider()
-                        .background(CosmicTheme.textMuted.opacity(0.3))
+                        .background(CosmicTheme.textMuted.opacity(0.4))
 
                     // Event content
                     VStack(alignment: .leading, spacing: 16) {

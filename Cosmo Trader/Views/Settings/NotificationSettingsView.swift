@@ -15,7 +15,6 @@ struct NotificationSettingsView: View {
 
     @State private var showingTimePicker = false
     @State private var showingTestSentAlert = false
-    @State private var isRefreshing = false
 
     // MARK: - Body
 
@@ -32,8 +31,9 @@ struct NotificationSettingsView: View {
                     portfolioSection
                     funSection
 
-                    // Test notification
-                    testNotificationSection
+                    if LaunchSurfacePolicy.showsTestNotificationControls {
+                        testNotificationSection
+                    }
                 } else if notificationService.hasRequestedPermission {
                     // Permission denied - show how to enable
                     permissionDeniedCard
@@ -58,7 +58,7 @@ struct NotificationSettingsView: View {
         .alert("Test Sent", isPresented: $showingTestSentAlert) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text("A test notification will arrive in 2 seconds.")
+            Text("A local test notification will arrive in 2 seconds.")
         }
     }
 
@@ -80,12 +80,12 @@ struct NotificationSettingsView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Notifications Enabled")
+                    Text("Local Notifications Enabled")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundColor(CosmicTheme.textPrimary)
 
-                    Text("Cosmic alerts are active")
+                    Text("Local alerts are active")
                         .font(.caption)
                         .foregroundColor(CosmicTheme.textSecondary)
                 }
@@ -125,7 +125,7 @@ struct NotificationSettingsView: View {
                             .fontWeight(.semibold)
                             .foregroundColor(CosmicTheme.textPrimary)
 
-                        Text("Enable to receive cosmic alerts")
+                        Text("Enable to schedule local alerts")
                             .font(.caption)
                             .foregroundColor(CosmicTheme.textSecondary)
                     }
@@ -171,7 +171,7 @@ struct NotificationSettingsView: View {
                         .fontWeight(.semibold)
                         .foregroundColor(CosmicTheme.textPrimary)
 
-                    Text("Enable in Settings to receive alerts")
+                    Text("Enable in Settings to schedule local alerts")
                         .font(.caption)
                         .foregroundColor(CosmicTheme.textSecondary)
                 }
@@ -208,16 +208,16 @@ struct NotificationSettingsView: View {
         NotificationSection(title: "Daily", icon: "sun.max.fill") {
             // Daily Horoscope
             NotificationToggleRow(
-                icon: "sparkles",
+                icon: "chart.line.uptrend.xyaxis",
                 iconColor: CosmicTheme.gold,
-                title: "Daily Horoscope",
-                subtitle: "Morning cosmic portfolio reading",
+                title: "Daily Reading",
+                subtitle: "Morning portfolio reading",
                 isEnabled: $notificationService.dailyHoroscopeEnabled
             )
 
             if notificationService.dailyHoroscopeEnabled {
                 Divider()
-                    .background(CosmicTheme.textMuted.opacity(0.2))
+                    .background(CosmicTheme.textMuted.opacity(0.3))
                     .padding(.leading, 56)
 
                 // Time picker
@@ -256,12 +256,12 @@ struct NotificationSettingsView: View {
                 icon: "moon.fill",
                 iconColor: .white,
                 title: "Moon Phase Alerts",
-                subtitle: "Full moon & new moon notifications",
+                subtitle: "Full moon & new moon local notifications",
                 isEnabled: $notificationService.moonPhaseEnabled
             )
 
             Divider()
-                .background(CosmicTheme.textMuted.opacity(0.2))
+                .background(CosmicTheme.textMuted.opacity(0.3))
                 .padding(.leading, 56)
 
             // Mercury Retrograde
@@ -274,14 +274,14 @@ struct NotificationSettingsView: View {
             )
 
             Divider()
-                .background(CosmicTheme.textMuted.opacity(0.2))
+                .background(CosmicTheme.textMuted.opacity(0.3))
                 .padding(.leading, 56)
 
             // Void of Course Moon
             VOCWarningsToggle()
 
             Divider()
-                .background(CosmicTheme.textMuted.opacity(0.2))
+                .background(CosmicTheme.textMuted.opacity(0.3))
                 .padding(.leading, 56)
 
             // Sign Season Spotlights
@@ -297,13 +297,13 @@ struct NotificationSettingsView: View {
             NotificationToggleRow(
                 icon: "bolt.fill",
                 iconColor: CosmicTheme.gold,
-                title: "Big Move Alerts",
-                subtitle: "When portfolio moves >5% in a day",
+                title: "Portfolio Check Reminders",
+                subtitle: "Local reminders from in-app portfolio checks",
                 isEnabled: $notificationService.portfolioAlertsEnabled
             )
 
             Divider()
-                .background(CosmicTheme.textMuted.opacity(0.2))
+                .background(CosmicTheme.textMuted.opacity(0.3))
                 .padding(.leading, 56)
 
             // Weekly Summary
@@ -311,20 +311,20 @@ struct NotificationSettingsView: View {
                 icon: "calendar",
                 iconColor: CosmicTheme.positive,
                 title: "Weekly Summary",
-                subtitle: "Sunday evening cosmic recap",
+                subtitle: "Sunday evening portfolio recap",
                 isEnabled: $notificationService.weeklySummaryEnabled
             )
 
             Divider()
-                .background(CosmicTheme.textMuted.opacity(0.2))
+                .background(CosmicTheme.textMuted.opacity(0.3))
                 .padding(.leading, 56)
 
             // IPO Alerts
             NotificationToggleRow(
                 icon: "star.fill",
-                iconColor: .purple,
-                title: "Compatible IPO Alerts",
-                subtitle: "When IPOs match your zodiac sign",
+                iconColor: CosmicTheme.accentBlue,
+                title: "Compatible IPO Reminders",
+                subtitle: "Local reminders for matching IPOs",
                 isEnabled: $notificationService.ipoAlertsEnabled,
                 defaultOff: true
             )
@@ -356,7 +356,7 @@ struct NotificationSettingsView: View {
                     Image(systemName: "bell.and.waves.left.and.right")
                         .font(.body)
 
-                    Text("Send Test Notification")
+                    Text("Send Local Test Notification")
                         .font(.subheadline)
                         .fontWeight(.medium)
                 }
@@ -369,7 +369,7 @@ struct NotificationSettingsView: View {
                 )
             }
 
-            Text("Test notification will arrive in 2 seconds")
+            Text("Local test notification will arrive in 2 seconds")
                 .font(.caption2)
                 .foregroundColor(CosmicTheme.textMuted)
         }
@@ -391,11 +391,11 @@ struct NotificationSettingsView: View {
             }
 
             HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "sparkles")
+                Image(systemName: "checkmark.seal")
                     .font(.caption)
                     .foregroundColor(CosmicTheme.textMuted)
 
-                Text("We keep notifications valuable, not spammy. The stars have better things to do.")
+                Text("We keep notifications focused on readings worth checking.")
                     .font(.caption2)
                     .foregroundColor(CosmicTheme.textMuted)
                     .multilineTextAlignment(.leading)
@@ -418,6 +418,7 @@ struct NotificationSettingsView: View {
             showingTestSentAlert = true
         }
     }
+
 }
 
 // MARK: - Notification Section
@@ -492,7 +493,7 @@ struct NotificationToggleRow: View {
                             .padding(.vertical, 1)
                             .background(
                                 Capsule()
-                                    .fill(CosmicTheme.textMuted.opacity(0.2))
+                                    .fill(CosmicTheme.textMuted.opacity(0.3))
                             )
                     }
                 }

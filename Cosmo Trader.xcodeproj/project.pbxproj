@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		238B45CD2F351E32008E3C08 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 238B45CC2F351E32008E3C08 /* FirebaseAuth */; };
+		238B45CF2F351E32008E3C08 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 238B45CE2F351E32008E3C08 /* FirebaseCore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		23AC0A322EE875FC0094CE44 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,20 +32,36 @@
 		23AC0A242EE875F90094CE44 /* Cosmo Trader.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Cosmo Trader.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		23AC0A312EE875FC0094CE44 /* Cosmo TraderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Cosmo TraderTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		23AC0A3B2EE875FC0094CE44 /* Cosmo TraderUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Cosmo TraderUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		23F8B1012F5A000100C0DE01 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
+		23F8B1022F5A000100C0DE01 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
+		23F8B1032F5A000100C0DE01 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		23F8B1042F5A000100C0DE01 /* Staging.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Staging.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		23E313342EEA907F0025F506 /* Exceptions for "Cosmo Trader" folder in "Cosmo Trader" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				"Configuration/Base.xcconfig",
-				"Configuration/Debug.xcconfig",
-				"Configuration/Release.xcconfig",
-				"Configuration/Secrets.xcconfig.sample",
-				"Configuration/Staging.xcconfig",
+				Configuration/Base.xcconfig,
+				Configuration/Debug.xcconfig,
+				Configuration/Release.xcconfig,
+				Configuration/Secrets.plist,
+				Configuration/Secrets.xcconfig.sample,
+				Configuration/Staging.xcconfig,
+				AppStoreMetadata.md,
+				Docs,
+				Documentation,
+				ExportOptions.plist,
 				"GoogleService-Info.plist.sample",
+				README.md,
+				Screenshots.md,
 				"Secrets-template.plist",
-				Secrets.plist,
+				embedded.mobileprovision,
+				Services/PushTokenRegistrar.swift,
+				Services/PushTokenStorage.swift,
+				SDKIntegration.md,
+				docs,
+				Utils/WidgetDataManager.swift,
 			);
 			platformFiltersByRelativePath = {
 				CosmicTraderApp.swift = (ios, );
@@ -110,6 +131,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				238B45CF2F351E32008E3C08 /* FirebaseCore in Frameworks */,
+				238B45CD2F351E32008E3C08 /* FirebaseAuth in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -133,6 +156,7 @@
 		23AC0A1B2EE875F90094CE44 = {
 			isa = PBXGroup;
 			children = (
+				23F8B1052F5A000100C0DE01 /* Build Configurations */,
 				23AC0A262EE875F90094CE44 /* Cosmo Trader */,
 				23AC0A342EE875FC0094CE44 /* Cosmo TraderTests */,
 				23AC0A3E2EE875FC0094CE44 /* Cosmo TraderUITests */,
@@ -150,6 +174,18 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		23F8B1052F5A000100C0DE01 /* Build Configurations */ = {
+			isa = PBXGroup;
+			children = (
+				23F8B1012F5A000100C0DE01 /* Base.xcconfig */,
+				23F8B1022F5A000100C0DE01 /* Debug.xcconfig */,
+				23F8B1032F5A000100C0DE01 /* Release.xcconfig */,
+				23F8B1042F5A000100C0DE01 /* Staging.xcconfig */,
+			);
+			name = "Build Configurations";
+			path = "Cosmo Trader/Configuration";
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -159,7 +195,9 @@
 			buildPhases = (
 				23AC0A202EE875F90094CE44 /* Sources */,
 				23AC0A212EE875F90094CE44 /* Frameworks */,
+				23F8A1112F4B000100123456 /* Copy Firebase Plist (Release Required) */,
 				23AC0A222EE875F90094CE44 /* Resources */,
+				23F8A1122F4B000100123457 /* Verify No Secrets In Bundle (Release) */,
 			);
 			buildRules = (
 			);
@@ -170,6 +208,8 @@
 			);
 			name = "Cosmo Trader";
 			packageProductDependencies = (
+				238B45CC2F351E32008E3C08 /* FirebaseAuth */,
+				238B45CE2F351E32008E3C08 /* FirebaseCore */,
 			);
 			productName = "Cosmo Trader";
 			productReference = 23AC0A242EE875F90094CE44 /* Cosmo Trader.app */;
@@ -250,9 +290,14 @@
 			knownRegions = (
 				en,
 				Base,
+				es,
+				fr,
 			);
 			mainGroup = 23AC0A1B2EE875F90094CE44;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				238B45CB2F351E32008E3C08 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 23AC0A252EE875F90094CE44 /* Products */;
 			projectDirPath = "";
@@ -288,6 +333,50 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		23F8A1112F4B000100123456 /* Copy Firebase Plist (Release Required) */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+				inputFileListPaths = (
+				);
+					inputPaths = (
+						"$(PROJECT_DIR)/GoogleService-Info.plist",
+						"$(PROJECT_DIR)/GoogleService-Info_CT.plist",
+					);
+			name = "Copy Firebase Plist (Release Required)";
+				outputFileListPaths = (
+				);
+				outputPaths = (
+					"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist",
+				);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+					shellScript = "DEST_PLIST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\"\nSOURCE_PLIST=\"\"\n\nfor CANDIDATE_PLIST in \"${PROJECT_DIR}/GoogleService-Info.plist\" \"${PROJECT_DIR}/GoogleService-Info_CT.plist\"; do\n  if [ -f \"${CANDIDATE_PLIST}\" ]; then\n    SOURCE_PLIST=\"${CANDIDATE_PLIST}\"\n    break\n  fi\ndone\n\nif [ \"${CONFIGURATION}\" = \"Release\" ]; then\n  if [ -z \"${SOURCE_PLIST}\" ]; then\n    echo \"error: Missing Firebase GoogleService plist for Release build. Add GoogleService-Info.plist at project root.\" >&2\n    exit 1\n  fi\n  cp -f \"${SOURCE_PLIST}\" \"${DEST_PLIST}\"\nelse\n  if [ -n \"${SOURCE_PLIST}\" ]; then\n    cp -f \"${SOURCE_PLIST}\" \"${DEST_PLIST}\"\n  else\n    echo \"warning: Firebase GoogleService plist missing. Firebase is disabled for this Debug build. Add GoogleService-Info.plist at project root for device testing.\" >&2\n  fi\nfi\n";
+		};
+		23F8A1122F4B000100123457 /* Verify No Secrets In Bundle (Release) */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(PROJECT_DIR)/Scripts/verify_no_secrets.sh",
+			);
+			name = "Verify No Secrets In Bundle (Release)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"${CONFIGURATION}\" != \"Release\" ]; then\n  echo \"verify_no_secrets: skipped (CONFIGURATION=${CONFIGURATION}).\"\n  exit 0\nfi\nSCRIPT=\"${PROJECT_DIR}/Scripts/verify_no_secrets.sh\"\nif [ ! -f \"${SCRIPT}\" ]; then\n  echo \"error: ${SCRIPT} missing; Release bundle-secret scan cannot run.\"\n  exit 1\nfi\n/bin/bash \"${SCRIPT}\" \"${TARGET_BUILD_DIR}/${WRAPPER_NAME}\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		23AC0A202EE875F90094CE44 /* Sources */ = {
@@ -329,6 +418,7 @@
 /* Begin XCBuildConfiguration section */
 		23AC0A432EE875FC0094CE44 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 23F8B1012F5A000100C0DE01 /* Base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -380,7 +470,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -393,6 +482,7 @@
 		};
 		23AC0A442EE875FC0094CE44 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 23F8B1012F5A000100C0DE01 /* Base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -438,7 +528,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -450,11 +539,12 @@
 		};
 		23AC0A462EE875FC0094CE44 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 23F8B1022F5A000100C0DE01 /* Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = JGAJMMTQVS;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -468,7 +558,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Somnora.Cosmo-Trader";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.Somnora.Cosmo-Trader";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -482,11 +572,12 @@
 		};
 		23AC0A472EE875FC0094CE44 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 23F8B1032F5A000100C0DE01 /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = JGAJMMTQVS;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -500,7 +591,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Somnora.Cosmo-Trader";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.Somnora.Cosmo-Trader";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -514,15 +605,15 @@
 		};
 		23AC0A492EE875FC0094CE44 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 23F8B1022F5A000100C0DE01 /* Debug.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = JGAJMMTQVS;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Somnora.Cosmo-TraderTests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.Somnora.Cosmo-TraderTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -536,15 +627,15 @@
 		};
 		23AC0A4A2EE875FC0094CE44 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 23F8B1032F5A000100C0DE01 /* Release.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = JGAJMMTQVS;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Somnora.Cosmo-TraderTests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.Somnora.Cosmo-TraderTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -558,13 +649,15 @@
 		};
 		23AC0A4C2EE875FC0094CE44 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 23F8B1022F5A000100C0DE01 /* Debug.xcconfig */;
 			buildSettings = {
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = JGAJMMTQVS;
-				GENERATE_INFOPLIST_FILE = YES;
+					GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Somnora.Cosmo-TraderUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.Somnora.Cosmo-TraderUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -578,13 +671,14 @@
 		};
 		23AC0A4D2EE875FC0094CE44 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 23F8B1032F5A000100C0DE01 /* Release.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = JGAJMMTQVS;
-				GENERATE_INFOPLIST_FILE = YES;
+					GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Somnora.Cosmo-TraderUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.Somnora.Cosmo-TraderUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -596,6 +690,139 @@
 			};
 			name = Release;
 		};
+		23F8B2012F5A000100C0DE01 /* Staging */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 23F8B1012F5A000100C0DE01 /* Base.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = JGAJMMTQVS;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Staging;
+		};
+		23F8B2022F5A000100C0DE01 /* Staging */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 23F8B1042F5A000100C0DE01 /* Staging.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = JGAJMMTQVS;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.Somnora.Cosmo-Trader";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Staging;
+		};
+		23F8B2032F5A000100C0DE01 /* Staging */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 23F8B1042F5A000100C0DE01 /* Staging.xcconfig */;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = JGAJMMTQVS;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.Somnora.Cosmo-TraderTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Cosmo Trader.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Cosmo Trader";
+			};
+			name = Staging;
+		};
+		23F8B2042F5A000100C0DE01 /* Staging */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 23F8B1042F5A000100C0DE01 /* Staging.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = JGAJMMTQVS;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.Somnora.Cosmo-TraderUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "Cosmo Trader";
+			};
+			name = Staging;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -604,6 +831,7 @@
 			buildConfigurations = (
 				23AC0A432EE875FC0094CE44 /* Debug */,
 				23AC0A442EE875FC0094CE44 /* Release */,
+				23F8B2012F5A000100C0DE01 /* Staging */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -613,6 +841,7 @@
 			buildConfigurations = (
 				23AC0A462EE875FC0094CE44 /* Debug */,
 				23AC0A472EE875FC0094CE44 /* Release */,
+				23F8B2022F5A000100C0DE01 /* Staging */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -622,6 +851,7 @@
 			buildConfigurations = (
 				23AC0A492EE875FC0094CE44 /* Debug */,
 				23AC0A4A2EE875FC0094CE44 /* Release */,
+				23F8B2032F5A000100C0DE01 /* Staging */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -631,11 +861,36 @@
 			buildConfigurations = (
 				23AC0A4C2EE875FC0094CE44 /* Debug */,
 				23AC0A4D2EE875FC0094CE44 /* Release */,
+				23F8B2042F5A000100C0DE01 /* Staging */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		238B45CB2F351E32008E3C08 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.9.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		238B45CC2F351E32008E3C08 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 238B45CB2F351E32008E3C08 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		238B45CE2F351E32008E3C08 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 238B45CB2F351E32008E3C08 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 23AC0A1C2EE875F90094CE44 /* Project object */;
 }

@@ -20,11 +20,13 @@ final class StoreKitManager {
     enum ProductID: String, CaseIterable {
         case oracleMonthly = "cosmo.oracle.monthly"
         case oracleYearly = "cosmo.oracle.yearly"
+        case oracleLifetime = "cosmo.oracle.lifetime"
 
         var displayName: String {
             switch self {
             case .oracleMonthly: return "Oracle Tier Monthly"
             case .oracleYearly: return "Oracle Tier Yearly"
+            case .oracleLifetime: return "Oracle Tier Lifetime"
             }
         }
     }
@@ -39,6 +41,12 @@ final class StoreKitManager {
 
     /// Whether the user has an active subscription
     private(set) var hasActiveSubscription: Bool = false
+
+    /// Lifetime (non-consumable) product (if available)
+    private(set) var lifetimeProduct: Product?
+
+    /// Whether the user has purchased lifetime access
+    private(set) var hasLifetimeAccess: Bool = false
 
     /// Current subscription expiration date
     private(set) var subscriptionExpirationDate: Date?
@@ -93,6 +101,7 @@ final class StoreKitManager {
                 return lhs.price < rhs.price
             }
 
+            lifetimeProduct = products.first { $0.id == ProductID.oracleLifetime.rawValue }
             isLoading = false
         } catch {
             lastError = .productLoadFailed(error)
@@ -182,7 +191,7 @@ final class StoreKitManager {
             // Check current entitlements
             await checkSubscriptionStatus()
 
-            return hasActiveSubscription
+            return hasActiveSubscription || hasLifetimeAccess
         } catch {
             lastError = .restoreFailed(error)
             #if DEBUG
@@ -197,6 +206,7 @@ final class StoreKitManager {
     /// Check current subscription status using Transaction.currentEntitlements
     func checkSubscriptionStatus() async {
         hasActiveSubscription = false
+        hasLifetimeAccess = false
         purchasedSubscription = nil
         subscriptionExpirationDate = nil
 
@@ -205,22 +215,33 @@ final class StoreKitManager {
             do {
                 let transaction = try checkVerified(result)
 
-                // Check if this is one of our subscription products
-                if ProductID.allCases.map({ $0.rawValue }).contains(transaction.productID) {
-                    // Check if subscription is still active
-                    if let expirationDate = transaction.expirationDate {
-                        if expirationDate > Date() {
-                            hasActiveSubscription = true
-                            subscriptionExpirationDate = expirationDate
+                if transaction.productID == ProductID.oracleLifetime.rawValue {
+                    // Lifetime access: non-consumable with no expiration
+                    if transaction.revocationDate == nil {
+                        hasLifetimeAccess = true
+                        lifetimeProduct = products.first { $0.id == transaction.productID }
 
-                            // Find the corresponding product
-                            purchasedSubscription = products.first { $0.id == transaction.productID }
-
-                            #if DEBUG
-                            print("[StoreKit] Active subscription found: \(transaction.productID), expires: \(expirationDate)")
-                            #endif
-                        }
+                        #if DEBUG
+                        print("[StoreKit] Lifetime access found: \(transaction.productID)")
+                        #endif
                     }
+                    continue
+                }
+
+                // Subscription access: monthly/yearly auto-renewables
+                if [ProductID.oracleMonthly.rawValue, ProductID.oracleYearly.rawValue].contains(transaction.productID),
+                   transaction.revocationDate == nil,
+                   let expirationDate = transaction.expirationDate,
+                   expirationDate > Date() {
+                    hasActiveSubscription = true
+                    subscriptionExpirationDate = expirationDate
+
+                    // Find the corresponding product
+                    purchasedSubscription = products.first { $0.id == transaction.productID }
+
+                    #if DEBUG
+                    print("[StoreKit] Active subscription found: \(transaction.productID), expires: \(expirationDate)")
+                    #endif
                 }
             } catch {
                 #if DEBUG
@@ -270,6 +291,11 @@ final class StoreKitManager {
         return renewalInfo.willAutoRenew
     }
 
+    /// Force a refresh of subscription status (e.g. after background resume)
+    func refresh() async {
+        await checkSubscriptionStatus()
+    }
+
     // MARK: - Transaction Listener
 
     /// Listen for transaction updates (purchases, renewals, refunds, etc.)
@@ -287,13 +313,15 @@ final class StoreKitManager {
                     await transaction?.finish()
 
                 } catch {
-                    Log.error("[StoreKit] Transaction update verification failed: \(error)")
+                    await MainActor.run {
+                        Log.error("[StoreKit] Transaction update verification failed: \(error)")
+                    }
                 }
             }
         }
     }
 
-    // MARK: - Receipt Validation
+    // MARK: - App Transaction Validation
 
     /// Verify a transaction result
     private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
@@ -306,29 +334,39 @@ final class StoreKitManager {
         }
     }
 
-    /// Get the App Store receipt data for server-side validation
-    @available(iOS, deprecated: 18.0, message: "Use AppTransaction from StoreKit 2")
-    func getReceiptData() -> Data? {
-        guard let receiptURL = Bundle.main.appStoreReceiptURL,
-              FileManager.default.fileExists(atPath: receiptURL.path) else {
-            return nil
-        }
-
+    /// Get signed app transaction data for server-side validation
+    func getAppTransactionData() async -> Data? {
         do {
-            let receiptData = try Data(contentsOf: receiptURL)
-            return receiptData
+            let result = try await AppTransaction.shared
+            switch result {
+            case .verified:
+                return result.signedData
+            case .unverified(_, let error):
+                Log.error("[StoreKit] App transaction unverified: \(error)")
+                return nil
+            }
         } catch {
-            Log.error("[StoreKit] Failed to read receipt: \(error)")
+            Log.error("[StoreKit] Failed to load app transaction: \(error)")
             return nil
         }
     }
 
-    /// Get Base64 encoded receipt for server validation
-    func getReceiptBase64() -> String? {
-        guard let receiptData = getReceiptData() else {
+    /// Get Base64 encoded app transaction data for server validation
+    func getAppTransactionBase64() async -> String? {
+        guard let appTransactionData = await getAppTransactionData() else {
             return nil
         }
-        return receiptData.base64EncodedString()
+        return appTransactionData.base64EncodedString()
+    }
+
+    /// Legacy receipt helpers now backed by AppTransaction.
+    func getReceiptData() async -> Data? {
+        await getAppTransactionData()
+    }
+
+    /// Legacy receipt helpers now backed by AppTransaction.
+    func getReceiptBase64() async -> String? {
+        await getAppTransactionBase64()
     }
 
     // MARK: - App Store Server Notifications Preparation
@@ -372,7 +410,7 @@ final class StoreKitManager {
 
     /// Notify SubscriptionManager of status changes
     private func notifySubscriptionManager() async {
-        if hasActiveSubscription {
+        if hasActiveSubscription || hasLifetimeAccess {
             SubscriptionManager.shared.handleSubscriptionActivated()
         } else {
             SubscriptionManager.shared.handleSubscriptionExpired()

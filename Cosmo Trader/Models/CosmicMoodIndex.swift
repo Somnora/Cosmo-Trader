@@ -82,15 +82,9 @@ enum CosmicMoodLevel: String, CaseIterable {
         }
     }
 
-    /// Emoji representation
-    var emoji: String {
-        switch self {
-        case .void:      return "🕳️"
-        case .eclipse:   return "🌑"
-        case .twilight:  return "🌅"
-        case .radiant:   return "☀️"
-        case .supernova: return "💥"
-        }
+    /// SF Symbol representation
+    var sfSymbol: String {
+        icon  // Use the same values as icon property
     }
 
     /// Primary color for this mood level

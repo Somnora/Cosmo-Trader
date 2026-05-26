@@ -130,7 +130,7 @@ struct LunarCycleView: View {
             Spacer()
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 10)
         .overlay(
             Rectangle()
                 .fill(CosmicTheme.border.opacity(0.3))
@@ -184,7 +184,7 @@ struct LunarCycleView: View {
                     .italic()
             }
         }
-        .padding(12)
+        .padding(14)
     }
 
     private var elementVolatilityNote: String {
@@ -250,7 +250,7 @@ struct LunarCycleView: View {
                 .foregroundColor(CosmicTheme.textSecondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+        .padding(.vertical, 14)
     }
 
     private func nextPhaseDate(_ phase: MoonPhase) -> String {
@@ -340,11 +340,11 @@ enum MarketCyclePhase: String, CaseIterable {
 
     var signalText: String {
         switch self {
-        case .accumulation:  return "BULLISH SETUP"
-        case .expansion:     return "BUILDING MOMENTUM"
-        case .distribution:  return "HIGH VOLATILITY WARNING"
-        case .correction:    return "COOLING PERIOD"
-        case .consolidation: return "QUIET BEFORE RESET"
+        case .accumulation:  return "ACCUMULATION WINDOW"
+        case .expansion:     return "EXPANSION WINDOW"
+        case .distribution:  return "DISTRIBUTION WINDOW"
+        case .correction:    return "CORRECTION WINDOW"
+        case .consolidation: return "RESET WINDOW"
         }
     }
 
@@ -371,15 +371,15 @@ enum MarketCyclePhase: String, CaseIterable {
     var strategy: String {
         switch self {
         case .accumulation:
-            return "Initiate new positions. Low visibility = opportunity. Research and build foundation for the cycle ahead."
+            return "Low visibility can be useful for research. Build your own context for the cycle ahead."
         case .expansion:
-            return "Add to winning positions. Energy building. Momentum favors the prepared."
+            return "Energy is building. Review what has momentum and what still fits your plan."
         case .distribution:
-            return "Take profits on winners. Emotional trading peaks. Expect price swings and heightened volatility."
+            return "Emotional trading can peak here. Review winners and note where the tape feels stretched."
         case .correction:
-            return "Reduce exposure. Reassess positions. The market takes a breath after the peak."
+            return "The market takes a breath after the peak. Reassess exposure through your own framework."
         case .consolidation:
-            return "Research and wait. Next cycle loading. Use this quiet period to plan ahead."
+            return "A quiet period for research and planning before the next cycle."
         }
     }
 

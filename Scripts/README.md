@@ -9,6 +9,7 @@ This directory contains scripts for managing app versioning and build processes.
 | `increment_build.sh` | Auto-increments build number on Release builds |
 | `version_bump.sh` | Semantic versioning for major/minor/patch updates |
 | `upload-dsyms.sh` | Uploads dSYM files to Crashlytics |
+| `verify_no_secrets.sh` | Verifies Release app/archive/export payloads do not contain local secrets/config/docs |
 
 ## Versioning System
 
@@ -195,13 +196,27 @@ BuildInfo.environment    // .development/.staging/.production
    xcodebuild -scheme "Cosmo Trader" -configuration Release
    ```
 
-5. **Push tags**
+5. **Validate the release artifact**
+   ```bash
+   ./Scripts/verify_no_secrets.sh /path/to/Cosmo\ Trader.xcarchive
+   # or, after export:
+   ./Scripts/verify_no_secrets.sh /path/to/Cosmo\ Trader.ipa
+   ```
+
+   The verifier guards against accidental app-bundled secrets, local config,
+   templates, private keys/certs, and documentation. A signed iOS archive or
+   exported IPA may normally contain `embedded.mobileprovision` at the root of
+   the signed `.app`; that signing payload is allowed. Provisioning profiles in
+   copied resources or any other nonstandard location still fail validation.
+
+6. **Push tags**
    ```bash
    git push origin main --tags
    ```
 
-6. **Archive for App Store**
+7. **Archive for App Store**
    - Product → Archive in Xcode
+   - Run `verify_no_secrets.sh` against the final archive/export
    - Upload to App Store Connect
 
 ### Version Numbering Guidelines

@@ -3,7 +3,7 @@
 //  Cosmo Trader
 //
 //  Secure configuration loader for API keys and secrets.
-//  Reads from xcconfig via Info.plist, with fallback to Secrets.plist.
+//  Reads from xcconfig via Info.plist. DEBUG builds may fall back to a local Secrets.plist.
 //
 //  USAGE:
 //  ------
@@ -32,21 +32,20 @@ enum APIConfig {
         EnvironmentConfig.shared
     }
 
+    private static let resolvedFinnhubKey = CosmoConfig.string(["FINNHUB_API_KEY", "FINNHUB_KEY"]) ?? ""
+
     // MARK: - Finnhub API
 
     /// Finnhub API key for stock quotes
     /// Get yours at: https://finnhub.io
     static var finnhubKey: String {
-        let key = config.finnhubAPIKey
-
-        if key.isEmpty {
-            #if DEBUG
-            print("⚠️ Finnhub API key not configured.")
-            print("   Set FINNHUB_API_KEY in Secrets.xcconfig or Secrets.plist")
-            #endif
+        if resolvedFinnhubKey.isEmpty {
+            ConfigWarnings.warnOnce(
+                key: "FINNHUB_API_KEY_MISSING",
+                message: "Finnhub API key missing. Stock network calls will use cached or placeholder data."
+            )
         }
-
-        return key
+        return resolvedFinnhubKey
     }
 
     /// Finnhub base URL (may vary by environment)
@@ -59,76 +58,15 @@ enum APIConfig {
         !finnhubKey.isEmpty
     }
 
-    // MARK: - Mixpanel
-
-    /// Mixpanel token for analytics
-    static var mixpanelToken: String {
-        config.mixpanelToken
-    }
-
-    /// Check if Mixpanel is configured
-    static var isMixpanelConfigured: Bool {
-        !mixpanelToken.isEmpty
-    }
-
-    // MARK: - Legacy Support
-
-    /// Cached secrets dictionary (for backwards compatibility)
-    private static var secrets: [String: Any] = {
-        loadSecrets()
-    }()
-
-    /// Load secrets from plist file (legacy support)
-    private static func loadSecrets() -> [String: Any] {
-        // First try bundled Secrets.plist
-        if let path = Bundle.main.path(forResource: "Secrets", ofType: "plist"),
-           let dict = NSDictionary(contentsOfFile: path) as? [String: Any] {
-            return dict
-        }
-
-        // For DEBUG builds, try project directory
-        #if DEBUG
-        if let dict = loadSecretsFromProjectDirectory() {
-            return dict
-        }
-        #endif
-
-        return [:]
-    }
-
-    #if DEBUG
-    /// Load secrets from project directory (DEBUG only)
-    private static func loadSecretsFromProjectDirectory() -> [String: Any]? {
-        let sourceFile = #file
-        let sourceDirectory = (sourceFile as NSString).deletingLastPathComponent
-
-        let possiblePaths = [
-            (sourceDirectory as NSString).appendingPathComponent("Secrets.plist"),
-            ((sourceDirectory as NSString).deletingLastPathComponent as NSString).appendingPathComponent("Secrets.plist"),
-            ((sourceDirectory as NSString).deletingLastPathComponent as NSString).appendingPathComponent("Configuration/Secrets.plist")
-        ]
-
-        for path in possiblePaths {
-            if FileManager.default.fileExists(atPath: path),
-               let dict = NSDictionary(contentsOfFile: path) as? [String: Any] {
-                return dict
-            }
-        }
-
-        return nil
-    }
-    #endif
-
-    /// Reload secrets (useful for testing)
-    static func reload() {
-        secrets = loadSecrets()
-    }
-
     // MARK: - Validation
 
     /// Validate all required API keys are present
     static func validateConfiguration() -> [String] {
-        return config.missingKeys
+        var missing: [String] = []
+        if finnhubKey.isEmpty {
+            missing.append("FINNHUB_API_KEY")
+        }
+        return missing
     }
 
     /// Print configuration status (debug only)

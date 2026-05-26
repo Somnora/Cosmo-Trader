@@ -90,8 +90,8 @@ final class CosmicMoodService {
         let normalizedValue = (weightedSum / totalWeight + 100) / 2
         let value = Int(max(0, min(100, normalizedValue)))
 
-        // Calculate change from yesterday
-        let change = calculateDailyChange()
+        // Calculate change from yesterday without re-entering current mood calculation.
+        let change = calculateDailyChange(todayValue: value)
 
         return CosmicMoodData(
             date: Date(),
@@ -174,7 +174,7 @@ final class CosmicMoodService {
             value: value,
             weight: 0.15,
             description: description,
-            icon: phase.emoji
+            icon: phase.sfSymbol
         )
     }
 
@@ -216,7 +216,7 @@ final class CosmicMoodService {
 
         if jupiterInfluence > 0.5 {
             value = 20
-            description = "Jupiter favorable — expansion energy supports growth"
+            description = "Jupiter favorable — expansion energy reads constructive"
         } else if jupiterInfluence > 0.3 {
             value = 10
             description = "Jupiter moderate — mild optimism in the cosmos"
@@ -428,13 +428,12 @@ final class CosmicMoodService {
     }
 
     /// Calculate daily change in mood index
-    private func calculateDailyChange() -> Int {
+    private func calculateDailyChange(todayValue: Int) -> Int {
         // Compare to yesterday's simulated value
         guard let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) else {
             return 0
         }
 
-        let todayValue = getCurrentMood().value
         let yesterdaySeed = Calendar.current.ordinality(of: .day, in: .year, for: yesterday) ?? 1
         let yesterdayValue = 50 + Int(sin(Double(yesterdaySeed) * 0.2) * 30)
 

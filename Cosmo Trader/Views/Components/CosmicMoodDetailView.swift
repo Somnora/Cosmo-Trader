@@ -423,7 +423,7 @@ struct MoodHistoryChart: View {
                 chartPath(width: width, height: height)
                     .stroke(
                         LinearGradient(
-                            colors: [CosmicTheme.nebulaBlue, CosmicTheme.cosmicPurple],
+                            colors: [CosmicTheme.nebulaBlue, CosmicTheme.accentBlue],
                             startPoint: .leading,
                             endPoint: .trailing
                         ),
@@ -458,7 +458,7 @@ struct MoodHistoryChart: View {
 
             // Twilight zone (41-60)
             Rectangle()
-                .fill(CosmicTheme.cosmicPurple.opacity(0.06))
+                .fill(CosmicTheme.accentBlue.opacity(0.06))
                 .frame(height: height * 0.2)
 
             // Eclipse zone (21-40)
@@ -515,7 +515,8 @@ struct CosmicMoodDetailSheet: View {
 
                     ToolbarItem(placement: .principal) {
                         HStack(spacing: 8) {
-                            Text(moodData.moodLevel.emoji)
+                            Image(systemName: moodData.moodLevel.sfSymbol)
+                                .foregroundColor(moodData.moodLevel.color)
                             Text("Cosmic Mood")
                                 .font(.headline)
                                 .foregroundColor(CosmicTheme.textPrimary)

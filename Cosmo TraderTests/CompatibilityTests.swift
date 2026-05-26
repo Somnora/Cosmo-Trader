@@ -111,7 +111,7 @@ struct CompatibilityRatingTests {
         for rating in CompatibilityRating.allCases {
             #expect(!rating.displayName.isEmpty)
             #expect(!rating.tagline.isEmpty)
-            #expect(!rating.emoji.isEmpty)
+            #expect(!rating.sfSymbol.isEmpty)
             #expect(!rating.colorName.isEmpty)
         }
     }

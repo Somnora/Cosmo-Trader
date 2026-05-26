@@ -88,7 +88,7 @@ struct SkeletonView: View {
                     LinearGradient(
                         colors: [
                             .clear,
-                            CosmicTheme.textMuted.opacity(0.2),
+                            CosmicTheme.textMuted.opacity(0.3),
                             .clear
                         ],
                         startPoint: .leading,

@@ -154,7 +154,7 @@ struct CosmicTickerCompact: View {
                             Circle()
                                 .fill(index == currentIndex % min(5, service.tickerItems.count)
                                     ? CosmicTheme.gold
-                                    : CosmicTheme.textMuted.opacity(0.3))
+                                    : CosmicTheme.textMuted.opacity(0.4))
                                 .frame(width: 4, height: 4)
                         }
                     }
@@ -266,7 +266,7 @@ struct CosmicTickerCard: View {
             // Ticker content
             if isExpanded {
                 Divider()
-                    .background(CosmicTheme.textMuted.opacity(0.3))
+                    .background(CosmicTheme.textMuted.opacity(0.4))
 
                 CosmicTickerTape()
                     .transition(.opacity.combined(with: .move(edge: .top)))

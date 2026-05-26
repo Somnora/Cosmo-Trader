@@ -236,7 +236,7 @@ struct DailyRitualFlow: View {
                         Circle()
                             .fill(step.rawValue <= currentStep.rawValue
                                 ? CosmicTheme.gold
-                                : CosmicTheme.textMuted.opacity(0.3))
+                                : CosmicTheme.textMuted.opacity(0.4))
                             .frame(width: step == currentStep ? 12 : 8, height: step == currentStep ? 12 : 8)
 
                         if step.rawValue < currentStep.rawValue {
@@ -258,7 +258,7 @@ struct DailyRitualFlow: View {
                     Rectangle()
                         .fill(step.rawValue < currentStep.rawValue
                             ? CosmicTheme.gold
-                            : CosmicTheme.textMuted.opacity(0.3))
+                            : CosmicTheme.textMuted.opacity(0.4))
                         .frame(height: 2)
                         .frame(maxWidth: .infinity)
                 }
@@ -345,9 +345,10 @@ struct DailyRitualFlow: View {
         let summary = ritualService.getOvernightSummary(holdings: holdings)
 
         return VStack(spacing: 24) {
-            // Sentiment emoji
-            Text(summary.sentiment.emoji)
+            // Sentiment icon
+            Image(systemName: summary.sentiment.sfSymbol)
                 .font(.system(size: 72))
+                .foregroundColor(summary.sentiment.color)
 
             // Change amount
             VStack(spacing: 8) {
@@ -372,8 +373,7 @@ struct DailyRitualFlow: View {
                         .foregroundColor(CosmicTheme.textMuted)
 
                     HStack(spacing: 8) {
-                        Text(topMover.zodiacSign.symbol)
-                            .font(.title2)
+                        ZodiacMark(sign: topMover.zodiacSign, size: 22, style: .element)
 
                         Text(topMover.symbol)
                             .font(TerminalFont.body(14, weight: .semibold))
@@ -402,8 +402,7 @@ struct DailyRitualFlow: View {
 
         return VStack(spacing: 24) {
             // Sign symbol
-            Text(userSign.symbol)
-                .font(.system(size: 72))
+            ZodiacMark(sign: userSign, size: 72, style: .element)
 
             Text(userSign.displayName)
                 .font(TerminalFont.body(20, weight: .semibold))

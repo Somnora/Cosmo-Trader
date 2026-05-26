@@ -14,12 +14,12 @@
 
 ## 2. Subtitle (30 characters max)
 
-**Primary Choice:** `Where stars meet the market` (26 chars)
+**Primary Choice:** `An astrology lens for the tape` (30 chars)
 
 **Alternatives:**
 - `Your portfolio's horoscope` (25 chars)
 - `Cosmic portfolio tracker` (24 chars)
-- `Zodiac-powered investing` (25 chars)
+- `Market astrology tracker` (24 chars)
 
 ---
 
@@ -28,17 +28,17 @@
 ```
 Ever wondered what your portfolio's zodiac sign is? What if Apple is an Aries and that's why it's so headstrong? Welcome to Cosmo Trader — where Wall Street meets the stars.
 
-SWIPE RIGHT ON YOUR NEXT INVESTMENT
-Discover stocks the fun way. Swipe through companies like a dating app, but instead of looking for love, you're looking for cosmic compatibility. Each stock has a zodiac sign based on its founding date, and we'll tell you if it vibes with your energy.
+SWIPE TO CURATE YOUR WATCHLIST
+Discover stocks the fun way. Swipe through companies with an astrology lens and save the names you want to follow. Each stock has a zodiac sign based on its founding date, and we'll tell you if it vibes with your energy.
 
 YOUR PORTFOLIO'S BIRTH CHART
 • Track your holdings with a cosmic twist
 • See which zodiac elements dominate your portfolio
-• Get daily horoscopes tailored to your investments
+• Get daily readings tailored to your holdings
 • Watch moon phases that (allegedly) influence market sentiment
 
-THE COSMIC ROAST 🔥
-Our most viral feature. Get absolutely roasted based on your zodiac sign and trading behavior. Share your cosmic roast on social media and watch your friends question your life choices.
+THE COSMIC ROAST
+A shareable read of your portfolio personality, based on your sign and what you hold. Share your cosmic roast on social media and watch your friends question your life choices.
 
 KEY FEATURES:
 
@@ -46,13 +46,13 @@ KEY FEATURES:
 Every company has a "birthday" — the day it was founded. We calculate its zodiac sign and tell you how compatible it is with yours. Tesla is a Cancer. Google is a Virgo. Microsoft is an Aries. What does that mean for your portfolio? Probably nothing, but it's fun to think about.
 
 ◆ SWIPE TO DISCOVER
-Our Tinder-style stock discovery lets you quickly browse companies. Swipe right to add to your watchlist, left to skip. Each card shows the stock's cosmic profile alongside real market data.
+A swipe-to-curate stock browser makes companies quick to skim and easy to save. Each card shows the stock's cosmic profile alongside market data.
 
 ◆ MOON PHASE TRACKING
 The moon affects the tides. Does it affect the markets? Science says no. But we track it anyway because the terminal aesthetic looks cool.
 
-◆ IPO HOROSCOPES
-Upcoming IPOs get their birth charts read. We tell you what kind of "corporate personality" to expect based on when they're going public. It's like reading tea leaves, but for capitalism.
+◆ IPO BIRTH CHARTS
+Every upcoming IPO gets a "founding chart" reading — an entertainment lens on a new listing.
 
 ◆ DAILY COSMIC INSIGHTS
 Personalized horoscopes that reference your actual holdings. "Mercury is in retrograde, which explains why your tech stocks are acting up." (It doesn't actually explain that.)
@@ -62,7 +62,7 @@ A sleek, OLED-optimized dark interface that looks like a Bloomberg terminal had 
 
 THE FINE PRINT (PLEASE READ):
 
-⚠️ THIS IS NOT FINANCIAL ADVICE ⚠️
+IMPORTANT — NOT FINANCIAL ADVICE
 
 Cosmo Trader is for informational and entertainment purposes only and does not constitute financial advice. Always consult a qualified financial advisor before making investment decisions.
 
@@ -72,12 +72,13 @@ Do not make investment decisions based on this app. We're not registered investm
 
 Stock data is provided by Finnhub and may be delayed up to 15 minutes.
 
-PREMIUM: ORACLE TIER ($4.99/month)
-• Unlimited swipes and horoscopes
-• Moon-in-sign alerts
-• Exclusive roasts
-• Early access to new features
-• Free 7-day trial
+PREMIUM: ORACLE TIER
+• Unlimited Discover swipes
+• Refresh your daily reading anytime
+• Track more portfolio holdings
+• More Cosmic Roast generations
+• Moon-in-sign local alerts
+• Monthly, yearly, and lifetime plans available
 
 Whether you're a Capricorn who loves diversified ETFs or a Sagittarius who YOLOs into meme stocks, Cosmo Trader adds a little magic to your market watching.
 
@@ -105,20 +106,18 @@ astrology,zodiac,stocks,portfolio,horoscope,investing,finance,trading,moon,cosmi
 ## 5. What's New (Version 0.1.0)
 
 ```
-🌟 Initial Release
+Initial Release
 
-The cosmos are open for trading.
+A curated astrological lens for the market:
 
-• Swipe-to-discover stocks with zodiac profiles
-• Portfolio tracking with cosmic compatibility
-• Daily horoscopes for your investments
-• Moon phase market sentiment tracker
-• The Cosmic Roast — get roasted, share the pain
-• IPO calendar with "birth chart" predictions
+• Swipe-to-curate stock discovery with zodiac profiles
+• Portfolio tracking with cosmic-fit scores
+• Daily readings tailored to your holdings
+• Moon-phase market sentiment notes
+• The Cosmic Roast — a shareable portfolio read
+• IPO calendar with founding-chart notes
 
-This is just the beginning. More cosmic features incoming.
-
-Not financial advice. Just financial entertainment.
+Not financial advice. Just a more interesting way to watch the tape.
 ```
 
 ---
@@ -189,8 +188,8 @@ Stock market data is provided by Finnhub.io API with proper attribution displaye
 All zodiac/horoscope content is presented as entertainment. We never claim it can predict stock performance. The app frequently makes self-aware jokes about this (e.g., "Does the moon affect markets? Science says no. But we track it anyway.")
 
 5. SUBSCRIPTION (Oracle Tier)
-- $4.99/month with 7-day free trial
-- Implemented via StoreKit 2
+- Monthly, yearly, and lifetime plans are implemented via StoreKit 2
+- Introductory offer copy is shown only when StoreKit reports eligibility
 - Clear pricing displayed before purchase
 - Easy cancellation via iOS settings
 
@@ -211,16 +210,13 @@ Thank you for your time!
 
 ## 9. Support URL & Privacy Policy URL
 
-**Support URL:** `https://cosmotrader.app/support`
-(or use a Notion page, GitHub pages, or similar)
+**Support URL:** REQUIRES FINAL URL BEFORE SUBMISSION
+Candidate: `https://cosmotrader.app/support`
 
-**Privacy Policy URL:** `https://cosmotrader.app/privacy`
-(Content matches in-app Privacy Policy view)
+**Privacy Policy URL:** REQUIRES FINAL URL BEFORE SUBMISSION
+Candidate: `https://cosmotrader.app/privacy`
 
-**Placeholder Setup:**
-- Can use Notion for quick setup
-- Or create simple GitHub Pages site
-- Or use a service like Termly/Iubenda for legal compliance
+Do not paste this section into App Store Connect until both URLs resolve to final public pages.
 
 ---
 
@@ -234,11 +230,11 @@ Thank you for your time!
 ### Recommended Screenshots (5-8):
 
 1. **Portfolio View** - "Your portfolio's cosmic profile"
-2. **Swipe Discovery** - "Swipe right on your next investment"
+2. **Swipe Discovery** - "Browse stocks through your chart"
 3. **Stock Detail with Compatibility** - "See your cosmic compatibility"
-4. **Cosmic Roast** - "Get roasted by the stars 🔥"
+4. **Cosmic Roast** - "Get cosmically reviewed"
 5. **Horoscope Screen** - "Daily insights for your holdings"
-6. **Moon Phase Widget** - "Track lunar market sentiment"
+6. **Moon Phase View** - "Track lunar market sentiment"
 7. **IPO Calendar** - "IPOs get birth charts too"
 8. **Profile/Zodiac Wheel** - "Your cosmic investor identity"
 
@@ -262,7 +258,7 @@ Thank you for your time!
 7-12s:  Swipe discovery in action (swipe right, swipe left)
 12-17s: Stock detail with compatibility score animating
 17-22s: Cosmic Roast reveal (dramatic pause, then roast text)
-22-27s: Moon phase widget + horoscope text
+22-27s: Moon phase view + horoscope text
 27-30s: Logo + "Download now" CTA
 ```
 
@@ -273,7 +269,7 @@ Thank you for your time!
 ## 12. Promotional Text (170 chars, can update without review)
 
 ```
-🌟 New: Share your Cosmic Roast! Get hilariously roasted based on your zodiac and trading style. Screenshot and share the cosmic truth about your portfolio.
+New: Share your Cosmic Roast — a shareable read of your portfolio personality, based on your sign and what you hold.
 ```
 
 ---
@@ -291,7 +287,7 @@ Thank you for your time!
 | Item | Status | Notes |
 |------|--------|-------|
 | App Name | ✅ | "Cosmo Trader" |
-| Subtitle | ✅ | "Where stars meet the market" |
+| Subtitle | ✅ | "An astrology lens for the tape" |
 | Description | ✅ | ~2,850 chars |
 | Keywords | ✅ | 95 chars |
 | What's New | ✅ | Initial release text |
@@ -299,7 +295,7 @@ Thank you for your time!
 | Secondary Category | ✅ | Entertainment |
 | Age Rating | ✅ | 4+ or 9+ |
 | Review Notes | ✅ | Detailed explanation |
-| Support URL | ⬜ | Need to create |
-| Privacy Policy URL | ⬜ | Need to create |
+| Support URL | ⬜ | REQUIRES FINAL URL BEFORE SUBMISSION |
+| Privacy Policy URL | ⬜ | REQUIRES FINAL URL BEFORE SUBMISSION |
 | Screenshots | ⬜ | Need to capture |
 | App Icon | ⬜ | Need to export from generator |

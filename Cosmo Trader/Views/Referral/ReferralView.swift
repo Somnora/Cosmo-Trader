@@ -9,10 +9,13 @@ struct ReferralView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var referralService = ReferralService.shared
     @State private var showingShareSheet = false
-    @State private var showingLeaderboard = false
     @State private var copiedCode = false
     @State private var showRewardAlert = false
-    @State private var rewardDaysClaimed = 0
+    @State private var rewardAlertMessage = "Rewards redeemed."
+    @State private var redeemError: String?
+    @State private var isRedeeming = false
+    @State private var showingLeaderboard = false
+    private let apiClient = CosmoAPIClient()
 
     var body: some View {
         NavigationStack {
@@ -54,12 +57,12 @@ struct ReferralView: View {
                 ShareSheet(text: referralService.generateShareText())
             }
             .sheet(isPresented: $showingLeaderboard) {
-                ReferralLeaderboardView()
+                LegacyReferralLeaderboardView()
             }
             .alert("Rewards Claimed!", isPresented: $showRewardAlert) {
                 Button("OK", role: .cancel) { }
             } message: {
-                Text("You've unlocked \(rewardDaysClaimed) days of free Oracle Tier! Enjoy your cosmic upgrade. ✨")
+                Text(rewardAlertMessage)
             }
         }
     }
@@ -228,17 +231,31 @@ struct ReferralView: View {
 
             // Claim button if rewards available
             if referralService.hasPendingRewards {
-                Button(action: claimRewards) {
-                    HStack {
-                        Image(systemName: "gift.fill")
-                        Text("Claim \(referralService.availableRewardDays) Days")
+                VStack(spacing: 8) {
+                    Button(action: claimRewards) {
+                        HStack {
+                            if isRedeeming {
+                                ProgressView()
+                                    .tint(.black)
+                            } else {
+                                Image(systemName: "gift.fill")
+                            }
+                            Text("Claim \(referralService.availableRewardDays) Days")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(CosmicTheme.gold)
+                        .cornerRadius(12)
                     }
-                    .font(.headline)
-                    .foregroundColor(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(CosmicTheme.gold)
-                    .cornerRadius(12)
+                    .disabled(isRedeeming)
+
+                    if let redeemError {
+                        Text(redeemError)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
                 }
             }
         }
@@ -326,7 +343,6 @@ struct ReferralView: View {
     }
 
     // MARK: - Leaderboard Preview
-
     private var leaderboardPreview: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -345,28 +361,52 @@ struct ReferralView: View {
                 .foregroundColor(CosmicTheme.gold)
             }
 
-            // Top 3
-            ForEach(ReferralLeaderboard.mockTopRecruiters.prefix(3)) { entry in
-                HStack(spacing: 12) {
-                    Text(entry.badge)
-                        .font(.title2)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(entry.anonymizedName)
-                            .font(.subheadline)
-                            .foregroundColor(CosmicTheme.textPrimary)
-
-                        HStack(spacing: 4) {
-                            Text(entry.zodiacSign.symbol)
-                            Text("\(entry.referralCount) referrals")
-                                .font(.caption)
-                                .foregroundColor(CosmicTheme.textMuted)
-                        }
-                    }
-
-                    Spacer()
+            if referralService.isLeaderboardLoading {
+                HStack {
+                    ProgressView()
+                        .tint(CosmicTheme.gold)
+                    Text("Loading leaderboard…")
+                        .font(.caption)
+                        .foregroundColor(CosmicTheme.textMuted)
                 }
-                .padding(.vertical, 4)
+            } else if let error = referralService.leaderboardError {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Couldn't load leaderboard.")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                    Button("Retry") {
+                        Task { await referralService.loadLeaderboard(limit: 50) }
+                    }
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold)
+                }
+            } else if referralService.leaderboardEntries.isEmpty {
+                Text("No leaderboard data yet.")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.textMuted)
+            } else {
+                ForEach(referralService.leaderboardEntries.prefix(3)) { entry in
+                    HStack(spacing: 12) {
+                        Text(entry.badge)
+                            .font(.title2)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry.anonymizedName)
+                                .font(.subheadline)
+                                .foregroundColor(CosmicTheme.textPrimary)
+
+                            HStack(spacing: 4) {
+                                Text(entry.zodiacSign.symbol)
+                                Text("\(entry.referralCount) referrals")
+                                    .font(.caption)
+                                    .foregroundColor(CosmicTheme.textMuted)
+                            }
+                        }
+
+                        Spacer()
+                    }
+                    .padding(.vertical, 4)
+                }
             }
         }
         .padding(16)
@@ -374,6 +414,11 @@ struct ReferralView: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(CosmicTheme.cardBackground)
         )
+        .task {
+            if referralService.leaderboardEntries.isEmpty && referralService.leaderboardError == nil {
+                await referralService.loadLeaderboard(limit: 50)
+            }
+        }
     }
 
     // MARK: - How It Works
@@ -460,22 +505,45 @@ struct ReferralView: View {
 
     private func claimRewards() {
         let days = referralService.availableRewardDays
-        if referralService.redeemRewardDays(days) {
-            rewardDaysClaimed = days
-            showRewardAlert = true
+        redeemError = nil
+        isRedeeming = true
+        Task {
+            let result = await referralService.redeemRewardDays(days)
+            isRedeeming = false
+            if result.isSuccess {
+                await refreshRewardsStatusSummary(daysClaimed: days)
+                NotificationCenter.default.post(name: .rewardsStatusUpdated, object: nil)
+                showRewardAlert = true
 
-            // Haptic feedback for success
-            let generator = UINotificationFeedbackGenerator()
-            generator.notificationOccurred(.success)
+                // Haptic feedback for success
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+            } else {
+                redeemError = result.message
+            }
+        }
+    }
+
+    private func refreshRewardsStatusSummary(daysClaimed: Int) async {
+        do {
+            let status = try await apiClient.fetchRewardsStatus()
+            if let premiumUntil = status.premiumUntil, !premiumUntil.isEmpty {
+                rewardAlertMessage = "Redeemed \(daysClaimed) days. Premium is active until \(premiumUntil)."
+            } else {
+                rewardAlertMessage = "Redeemed \(daysClaimed) days. Credits balance is now \(status.creditsBalance)."
+            }
+        } catch {
+            rewardAlertMessage = "Redeemed \(daysClaimed) days. Rewards status will refresh shortly."
         }
     }
 }
 
 // MARK: - Referral Leaderboard View
 
-struct ReferralLeaderboardView: View {
+struct LegacyReferralLeaderboardView: View {
 
     @Environment(\.dismiss) private var dismiss
+    @State private var referralService = ReferralService.shared
 
     var body: some View {
         NavigationStack {
@@ -499,8 +567,34 @@ struct ReferralLeaderboardView: View {
                     .padding(.vertical)
 
                     // Leaderboard
-                    ForEach(ReferralLeaderboard.mockTopRecruiters) { entry in
-                        leaderboardRow(entry)
+                    if referralService.isLeaderboardLoading {
+                        ProgressView()
+                            .tint(CosmicTheme.gold)
+                            .padding(.top, 20)
+                    } else if let error = referralService.leaderboardError {
+                        VStack(spacing: 8) {
+                            Text("Couldn't load leaderboard.")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                            Text(error)
+                                .font(.caption2)
+                                .foregroundColor(CosmicTheme.textMuted)
+                            Button("Retry") {
+                                Task { await referralService.loadLeaderboard(limit: 50) }
+                            }
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.gold)
+                        }
+                        .padding(.top, 12)
+                    } else if referralService.leaderboardEntries.isEmpty {
+                        Text("No leaderboard data yet.")
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .padding(.top, 12)
+                    } else {
+                        ForEach(referralService.leaderboardEntries) { entry in
+                            leaderboardRow(entry)
+                        }
                     }
                 }
                 .padding()
@@ -511,6 +605,11 @@ struct ReferralLeaderboardView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
                         .foregroundColor(CosmicTheme.gold)
+                }
+            }
+            .task {
+                if referralService.leaderboardEntries.isEmpty && referralService.leaderboardError == nil {
+                    await referralService.loadLeaderboard(limit: 50)
                 }
             }
         }
@@ -530,7 +629,7 @@ struct ReferralLeaderboardView: View {
                     .foregroundColor(CosmicTheme.textPrimary)
 
                 HStack(spacing: 8) {
-                    Text(entry.zodiacSign.symbol)
+                    ZodiacMark(sign: entry.zodiacSign, size: .tiny, style: .element)
                     Text(entry.zodiacSign.displayName)
                         .font(.caption)
                         .foregroundColor(CosmicTheme.textMuted)
@@ -667,10 +766,8 @@ struct ReferralCodeInputView: View {
 
     private func applyCode() {
         isValidating = true
-
-        // Simulate network delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            let applyResult = ReferralService.shared.applyReferralCode(referralCode)
+        Task {
+            let applyResult = await ReferralService.shared.applyReferralCode(referralCode)
             result = applyResult
             isValidating = false
 
@@ -753,7 +850,7 @@ struct ReferralCard: View {
 }
 
 #Preview("Leaderboard") {
-    ReferralLeaderboardView()
+    LegacyReferralLeaderboardView()
         .preferredColorScheme(.dark)
 }
 

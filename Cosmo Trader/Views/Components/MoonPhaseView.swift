@@ -386,7 +386,7 @@ struct MoonPhaseCard: View {
                     nextPhaseIndicator(
                         label: "Full Moon",
                         days: lunarData.daysUntilFullMoon,
-                        icon: "🌕"
+                        icon: "circle.fill"
                     )
 
                     Rectangle()
@@ -396,7 +396,7 @@ struct MoonPhaseCard: View {
                     nextPhaseIndicator(
                         label: "New Moon",
                         days: lunarData.daysUntilNewMoon,
-                        icon: "🌑"
+                        icon: "circle"
                     )
                 }
                 .padding(.top, 4)
@@ -416,7 +416,7 @@ struct MoonPhaseCard: View {
 
     private func nextPhaseIndicator(label: String, days: Int, icon: String) -> some View {
         VStack(spacing: 2) {
-            Text(icon)
+            Image(systemName: icon)
                 .font(.system(size: 16))
 
             Text("\(days)d")
@@ -473,8 +473,9 @@ struct MoonPhaseTimeline: View {
 
     private func phaseEntry(_ entry: MoonPhaseCalendarEntry) -> some View {
         VStack(spacing: 6) {
-            Text(entry.phase.emoji)
+            entry.phase.sfImage
                 .font(.system(size: 24))
+                .foregroundColor(entry.phase.color)
 
             Text(entry.formattedDate)
                 .font(TerminalFont.data(10, weight: .semibold))

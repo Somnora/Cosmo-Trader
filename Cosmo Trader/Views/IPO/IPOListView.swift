@@ -34,6 +34,97 @@ struct IPOListView: View {
         )
     }
 
+    // MARK: - Framing
+
+    /// User's signal framing level
+    private var framingLevel: SignalFramingLevel {
+        appState.currentUser?.signalFramingLevel ?? .balanced
+    }
+
+    /// Framed this week section title
+    private var framedThisWeekTitle: String {
+        switch framingLevel {
+        case .rational, .leanRational:
+            return "IPOs This Week"
+        default:
+            return "Births This Week"
+        }
+    }
+
+    /// Framed this week subtitle
+    private var framedThisWeekSubtitle: String {
+        switch framingLevel {
+        case .rational:
+            return "Listings within 7 days"
+        case .leanRational:
+            return "Arrivals within 7 days"
+        default:
+            return "Cosmic arrivals within 7 days"
+        }
+    }
+
+    /// Framed upcoming section title
+    private var framedUpcomingTitle: String {
+        switch framingLevel {
+        case .rational, .leanRational:
+            return "Upcoming IPOs"
+        default:
+            return "Upcoming Cosmic Births"
+        }
+    }
+
+    /// Framed header title
+    private var framedHeaderTitle: String {
+        switch framingLevel {
+        case .rational, .leanRational:
+            return "Upcoming IPOs"
+        default:
+            return "Upcoming Cosmic Births"
+        }
+    }
+
+    /// Framed header description
+    private var framedHeaderDescription: String {
+        switch framingLevel {
+        case .rational:
+            return "Track upcoming initial public offerings and their sector characteristics."
+        case .leanRational:
+            return "Each IPO enters the market with distinct characteristics based on timing."
+        default:
+            return "Every IPO enters the market under a zodiac sign, born into the cosmic order of commerce."
+        }
+    }
+
+    /// Framed navigation title
+    private var framedNavTitle: String {
+        switch framingLevel {
+        case .rational, .leanRational:
+            return "IPOs"
+        default:
+            return "Cosmic Births"
+        }
+    }
+
+    /// Framed empty state message
+    private var framedEmptyMessage: String {
+        switch framingLevel {
+        case .rational, .leanRational:
+            return "No IPOs found"
+        default:
+            return "No cosmic births found"
+        }
+    }
+
+    /// Framed alerts section title
+    private var framedAlertsTitle: String {
+        switch framingLevel {
+        case .rational, .leanRational:
+            return "IPO ALERTS"
+        default:
+            return "COSMIC ALERTS"
+        }
+    }
+
     private var filteredIPOs: [IPO] {
         var ipos = ipoService.getUpcomingIPOs()
 
@@ -82,20 +173,20 @@ struct IPOListView: View {
                         // Sort and filter controls
                         sortFilterControls
 
-                        // This Week section
+                        // This Week section (framed)
                         if !thisWeekIPOs.isEmpty {
                             ipoSection(
-                                title: "Births This Week",
-                                subtitle: "Cosmic arrivals within 7 days",
+                                title: framedThisWeekTitle,
+                                subtitle: framedThisWeekSubtitle,
                                 ipos: thisWeekIPOs,
                                 isUrgent: true
                             )
                         }
 
-                        // Later IPOs
+                        // Later IPOs (framed)
                         if !laterIPOs.isEmpty {
                             ipoSection(
-                                title: "Upcoming Cosmic Births",
+                                title: framedUpcomingTitle,
                                 subtitle: "Future market arrivals",
                                 ipos: laterIPOs,
                                 isUrgent: false
@@ -121,18 +212,28 @@ struct IPOListView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "sparkle")
                             .foregroundColor(CosmicTheme.gold)
-                        Text("Cosmic Births")
+                        Text(framedNavTitle)
                             .font(TerminalFont.headline(16))
                             .foregroundColor(CosmicTheme.textPrimary)
                     }
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
-                    // Refresh button (for future use)
-                    Button(action: {}) {
-                        Image(systemName: "arrow.clockwise")
-                            .foregroundColor(CosmicTheme.textSecondary)
+                    Button(action: {
+                        Task {
+                            await ipoService.forceRefresh()
+                        }
+                    }) {
+                        if ipoService.isLoading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: CosmicTheme.textSecondary))
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                                .foregroundColor(CosmicTheme.textSecondary)
+                        }
                     }
+                    .disabled(ipoService.isLoading)
                 }
             }
             .toolbarBackground(CosmicTheme.background, for: .navigationBar)
@@ -151,6 +252,10 @@ struct IPOListView: View {
             .onAppear {
                 // Track IPO list viewed
                 AnalyticsService.shared.trackIPOListViewed()
+            }
+            .task {
+                // Refresh IPO data from API on appear
+                await ipoService.refresh()
             }
         }
     }
@@ -177,11 +282,11 @@ struct IPOListView: View {
                     .foregroundStyle(CosmicTheme.goldGradient)
             }
 
-            Text("Upcoming Cosmic Births")
+            Text(framedHeaderTitle)
                 .font(TerminalFont.headline(20))
                 .foregroundColor(CosmicTheme.textPrimary)
 
-            Text("Every IPO enters the market under a zodiac sign, born into the cosmic order of commerce.")
+            Text(framedHeaderDescription)
                 .font(TerminalFont.data(12))
                 .foregroundColor(CosmicTheme.textSecondary)
                 .multilineTextAlignment(.center)
@@ -234,7 +339,7 @@ struct IPOListView: View {
                     Image(systemName: "bell.badge.fill")
                         .foregroundColor(CosmicTheme.gold)
 
-                    Text("COSMIC ALERTS")
+                    Text(framedAlertsTitle)
                         .font(TerminalFont.data(12, weight: .semibold))
                         .foregroundColor(CosmicTheme.textSecondary)
 
@@ -373,6 +478,7 @@ struct IPOListView: View {
                     IPORowView(
                         ipo: ipo,
                         compatibility: ipo.compatibility(with: safeUser),
+                        framingLevel: framingLevel,
                         onTap: { selectedIPO = ipo }
                     )
                 }
@@ -384,21 +490,75 @@ struct IPOListView: View {
 
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Image(systemName: "sparkle")
-                .font(.system(size: 48))
-                .foregroundColor(CosmicTheme.textMuted)
+            if ipoService.isLoading {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: CosmicTheme.gold))
+                    .scaleEffect(1.2)
 
-            Text("No cosmic births found")
-                .font(TerminalFont.headline(16))
-                .foregroundColor(CosmicTheme.textSecondary)
+                Text("Loading IPOs...")
+                    .font(TerminalFont.data(14))
+                    .foregroundColor(CosmicTheme.textSecondary)
+            } else if let error = ipoService.lastError {
+                Image(systemName: "wifi.exclamationmark")
+                    .font(.system(size: 48))
+                    .foregroundColor(CosmicTheme.negative)
 
-            if selectedSector != nil || !searchText.isEmpty {
-                Button("Clear Filters") {
-                    selectedSector = nil
-                    searchText = ""
+                Text("Unable to load IPOs")
+                    .font(TerminalFont.headline(16))
+                    .foregroundColor(CosmicTheme.textSecondary)
+
+                Text(error.localizedDescription)
+                    .font(TerminalFont.data(12))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+
+                Button(action: {
+                    Task {
+                        await ipoService.forceRefresh()
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.clockwise")
+                        Text("Try Again")
+                    }
+                    .font(TerminalFont.data(12))
+                    .foregroundColor(CosmicTheme.gold)
                 }
-                .font(TerminalFont.data(12))
-                .foregroundColor(CosmicTheme.gold)
+            } else {
+                Image(systemName: "sparkle")
+                    .font(.system(size: 48))
+                    .foregroundColor(CosmicTheme.textMuted)
+
+                Text(framedEmptyMessage)
+                    .font(TerminalFont.headline(16))
+                    .foregroundColor(CosmicTheme.textSecondary)
+
+                if selectedSector != nil || !searchText.isEmpty {
+                    Button("Clear Filters") {
+                        selectedSector = nil
+                        searchText = ""
+                    }
+                    .font(TerminalFont.data(12))
+                    .foregroundColor(CosmicTheme.gold)
+                } else {
+                    Text("No upcoming IPOs in this date range")
+                        .font(TerminalFont.data(12))
+                        .foregroundColor(CosmicTheme.textMuted)
+
+                    Button(action: {
+                        Task {
+                            await ipoService.forceRefresh()
+                        }
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "arrow.clockwise")
+                            Text("Refresh")
+                        }
+                        .font(TerminalFont.data(12))
+                        .foregroundColor(CosmicTheme.gold)
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity)
@@ -467,6 +627,7 @@ struct IPORowView: View {
 
     let ipo: IPO
     let compatibility: IPOCompatibilityResult
+    let framingLevel: SignalFramingLevel
     let onTap: () -> Void
 
     var body: some View {
@@ -574,7 +735,14 @@ struct IPORowView: View {
     }
 
     private var birthSummary: String {
-        "Born \(ipo.zodiacSign.displayName) — \(ipo.zodiacSign.element.displayName) energy"
+        switch framingLevel {
+        case .rational:
+            return "IPO Date: \(ipo.expectedDate.formatted(.dateTime.month(.abbreviated).day())) — \(ipo.sector)"
+        case .leanRational:
+            return "Listing \(ipo.expectedDate.formatted(.dateTime.month(.abbreviated).day())) — \(ipo.zodiacSign.element.displayName) sector traits"
+        default:
+            return "Born \(ipo.zodiacSign.displayName) — \(ipo.zodiacSign.element.displayName) energy"
+        }
     }
 
     private var elementColor: Color {

@@ -77,7 +77,7 @@ struct LaunchScreenView: View {
 
                 Spacer()
 
-                // J.P. Morgan quote - subtle, near bottom
+                // Premium positioning quote - subtle, near bottom
                 JPMorganQuoteView(size: .minimal, opacity: quoteOpacity)
                     .padding(.horizontal, 40)
                     .padding(.bottom, 24)
@@ -134,7 +134,7 @@ struct LaunchScreenView: View {
             }
         }
 
-        // Phase 6: Show J.P. Morgan quote - subtle fade in
+        // Phase 6: Show premium quote - subtle fade in
         DispatchQueue.main.asyncAfter(deadline: .now() + animationDuration + 1.8) {
             withAnimation(.easeIn(duration: 0.8)) {
                 quoteOpacity = 1

@@ -3,11 +3,11 @@ import SwiftUI
 
 // MARK: - Earnings Service
 // =========================
-// Manages earnings calendar data and generates cosmic earnings horoscopes.
+// Manages earnings calendar data from Finnhub API and generates cosmic earnings horoscopes.
 //
 // FEATURE: Earnings Season Horoscopes
 // Quarterly earnings are the most volatile periods. This service provides:
-// - Earnings calendar with upcoming report dates
+// - Earnings calendar with upcoming report dates (from real API)
 // - Special horoscopes for stocks reporting that week
 // - Cosmic commentary combining zodiac traits with Mercury retrograde, etc.
 //
@@ -34,13 +34,32 @@ final class EarningsService {
     /// All known earnings events
     private(set) var allEarningsEvents: [EarningsEvent] = []
 
+    /// Is currently loading
+    private(set) var isLoading: Bool = false
+
+    /// Last fetch error
+    private(set) var lastError: Error?
+
     /// Last refresh time
     private var lastRefresh: Date?
+
+    /// Cache duration (5 minutes)
+    private let cacheDuration: TimeInterval = 300
+
+    /// UserDefaults keys for caching
+    private let cacheKey = "com.cosmotrader.earningscache"
+    private let cacheTimestampKey = "com.cosmotrader.earningscache.timestamp"
 
     // MARK: - Initialization
 
     private init() {
-        generateMockEarningsData()
+        // Load cached data first
+        loadCachedEarnings()
+
+        // If no cached data, use mock data as fallback
+        if allEarningsEvents.isEmpty {
+            generateMockEarningsData()
+        }
     }
 
     // MARK: - Public Methods
@@ -57,7 +76,9 @@ final class EarningsService {
     func getEarningsThisWeek() -> [EarningsEvent] {
         let calendar = Calendar.current
         let now = Date()
-        let weekEnd = calendar.date(byAdding: .day, value: 7, to: now)!
+        guard let weekEnd = calendar.date(byAdding: .day, value: 7, to: now) else {
+            return []
+        }
 
         return allEarningsEvents
             .filter { $0.reportDate >= now && $0.reportDate <= weekEnd }
@@ -68,7 +89,9 @@ final class EarningsService {
     func getEarningsWithin(days: Int) -> [EarningsEvent] {
         let calendar = Calendar.current
         let now = Date()
-        let futureDate = calendar.date(byAdding: .day, value: days, to: now)!
+        guard let futureDate = calendar.date(byAdding: .day, value: days, to: now) else {
+            return []
+        }
 
         return allEarningsEvents
             .filter { $0.reportDate >= now && $0.reportDate <= futureDate }
@@ -94,50 +117,182 @@ final class EarningsService {
         generateHoroscope(stock: stock, earningsDate: earningsDate)
     }
 
-    /// Refresh earnings data
-    func refresh() {
-        generateMockEarningsData()
-        lastRefresh = Date()
+    /// Refresh earnings data from API
+    func refresh() async {
+        // Check cache freshness
+        if let lastFetch = lastRefresh,
+           Date().timeIntervalSince(lastFetch) < cacheDuration {
+            return
+        }
+
+        isLoading = true
+        lastError = nil
+
+        do {
+            let today = Date()
+            // Fetch earnings for the next 30 days
+            guard let thirtyDaysOut = Calendar.current.date(byAdding: .day, value: 30, to: today) else {
+                throw NetworkError.unknown("Failed to calculate date range")
+            }
+
+            let finnhubEarnings = try await StockAPIService.shared.fetchEarningsCalendar(from: today, to: thirtyDaysOut)
+
+            // Convert to app's EarningsEvent model
+            let convertedEvents = finnhubEarnings.compactMap { convertToEarningsEvent($0) }
+
+            if !convertedEvents.isEmpty {
+                self.allEarningsEvents = convertedEvents
+                self.lastRefresh = Date()
+
+                // Cache results for offline use
+                cacheEarnings(convertedEvents)
+
+                log("✅ Loaded \(convertedEvents.count) earnings events from API")
+            } else {
+                // API returned empty - keep existing data
+                log("⚠️ API returned no earnings, keeping existing data")
+            }
+
+            lastError = nil
+
+        } catch {
+            log("❌ Earnings fetch error: \(error)")
+            lastError = error
+
+            // Fall back to cache or mock data if we have nothing
+            if allEarningsEvents.isEmpty {
+                loadCachedEarnings()
+                if allEarningsEvents.isEmpty {
+                    generateMockEarningsData()
+                }
+            }
+        }
+
+        isLoading = false
     }
 
-    // MARK: - Mock Data Generation
+    /// Force refresh, bypassing cache check
+    func forceRefresh() async {
+        lastRefresh = nil
+        await refresh()
+    }
 
-    /// Generate mock earnings data for demonstration
-    /// In production, this would come from an API like Alpha Vantage, Finnhub, or Polygon.io
+    /// Synchronous refresh for legacy compatibility (triggers async refresh)
+    func refreshSync() {
+        Task {
+            await refresh()
+        }
+    }
+
+    // MARK: - API Conversion
+
+    /// Convert Finnhub earnings to app EarningsEvent model
+    private func convertToEarningsEvent(_ finnhub: FinnhubEarnings) -> EarningsEvent? {
+        guard let date = parseDate(finnhub.date) else {
+            log("⚠️ Failed to parse date: \(finnhub.date)")
+            return nil
+        }
+
+        // Convert hour to timing
+        let timing: EarningsEvent.ReportTiming
+        switch finnhub.hour?.lowercased() {
+        case "bmo":
+            timing = .beforeMarket
+        case "amc":
+            timing = .afterMarket
+        case "dmh":
+            timing = .duringMarket
+        default:
+            timing = .afterMarket // Default to after market if unknown
+        }
+
+        // Set appropriate time based on timing
+        let calendar = Calendar.current
+        var components = calendar.dateComponents([.year, .month, .day], from: date)
+        components.hour = timing == .beforeMarket ? 7 : 16
+        components.minute = 30
+        let finalDate = calendar.date(from: components) ?? date
+
+        // Get fiscal quarter string
+        let fiscalQuarter = finnhub.quarter.map { "Q\($0)" } ?? getCurrentFiscalQuarter()
+        let fiscalYear = finnhub.year ?? calendar.component(.year, from: Date())
+
+        return EarningsEvent(
+            symbol: finnhub.symbol,
+            companyName: finnhub.symbol, // Finnhub doesn't provide company name, use symbol
+            reportDate: finalDate,
+            timing: timing,
+            consensusEPS: finnhub.epsEstimate,
+            previousEPS: finnhub.epsActual,
+            fiscalQuarter: fiscalQuarter,
+            fiscalYear: fiscalYear
+        )
+    }
+
+    private func parseDate(_ dateString: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: dateString)
+    }
+
+    // MARK: - Caching
+
+    private func cacheEarnings(_ events: [EarningsEvent]) {
+        do {
+            let data = try JSONEncoder().encode(events.map { CachedEarningsEvent(from: $0) })
+            UserDefaults.standard.set(data, forKey: cacheKey)
+            UserDefaults.standard.set(Date(), forKey: cacheTimestampKey)
+            log("💾 Cached \(events.count) earnings events")
+        } catch {
+            log("⚠️ Failed to cache earnings: \(error)")
+        }
+    }
+
+    private func loadCachedEarnings() {
+        guard let data = UserDefaults.standard.data(forKey: cacheKey) else {
+            log("📦 No cached earnings found")
+            return
+        }
+
+        do {
+            let cached = try JSONDecoder().decode([CachedEarningsEvent].self, from: data)
+            allEarningsEvents = cached.map { $0.toEarningsEvent() }
+            lastRefresh = UserDefaults.standard.object(forKey: cacheTimestampKey) as? Date
+            log("📦 Loaded \(allEarningsEvents.count) earnings from cache")
+        } catch {
+            log("⚠️ Failed to load cached earnings: \(error)")
+        }
+    }
+
+    // MARK: - Logging
+
+    private func log(_ message: String) {
+        #if DEBUG
+        print("[EarningsService] \(message)")
+        #endif
+    }
+
+    // MARK: - Mock Data Generation (Fallback)
+
+    /// Generate mock earnings data as fallback when API is unavailable
     private func generateMockEarningsData() {
         let calendar = Calendar.current
         let now = Date()
 
-        // Generate earnings for the next 30 days based on typical quarterly schedule
         var events: [EarningsEvent] = []
 
         // Major tech companies reporting schedule (mock data)
         let earningsSchedule: [(symbol: String, name: String, daysFromNow: Int, timing: EarningsEvent.ReportTiming, consensus: Double?)] = [
-            // This week
             ("AAPL", "Apple Inc.", 2, .afterMarket, 1.43),
             ("MSFT", "Microsoft Corp.", 3, .afterMarket, 2.82),
             ("GOOGL", "Alphabet Inc.", 4, .afterMarket, 1.85),
-
-            // Next week
             ("AMZN", "Amazon.com Inc.", 8, .afterMarket, 1.14),
             ("META", "Meta Platforms Inc.", 9, .afterMarket, 4.71),
             ("TSLA", "Tesla Inc.", 10, .afterMarket, 0.73),
             ("NVDA", "NVIDIA Corp.", 11, .afterMarket, 5.59),
-
-            // Two weeks out
             ("NFLX", "Netflix Inc.", 15, .afterMarket, 4.52),
             ("AMD", "Advanced Micro Devices", 16, .beforeMarket, 0.68),
             ("CRM", "Salesforce Inc.", 17, .afterMarket, 2.36),
-
-            // Three weeks out
-            ("DIS", "The Walt Disney Co.", 22, .afterMarket, 1.10),
-            ("PYPL", "PayPal Holdings", 23, .beforeMarket, 1.22),
-            ("UBER", "Uber Technologies", 24, .beforeMarket, 0.31),
-
-            // Four weeks out
-            ("JPM", "JPMorgan Chase", 29, .beforeMarket, 4.11),
-            ("BAC", "Bank of America", 29, .beforeMarket, 0.82),
-            ("WMT", "Walmart Inc.", 30, .beforeMarket, 1.63),
         ]
 
         for schedule in earningsSchedule {
@@ -145,7 +300,6 @@ final class EarningsService {
                 continue
             }
 
-            // Set appropriate time based on timing
             var components = calendar.dateComponents([.year, .month, .day], from: reportDate)
             components.hour = schedule.timing == .beforeMarket ? 7 : 16
             components.minute = 30
@@ -167,6 +321,7 @@ final class EarningsService {
         }
 
         allEarningsEvents = events
+        log("📦 Loaded mock earnings data")
     }
 
     /// Get current fiscal quarter
@@ -516,7 +671,7 @@ final class EarningsService {
 
 /// Represents an earnings report event
 struct EarningsEvent: Identifiable {
-    let id = UUID()
+    let id: UUID
     let symbol: String
     let companyName: String
     let reportDate: Date
@@ -538,6 +693,28 @@ struct EarningsEvent: Identifiable {
             case .duringMarket: return "sun.max.fill"
             }
         }
+    }
+
+    init(
+        id: UUID = UUID(),
+        symbol: String,
+        companyName: String,
+        reportDate: Date,
+        timing: ReportTiming,
+        consensusEPS: Double?,
+        previousEPS: Double?,
+        fiscalQuarter: String,
+        fiscalYear: Int
+    ) {
+        self.id = id
+        self.symbol = symbol
+        self.companyName = companyName
+        self.reportDate = reportDate
+        self.timing = timing
+        self.consensusEPS = consensusEPS
+        self.previousEPS = previousEPS
+        self.fiscalQuarter = fiscalQuarter
+        self.fiscalYear = fiscalYear
     }
 
     /// Days until this earnings report
@@ -638,5 +815,47 @@ struct CosmicFactor: Identifiable {
             case .cautionary: return .orange
             }
         }
+    }
+}
+
+// MARK: - Cached Earnings Event
+// =============================
+// Codable wrapper for persisting EarningsEvent data to UserDefaults
+
+private struct CachedEarningsEvent: Codable {
+    let id: UUID
+    let symbol: String
+    let companyName: String
+    let reportDate: Date
+    let timing: EarningsEvent.ReportTiming
+    let consensusEPS: Double?
+    let previousEPS: Double?
+    let fiscalQuarter: String
+    let fiscalYear: Int
+
+    init(from event: EarningsEvent) {
+        self.id = event.id
+        self.symbol = event.symbol
+        self.companyName = event.companyName
+        self.reportDate = event.reportDate
+        self.timing = event.timing
+        self.consensusEPS = event.consensusEPS
+        self.previousEPS = event.previousEPS
+        self.fiscalQuarter = event.fiscalQuarter
+        self.fiscalYear = event.fiscalYear
+    }
+
+    func toEarningsEvent() -> EarningsEvent {
+        EarningsEvent(
+            id: id,
+            symbol: symbol,
+            companyName: companyName,
+            reportDate: reportDate,
+            timing: timing,
+            consensusEPS: consensusEPS,
+            previousEPS: previousEPS,
+            fiscalQuarter: fiscalQuarter,
+            fiscalYear: fiscalYear
+        )
     }
 }

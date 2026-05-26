@@ -1,52 +1,51 @@
 # SDK Integration Notes
 
-## Mixpanel Analytics
+## Third-party analytics — v1 status: **NOT SHIPPED**
 
-**Status**: Optional (uses conditional import)
+This release intentionally ships **no third-party behavioural-analytics or
+crash-reporting SDK**. `AnalyticsService` is a local-only event recorder
+(in-memory queue + DEBUG console logging). Nothing leaves the device.
 
-The `MixpanelProvider` is designed to work with or without the Mixpanel SDK installed:
-- When SDK is **not installed**: Analytics calls are no-op (logged locally in DEBUG only)
-- When SDK is **installed**: Events are forwarded to Mixpanel servers
+This is reflected in:
 
-### To Enable Mixpanel
+- `Cosmo Trader/PrivacyInfo.xcprivacy` — `NSPrivacyTracking = false`, no
+  tracking domains, no collected data types.
+- `Cosmo Trader/Views/Legal/LegalViews.swift` — the in-app privacy policy
+  documents only Finnhub, Firebase Authentication, and Apple App Store.
+
+If a future release adds tracking analytics, all of the following must
+be updated in the same change:
+
+1. `PrivacyInfo.xcprivacy` — flip `NSPrivacyTracking` and add the new
+   `NSPrivacyTrackingDomains` / `NSPrivacyCollectedDataTypes`.
+2. `LegalViews.PrivacyPolicyView` — disclose the new processor in both
+   "DATA WE COLLECT" and "THIRD-PARTY SERVICES".
+3. App Store Connect privacy questionnaire.
+4. ATT prompt copy and gating, if the SDK falls under tracking.
+5. `AnalyticsService.setOptOut(_:)` — ensure the opt-out actually halts
+   transmission, not just the local buffer.
+
+### Re-enabling Mixpanel (future, optional)
+
+Historical instructions left for reference. The previous `MixpanelProvider`
+shim has been deleted; reintroducing it requires reverting that deletion
+in addition to the steps below.
 
 1. Add Mixpanel SDK via Swift Package Manager:
    - File > Add Package Dependencies
    - Enter: `https://github.com/mixpanel/mixpanel-swift`
-   - Select version: 4.0.0+
+2. Configure token in `Secrets.plist`.
+3. Make sure all five privacy/disclosure touchpoints above are updated in
+   the same PR.
 
-2. Configure token in `Secrets.plist`:
-   ```xml
-   <key>MIXPANEL_TOKEN</key>
-   <string>your-mixpanel-token</string>
-   ```
+### Re-enabling Firebase Crashlytics (future, optional)
 
-3. Rebuild the app - the `#if canImport(Mixpanel)` directives will detect the SDK
+The previous `CrashReportingService` shim has been deleted. To reintroduce:
 
-### Privacy Notes
-- All analytics are anonymized (no PII collected)
-- User opt-out is supported via `setOptOut()`
-- Super properties automatically strip sensitive keys
-
----
-
-## Firebase Crashlytics
-
-**Status**: Optional (uses conditional import)
-
-The `CrashReportingService` works with or without Firebase installed:
-- When SDK is **not installed**: Crash logs are printed to console only
-- When SDK is **installed**: Crashes and non-fatal errors are sent to Firebase
-
-### To Enable Firebase
-
-1. Add Firebase SDK via Swift Package Manager:
-   - Add: `https://github.com/firebase/firebase-ios-sdk`
-   - Select: FirebaseAnalytics, FirebaseCrashlytics
-
-2. Add `GoogleService-Info.plist` to the project
-
-3. Build and run - `#if canImport(FirebaseCore)` will detect the SDK
+1. Add `FirebaseCrashlytics` to the Swift Package selection (already linked:
+   `FirebaseAuth`, `FirebaseCore`).
+2. Re-add a thin recorder service.
+3. Disclose in `PrivacyPolicyView` and `PrivacyInfo.xcprivacy`.
 
 ---
 

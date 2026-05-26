@@ -130,8 +130,8 @@ struct LunarMarketOutlook: View {
 
                 // Days until significant phases
                 HStack(spacing: 16) {
-                    phaseCountdown("Full", days: lunarData.daysUntilFullMoon, emoji: "🌕")
-                    phaseCountdown("New", days: lunarData.daysUntilNewMoon, emoji: "🌑")
+                    phaseCountdown("Full", days: lunarData.daysUntilFullMoon, icon: "circle.fill")
+                    phaseCountdown("New", days: lunarData.daysUntilNewMoon, icon: "circle")
                 }
                 .padding(.top, 4)
             }
@@ -139,9 +139,9 @@ struct LunarMarketOutlook: View {
         .padding(.vertical, 8)
     }
 
-    private func phaseCountdown(_ label: String, days: Int, emoji: String) -> some View {
+    private func phaseCountdown(_ label: String, days: Int, icon: String) -> some View {
         HStack(spacing: 4) {
-            Text(emoji)
+            Image(systemName: icon)
                 .font(.system(size: 14))
 
             Text("\(days)d")
@@ -325,9 +325,10 @@ struct LunarMarketOutlook: View {
 
     private func volatilityStat(_ stat: LunarVolatilityStat, isHighlighted: Bool) -> some View {
         HStack(spacing: 12) {
-            // Phase emoji
-            Text(stat.phase.emoji)
+            // Phase icon
+            stat.phase.sfImage
                 .font(.title2)
+                .foregroundColor(stat.phase.color)
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
@@ -501,9 +502,10 @@ struct LunarAlertBanner: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Moon emoji
-            Text(lunarData.phase.emoji)
+            // Moon icon
+            lunarData.phase.sfImage
                 .font(.title2)
+                .foregroundColor(CosmicTheme.gold)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(alertTitle)
@@ -551,11 +553,11 @@ struct LunarAlertBanner: View {
 
     private var alertMessage: String {
         if lunarData.phase == .fullMoon {
-            return "Peak volatility expected. The market's emotions may run high."
+            return "Full Moon marker. The market's emotions can feel louder."
         } else if lunarData.phase == .newMoon {
-            return "Fresh cycle beginning. Good day to research new positions."
+            return "New Moon marker. A quiet point for research notes."
         } else if lunarData.daysUntilFullMoon == 1 {
-            return "Expect heightened volatility tomorrow."
+            return "Full Moon tomorrow. A calendar note, not a market call."
         } else if lunarData.daysUntilNewMoon == 1 {
             return "Cycle ending. Prepare for fresh energy."
         }

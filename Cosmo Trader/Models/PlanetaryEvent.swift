@@ -197,22 +197,22 @@ struct CosmicWeather {
 
         if hasRetrograde && hasConjunction {
             energy = .turbulent
-            advice = "Mixed signals from the cosmos. Proceed with awareness, not recklessness."
+            advice = "Mixed cosmic signals. Proceed with awareness, not recklessness."
         } else if hasRetrograde {
             energy = .intense
-            advice = "Review and reflect before acting. The stars reward patience today."
+            advice = "Review and reflect before acting. Retrograde conditions reward patience today."
         } else if hasConjunction {
             energy = .active
-            advice = "Cosmic amplification is in effect. Your actions carry extra weight."
+            advice = "Cosmic amplification is in effect. Position sizing carries extra weight."
         } else if moonPhase == .fullMoon {
             energy = .intense
             advice = "Full moon energy peaks. Emotions run high—in markets and in life."
         } else if moonPhase == .newMoon {
             energy = .calm
-            advice = "A quiet cosmic moment. Plant seeds for future growth."
+            advice = "A quiet cosmic moment. Define watchlist criteria for future growth."
         } else {
             energy = .balanced
-            advice = "Steady cosmic conditions. The stars neither push nor pull today."
+            advice = "Steady cosmic conditions. No major signal is forcing action today."
         }
 
         return CosmicWeather(

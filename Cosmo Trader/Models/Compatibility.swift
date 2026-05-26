@@ -37,22 +37,22 @@ enum CompatibilityRating: String, CaseIterable, Codable {
     /// Short tagline for the rating
     var tagline: String {
         switch self {
-        case .cosmicSoulmates:   return "Written in the stars"
-        case .highCompatibility: return "The universe approves"
-        case .neutral:           return "The cosmos shrugs"
+        case .cosmicSoulmates:   return "Rare cosmic match"
+        case .highCompatibility: return "Strong alignment"
+        case .neutral:           return "Neutral match"
         case .challenging:       return "Growth opportunity"
-        case .cosmicClash:       return "Karmic lesson incoming"
+        case .cosmicClash:       return "High-friction match"
         }
     }
 
-    /// Emoji representation
-    var emoji: String {
+    /// SF Symbol representation
+    var sfSymbol: String {
         switch self {
-        case .cosmicSoulmates:   return "💫"
-        case .highCompatibility: return "✨"
-        case .neutral:           return "🌙"
-        case .challenging:       return "⚡"
-        case .cosmicClash:       return "💀"
+        case .cosmicSoulmates:   return "star.circle.fill"
+        case .highCompatibility: return "scope"
+        case .neutral:           return "moon.fill"
+        case .challenging:       return "bolt.fill"
+        case .cosmicClash:       return "exclamationmark.triangle.fill"
         }
     }
 
@@ -280,8 +280,8 @@ enum CompatibilityCalculator {
         ],
         .water: [
             "Water merges with water. Emotional depth. Also emotional flooding.",
-            "Two water signs feeling their way through. The vibes are immaculate. The logic is absent.",
-            "Deep meets deep. You'll know when to sell. You won't know why. Trust it anyway."
+            "Two water signs feeling their way through. Intuition is strong; logic needs a seat at the table.",
+            "Deep meets deep. You'll feel the shift before you can explain it. Verify it anyway."
         ]
     ]
 
@@ -320,7 +320,7 @@ enum CompatibilityCalculator {
         // Air + Water
         ElementPair(.air, .water): [
             "Air analyzes what water feels. Neither fully understands the other. Both are correct.",
-            "Logic meets intuition. Your spreadsheet doesn't account for their vibes. Adjust accordingly.",
+            "Logic meets intuition. Your spreadsheet should account for sentiment risk.",
             "Air and water: miscommunication as a love language. You'll figure it out eventually."
         ]
     ]
@@ -334,7 +334,7 @@ enum CompatibilityCalculator {
         stockSign: ZodiacSign
     ) -> String {
         let descriptions = ratingDescriptions[rating] ?? []
-        var description = descriptions.randomElement() ?? "The stars are unclear. So is this investment."
+        var description = descriptions.randomElement() ?? "The reading is unclear. Use your own framework."
 
         // Replace placeholders
         description = description
@@ -349,39 +349,39 @@ enum CompatibilityCalculator {
     /// Descriptions by rating level - at least 3 per level
     private static let ratingDescriptions: [CompatibilityRating: [String]] = [
         .cosmicSoulmates: [
-            "This is the alignment poets write about and financial advisors can't explain. Your {USER} energy and their {STOCK} nature were destined to meet. The returns will be emotional and financial.",
-            "When a {USER} finds a {STOCK}, the universe takes notice. This isn't luck. This is cosmic inevitability wearing a stock ticker.",
-            "Your charts align in ways that make astrologers weep and accountants suspicious. This {STOCK} company was founded under stars that mirror your own. Invest accordingly.",
-            "The cosmos rarely plays favorites. When it does, it looks like this. A {USER} and a {STOCK} walking into the same portfolio isn't coincidence. It's destiny with compound interest.",
-            "Some connections transcend logic. Your {USER_ELEMENT} energy recognizes something ancient in their {STOCK_ELEMENT} foundation. The universe ships this. Hard."
+            "This is rare reading fit. Your {USER} profile and this {STOCK} name line up across the astrology layer, but your own thesis still matters.",
+            "A {USER} and a {STOCK} pairing reads unusually clean. Treat the alignment as context, not permission to skip research.",
+            "This {STOCK} company was founded under a signature that mirrors your own. Good fit, still only one lens.",
+            "The alignment is strong enough to notice. A {USER} and a {STOCK} can read clean if your own framework agrees.",
+            "Your {USER_ELEMENT} exposure recognizes a clean match in their {STOCK_ELEMENT} foundation."
         ],
         .highCompatibility: [
-            "A {USER} investing in a {STOCK} company makes more sense than most things you'll do this week. The stars approve. Cautiously.",
-            "Your {USER_ELEMENT} nature harmonizes with their {STOCK_ELEMENT} energy. It's not soulmates, but it's the next best thing: compatible risk tolerance.",
-            "The universe gives this pairing a solid B+. Not perfect, but reliable. Like the returns you'll probably see.",
-            "As a {USER}, you'll find this {STOCK} investment surprisingly intuitive. The cosmos didn't plan this specifically, but it's not mad about it.",
+            "A {USER} reading a {STOCK} company has solid fit. The reading is constructive, not conclusive.",
+            "Your {USER_ELEMENT} nature harmonizes with their {STOCK_ELEMENT} energy. It's not soulmates, but it is a coherent lens.",
+            "This pairing is not perfect, but it is coherent. Compatibility supports the thesis if the numbers also work.",
+            "As a {USER}, you'll find this {STOCK} investment surprisingly intuitive. Use that as a prompt to research, not chase.",
             "High compatibility doesn't mean no conflict. It means the conflict will be productive. Your {USER} energy can work with their {STOCK} vibration."
         ],
         .neutral: [
-            "The cosmos has no strong feelings about a {USER} investing in a {STOCK} company. Neither should you. Proceed with appropriate indifference.",
-            "This pairing exists in the astrological equivalent of a shrug. It won't destroy you. It won't transform you. It will simply... be.",
-            "Neutral doesn't mean bad. It means the universe is letting you make this decision without cosmic interference. No pressure. Maximum responsibility.",
-            "A {USER} and a {STOCK} together. The stars see it. The stars have no comment. Do your own research.",
-            "Some investments are written in the stars. This one is written in pencil. Erasable. Unremarkable. Potentially profitable anyway."
+            "The astrology layer has no strong opinion about a {USER} investing in a {STOCK} company. Let fundamentals lead.",
+            "This pairing is neutral. It will not carry the reading by itself.",
+            "Neutral does not mean bad. It means the decision needs a market thesis, not a sign thesis.",
+            "A {USER} and a {STOCK} together reads as ordinary. Do your own research.",
+            "This one is written in pencil: adjustable, unremarkable, and potentially profitable anyway."
         ],
         .challenging: [
-            "This {STOCK} investment will teach you things about yourself you didn't ask to learn. Your {USER} nature will be tested. Growth is available.",
-            "The universe pairs {USER} with {STOCK} when it wants to build character. Yours specifically. Consider this an expensive lesson with potential upside.",
+            "This {STOCK} reading will teach you things about yourself you didn't ask to learn. Your {USER} nature will be tested. Growth is available.",
+            "{USER} and {STOCK} create friction. Consider this a higher-effort read with open questions.",
             "Challenging doesn't mean impossible. It means your {USER_ELEMENT} energy and their {STOCK_ELEMENT} nature will need constant negotiation. Exhausting but educational.",
             "A {USER} investing in a {STOCK} company is the astrological equivalent of a gym membership. Uncomfortable. Character-building. Results not guaranteed.",
             "This pairing requires effort. Your {USER} instincts will clash with their {STOCK} energy. The friction can spark growth or just spark. Choose wisely."
         ],
         .cosmicClash: [
-            "The universe specifically advised against a {USER} touching anything {STOCK}. You're going to do it anyway. The cosmos respects your chaos.",
-            "This is the investment equivalent of that ex you should have blocked. Your {USER} nature and their {STOCK} energy are cosmically incompatible. Proceed for the story alone.",
-            "A cosmic clash doesn't mean failure. It means the success will spite the heavens themselves. Your {USER_ELEMENT} versus their {STOCK_ELEMENT}: an ancient war in stock form.",
-            "The stars aligned specifically to warn you about this {STOCK} pairing. You saw the warning. You're still here. Bold. Unhinged. Possibly brilliant.",
-            "Every astrologer who sees a {USER} invest in a {STOCK} company sighs deeply. You're doing it for the plot. The universe understands, disapprovingly."
+            "This is a high-friction pairing. If a {USER} studies a {STOCK} name here, the thesis has to do real work.",
+            "Your {USER} nature and their {STOCK} energy are poorly matched. Defer to a strong thesis and your own risk rules.",
+            "A cosmic clash does not mean failure. It means the reading needs extra context before conviction.",
+            "This {STOCK} pairing reads as a warning, not a ban. Bold can work; unmanaged risk cannot.",
+            "This is not a plot twist to romanticize. If you keep exploring, make the thesis measurable."
         ]
     ]
 
@@ -408,39 +408,39 @@ enum CompatibilityCalculator {
     /// Advice by rating level
     private static let ratingAdvice: [CompatibilityRating: [String]] = [
         .cosmicSoulmates: [
-            "Invest with confidence. The universe already RSVP'd yes.",
-            "Trust this cosmic connection. Then also read the quarterly reports. Balance.",
-            "Let your {USER} intuition guide you. It's cosmically calibrated for this.",
-            "This is one of those rare times your gut and the stars agree. Act accordingly.",
-            "Buy and hold. The cosmos doesn't arrange soulmates for day trading."
+            "High fit is useful context. Still read the quarterly reports.",
+            "Treat the reading as one lens. Your own framework still decides.",
+            "Let your {USER} intuition guide attention, not the whole decision.",
+            "This is a rare case where intuition and reading agree. Keep it inside your plan.",
+            "A strong fit is better suited to patient research than impulse."
         ],
         .highCompatibility: [
-            "A solid position in your portfolio. Let it grow. Check on it occasionally, like a low-maintenance plant.",
-            "Your {USER} instincts serve you well here. Trust them, but verify.",
-            "Lean into this compatibility. It won't betray you. Probably.",
-            "Consider this a foundational holding. Not exciting. Reliably profitable.",
-            "The stars suggest steady investment. Your {USER_ELEMENT} energy will know when to adjust."
+            "A solid read for your portfolio lens. Check on it occasionally, like a low-maintenance plant.",
+            "Your {USER} instincts are noticeable here. Verify them.",
+            "Keep this compatibility in view only where the thesis remains intact.",
+            "This can read as foundational in a watchlist. Not flashy, but coherent.",
+            "The reading is steady. Use your {USER_ELEMENT} balance as a reflection prompt, not a timing tool."
         ],
         .neutral: [
-            "Make your decision based on fundamentals. The cosmos has taken the day off.",
-            "Neither lean in nor pull away. This is the Switzerland of investments.",
-            "Due diligence matters more here. The stars aren't doing the work for you this time.",
-            "Consider position sizing carefully. The universe isn't co-signing this particular loan.",
+            "Make your decision based on fundamentals. The astrology layer is neutral.",
+            "The reading neither leans in nor pulls away. This is the Switzerland of investments.",
+            "Due diligence matters more here. The signal is not doing the work for you.",
+            "Notice the assumptions carefully. The reading is not co-signing the risk.",
             "Treat this like any other investment: with appropriate research and mild suspicion."
         ],
         .challenging: [
-            "If you proceed, do so with eyes open and position sizes small. Growth requires surviving first.",
-            "Consider this a learning position. Budget for tuition.",
-            "Your {USER} nature will want to force this. Let it unfold instead. Patience, grasshopper.",
-            "Hedge your bets. The cosmos isn't saying no, but it's definitely not saying yes enthusiastically.",
-            "Use this friction productively. Smaller position. Larger lessons. Eventual wisdom."
+            "If you keep exploring, do so with eyes open. Growth requires surviving first.",
+            "Treat this as a learning read. Budget attention, not certainty.",
+            "Your {USER} nature may want to force this. Let your thesis prove itself.",
+            "Keep skepticism close. The reading is not saying no, but it is not enthusiastic.",
+            "Use this friction productively. Smaller assumptions. Larger lessons. Eventual wisdom."
         ],
         .cosmicClash: [
-            "If you must, keep the position small enough that the inevitable drama is affordable.",
-            "This is a 'prove the universe wrong' play. Budget accordingly for humble pie or victory champagne.",
-            "Set strict stop losses. The cosmos has warned you. Documentation is important.",
-            "Only proceed if you're comfortable telling this story later, regardless of outcome.",
-            "Consider this a chaos investment. Small allocation. Maximum entertainment value."
+            "If you keep it on the list, keep the drama in perspective.",
+            "A low-fit reading. Notice it, then defer to your own thesis.",
+            "Define your risk rules elsewhere. The reading has warned you.",
+            "Only keep exploring if you're comfortable telling this story later, regardless of outcome.",
+            "Consider this a chaos read. Small assumptions. Maximum entertainment value."
         ]
     ]
 }

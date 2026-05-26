@@ -13,6 +13,7 @@
 //  let timestamp = BuildInfo.buildTimestamp  // "2024-01-15 10:30:00"
 
 import Foundation
+import StoreKit
 import UIKit
 
 // MARK: - Build Information
@@ -75,15 +76,34 @@ enum BuildInfo {
         !isDebug
     }
 
-    /// Whether this is a TestFlight build
-    @available(iOS, deprecated: 18.0, message: "Use AppTransaction from StoreKit 2")
-    static var isTestFlight: Bool {
-        Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
+    enum Distribution: String {
+        case testFlight = "TestFlight"
+        case appStore = "App Store"
+        case xcode = "Xcode"
     }
 
-    /// Whether this is an App Store build
-    static var isAppStore: Bool {
-        isRelease && !isTestFlight
+    /// Distribution source derived from the signed app transaction.
+    static func distribution() async -> Distribution? {
+        do {
+            let result = try await AppTransaction.shared
+            switch result {
+            case .verified(let transaction):
+                switch transaction.environment {
+                case .production:
+                    return .appStore
+                case .sandbox:
+                    return .testFlight
+                case .xcode:
+                    return .xcode
+                default:
+                    return nil
+                }
+            case .unverified:
+                return nil
+            }
+        } catch {
+            return nil
+        }
     }
 
     // MARK: - Device Info

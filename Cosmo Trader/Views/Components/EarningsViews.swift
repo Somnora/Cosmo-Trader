@@ -29,12 +29,12 @@ struct EarningsCalendarCard: View {
                 HStack {
                     ZStack {
                         Circle()
-                            .fill(CosmicTheme.cosmicPurple.opacity(0.2))
+                            .fill(CosmicTheme.accentBlue.opacity(0.2))
                             .frame(width: 36, height: 36)
 
                         Image(systemName: "calendar.badge.clock")
                             .font(.system(size: 16))
-                            .foregroundColor(CosmicTheme.cosmicPurple)
+                            .foregroundColor(CosmicTheme.accentBlue)
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
@@ -46,7 +46,7 @@ struct EarningsCalendarCard: View {
                         if thisWeekCount > 0 {
                             Text("\(thisWeekCount) report\(thisWeekCount > 1 ? "s" : "") this week")
                                 .font(.caption)
-                                .foregroundColor(CosmicTheme.cosmicPurple)
+                                .foregroundColor(CosmicTheme.accentBlue)
                         }
                     }
 
@@ -278,8 +278,8 @@ struct EarningsCalendarSheet: View {
                     .fill(
                         RadialGradient(
                             colors: [
-                                CosmicTheme.cosmicPurple.opacity(0.3),
-                                CosmicTheme.cosmicPurple.opacity(0.1),
+                                CosmicTheme.accentBlue.opacity(0.3),
+                                CosmicTheme.accentBlue.opacity(0.1),
                                 Color.clear
                             ],
                             center: .center,
@@ -291,7 +291,7 @@ struct EarningsCalendarSheet: View {
 
                 Image(systemName: "calendar.badge.clock")
                     .font(.system(size: 44))
-                    .foregroundColor(CosmicTheme.cosmicPurple)
+                    .foregroundColor(CosmicTheme.accentBlue)
             }
 
             VStack(spacing: 6) {
@@ -411,7 +411,7 @@ struct EarningsHoroscopeSheet: View {
                         .foregroundColor(CosmicTheme.textSecondary)
 
                     HStack(spacing: 6) {
-                        Text(stock.zodiacSign.symbol)
+                        ZodiacMark(sign: stock.zodiacSign, size: .small, style: .element)
                         Text(stock.zodiacSign.displayName)
                             .font(TerminalFont.data(12))
                             .foregroundColor(elementColor)
@@ -659,12 +659,12 @@ struct EarningsBadge: View {
                     .font(.system(size: 8, weight: .bold, design: .monospaced))
             }
         }
-        .foregroundColor(daysUntil == 0 ? .orange : CosmicTheme.cosmicPurple)
+        .foregroundColor(daysUntil == 0 ? .orange : CosmicTheme.accentBlue)
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
         .background(
             Capsule()
-                .fill(daysUntil == 0 ? Color.orange.opacity(0.15) : CosmicTheme.cosmicPurple.opacity(0.15))
+                .fill(daysUntil == 0 ? Color.orange.opacity(0.15) : CosmicTheme.accentBlue.opacity(0.15))
         )
     }
 }
@@ -688,7 +688,7 @@ struct StockEarningsSection: View {
                 // Section header
                 HStack {
                     Image(systemName: "calendar.badge.clock")
-                        .foregroundColor(CosmicTheme.cosmicPurple)
+                        .foregroundColor(CosmicTheme.accentBlue)
 
                     Text("UPCOMING EARNINGS")
                         .font(TerminalFont.data(12, weight: .semibold))

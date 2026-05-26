@@ -19,17 +19,43 @@ enum AppEnvironment: String, CaseIterable {
 
     // MARK: - Current Environment
 
-    /// The current app environment, determined by build configuration
+    /// The current app environment, determined by scheme env or build configuration.
     static var current: AppEnvironment {
-        guard let environmentString = Bundle.main.infoDictionary?["APP_ENVIRONMENT"] as? String else {
-            #if DEBUG
-            return .development
-            #else
-            return .production
-            #endif
+        if let environment = resolved(from: EnvironmentKey.environment.value) {
+            return environment
         }
 
-        return AppEnvironment(rawValue: environmentString.lowercased()) ?? .production
+        #if DEBUG
+        return .development
+        #else
+        return .production
+        #endif
+    }
+
+    static func resolved(from rawValue: String?) -> AppEnvironment? {
+        guard let normalizedValue = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+              !normalizedValue.isEmpty else {
+            return nil
+        }
+
+        switch normalizedValue {
+        case "development", "develop", "dev", "debug":
+            return .development
+        case "staging", "stage", "stg":
+            return .staging
+        case "production", "prod", "release":
+            return .production
+        default:
+            return nil
+        }
+    }
+
+    static func defaultForBuildConfiguration() -> AppEnvironment {
+        #if DEBUG
+        return .development
+        #else
+        return .production
+        #endif
     }
 
     // MARK: - Properties
@@ -136,19 +162,56 @@ enum AppEnvironment: String, CaseIterable {
     }
 }
 
+// MARK: - Launch Surface Policy
+
+enum LaunchSurfacePolicy {
+    static var showsInternalDiagnostics: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
+    }
+
+    static var showsUnprovenGrowthSurfaces: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
+    }
+
+    static var showsTestNotificationControls: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
+    }
+
+    static var showsCosmicGraveyard: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
+    }
+}
+
 // MARK: - Environment Keys
 
 /// Keys for reading environment configuration from Info.plist
 enum EnvironmentKey: String {
     case environment = "APP_ENVIRONMENT"
     case finnhubAPIKey = "FINNHUB_API_KEY"
-    case mixpanelToken = "MIXPANEL_TOKEN"
+    case backendBaseURL = "COSMO_BACKEND_BASE_URL"
     case bundleDisplayName = "CFBundleDisplayName"
     case bundleIdentifier = "CFBundleIdentifier"
 
     /// Read value from Info.plist
     var value: String? {
-        Bundle.main.infoDictionary?[rawValue] as? String
+        ProcessInfo.processInfo.environment[rawValue]
+            ?? Bundle.main.infoDictionary?[rawValue] as? String
     }
 }
 
@@ -160,6 +223,7 @@ struct EnvironmentConfig {
     // MARK: - Singleton
 
     static let shared = EnvironmentConfig()
+    private static let defaultBackendURL = "https://cosmo-backend-910907383323.us-central1.run.app"
 
     // MARK: - Properties
 
@@ -169,8 +233,8 @@ struct EnvironmentConfig {
     /// Finnhub API key
     let finnhubAPIKey: String
 
-    /// Mixpanel token
-    let mixpanelToken: String
+    /// Backend base URL
+    let backendBaseURL: String
 
     /// App display name
     let appDisplayName: String
@@ -182,20 +246,18 @@ struct EnvironmentConfig {
 
     private init() {
         // Read environment
-        if let envString = EnvironmentKey.environment.value?.lowercased(),
-           let env = AppEnvironment(rawValue: envString) {
+        if let env = AppEnvironment.resolved(from: EnvironmentKey.environment.value) {
             environment = env
         } else {
-            #if DEBUG
-            environment = .development
-            #else
-            environment = .production
-            #endif
+            environment = AppEnvironment.defaultForBuildConfiguration()
         }
 
-        // Read API keys (with fallback to Secrets.plist for backwards compatibility)
-        finnhubAPIKey = Self.readAPIKey(.finnhubAPIKey, secretsKey: "FINNHUB_API_KEY")
-        mixpanelToken = Self.readAPIKey(.mixpanelToken, secretsKey: "MIXPANEL_TOKEN")
+        // Read API keys through shared config resolver.
+        finnhubAPIKey = Self.readAPIKey(keys: ["FINNHUB_API_KEY", "FINNHUB_KEY"])
+        backendBaseURL = Self.readValue(
+            keys: ["COSMO_BACKEND_BASE_URL", "BACKEND_BASE_URL"],
+            defaultValue: Self.defaultBackendURL
+        )
 
         // Read app info
         appDisplayName = EnvironmentKey.bundleDisplayName.value ?? "Cosmo Trader"
@@ -204,81 +266,22 @@ struct EnvironmentConfig {
 
     // MARK: - Private Helpers
 
-    /// Read API key from Info.plist, falling back to Secrets.plist (from project directory in DEBUG)
-    private static func readAPIKey(_ envKey: EnvironmentKey, secretsKey: String) -> String {
-        // 1. First try Info.plist (from xcconfig) - works for Release builds with injected keys
-        if let value = envKey.value,
-           !value.isEmpty,
-           !value.hasPrefix("$("),
-           value != "YOUR_\(secretsKey)_HERE" {
-            return value
-        }
-
-        // 2. Try reading Secrets.plist from project directory (DEBUG builds only)
-        #if DEBUG
-        if let value = readSecretFromProjectDirectory(secretsKey) {
-            return value
-        }
-        #endif
-
-        // 3. Fall back to bundled Secrets.plist (legacy support)
-        if let path = Bundle.main.path(forResource: "Secrets", ofType: "plist"),
-           let dict = NSDictionary(contentsOfFile: path) as? [String: Any],
-           let value = dict[secretsKey] as? String,
-           !value.isEmpty,
-           !value.hasPrefix("$("),
-           value != "YOUR_\(secretsKey)_HERE" {
-            return value
-        }
-
-        // No key found - print helpful error
-        #if DEBUG
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        print("ERROR: \(secretsKey) not found!")
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        print("")
-        print("For DEBUG builds:")
-        print("  1. Create Secrets.plist in the project folder")
-        print("  2. Add key '\(secretsKey)' with your API key")
-        print("  3. Path: Cosmo Trader/Cosmo Trader/Configuration/Secrets.plist")
-        print("")
-        print("For RELEASE builds:")
-        print("  1. Set \(secretsKey) in your CI/CD environment")
-        print("  2. Or add to Secrets.xcconfig")
-        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        #endif
-
-        return ""
+    private static func readAPIKey(keys: [String]) -> String {
+        CosmoConfig.string(keys) ?? ""
     }
 
-    #if DEBUG
-    /// Read a secret from Secrets.plist in the project directory (not bundled)
-    private static func readSecretFromProjectDirectory(_ key: String) -> String? {
-        // Get the source file directory and navigate to find Secrets.plist
-        let sourceFile = #file
-        let sourceDirectory = (sourceFile as NSString).deletingLastPathComponent
-
-        // Try common locations relative to this source file
-        let possiblePaths = [
-            (sourceDirectory as NSString).appendingPathComponent("Secrets.plist"),
-            ((sourceDirectory as NSString).deletingLastPathComponent as NSString).appendingPathComponent("Secrets.plist"),
-            ((sourceDirectory as NSString).deletingLastPathComponent as NSString).appendingPathComponent("Configuration/Secrets.plist")
-        ]
-
-        for path in possiblePaths {
-            if FileManager.default.fileExists(atPath: path),
-               let dict = NSDictionary(contentsOfFile: path) as? [String: Any],
-               let value = dict[key] as? String,
-               !value.isEmpty,
-               !value.hasPrefix("$("),
-               value != "YOUR_\(key)_HERE" {
-                return value
-            }
+    private static func readValue(keys: [String], defaultValue: String) -> String {
+        let resolvedValue = readAPIKey(keys: keys)
+        if !resolvedValue.isEmpty {
+            return resolvedValue
         }
 
-        return nil
+        ConfigWarnings.warnOnce(
+            key: "BACKEND_BASE_URL_DEFAULTED",
+            message: "Backend base URL missing. Using default Cloud Run URL for this session."
+        )
+        return defaultValue
     }
-    #endif
 
     // MARK: - Validation
 
@@ -293,13 +296,6 @@ struct EnvironmentConfig {
 
         if finnhubAPIKey.isEmpty {
             missing.append("FINNHUB_API_KEY")
-        }
-
-        // Mixpanel is optional but log if missing
-        if mixpanelToken.isEmpty {
-            #if DEBUG
-            print("⚠️ MIXPANEL_TOKEN not configured (optional)")
-            #endif
         }
 
         return missing
@@ -317,7 +313,7 @@ struct EnvironmentConfig {
         print("")
         print("API Keys:")
         print("  Finnhub: \(finnhubAPIKey.isEmpty ? "✗ Missing" : "✓ Configured")")
-        print("  Mixpanel: \(mixpanelToken.isEmpty ? "✗ Missing" : "✓ Configured")")
+        print("  Backend Base URL: \(backendBaseURL.isEmpty ? "✗ Missing" : "✓ Configured")")
         print("")
         print("Features:")
         print("  Analytics: \(environment.analyticsEnabled ? "Enabled" : "Disabled")")

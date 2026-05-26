@@ -5,13 +5,19 @@ xcuserdata/
 *.xccheckout
 *.moved-aside
 DerivedData/
+DerivedData*/
 *.hmap
 *.ipa
+*.xcarchive/
+*.xcarchive
 *.dSYM.zip
 *.dSYM
+*.dSYM/
 
 # Build
 build/
+Build/
+Archives/
 *.o
 *.LinkFileList
 *.mode*v3
@@ -30,13 +36,35 @@ Carthage/Build/
 # Secrets - NEVER commit API keys or Firebase config
 Cosmo Trader/Configuration/Secrets.plist
 Cosmo Trader/GoogleService-Info.plist
+GoogleService-Info.plist
+GoogleService-Info_CT.plist
 Cosmo Trader/Configuration/Secrets.xcconfig
+*.env
+.env
+.env.*
+*.p8
+*.p12
+*.cer
+*.key
+*.pem
+*.mobileprovision
+*.provisionprofile
+ExportOptions.plist
+*.exportOptions.plist
 
 # Generated build info (auto-generated on each build)
 Cosmo Trader/Configuration/BuildInfo.generated.swift
 
+# Local Xcode/project archives
+*.xcodeproj.zip
+*.ipa
+*.pkg
+*.xcresult/
+
 # macOS
 .DS_Store
+**/.DS_Store
+__MACOSX/
 .AppleDouble
 .LSOverride
 ._*

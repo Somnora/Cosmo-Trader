@@ -609,7 +609,7 @@ struct ZodiacWheelDecoration: View {
         path.addLine(to: CGPoint(x: endX, y: endY))
 
         let isUserSign = index == userSignIndex
-        let strokeColor: Color = isUserSign ? CosmicTheme.gold : CosmicTheme.textMuted.opacity(0.3)
+        let strokeColor: Color = isUserSign ? CosmicTheme.gold : CosmicTheme.textMuted.opacity(0.4)
         let strokeWidth: CGFloat = isUserSign ? 2 : 0.5
         context.stroke(path, with: .color(strokeColor), lineWidth: strokeWidth)
     }

@@ -21,6 +21,7 @@ final class SubscriptionManager {
 
     static let oracleTierPrice = "$4.99/mo"
     static let oracleTierYearlyPrice = "$39.99/yr"
+    static let oracleTierLifetimePrice = "$59.99"
     static let trialDuration = 7 // days
 
     // MARK: - Storage Keys
@@ -78,7 +79,7 @@ final class SubscriptionManager {
 
     /// Whether user has premium access (paid or trial)
     var isPremium: Bool {
-        currentTier == .oracle || isInTrial
+        currentTier == .oracle || isInTrial || StoreKitManager.shared.hasLifetimeAccess
     }
 
     /// Swipes remaining today for free tier
@@ -172,6 +173,9 @@ final class SubscriptionManager {
     }
 
     // MARK: - Trial Management
+
+    // TODO: Remove local trial state once pricing/intro-offer rollout is stable.
+    // Paywall purchase flow should rely on StoreKit introductory offers (if configured) rather than UserDefaults-based trials.
 
     /// Start free trial
     func startFreeTrial() {
@@ -329,6 +333,7 @@ final class SubscriptionManager {
         defer { isPurchasing = false }
 
         let restored = await StoreKitManager.shared.restorePurchases()
+        purchaseError = StoreKitManager.shared.lastError
         return restored
     }
 
@@ -346,6 +351,8 @@ final class SubscriptionManager {
 
         if let expirationDate = subscriptionExpirationDate {
             UserDefaults.standard.set(expirationDate, forKey: Keys.subscriptionExpirationDate)
+        } else {
+            UserDefaults.standard.removeObject(forKey: Keys.subscriptionExpirationDate)
         }
 
         UserDefaults.standard.set(Date(), forKey: Keys.lastSubscriptionCheck)
@@ -357,6 +364,9 @@ final class SubscriptionManager {
 
     /// Handle subscription expired (called by StoreKitManager)
     func handleSubscriptionExpired() {
+        // Never downgrade lifetime access
+        guard !StoreKitManager.shared.hasLifetimeAccess else { return }
+
         // Only downgrade if we were previously subscribed (not in trial)
         guard currentTier == .oracle && !isInTrial else { return }
 
@@ -482,7 +492,7 @@ enum SubscriptionTier: String, CaseIterable {
 
 enum PremiumFeature: String, CaseIterable {
     // Data Features
-    case realTimeData = "Real-time market data"
+    case realTimeData = "Finnhub quote stream"
     case delayedData = "End-of-day prices"
 
     // Discovery
@@ -510,10 +520,11 @@ enum PremiumFeature: String, CaseIterable {
     case ipoAlerts = "IPO compatibility alerts"
 
     // Analytics
-    case fearGreedIndex = "Cosmic Fear & Greed Index"
+    case fearGreedIndex = "Cosmic Mood Index"
+    case historicalAstroOverlay = "Historical astro overlays"
 
     // Experience
-    case adFree = "Ad-free experience"
+    case adFree = "Clean app experience"
 
     /// Whether this feature is available in free tier
     var availableInFreeTier: Bool {
@@ -549,6 +560,8 @@ enum PremiumFeature: String, CaseIterable {
             return "bell.badge.fill"
         case .fearGreedIndex:
             return "gauge.with.needle.fill"
+        case .historicalAstroOverlay:
+            return "chart.xyaxis.line"
         case .adFree:
             return "xmark.circle.fill"
         }
@@ -558,7 +571,7 @@ enum PremiumFeature: String, CaseIterable {
     var upgradeMessage: String {
         switch self {
         case .realTimeData:
-            return "Real-time data requires Oracle Tier"
+            return "Oracle Tier quote access requires an available StoreKit product"
         case .unlimitedSwipes:
             return "Daily swipes exhausted. Reset at midnight or upgrade."
         case .unlimitedStocks:
@@ -574,9 +587,11 @@ enum PremiumFeature: String, CaseIterable {
         case .ipoAlerts:
             return "IPO alerts require Oracle Tier"
         case .fearGreedIndex:
-            return "Fear & Greed Index requires Oracle Tier"
+            return "The Cosmic Mood Index is part of Oracle Tier"
+        case .historicalAstroOverlay:
+            return "Historical astro overlays require Oracle Tier"
         case .adFree:
-            return "Go ad-free with Oracle Tier"
+            return "Oracle Tier unlocks the full reading set"
         default:
             return "Upgrade to Oracle Tier for full access"
         }
@@ -588,11 +603,6 @@ enum PremiumFeature: String, CaseIterable {
 struct OracleTierBenefits {
 
     static let all: [OracleBenefit] = [
-        OracleBenefit(
-            feature: .realTimeData,
-            title: "Real-Time Data",
-            description: "Live Finnhub market data, no delays"
-        ),
         OracleBenefit(
             feature: .unlimitedSwipes,
             title: "Unlimited Discovery",
@@ -609,34 +619,19 @@ struct OracleTierBenefits {
             description: "Track as many stocks as you want"
         ),
         OracleBenefit(
-            feature: .moonNotifications,
-            title: "Lunar Alerts",
-            description: "Full & new moon notifications"
+            feature: .moonSignAlerts,
+            title: "Moon-In-Sign Notifications",
+            description: "A local alert when the Moon enters your sun sign"
         ),
         OracleBenefit(
-            feature: .moonSignAlerts,
-            title: "Personal Moon Alerts",
-            description: "Know when the moon enters your sign"
+            feature: .historicalAstroOverlay,
+            title: "Cosmic Correlation Lab",
+            description: "Overlay market charts with moon phases, retrogrades, and company birth cycles"
         ),
         OracleBenefit(
             feature: .unlimitedRoasts,
             title: "Unlimited Roasts",
-            description: "Generate Cosmic Roasts anytime"
-        ),
-        OracleBenefit(
-            feature: .ipoAlerts,
-            title: "IPO Compatibility",
-            description: "Alerts for cosmically aligned IPOs"
-        ),
-        OracleBenefit(
-            feature: .fearGreedIndex,
-            title: "Cosmic Fear & Greed",
-            description: "Market sentiment through a cosmic lens"
-        ),
-        OracleBenefit(
-            feature: .adFree,
-            title: "Ad-Free",
-            description: "Pure, uninterrupted cosmic experience"
+            description: "Generate a Cosmic Roast as often as you want"
         )
     ]
 }

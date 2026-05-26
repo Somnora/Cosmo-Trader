@@ -19,7 +19,7 @@ struct DashedDataRow: View {
     let value: String
     var valueColor: Color = CosmicTheme.textPrimary
     var labelColor: Color = CosmicTheme.textMuted
-    var dashColor: Color = CosmicTheme.textMuted.opacity(0.3)
+    var dashColor: Color = CosmicTheme.textMuted.opacity(0.4)
     var dashLength: CGFloat = 4
     var gapLength: CGFloat = 3
 
@@ -174,7 +174,7 @@ struct CompactDataRow: View {
                 .fixedSize()
 
             DashedLine()
-                .stroke(CosmicTheme.textMuted.opacity(0.2), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
+                .stroke(CosmicTheme.textMuted.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
                 .frame(height: 1)
 
             Text(value)

@@ -58,7 +58,7 @@ struct ExpiryCompatibility: Identifiable {
         case 80..<90: return "GOOD"
         case 65..<80: return "NEUTRAL"
         case 50..<65: return "CAUTION"
-        default: return "AVOID"
+        default: return "LOW"
         }
     }
 }
@@ -73,7 +73,7 @@ struct ExpiryWarning: Identifiable {
     enum WarningType: String {
         case fullMoon = "Full Moon"
         case mercuryRetrograde = "Mercury Retrograde"
-        case fridayExpiry = "Friday Expiry"
+        case fridayExpiry = "Friday Calendar Date"
         case volatileSign = "Volatile Energy"
         case newMoon = "New Moon"
     }
@@ -269,7 +269,7 @@ enum OptionCompatibilityService {
         if moonPhase == .fullMoon {
             warnings.append(ExpiryWarning(
                 type: .fullMoon,
-                message: "Full Moon - volatility may spike"
+                message: "Full Moon - emotions may run high"
             ))
         }
 
@@ -277,7 +277,7 @@ enum OptionCompatibilityService {
         if moonPhase == .newMoon {
             warnings.append(ExpiryWarning(
                 type: .newMoon,
-                message: "New Moon - uncertainty in direction"
+                message: "New Moon - context may feel less clear"
             ))
         }
 
@@ -286,7 +286,7 @@ enum OptionCompatibilityService {
         if weekday == 6 {
             warnings.append(ExpiryWarning(
                 type: .fridayExpiry,
-                message: "OpEx Friday - expect pin risk"
+                message: "Friday rhythm - read the calendar slowly"
             ))
         }
 
@@ -294,7 +294,7 @@ enum OptionCompatibilityService {
         if mercuryRetrogradeBonus(date) < 0 {
             warnings.append(ExpiryWarning(
                 type: .mercuryRetrograde,
-                message: "Mercury Retrograde - review positions carefully"
+                message: "Mercury Retrograde - re-read your notes"
             ))
         }
 
@@ -325,15 +325,15 @@ enum OptionCompatibilityService {
 
         // Generate insight based on factors
         if mercuryRetrogradeBonus(date) < 0 {
-            return "\(dateString) falls during Mercury Retrograde. Double-check all positions and avoid rushed decisions."
+            return "\(dateString) falls during Mercury Retrograde. Re-read your notes and avoid rushing the story."
         }
 
         if moon == .fullMoon {
-            return "\(sign.displayName) Full Moon on \(dateString). Expect heightened volatility - risky for short-dated options."
+            return "\(sign.displayName) Full Moon on \(dateString). A lunar calendar marker for your own monthly review."
         }
 
         if isCompatible {
-            return "\(dateString) under \(sign.displayName) harmonizes with your \(userSign.displayName) energy. Favorable for calculated moves."
+            return "\(dateString) under \(sign.displayName) harmonizes with your \(userSign.displayName) energy. Treat it as context for your own notes."
         }
 
         if sameElement {
@@ -341,19 +341,19 @@ enum OptionCompatibilityService {
         }
 
         if isChallenging {
-            return "\(dateString) under \(sign.displayName) challenges your \(userSign.displayName). Caution with aggressive positions."
+            return "\(dateString) under \(sign.displayName) challenges your \(userSign.displayName). Keep the reading calm and deliberate."
         }
 
         // Default insights based on sign
         switch sign.element {
         case .fire:
-            return "\(dateString) carries \(sign.displayName)'s fire energy. Bold moves may pay off, but manage risk."
+            return "\(dateString) carries \(sign.displayName)'s fire energy. Expect a louder, faster-feeling read."
         case .earth:
-            return "\(sign.displayName)'s disciplined energy on \(dateString) favors longer-duration plays."
+            return "\(sign.displayName)'s disciplined energy on \(dateString) favors patient review."
         case .air:
-            return "\(sign.displayName)'s airy energy on \(dateString). Good for analytical plays, watch for indecision."
+            return "\(sign.displayName)'s airy energy on \(dateString). Good for comparing notes, with care around indecision."
         case .water:
-            return "\(dateString) under \(sign.displayName). Trust intuition but set stop losses."
+            return "\(dateString) under \(sign.displayName). Trust intuition while keeping clear boundaries."
         }
     }
 

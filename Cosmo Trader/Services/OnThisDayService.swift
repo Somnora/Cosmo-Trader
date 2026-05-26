@@ -161,7 +161,7 @@ struct HistoricalMarketEvent: Identifiable {
 
     /// Shareable text
     var shareableText: String {
-        "📅 On This Day in Cosmic Markets\n\n\(zodiacSign.symbol) \(formattedDate)\n\n\(headline)\n\n\(detail)\n\n✨ \(cosmicTakeaway)\n\n— Cosmo Trader"
+        "On This Day in the Markets\n\n\(zodiacSign.textSymbol) \(formattedDate)\n\n\(headline)\n\n\(detail)\n\n\(cosmicTakeaway)\n\n— Cosmo Trader"
     }
 
     /// Fallback event

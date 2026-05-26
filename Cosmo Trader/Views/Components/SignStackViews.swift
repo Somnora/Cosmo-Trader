@@ -79,8 +79,7 @@ struct SignStackCard: View {
                     .fill(stackData.userSign.element.color.opacity(0.2))
                     .frame(width: 56, height: 56)
 
-                Text(stackData.userSign.symbol)
-                    .font(.system(size: 32))
+                ZodiacMark(sign: stackData.userSign, size: 32, style: .element)
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -178,8 +177,7 @@ struct SignStackCard: View {
                                 .font(TerminalFont.body(14, weight: .bold))
                                 .foregroundColor(CosmicTheme.textPrimary)
 
-                            Text(holding.sign.symbol)
-                                .font(.system(size: 14))
+                            ZodiacMark(sign: holding.sign, size: 14, style: .element)
                         }
 
                         Spacer()
@@ -229,9 +227,10 @@ struct SignStackCard: View {
                 .frame(height: max(4, CGFloat(element.percentage) * 0.4))
                 .frame(maxHeight: 40)
 
-            // Element emoji
-            Text(element.element.emoji)
+            // Element icon
+            Image(systemName: element.element.sfSymbol)
                 .font(.system(size: 14))
+                .foregroundColor(element.element.color)
         }
         .frame(maxWidth: .infinity)
     }
@@ -296,8 +295,7 @@ struct SignStackPreviewCard: View {
                         .fill(stackData.userSign.element.color.opacity(0.2))
                         .frame(width: 44, height: 44)
 
-                    Text(stackData.userSign.symbol)
-                        .font(.system(size: 24))
+                    ZodiacMark(sign: stackData.userSign, size: 24, style: .element)
                 }
 
                 VStack(alignment: .leading, spacing: 4) {

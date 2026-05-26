@@ -194,7 +194,7 @@ enum ZodiacExamples {
             let sign = ZodiacSign.from(month: company.month, day: company.day)
             print("\(company.name) (\(company.symbol))")
             print("   Founded: \(monthName(company.month)) \(company.day), \(company.year)")
-            print("   Zodiac: \(sign.displayName) \(sign.symbol) (\(sign.element.displayName) \(sign.element.emoji))")
+            print("   Zodiac: \(sign.displayName) \(sign.symbol) (\(sign.element.displayName))")
             print("")
         }
         #endif
@@ -265,12 +265,12 @@ enum PortfolioCompatibilityExample {
         print("PORTFOLIO COMPATIBILITY EXAMPLE")
         print("═══════════════════════════════════════════════════════════")
 
-        // Create a Leo user (born August 15)
+        // Create a Leo user (born August 1)
         let user = UserProfile(
-            displayName: "Sarah",
-            email: "sarah@example.com",
+            displayName: "Demo Operator",
+            email: "demo.operator@example.com",
             birthMonth: 8,
-            birthDay: 15,
+            birthDay: 1,
             birthYear: 1990,
             portfolio: Stock.samples
         )
@@ -279,7 +279,7 @@ enum PortfolioCompatibilityExample {
         print("   Name: \(user.displayName)")
         print("   Birthday: \(user.formattedBirthDate)")
         print("   Sun Sign: \(user.sunSign.displayName) \(user.sunSign.symbol)")
-        print("   Element: \(user.element.displayName) \(user.element.emoji)")
+        print("   Element: \(user.element.displayName)")
 
         print("\n🌟 LEO'S COMPATIBLE SIGNS:")
         for sign in user.sunSign.compatibleSigns {

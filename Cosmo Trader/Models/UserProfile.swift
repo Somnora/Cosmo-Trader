@@ -112,6 +112,22 @@ struct UserProfile: Identifiable, Codable, Equatable {
     /// WHY: Not everyone uses USD - future-proofing
     var preferredCurrency: String
 
+    // MARK: - Signal Framing
+    // ======================
+
+    /// Global signal framing preference (0.0 = rational, 1.0 = mystical)
+    /// WHY: Lets users control how cosmic/technical the language is
+    var signalFramingLevel: SignalFramingLevel
+
+    /// Per-stock framing overrides (premium feature)
+    /// WHY: Power users may want different framing for different stocks
+    var stockFramingOverrides: [String: SignalFramingLevel]
+
+    /// Get framing level for a specific stock (uses override or global)
+    func framingLevel(for symbol: String) -> SignalFramingLevel {
+        stockFramingOverrides[symbol] ?? signalFramingLevel
+    }
+
     // MARK: - Computed Properties
     // ===========================
 
@@ -212,7 +228,9 @@ struct UserProfile: Identifiable, Codable, Equatable {
         watchlist: [String] = [],
         skippedStocks: [String] = [],
         memberSince: Date = Date(),
-        preferredCurrency: String = "USD"
+        preferredCurrency: String = "USD",
+        signalFramingLevel: SignalFramingLevel = .balanced,
+        stockFramingOverrides: [String: SignalFramingLevel] = [:]
     ) {
         self.id = id
         self.displayName = displayName
@@ -225,6 +243,8 @@ struct UserProfile: Identifiable, Codable, Equatable {
         self.skippedStocks = skippedStocks
         self.memberSince = memberSince
         self.preferredCurrency = preferredCurrency
+        self.signalFramingLevel = signalFramingLevel
+        self.stockFramingOverrides = stockFramingOverrides
     }
 
     /// Convenience initializer with birth date components
@@ -243,7 +263,9 @@ struct UserProfile: Identifiable, Codable, Equatable {
         watchlist: [String] = [],
         skippedStocks: [String] = [],
         memberSince: Date = Date(),
-        preferredCurrency: String = "USD"
+        preferredCurrency: String = "USD",
+        signalFramingLevel: SignalFramingLevel = .balanced,
+        stockFramingOverrides: [String: SignalFramingLevel] = [:]
     ) {
         self.id = id
         self.displayName = displayName
@@ -254,6 +276,8 @@ struct UserProfile: Identifiable, Codable, Equatable {
         self.skippedStocks = skippedStocks
         self.memberSince = memberSince
         self.preferredCurrency = preferredCurrency
+        self.signalFramingLevel = signalFramingLevel
+        self.stockFramingOverrides = stockFramingOverrides
 
         // Create birth date from components
         var components = DateComponents()
@@ -435,17 +459,17 @@ extension UserProfile {
         let totalCount = portfolio.count
 
         if totalCount == 0 {
-            return "Your cosmic portfolio awaits! Start investing to align with the stars."
+            return "Add holdings to generate a portfolio-specific market astrology read."
         }
 
         let compatibility = Double(compatCount) / Double(totalCount) * 100
 
         if compatibility >= 75 {
-            return "Stellar alignment! \(Int(compatibility))% of your portfolio resonates with your \(sunSign.displayName) energy."
+            return "\(Int(compatibility))% of your portfolio aligns with your \(sunSign.displayName) profile."
         } else if compatibility >= 50 {
-            return "Good cosmic balance. Consider adding more \(sunSign.element.displayName) sign stocks."
+            return "Good portfolio balance. Consider whether more \(sunSign.element.displayName) exposure fits your strategy."
         } else {
-            return "Your portfolio ventures beyond your comfort zone. The stars encourage exploration!"
+            return "Your portfolio runs outside your usual sign profile. Keep the thesis and context explicit."
         }
     }
 
@@ -467,12 +491,12 @@ extension UserProfile {
 extension UserProfile {
 
     /// Sample user for previews and testing
-    /// Born August 15, 1990 → LEO (Fire sign)
+    /// Born August 1, 1990 -> LEO (Fire sign)
     static let sample = UserProfile(
-        displayName: "Sarah Chen",
-        email: "sarah@cosmictrader.com",
+        displayName: "Demo Operator",
+        email: "demo.operator@cosmictrader.com",
         birthMonth: 8,
-        birthDay: 15,
+        birthDay: 1,
         birthYear: 1990,
         portfolio: Stock.ownedSamples,
         memberSince: Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date()
@@ -507,15 +531,15 @@ extension UserProfile {
  EXAMPLE 1: Create a user and get their sun sign
  -----------------------------------------------
  let user = UserProfile(
-     displayName: "Sarah",
-     email: "sarah@example.com",
+     displayName: "Demo Operator",
+     email: "demo.operator@example.com",
      birthMonth: 8,
-     birthDay: 15,
+     birthDay: 1,
      birthYear: 1990
  )
  print(user.sunSign.displayName)  // "Leo"
  print(user.sunSign.symbol)       // "♌"
- print(user.element.emoji)        // "🔥" (Fire)
+ print(user.element.sfSymbol)     // "flame.fill" (Fire)
 
  EXAMPLE 2: Check portfolio compatibility
  ----------------------------------------
@@ -536,13 +560,13 @@ extension UserProfile {
 
  EXAMPLE 5: How the zodiac calculation flows
  -------------------------------------------
- User's birthDate: August 15, 1990
+ User's birthDate: August 1, 1990
      ↓
  ZodiacSign.from(date: birthDate)
      ↓
- Extracts: month = 8, day = 15
+ Extracts: month = 8, day = 1
      ↓
- dateValue = 8 * 100 + 15 = 815
+ dateValue = 8 * 100 + 1 = 801
      ↓
  Checks: 815 >= 723 (Leo start) AND 815 <= 822 (Leo end)
      ↓

@@ -3,8 +3,8 @@ import SwiftUI
 
 // MARK: - IPO Service
 // ====================
-// Service for fetching and managing IPO data.
-// Currently uses mock data, but designed to integrate with real APIs (e.g., Finnhub IPO calendar).
+// Service for fetching and managing IPO data from the Finnhub API.
+// Falls back to cached data when offline.
 
 @Observable
 final class IPOService {
@@ -27,14 +27,23 @@ final class IPOService {
     /// Last successful fetch time
     private(set) var lastFetchTime: Date?
 
-    /// Cache duration (5 minutes for mock data)
+    /// Cache duration (5 minutes)
     private let cacheDuration: TimeInterval = 300
+
+    /// UserDefaults key for IPO cache
+    private let cacheKey = "com.cosmotrader.ipocache"
+    private let cacheTimestampKey = "com.cosmotrader.ipocache.timestamp"
 
     // MARK: - Init
 
     private init() {
-        // Load initial data
-        loadMockData()
+        // Load cached data first, then attempt API fetch
+        loadCachedIPOs()
+
+        // If no cached data, use mock data as initial fallback
+        if ipos.isEmpty {
+            loadMockData()
+        }
     }
 
     // MARK: - Public Methods
@@ -130,10 +139,10 @@ final class IPOService {
         ipos.first { $0.id == id }
     }
 
-    /// Refresh IPO data
+    /// Refresh IPO data from API
     @MainActor
     func refresh() async {
-        // Check cache
+        // Check cache freshness
         if let lastFetch = lastFetchTime,
            Date().timeIntervalSince(lastFetch) < cacheDuration {
             return
@@ -142,25 +151,173 @@ final class IPOService {
         isLoading = true
         lastError = nil
 
-        // Simulate network delay
-        try? await Task.sleep(nanoseconds: 500_000_000)
+        do {
+            let today = Date()
+            // Fetch IPOs from today to 6 months out for better coverage
+            guard let sixMonthsOut = Calendar.current.date(byAdding: .month, value: 6, to: today) else {
+                throw NetworkError.unknown("Failed to calculate date range")
+            }
 
-        // In the future, this would call Finnhub API:
-        // let url = URL(string: "https://finnhub.io/api/v1/calendar/ipo?from=\(fromDate)&to=\(toDate)&token=\(apiKey)")!
-        // let (data, _) = try await URLSession.shared.data(from: url)
-        // let response = try JSONDecoder().decode(IPOResponse.self, from: data)
+            let finnhubIPOs = try await StockAPIService.shared.fetchIPOCalendar(from: today, to: sixMonthsOut)
 
-        // For now, use mock data
-        loadMockData()
+            // Convert to app's IPO model
+            let convertedIPOs = finnhubIPOs.compactMap { convertToIPO($0) }
 
-        lastFetchTime = Date()
+            if !convertedIPOs.isEmpty {
+                self.ipos = convertedIPOs
+                self.lastFetchTime = Date()
+
+                // Cache results for offline use
+                cacheIPOs(convertedIPOs)
+
+                log("✅ Loaded \(convertedIPOs.count) IPOs from API")
+            } else {
+                // API returned empty - keep existing data
+                log("⚠️ API returned no IPOs, keeping existing data")
+            }
+
+            lastError = nil
+
+        } catch {
+            log("❌ IPO fetch error: \(error)")
+            lastError = error
+
+            // Fall back to cache or mock data if we have nothing
+            if ipos.isEmpty {
+                loadCachedIPOs()
+                if ipos.isEmpty {
+                    loadMockData()
+                }
+            }
+        }
+
         isLoading = false
+    }
+
+    /// Force refresh, bypassing cache check
+    @MainActor
+    func forceRefresh() async {
+        lastFetchTime = nil
+        await refresh()
     }
 
     // MARK: - Private Methods
 
     private func loadMockData() {
         ipos = MockIPOData.all
+        log("📦 Loaded mock IPO data")
+    }
+
+    /// Convert Finnhub IPO to app IPO model
+    private func convertToIPO(_ finnhub: FinnhubIPO) -> IPO? {
+        guard let date = parseDate(finnhub.date) else {
+            log("⚠️ Failed to parse date: \(finnhub.date)")
+            return nil
+        }
+
+        // Parse price range (e.g., "15-17" or "15.00")
+        let (priceLow, priceHigh) = parsePriceRange(finnhub.price)
+
+        // Determine sector from exchange or default
+        let sector = determineSector(from: finnhub)
+
+        return IPO(
+            companyName: finnhub.name,
+            ticker: finnhub.symbol.isEmpty ? nil : finnhub.symbol,
+            expectedDate: date,
+            priceRangeLow: priceLow,
+            priceRangeHigh: priceHigh,
+            sector: sector,
+            industry: sector,
+            description: "IPO on \(finnhub.exchange ?? "Unknown Exchange")",
+            headquarters: "",
+            foundedYear: nil,
+            employeeCount: nil,
+            estimatedValuation: calculateEstimatedValuation(shares: finnhub.shares, price: priceLow)
+        )
+    }
+
+    private func parseDate(_ dateString: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: dateString)
+    }
+
+    private func parsePriceRange(_ priceString: String?) -> (Double?, Double?) {
+        guard let priceString = priceString, !priceString.isEmpty else {
+            return (nil, nil)
+        }
+
+        // Handle range format "15-17" or "15.00-17.00"
+        if priceString.contains("-") {
+            let parts = priceString.split(separator: "-")
+            if parts.count == 2 {
+                let low = Double(parts[0].trimmingCharacters(in: .whitespaces))
+                let high = Double(parts[1].trimmingCharacters(in: .whitespaces))
+                return (low, high)
+            }
+        }
+
+        // Single price
+        if let price = Double(priceString) {
+            return (price, price)
+        }
+
+        return (nil, nil)
+    }
+
+    private func determineSector(from finnhub: FinnhubIPO) -> String {
+        // Map exchange to general sector (could be enhanced with more data)
+        switch finnhub.exchange?.uppercased() {
+        case "NASDAQ":
+            return "Technology"
+        case "NYSE":
+            return "Financial Services"
+        default:
+            return "Other"
+        }
+    }
+
+    private func calculateEstimatedValuation(shares: Int?, price: Double?) -> Double? {
+        guard let shares = shares, let price = price else { return nil }
+        return Double(shares) * price
+    }
+
+    // MARK: - Caching
+
+    private func cacheIPOs(_ ipos: [IPO]) {
+        do {
+            let data = try JSONEncoder().encode(ipos.map { CachedIPO(from: $0) })
+            UserDefaults.standard.set(data, forKey: cacheKey)
+            UserDefaults.standard.set(Date(), forKey: cacheTimestampKey)
+            log("💾 Cached \(ipos.count) IPOs")
+        } catch {
+            log("⚠️ Failed to cache IPOs: \(error)")
+        }
+    }
+
+    private func loadCachedIPOs() {
+        guard let data = UserDefaults.standard.data(forKey: cacheKey) else {
+            log("📦 No cached IPOs found")
+            return
+        }
+
+        do {
+            let cached = try JSONDecoder().decode([CachedIPO].self, from: data)
+            ipos = cached.map { $0.toIPO() }
+            lastFetchTime = UserDefaults.standard.object(forKey: cacheTimestampKey) as? Date
+            log("📦 Loaded \(ipos.count) IPOs from cache")
+        } catch {
+            log("⚠️ Failed to load cached IPOs: \(error)")
+        }
+    }
+
+    // MARK: - Logging
+
+    private func log(_ message: String) {
+        #if DEBUG
+        print("[IPOService] \(message)")
+        #endif
     }
 
     private func generateAlertMessage(ipo: IPO, compatibility: IPOCompatibilityResult) -> String {
@@ -244,23 +401,56 @@ struct IPOStatistics {
     }
 }
 
-// MARK: - Finnhub API Response Models (for future integration)
+// MARK: - Cached IPO Model
+// =========================
+// Codable wrapper for persisting IPO data to UserDefaults
 
-/*
- When integrating with real Finnhub API, use these models:
+private struct CachedIPO: Codable {
+    let id: UUID
+    let companyName: String
+    let ticker: String?
+    let expectedDate: Date
+    let priceRangeLow: Double?
+    let priceRangeHigh: Double?
+    let sector: String
+    let industry: String
+    let description: String
+    let headquarters: String
+    let foundedYear: Int?
+    let employeeCount: Int?
+    let estimatedValuation: Double?
 
- struct FinnhubIPOResponse: Codable {
-     let ipoCalendar: [FinnhubIPO]
- }
+    init(from ipo: IPO) {
+        self.id = ipo.id
+        self.companyName = ipo.companyName
+        self.ticker = ipo.ticker
+        self.expectedDate = ipo.expectedDate
+        self.priceRangeLow = ipo.priceRangeLow
+        self.priceRangeHigh = ipo.priceRangeHigh
+        self.sector = ipo.sector
+        self.industry = ipo.industry
+        self.description = ipo.description
+        self.headquarters = ipo.headquarters
+        self.foundedYear = ipo.foundedYear
+        self.employeeCount = ipo.employeeCount
+        self.estimatedValuation = ipo.estimatedValuation
+    }
 
- struct FinnhubIPO: Codable {
-     let symbol: String?
-     let date: String
-     let exchange: String?
-     let name: String?
-     let numberOfShares: Int?
-     let price: String?
-     let status: String?
-     let totalSharesValue: Int?
- }
- */
+    func toIPO() -> IPO {
+        IPO(
+            id: id,
+            companyName: companyName,
+            ticker: ticker,
+            expectedDate: expectedDate,
+            priceRangeLow: priceRangeLow,
+            priceRangeHigh: priceRangeHigh,
+            sector: sector,
+            industry: industry,
+            description: description,
+            headquarters: headquarters,
+            foundedYear: foundedYear,
+            employeeCount: employeeCount,
+            estimatedValuation: estimatedValuation
+        )
+    }
+}

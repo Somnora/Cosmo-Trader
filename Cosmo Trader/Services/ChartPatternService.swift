@@ -181,11 +181,25 @@ struct DetectedPattern: Identifiable {
 
 // MARK: - Chart Pattern Service
 
+@MainActor
 class ChartPatternService {
 
     // MARK: - Singleton
 
     static let shared = ChartPatternService()
+
+    // MARK: - State
+
+    private(set) var isAnalyzing: Bool = false
+    private(set) var lastError: Error?
+
+    // MARK: - Caching
+
+    /// Cache for OHLC data: key = "symbol-days", value = (data, fetchedAt)
+    private var ohlcCache: [String: (data: [OHLCData], fetchedAt: Date)] = [:]
+
+    /// Cache duration (1 hour - pattern analysis doesn't need real-time data)
+    private let cacheDuration: TimeInterval = 3600
 
     private init() {}
 
@@ -530,14 +544,128 @@ class ChartPatternService {
 
     // MARK: - Get OHLC Data for Stock
 
-    /// Get OHLC data for a stock (uses mock data for now)
+    /// Fetch OHLC data for a stock from API (async)
+    func fetchOHLCData(for symbol: String, days: Int = 365) async -> [OHLCData] {
+        isAnalyzing = true
+        lastError = nil
+
+        // Check cache first
+        let cacheKey = "\(symbol)-\(days)"
+        if let cached = ohlcCache[cacheKey],
+           Date().timeIntervalSince(cached.fetchedAt) < cacheDuration {
+            log("📦 Cache hit for \(symbol) OHLC data")
+            isAnalyzing = false
+            return cached.data
+        }
+
+        // Fetch from API
+        do {
+            let to = Date()
+            guard let from = Calendar.current.date(byAdding: .day, value: -days, to: to) else {
+                log("⚠️ Failed to calculate date range for \(symbol)")
+                isAnalyzing = false
+                return getCachedOrFallback(for: symbol, days: days)
+            }
+
+            let candles = try await StockAPIService.shared.fetchCandles(
+                symbol: symbol,
+                resolution: "D",
+                from: from,
+                to: to
+            )
+
+            // Convert to OHLCData array
+            let ohlcData = candles.toOHLCData()
+
+            if ohlcData.isEmpty {
+                log("⚠️ No OHLC data returned for \(symbol)")
+                isAnalyzing = false
+                return getCachedOrFallback(for: symbol, days: days)
+            }
+
+            // Cache the data
+            ohlcCache[cacheKey] = (ohlcData, Date())
+            log("✅ Fetched \(ohlcData.count) OHLC candles for \(symbol)")
+
+            isAnalyzing = false
+            return ohlcData
+
+        } catch {
+            log("❌ OHLC fetch error for \(symbol): \(error)")
+            lastError = error
+            isAnalyzing = false
+            return getCachedOrFallback(for: symbol, days: days)
+        }
+    }
+
+    /// Analyze patterns for a stock (fetches real data)
+    func analyzePatterns(for symbol: String, days: Int = 30) async -> [DetectedPattern] {
+        let ohlcData = await fetchOHLCData(for: symbol, days: days)
+        return detectPatterns(ohlc: ohlcData)
+    }
+
+    /// Analyze patterns for a stock object (convenience method)
+    func analyzePatterns(for stock: Stock, days: Int = 30) async -> [DetectedPattern] {
+        return await analyzePatterns(for: stock.symbol, days: days)
+    }
+
+    /// Get OHLC data from cache only (synchronous, for non-async contexts)
+    func getCachedOHLCData(for symbol: String, days: Int = 365) -> [OHLCData]? {
+        let cacheKey = "\(symbol)-\(days)"
+        return ohlcCache[cacheKey]?.data
+    }
+
+    /// Get OHLC data for a stock (synchronous - uses cache or generates mock fallback)
+    /// This method is for backwards compatibility with synchronous code paths.
+    /// For new code, prefer using fetchOHLCData(for:days:) async method.
     func getOHLCData(for stock: Stock, days: Int = 365) -> [OHLCData] {
-        // Generate mock data based on stock's current price
+        // Try cache first
+        if let cached = getCachedOHLCData(for: stock.symbol, days: days) {
+            return cached
+        }
+
+        // Generate mock data as fallback for synchronous contexts
+        // This ensures pattern detection can still work when cache is empty
         return MockOHLCGenerator.generate(
             for: stock.symbol,
             days: days,
-            basePrice: stock.currentPrice * 0.8,  // Start lower to simulate growth
+            basePrice: stock.currentPrice * 0.8,
             volatility: stock.volatility ?? 0.02
         )
+    }
+
+    /// Get cached data or generate fallback
+    private func getCachedOrFallback(for symbol: String, days: Int) -> [OHLCData] {
+        let cacheKey = "\(symbol)-\(days)"
+
+        // Return stale cache if available
+        if let cached = ohlcCache[cacheKey] {
+            log("📦 Using stale cache for \(symbol)")
+            return cached.data
+        }
+
+        // No cache - return empty (don't use mock data in production)
+        log("📦 No cached OHLC data for \(symbol)")
+        return []
+    }
+
+    // MARK: - Cache Management
+
+    func clearCache() {
+        ohlcCache.removeAll()
+        log("🗑️ OHLC cache cleared")
+    }
+
+    func clearCache(for symbol: String) {
+        ohlcCache = ohlcCache.filter { !$0.key.hasPrefix(symbol) }
+        log("🗑️ Cache cleared for \(symbol)")
+    }
+
+    // MARK: - Logging
+
+    private func log(_ message: String) {
+        #if DEBUG
+        print("[ChartPatternService] \(message)")
+        #endif
     }
 }

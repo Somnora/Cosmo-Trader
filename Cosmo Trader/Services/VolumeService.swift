@@ -4,17 +4,39 @@ import SwiftUI
 // MARK: - VolumeService
 // =====================
 // Tracks volume data and identifies stocks with unusual trading activity.
+// Uses Finnhub candles API for real volume data.
 // Used for Volume Leaders feature and Cosmic Confluence alerts.
 
 // MARK: - Volume Data Model
 
-struct VolumeData: Identifiable {
-    let id = UUID()
+struct VolumeData: Identifiable, Codable {
+    let id: UUID
     let symbol: String
     let currentVolume: Int
     let averageVolume: Int
     let volumeRatio: Double
     let timestamp: Date
+
+    init(
+        id: UUID = UUID(),
+        symbol: String,
+        currentVolume: Int,
+        averageVolume: Int,
+        volumeRatio: Double,
+        timestamp: Date
+    ) {
+        self.id = id
+        self.symbol = symbol
+        self.currentVolume = currentVolume
+        self.averageVolume = averageVolume
+        self.volumeRatio = volumeRatio
+        self.timestamp = timestamp
+    }
+
+    /// Check if this cached data is stale (older than 5 minutes)
+    var isStale: Bool {
+        Date().timeIntervalSince(timestamp) > 300
+    }
 
     var formattedCurrentVolume: String {
         formatVolume(currentVolume)
@@ -140,13 +162,20 @@ class VolumeService {
     private(set) var volumeLeaders: [VolumeLeader] = []
     private(set) var isLoading: Bool = false
     private(set) var lastUpdate: Date?
+    private(set) var lastError: Error?
 
-    // Cache for volume data
+    // Cache for volume data (keyed by symbol)
     private var volumeCache: [String: VolumeData] = [:]
+
+    // Cache duration (5 minutes - volume doesn't need real-time updates)
+    private let cacheDuration: TimeInterval = 300
 
     // MARK: - Init
 
-    private init() {}
+    private init() {
+        // Load cached data on init
+        loadCachedVolumeData()
+    }
 
     // MARK: - Get Volume Leaders
 
@@ -157,22 +186,22 @@ class VolumeService {
         limit: Int = 10
     ) async -> [VolumeLeader] {
         isLoading = true
-
-        // Simulate API call delay
-        try? await Task.sleep(nanoseconds: 300_000_000)
+        lastError = nil
 
         let interpreter = CosmicPatternInterpreter.shared
         var leaders: [VolumeLeader] = []
 
         for stock in stocks {
-            let volumeData = getVolumeData(for: stock)
-            let insights = interpreter.getInsights(for: stock, userSign: userSign)
+            // Get volume data (from cache or API)
+            if let volumeData = await getVolumeData(for: stock.symbol) {
+                let insights = interpreter.getInsights(for: stock, userSign: userSign)
 
-            leaders.append(VolumeLeader(
-                stock: stock,
-                volumeData: volumeData,
-                cosmicInsights: insights
-            ))
+                leaders.append(VolumeLeader(
+                    stock: stock,
+                    volumeData: volumeData,
+                    cosmicInsights: insights
+                ))
+            }
         }
 
         // Sort by volume ratio (highest first)
@@ -182,6 +211,9 @@ class VolumeService {
         volumeLeaders = Array(leaders.prefix(limit))
         isLoading = false
         lastUpdate = Date()
+
+        // Persist cache
+        saveVolumeCache()
 
         return volumeLeaders
     }
@@ -204,75 +236,103 @@ class VolumeService {
         return leaders.filter { $0.isCosmicConfluence }
     }
 
-    // MARK: - Volume Data Generation
+    // MARK: - Volume Data Fetching
 
-    /// Get volume data for a stock (mock data for now)
-    func getVolumeData(for stock: Stock) -> VolumeData {
-        // Check cache
-        if let cached = volumeCache[stock.symbol] {
+    /// Get volume data for a stock symbol (from cache or API)
+    func getVolumeData(for symbol: String) async -> VolumeData? {
+        // Check cache first (return if fresh)
+        if let cached = volumeCache[symbol], !cached.isStale {
+            log("📦 Cache hit for \(symbol) volume")
             return cached
         }
 
-        // Generate consistent mock data based on stock symbol
-        let seed = abs(stock.symbol.hashValue)
-        var generator = SeededRandomGenerator(seed: UInt64(seed))
+        // Fetch from API
+        do {
+            let candles = try await StockAPIService.shared.fetchRecentCandles(symbol: symbol)
 
-        // Base average volume varies by stock "size"
-        let baseAvgVolume: Int
-        switch stock.sector {
-        case "Technology":
-            baseAvgVolume = Int.random(in: 20_000_000...100_000_000, using: &generator)
-        case "Finance":
-            baseAvgVolume = Int.random(in: 5_000_000...30_000_000, using: &generator)
-        case "Healthcare":
-            baseAvgVolume = Int.random(in: 3_000_000...25_000_000, using: &generator)
-        default:
-            baseAvgVolume = Int.random(in: 2_000_000...20_000_000, using: &generator)
+            guard candles.hasValidVolumeData,
+                  let latestVolume = candles.latestVolume,
+                  let avgVolume = candles.averageVolume else {
+                log("⚠️ No volume data for \(symbol)")
+                // Return stale cache if available
+                return volumeCache[symbol]
+            }
+
+            let volumeRatio = avgVolume > 0 ? Double(latestVolume) / avgVolume : 1.0
+
+            let data = VolumeData(
+                symbol: symbol,
+                currentVolume: latestVolume,
+                averageVolume: Int(avgVolume),
+                volumeRatio: volumeRatio,
+                timestamp: Date()
+            )
+
+            volumeCache[symbol] = data
+            log("✅ Fetched volume for \(symbol): \(data.formattedVolumeRatio)")
+            return data
+
+        } catch {
+            log("❌ Volume fetch error for \(symbol): \(error)")
+            lastError = error
+            // Return stale cache if available
+            return volumeCache[symbol]
         }
+    }
 
-        // Current volume varies from average
-        // Weighted to occasionally produce unusual volume
-        let volumeMultiplier: Double
-        let random = Double.random(in: 0...1, using: &generator)
-        if random > 0.85 {
-            // 15% chance of surging volume
-            volumeMultiplier = Double.random(in: 3.0...8.0, using: &generator)
-        } else if random > 0.65 {
-            // 20% chance of elevated volume
-            volumeMultiplier = Double.random(in: 1.5...3.0, using: &generator)
-        } else if random > 0.25 {
-            // 40% chance of normal volume
-            volumeMultiplier = Double.random(in: 0.75...1.5, using: &generator)
-        } else {
-            // 25% chance of quiet volume
-            volumeMultiplier = Double.random(in: 0.3...0.75, using: &generator)
-        }
-
-        let currentVolume = Int(Double(baseAvgVolume) * volumeMultiplier)
-
-        let data = VolumeData(
-            symbol: stock.symbol,
-            currentVolume: currentVolume,
-            averageVolume: baseAvgVolume,
-            volumeRatio: volumeMultiplier,
-            timestamp: Date()
-        )
-
-        volumeCache[stock.symbol] = data
-        return data
+    /// Get volume data synchronously from cache only (for non-async contexts)
+    func getCachedVolumeData(for symbol: String) -> VolumeData? {
+        volumeCache[symbol]
     }
 
     // MARK: - Cache Management
 
+    private let cacheKey = "com.cosmotrader.volumecache"
+
     func clearCache() {
         volumeCache.removeAll()
         volumeLeaders.removeAll()
+        UserDefaults.standard.removeObject(forKey: cacheKey)
+        log("🗑️ Volume cache cleared")
     }
 
     func refreshCache() async {
         clearCache()
         // Re-fetch would happen when getVolumeLeaders is called next
     }
-}
 
-// Note: SeededRandomGenerator is defined in Stock.swift
+    private func saveVolumeCache() {
+        do {
+            let data = try JSONEncoder().encode(Array(volumeCache.values))
+            UserDefaults.standard.set(data, forKey: cacheKey)
+            log("💾 Saved \(volumeCache.count) volume entries to cache")
+        } catch {
+            log("⚠️ Failed to save volume cache: \(error)")
+        }
+    }
+
+    private func loadCachedVolumeData() {
+        guard let data = UserDefaults.standard.data(forKey: cacheKey) else {
+            log("📦 No cached volume data found")
+            return
+        }
+
+        do {
+            let cached = try JSONDecoder().decode([VolumeData].self, from: data)
+            for item in cached {
+                volumeCache[item.symbol] = item
+            }
+            log("📦 Loaded \(cached.count) volume entries from cache")
+        } catch {
+            log("⚠️ Failed to load volume cache: \(error)")
+        }
+    }
+
+    // MARK: - Logging
+
+    private func log(_ message: String) {
+        #if DEBUG
+        print("[VolumeService] \(message)")
+        #endif
+    }
+}

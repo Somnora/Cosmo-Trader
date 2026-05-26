@@ -22,21 +22,37 @@ enum MoonPhase: String, CaseIterable, Identifiable {
 
     // MARK: - Visual
 
-    /// Emoji representation (used as data, not UI decoration)
-    var emoji: String {
+    /// SF Symbol representation for UI display
+    var sfSymbol: String {
         switch self {
-        case .newMoon:        return "🌑"
-        case .waxingCrescent: return "🌒"
-        case .firstQuarter:   return "🌓"
-        case .waxingGibbous:  return "🌔"
-        case .fullMoon:       return "🌕"
-        case .waningGibbous:  return "🌖"
-        case .lastQuarter:    return "🌗"
-        case .waningCrescent: return "🌘"
+        case .newMoon:        return "moon"
+        case .waxingCrescent: return "moon.fill"
+        case .firstQuarter:   return "moon.lefthalf.filled"
+        case .waxingGibbous:  return "moon.fill"
+        case .fullMoon:       return "moon.circle.fill"
+        case .waningGibbous:  return "moon.fill"
+        case .lastQuarter:    return "moon.righthalf.filled"
+        case .waningCrescent: return "moon.fill"
         }
     }
 
-    /// Icon name for custom drawing
+    /// Fallback symbols for older iOS versions where some moon symbols are unavailable.
+    var sfSymbolFallbacks: [String] {
+        switch self {
+        case .firstQuarter:
+            return ["moon.fill", "moon"]
+        case .lastQuarter:
+            return ["moon.fill", "moon"]
+        default:
+            return ["moon"]
+        }
+    }
+
+    var sfImage: Image {
+        safeSymbol(primary: sfSymbol, fallbacks: sfSymbolFallbacks)
+    }
+
+    /// Icon name for custom drawing (legacy)
     var iconName: String {
         switch self {
         case .newMoon:        return "moon.new"
@@ -50,18 +66,9 @@ enum MoonPhase: String, CaseIterable, Identifiable {
         }
     }
 
-    /// SF Symbol icon for UI display
+    /// SF Symbol icon for UI display (alias for sfSymbol)
     var icon: String {
-        switch self {
-        case .newMoon:        return "moon"
-        case .waxingCrescent: return "moon.fill"
-        case .firstQuarter:   return "moon.zzz"
-        case .waxingGibbous:  return "moon.haze"
-        case .fullMoon:       return "moon.circle.fill"
-        case .waningGibbous:  return "moon.haze.fill"
-        case .lastQuarter:    return "moon.zzz.fill"
-        case .waningCrescent: return "moon.fill"
-        }
+        sfSymbol
     }
 
     /// Description for the phase
@@ -131,32 +138,32 @@ enum MoonPhase: String, CaseIterable, Identifiable {
         case .newMoon:
             return TradingSignal(
                 type: .accumulate,
-                headline: "Accumulation Phase",
-                summary: "Good for starting new positions",
-                description: "The new moon marks the beginning of a fresh lunar cycle. Some traders view this as an opportune time to research and initiate new positions. Energy is building.",
+                headline: "Fresh Cycle",
+                summary: "Good for research and notes",
+                description: "The new moon marks the beginning of a fresh lunar cycle. Some market-watchers treat this as a quiet time to research, reflect, and reset context. Energy is building.",
                 sentiment: .bullish
             )
         case .waxingCrescent:
             return TradingSignal(
                 type: .buildPosition,
-                headline: "Building Momentum",
-                summary: "Energy increasing — bullish undertone",
-                description: "The waxing crescent represents growing energy and optimism. Historically associated with building momentum in both nature and markets.",
+                headline: "Building Context",
+                summary: "Energy increasing - constructive undertone",
+                description: "The waxing crescent represents growing energy and optimism. Historically associated with building momentum in both nature and market narratives.",
                 sentiment: .bullish
             )
         case .firstQuarter:
             return TradingSignal(
                 type: .hold,
                 headline: "Decision Point",
-                summary: "Evaluate positions — momentum check",
-                description: "The first quarter moon represents a checkpoint. Some traders use this to evaluate whether their positions are performing as expected.",
+                summary: "Evaluate context - momentum check",
+                description: "The first quarter moon represents a checkpoint. Some market-watchers use this phase to review whether the story still feels coherent.",
                 sentiment: .neutral
             )
         case .waxingGibbous:
             return TradingSignal(
                 type: .buildPosition,
                 headline: "Pre-Peak Energy",
-                summary: "Approaching full moon — heightened activity",
+                summary: "Approaching full moon - heightened activity",
                 description: "Energy builds toward the full moon. Markets may see increased activity and volume as the peak approaches.",
                 sentiment: .bullish
             )
@@ -164,7 +171,7 @@ enum MoonPhase: String, CaseIterable, Identifiable {
             return TradingSignal(
                 type: .caution,
                 headline: "Peak Volatility",
-                summary: "Emotions run high — expect swings",
+                summary: "Emotions run high - expect noise",
                 description: "The full moon has been associated with heightened emotions and increased volatility. Some studies suggest markets show greater price swings around this time. Stay alert.",
                 sentiment: .volatile
             )
@@ -172,24 +179,24 @@ enum MoonPhase: String, CaseIterable, Identifiable {
             return TradingSignal(
                 type: .takeProfit,
                 headline: "Distribution Phase",
-                summary: "Consider taking profits on winners",
-                description: "As the moon wanes, some traders view this as a time to secure gains. The energy begins to recede from its peak.",
+                summary: "Review what has worked",
+                description: "As the moon wanes, some market-watchers treat it as a time to review what has worked. The energy begins to recede from its peak.",
                 sentiment: .bearish
             )
         case .lastQuarter:
             return TradingSignal(
                 type: .reduce,
-                headline: "Review & Reduce",
-                summary: "Time to review and trim positions",
-                description: "The last quarter is traditionally a time for reflection. Consider reviewing your portfolio and reducing exposure to underperformers.",
+                headline: "Review & Reflect",
+                summary: "Time to review exposure",
+                description: "The last quarter is traditionally a time for reflection. Use it to review portfolio exposure and stale assumptions.",
                 sentiment: .bearish
             )
         case .waningCrescent:
             return TradingSignal(
                 type: .wait,
                 headline: "Rest Period",
-                summary: "Low energy — wait for new cycle",
-                description: "The waning crescent represents the end of the lunar cycle. Some traders prefer to wait for the new moon before initiating new positions.",
+                summary: "Low energy - wait for new cycle",
+                description: "The waning crescent represents the end of the lunar cycle. Some market-watchers prefer to pause and wait for a clearer reset.",
                 sentiment: .neutral
             )
         }
@@ -251,12 +258,12 @@ struct TradingSignal {
     let sentiment: MarketSentiment
 
     enum SignalType: String {
-        case accumulate = "Accumulate"
-        case buildPosition = "Build Position"
-        case hold = "Hold"
+        case accumulate = "Fresh Cycle"
+        case buildPosition = "Building Context"
+        case hold = "Review"
         case caution = "Caution"
-        case takeProfit = "Take Profit"
-        case reduce = "Reduce"
+        case takeProfit = "Distribution"
+        case reduce = "Reflection"
         case wait = "Wait"
 
         var icon: String {
@@ -286,8 +293,8 @@ struct TradingSignal {
     }
 
     enum MarketSentiment: String {
-        case bullish = "Bullish"
-        case bearish = "Bearish"
+        case bullish = "Constructive"
+        case bearish = "Cooling"
         case neutral = "Neutral"
         case volatile = "Volatile"
 

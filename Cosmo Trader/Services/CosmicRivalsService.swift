@@ -223,7 +223,7 @@ struct CosmicRivalry: Identifiable {
     let tradingImplication: String
 
     var oppositionSymbol: String {
-        "\(stock1.zodiacSign.symbol) ☍ \(stock2.zodiacSign.symbol)"
+        "\(stock1.zodiacSign.textSymbol) ☍ \(stock2.zodiacSign.textSymbol)"
     }
 }
 

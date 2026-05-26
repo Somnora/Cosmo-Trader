@@ -438,13 +438,13 @@ struct CosmicErrorView: View {
         switch error {
         case .network(let err):
             switch err {
-            case .noConnection: return "Lost in Space"
-            case .timeout: return "Stars Are Slow"
-            case .serverError: return "Cosmic Turbulence"
-            case .rateLimited: return "Too Many Wishes"
-            case .invalidSymbol: return "Unknown Star"
+            case .noConnection: return "Connection Lost"
+            case .timeout: return "Reading Timeout"
+            case .serverError: return "Service Unavailable"
+            case .rateLimited: return "Too Many Refreshes"
+            case .invalidSymbol: return "Unknown Symbol"
             case .apiKeyMissing: return "Gateway Closed"
-            default: return "Cosmic Interference"
+            default: return "Reading Interrupted"
             }
         case .data:
             return "Data Anomaly"
@@ -469,7 +469,7 @@ struct CosmicErrorView: View {
         case .network(let err):
             return err.themeColor
         case .data:
-            return .purple
+            return CosmicTheme.accentBlue
         case .validation:
             return .blue
         }
@@ -674,7 +674,7 @@ struct CosmicLoadingView: View {
 
     @State private var rotation: Double = 0
 
-    init(message: String = "Consulting the stars...") {
+    init(message: String = "Reading market context...") {
         self.message = message
     }
 
@@ -697,8 +697,8 @@ struct CosmicLoadingView: View {
                     .frame(width: 60, height: 60)
                     .rotationEffect(.degrees(rotation))
 
-                // Center star
-                Image(systemName: "sparkle")
+                // Center signal mark
+                Image(systemName: "chart.line.uptrend.xyaxis")
                     .font(.system(size: 20))
                     .foregroundColor(CosmicTheme.gold)
             }
@@ -728,8 +728,8 @@ struct ErrorBoundaryView<Content: View>: View {
     @State private var hasError = false
 
     init(
-        errorTitle: String = "Cosmic Interference",
-        errorMessage: String = "Something went wrong. The stars will realign shortly.",
+        errorTitle: String = "Reading Interrupted",
+        errorMessage: String = "Something went wrong while reading market conditions.",
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.errorTitle = errorTitle
@@ -763,8 +763,8 @@ struct GenericErrorView: View {
     @State private var starPulse: Bool = false
 
     init(
-        title: String = "Cosmic Interference",
-        message: String = "Something went wrong. The stars will realign shortly.",
+        title: String = "Reading Interrupted",
+        message: String = "Something went wrong while reading market conditions.",
         retryAction: (() -> Void)? = nil
     ) {
         self.title = title
@@ -885,8 +885,8 @@ extension CosmicEmptyStateView {
     /// Empty portfolio state
     static var emptyPortfolio: CosmicEmptyStateView {
         CosmicEmptyStateView(
-            title: "Your Portfolio Awaits",
-            message: "Your cosmic portfolio is empty. Start discovering stocks that align with your stars.",
+            title: "Portfolio Setup",
+            message: "Add your holdings to generate a daily financial astrology reading. Start with 3-5 tickers and refine later.",
             icon: "briefcase"
         )
     }
@@ -904,8 +904,8 @@ extension CosmicEmptyStateView {
     static var noMoreCards: CosmicEmptyStateView {
         CosmicEmptyStateView(
             title: "All Caught Up",
-            message: "You've seen all available stocks. Check back tomorrow for new cosmic matches.",
-            icon: "sparkles"
+            message: "You've seen all available stocks. Check back tomorrow for new candidates.",
+            icon: "rectangle.stack"
         )
     }
 
@@ -922,7 +922,7 @@ extension CosmicEmptyStateView {
     static var noPatterns: CosmicEmptyStateView {
         CosmicEmptyStateView(
             title: "No Active Patterns",
-            message: "No patterns detected. The stars are quiet today.",
+            message: "No chart patterns detected today.",
             icon: "waveform.path.ecg"
         )
     }
@@ -952,7 +952,7 @@ extension CosmicEmptyStateView {
 extension CosmicLoadingView {
 
     static var consultingStars: CosmicLoadingView {
-        CosmicLoadingView(message: "Consulting the stars...")
+        CosmicLoadingView(message: "Reading market context...")
     }
 
     static var analyzingPatterns: CosmicLoadingView {

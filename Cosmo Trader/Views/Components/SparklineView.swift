@@ -47,15 +47,19 @@ struct SparklineView: View {
     /// Normalized data points (0 to 1 range)
     private var normalizedData: [CGFloat] {
         guard !data.isEmpty else { return [] }
-        let minVal = data.min() ?? 0
-        let maxVal = data.max() ?? 1
+        let cleanedData = data.map { $0.isFinite ? $0 : 0 }
+        let minVal = cleanedData.min() ?? 0
+        let maxVal = cleanedData.max() ?? 1
         let range = maxVal - minVal
 
-        if range == 0 {
-            return data.map { _ in CGFloat(0.5) }
+        if !range.isFinite || range == 0 {
+            return cleanedData.map { _ in CGFloat(0.5) }
         }
 
-        return data.map { CGFloat(($0 - minVal) / range) }
+        return cleanedData.map {
+            let normalized = ($0 - minVal) / range
+            return CGFloat(min(max(normalized, 0), 1)).sanitized
+        }
     }
 
     // MARK: - Body
@@ -64,7 +68,7 @@ struct SparklineView: View {
         Canvas { context, size in
             guard normalizedData.count > 1 else { return }
 
-            let stepX = size.width / CGFloat(normalizedData.count - 1)
+            let stepX = (size.width / CGFloat(normalizedData.count - 1)).sanitized
             let padding: CGFloat = 2
 
             // Build path
@@ -72,8 +76,8 @@ struct SparklineView: View {
             var fillPath = Path()
 
             for (index, value) in normalizedData.enumerated() {
-                let x = CGFloat(index) * stepX
-                let y = size.height - padding - (value * (size.height - padding * 2))
+                let x = (CGFloat(index) * stepX).sanitized
+                let y = (size.height - padding - (value * (size.height - padding * 2))).sanitized
 
                 if index == 0 {
                     linePath.move(to: CGPoint(x: x, y: y))
@@ -126,7 +130,7 @@ struct SparklineView: View {
                 context.fill(dotPath, with: .color(lineColor))
             }
         }
-        .frame(width: width, height: height)
+        .frame(width: width.sanitized, height: height.sanitized)
     }
 }
 

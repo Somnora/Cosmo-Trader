@@ -89,7 +89,9 @@ class AstroAlertService {
     func upcomingEvents(within days: Int) -> [CosmicEvent] {
         let calendar = Calendar.current
         let now = Date()
-        let futureDate = calendar.date(byAdding: .day, value: days, to: now)!
+        guard let futureDate = calendar.date(byAdding: .day, value: days, to: now) else {
+            return []
+        }
 
         return allEvents
             .filter { event in
@@ -240,15 +242,15 @@ class AstroAlertService {
         } else if active.contains(where: { $0.intensity == .intense }) {
             severity = .heightened
             headline = "Intense Cosmic Activity"
-            advice = active.first(where: { $0.intensity == .intense })?.advice ?? "Stay alert to cosmic shifts."
+            advice = active.first(where: { $0.intensity == .intense })?.advice ?? "Stay alert to market astrology shifts."
         } else if !active.isEmpty {
             severity = .normal
             headline = "Moderate Cosmic Weather"
-            advice = "The stars are relatively calm. Proceed with awareness."
+            advice = "Cosmic conditions are relatively calm. Proceed with awareness."
         } else {
             severity = .clear
-            headline = "Clear Cosmic Skies"
-            advice = "No major cosmic events affecting markets. Trade with confidence."
+            headline = "Quiet Cosmic Tape"
+            advice = "No major cosmic events affecting markets. Let price action lead."
         }
 
         return CosmicWeatherSummary(

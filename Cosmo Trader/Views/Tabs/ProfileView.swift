@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 
 // MARK: - ProfileView
 // ====================
@@ -29,8 +30,19 @@ struct ProfileView: View {
     @State private var showingDeleteConfirmation = false
     @State private var exportData: Data?
     @State private var showingImportPortfolio = false
+    @State private var framingService = SignalFramingService.shared
+    @State private var inboxUnreadCount = InboxUnreadCountStore.currentCount()
+    @State private var showingManageSubscription = false
 
     // MARK: - Computed Properties
+
+    /// Binding to user's signal framing level (persisted via AppState)
+    private var signalFramingBinding: Binding<SignalFramingLevel> {
+        Binding(
+            get: { appState.currentUser?.signalFramingLevel ?? .balanced },
+            set: { appState.updateSignalFramingLevel($0) }
+        )
+    }
 
     /// Access user directly from appState for simpler bindings (nil if not logged in)
     private var user: UserProfile? {
@@ -56,38 +68,50 @@ struct ProfileView: View {
 
                 if let _ = user, viewModel != nil {
                     ScrollView(showsIndicators: false) {
-                        LazyVStack(spacing: 24) {
+                        LazyVStack(spacing: 14) {
                             // 1. User header with zodiac prominently displayed
                             userHeader
 
                             // 2. Cosmic title badge
                             cosmicTitleBadge
 
-                            // 3. Astrological investor profile card
+                            // 3. Personalization and trust proof
+                            personalizationTrustCard
+
+                            // 4. Astrological investor profile card
                             investorProfileCard
 
-                            // 4. Portfolio cosmic stats
-                            portfolioStatsCard
+                            if !AppState.isScreenshotMode {
+                                // 5. Portfolio cosmic stats
+                                portfolioStatsCard
+                            }
 
-                            // 5. Settings sections
-                            settingsSections
+                            if !AppState.isScreenshotMode {
+                                // 5. Settings sections
+                                settingsSections
+                            }
 
-                            // 6. Legal section
-                            legalSection
+                            if !AppState.isScreenshotMode {
+                                // 6. Legal section
+                                legalSection
 
-                            // 7. Fun extras & sign out
-                            funExtrasSection
+                                // 7. Fun extras & sign out
+                                funExtrasSection
 
-                            signOutButton
+                                signOutButton
+                            }
                         }
                         .padding(.horizontal, 16)
-                        .padding(.bottom, 100)
+                        .padding(.top, 4)
+                        .iPadReadableContent(maxWidth: 980)
                     }
+                    .contentShape(Rectangle())
+                    .tabBarSafeBottomPadding()
                 } else if user == nil {
                     // No user - show empty state
                     CosmicEmptyStateView(
                         title: "No Profile",
-                        message: "Complete onboarding to set up your cosmic profile.",
+                        message: "Complete onboarding to set up your investor profile.",
                         icon: "person.crop.circle.badge.questionmark"
                     )
                 } else {
@@ -98,13 +122,10 @@ struct ProfileView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "person.crop.circle.fill")
-                            .foregroundColor(CosmicTheme.gold)
-                        Text("Profile")
-                            .font(.headline)
-                            .foregroundColor(CosmicTheme.textPrimary)
-                    }
+                    Text("PROFILE")
+                        .font(TerminalFont.data(13, weight: .semibold))
+                        .tracking(1.8)
+                        .foregroundColor(CosmicTheme.textPrimary)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
@@ -141,7 +162,7 @@ struct ProfileView: View {
                     confirmDataDeletion()
                 }
             } message: {
-                Text("This will permanently delete all your data including your profile, portfolio, watchlist, and preferences. This action cannot be undone.")
+                Text("This permanently deletes your profile, portfolio, watchlist, preferences, and usage counters on this device. The anonymous sign-in session and anonymous device ID used for backend requests are not cleared and remain until you delete the app. This action cannot be undone.")
             }
             .sheet(isPresented: $showingImportPortfolio) {
                 ImportPortfolioView()
@@ -151,6 +172,20 @@ struct ProfileView: View {
             // Initialize viewModel if needed (async-safe)
             if viewModel == nil {
                 viewModel = ProfileViewModel(appState: appState)
+            }
+            if appState.currentUser != nil {
+                await ReferralService.shared.qualifyReferralIfNeeded(
+                    milestone: .firstProfileOpen,
+                    storageKey: ReferralMilestone.firstProfileOpen.qualificationStorageKey
+                )
+            }
+            inboxUnreadCount = InboxUnreadCountStore.currentCount()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .inboxUnreadCountUpdated)) { notification in
+            if let count = notification.userInfo?["count"] as? Int {
+                inboxUnreadCount = max(0, count)
+            } else {
+                inboxUnreadCount = InboxUnreadCountStore.currentCount()
             }
         }
     }
@@ -174,141 +209,133 @@ struct ProfileView: View {
     // MARK: - Background
 
     private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                CosmicTheme.background,
-                Color(red: 0.08, green: 0.04, blue: 0.20)
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .ignoresSafeArea()
+        // Flat OLED black. No purple wash. Dimensionality comes from
+        // tinted panels, not from a tinted background.
+        CosmicTheme.background
+            .ignoresSafeArea()
     }
 
     // MARK: - User Header
 
     private var userHeader: some View {
-        VStack(spacing: 16) {
-            // Large zodiac avatar
-            ZStack {
-                // Outer ring with element color
-                Circle()
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                safeUser.sunSign.element.color,
-                                safeUser.sunSign.element.color.opacity(0.5)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 4
-                    )
-                    .frame(width: 120, height: 120)
-
-                // Inner circle with cosmic gradient
-                Circle()
-                    .fill(CosmicTheme.cosmicGradient)
-                    .frame(width: 108, height: 108)
-
-                // Zodiac symbol - custom glyph
-                ZodiacSymbolView(sign: safeUser.sunSign, size: 52, color: CosmicTheme.gold)
-            }
-
-            // User name and info
-            VStack(spacing: 8) {
-                Text(safeUser.displayName)
-                    .font(TerminalFont.headline(26))
-                    .foregroundColor(CosmicTheme.textPrimary)
-
-                // Birth date
-                HStack(spacing: 4) {
-                    Image(systemName: "birthday.cake")
-                        .font(.caption)
-                    Text(viewModel?.formattedBirthDate ?? "")
-                }
-                .font(TerminalFont.data(13))
-                .foregroundColor(CosmicTheme.textSecondary)
-
-                // Sun sign with element and modality
-                HStack(spacing: 12) {
-                    // Sun sign
-                    HStack(spacing: 6) {
-                        ZodiacSymbolView(sign: safeUser.sunSign, size: 14, color: CosmicTheme.gold)
-                        Text(safeUser.sunSign.displayName)
-                    }
+        VStack(spacing: 0) {
+            // Operator strip - terminal label across the top
+            HStack(spacing: 6) {
+                Image(systemName: "person.crop.circle")
+                    .font(.caption2)
                     .foregroundColor(CosmicTheme.gold)
 
-                    Text("·")
-                        .foregroundColor(CosmicTheme.textMuted)
+                Text("OPERATOR")
+                    .font(TerminalFont.data(9, weight: .semibold))
+                    .foregroundColor(CosmicTheme.gold)
+                    .tracking(1.4)
 
-                    // Element
-                    HStack(spacing: 4) {
-                        ElementSymbolView(element: safeUser.sunSign.element, size: 12)
-                        Text(safeUser.sunSign.element.displayName)
-                    }
-                    .foregroundColor(safeUser.sunSign.element.color)
+                Spacer()
 
-                    Text("·")
-                        .foregroundColor(CosmicTheme.textMuted)
-
-                    // Modality
-                    Text(safeUser.sunSign.modality.displayName)
-                        .foregroundColor(CosmicTheme.textSecondary)
-                }
-                .font(TerminalFont.data(11, weight: .medium))
+                Text("ID / \(safeUser.sunSign.displayName.uppercased())")
+                    .font(TerminalFont.data(9, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .tracking(1)
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(CosmicTheme.panelElevated)
+            .overlay(
+                Rectangle()
+                    .fill(CosmicTheme.borderNavy)
+                    .frame(height: 1),
+                alignment: .bottom
+            )
+
+            // Identity body
+            HStack(spacing: 16) {
+                // Compact zodiac glyph - thin gold ring, navy core
+                ZStack {
+                    Rectangle()
+                        .fill(CosmicTheme.panelNavy)
+                        .frame(width: 64, height: 64)
+
+                    Rectangle()
+                        .stroke(CosmicTheme.gold.opacity(0.55), lineWidth: 1)
+                        .frame(width: 64, height: 64)
+
+                    ZodiacSymbolView(sign: safeUser.sunSign, size: 32, color: CosmicTheme.gold)
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(safeUser.displayName)
+                        .font(TerminalFont.headline(20))
+                        .foregroundColor(CosmicTheme.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+
+                    Text(viewModel?.formattedBirthDate.uppercased() ?? "")
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .tracking(1)
+
+                    HStack(spacing: 8) {
+                        Text(safeUser.sunSign.displayName.uppercased())
+                            .foregroundColor(CosmicTheme.gold)
+
+                        Text("·")
+                            .foregroundColor(CosmicTheme.textMuted)
+
+                        Text(safeUser.sunSign.element.displayName.uppercased())
+                            .foregroundColor(CosmicTheme.steelBlue)
+
+                        Text("·")
+                            .foregroundColor(CosmicTheme.textMuted)
+
+                        Text(safeUser.sunSign.modality.displayName.uppercased())
+                            .foregroundColor(CosmicTheme.textSecondary)
+                    }
+                    .font(TerminalFont.data(10, weight: .semibold))
+                    .tracking(1)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 14)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 24)
-        .padding(.horizontal, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(CosmicTheme.cardBackground)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .stroke(safeUser.sunSign.element.color.opacity(0.3), lineWidth: 1)
-                )
-        )
+        .terminalPanel(.elevated, cornerRadius: 4)
     }
 
     // MARK: - Cosmic Title Badge
 
     private var cosmicTitleBadge: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "sparkles")
-                .foregroundStyle(CosmicTheme.goldGradient)
+        HStack(spacing: 10) {
+            Rectangle()
+                .fill(CosmicTheme.gold.opacity(0.55))
+                .frame(width: 4, height: 14)
 
-            Text(viewModel?.cosmicTitle ?? "")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(CosmicTheme.textPrimary)
+            Text((viewModel?.cosmicTitle ?? "").uppercased())
+                .font(TerminalFont.data(11, weight: .semibold))
+                .foregroundColor(CosmicTheme.gold)
+                .tracking(1.6)
 
-            Image(systemName: "sparkles")
-                .foregroundStyle(CosmicTheme.goldGradient)
+            Rectangle()
+                .fill(CosmicTheme.gold.opacity(0.55))
+                .frame(width: 4, height: 14)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
-        .background(
-            Capsule()
-                .fill(CosmicTheme.cardBackground)
-                .overlay(
-                    Capsule()
-                        .stroke(CosmicTheme.goldGradient, lineWidth: 1)
-                )
-        )
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .terminalPanel(.gold, cornerRadius: 2)
     }
 
     // MARK: - Investor Profile Card
 
     private var investorProfileCard: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 15) {
             // Card header
-            HStack {
+            HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Astrological Investor Profile")
-                        .font(.headline)
-                        .foregroundColor(CosmicTheme.textPrimary)
+                    Text("INVESTOR PROFILE")
+                        .font(TerminalFont.data(10, weight: .semibold))
+                        .foregroundColor(CosmicTheme.gold)
+                        .tracking(1.4)
 
                     Text("Based on your \(safeUser.sunSign.displayName) energy")
                         .font(.caption)
@@ -317,12 +344,13 @@ struct ProfileView: View {
 
                 Spacer()
 
-                // Element badge - custom symbol
-                ElementSymbolView(element: safeUser.sunSign.element, size: 28)
+                // Element badge - sharp square, not a soft circle
+                ElementSymbolView(element: safeUser.sunSign.element, size: 24)
                     .padding(10)
-                    .background(
-                        Circle()
-                            .fill(safeUser.sunSign.element.color.opacity(0.2))
+                    .background(CosmicTheme.panelElevated)
+                    .overlay(
+                        Rectangle()
+                            .stroke(safeUser.sunSign.element.color.opacity(0.4), lineWidth: 1)
                     )
             }
 
@@ -331,13 +359,10 @@ struct ProfileView: View {
                 .font(.subheadline)
                 .italic()
                 .foregroundColor(CosmicTheme.textSecondary)
-                .padding(.vertical, 12)
-                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .padding(.horizontal, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(safeUser.sunSign.element.color.opacity(0.1))
-                )
+                .terminalPanel(.standard)
 
             // Strengths
             strengthsSection
@@ -345,21 +370,19 @@ struct ProfileView: View {
             // Weaknesses
             weaknessesSection
 
-            Divider()
-                .background(CosmicTheme.textMuted.opacity(0.3))
+            Rectangle()
+                .fill(CosmicTheme.border)
+                .frame(height: 1)
 
             // Compatibility matches
             compatibilityMatchesSection
         }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(CosmicTheme.cardBackground)
-        )
+        .padding(16)
+        .terminalPanel(.elevated, cornerRadius: 4)
     }
 
     private var strengthsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: "arrow.up.circle.fill")
                     .foregroundColor(CosmicTheme.positive)
@@ -369,7 +392,7 @@ struct ProfileView: View {
                     .foregroundColor(CosmicTheme.textPrimary)
             }
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
                 ForEach(viewModel?.investorStrengths ?? [], id: \.self) { strength in
                     HStack(spacing: 8) {
                         Circle()
@@ -386,7 +409,7 @@ struct ProfileView: View {
     }
 
     private var weaknessesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: "arrow.down.circle.fill")
                     .foregroundColor(CosmicTheme.negative)
@@ -396,7 +419,7 @@ struct ProfileView: View {
                     .foregroundColor(CosmicTheme.textPrimary)
             }
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
                 ForEach(viewModel?.investorWeaknesses ?? [], id: \.self) { weakness in
                     HStack(spacing: 8) {
                         Circle()
@@ -416,7 +439,7 @@ struct ProfileView: View {
         HStack(spacing: 24) {
             // Best matches
             VStack(alignment: .leading, spacing: 8) {
-                Text("Best Stock Signs")
+                Text("Signs You Sync With")
                     .font(.caption)
                     .fontWeight(.medium)
                     .foregroundColor(CosmicTheme.textMuted)
@@ -435,7 +458,7 @@ struct ProfileView: View {
 
             // Challenging matches
             VStack(alignment: .leading, spacing: 8) {
-                Text("Challenging Signs")
+                Text("Signs To Read Carefully")
                     .font(TerminalFont.data(11, weight: .medium))
                     .foregroundColor(CosmicTheme.textMuted)
 
@@ -458,9 +481,10 @@ struct ProfileView: View {
     private var portfolioStatsCard: some View {
         VStack(alignment: .leading, spacing: 20) {
             // Header
-            Text("Portfolio Cosmic Stats")
-                .font(.headline)
-                .foregroundColor(CosmicTheme.textPrimary)
+            Text("PORTFOLIO READOUT")
+                .font(TerminalFont.data(10, weight: .semibold))
+                .foregroundColor(CosmicTheme.gold)
+                .tracking(1.4)
 
             // Main stats row
             HStack(spacing: 0) {
@@ -473,7 +497,7 @@ struct ProfileView: View {
 
                 Divider()
                     .frame(height: 50)
-                    .background(CosmicTheme.textMuted.opacity(0.3))
+                    .background(CosmicTheme.textMuted.opacity(0.4))
 
                 statItem(
                     icon: (viewModel?.isPositive ?? true) ? "arrow.up.circle.fill" : "arrow.down.circle.fill",
@@ -494,7 +518,7 @@ struct ProfileView: View {
 
                 Divider()
                     .frame(height: 50)
-                    .background(CosmicTheme.textMuted.opacity(0.3))
+                    .background(CosmicTheme.textMuted.opacity(0.4))
 
                 statItem(
                     icon: "percent",
@@ -505,7 +529,7 @@ struct ProfileView: View {
             }
 
             Divider()
-                .background(CosmicTheme.textMuted.opacity(0.3))
+                .background(CosmicTheme.textMuted.opacity(0.4))
 
             // Cosmic insights row
             HStack(spacing: 16) {
@@ -522,7 +546,7 @@ struct ProfileView: View {
                 if viewModel?.dominantElement != nil && viewModel?.mostCompatibleStock != nil {
                     Divider()
                         .frame(height: 40)
-                        .background(CosmicTheme.textMuted.opacity(0.3))
+                        .background(CosmicTheme.textMuted.opacity(0.4))
                 }
 
                 // Most compatible holding
@@ -536,26 +560,19 @@ struct ProfileView: View {
                 }
             }
 
-            // All-time gain
+            // Member duration (all-time gain/loss hidden until cost basis tracking is implemented)
             HStack {
-                Image(systemName: "chart.line.uptrend.xyaxis")
+                Image(systemName: "calendar.badge.clock")
                     .foregroundColor(CosmicTheme.textMuted)
-                Text("All-time: \(viewModel?.formattedAllTimeGainLoss ?? "$0")")
-                    .font(.caption)
-                    .foregroundColor((viewModel?.allTimeGainLoss ?? 0) >= 0 ? CosmicTheme.positive : CosmicTheme.negative)
-
-                Spacer()
-
                 Text("Member for \(viewModel?.cosmicJourneyDuration ?? "")")
                     .font(.caption)
                     .foregroundColor(CosmicTheme.textMuted)
+
+                Spacer()
             }
         }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(CosmicTheme.cardBackground)
-        )
+        .padding(18)
+        .terminalPanel(.elevated, cornerRadius: 4)
     }
 
     private func statItem(icon: String, title: String, value: String, color: Color) -> some View {
@@ -622,6 +639,41 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private var personalizationTrustCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "slider.horizontal.below.square.filled.and.square")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold)
+
+                Text("PERSONALIZATION / TRUST")
+                    .font(TerminalFont.data(10, weight: .semibold))
+                    .foregroundColor(CosmicTheme.gold)
+                    .tracking(1.2)
+
+                Spacer()
+
+                SignalFramingIndicator(level: signalFramingBinding.wrappedValue)
+            }
+
+            Text("Choose how direct the reading gets: rational market context, balanced lens language, or more astrological framing.")
+                .font(TerminalFont.data(12))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("The tone changes. The guardrail does not: readings are context, not financial advice.")
+                .font(TerminalFont.data(11, weight: .medium))
+                .foregroundColor(CosmicTheme.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .terminalPanel(.standard)
+        }
+        .padding(14)
+        .terminalPanel(.navy, cornerRadius: 4)
+    }
+
     // MARK: - Settings Sections
 
     private var settingsSections: some View {
@@ -630,14 +682,16 @@ struct ProfileView: View {
                 .font(.headline)
                 .foregroundColor(CosmicTheme.textPrimary)
 
-            // Subscription Status
-            subscriptionSection
+            if !AppState.isScreenshotMode {
+                // Subscription Status
+                subscriptionSection
 
-            // Notifications - comprehensive settings
-            notificationSettingsSection
+                // Notifications - comprehensive settings
+                notificationSettingsSection
 
-            // Lunar Alerts (quick toggles - synced with NotificationService)
-            lunarAlertsSection
+                // Lunar Alerts (quick toggles - synced with NotificationService)
+                lunarAlertsSection
+            }
 
             // Appearance
             settingsGroup(
@@ -645,6 +699,9 @@ struct ProfileView: View {
                 icon: "paintbrush.fill",
                 settings: viewModel?.settings.filter { $0.category == .appearance } ?? []
             )
+
+            // Signal Framing
+            signalFramingSection
 
             // Terminal Audio
             terminalAudioSection
@@ -659,8 +716,16 @@ struct ProfileView: View {
             // Portfolio Management
             portfolioManagementSection
 
+            if LaunchSurfacePolicy.showsUnprovenGrowthSurfaces {
+                referralSection
+            }
+
             // Privacy & Data (GDPR)
             privacyDataSection
+
+            if LaunchSurfacePolicy.showsInternalDiagnostics {
+                backendStatusSection
+            }
         }
     }
 
@@ -693,7 +758,7 @@ struct ProfileView: View {
                                 .font(.subheadline)
                                 .foregroundColor(CosmicTheme.textPrimary)
 
-                            Text("Import holdings from CSV (Robinhood, Fidelity, etc.)")
+                            Text("Fastest path to a real daily reading: screenshot or CSV")
                                 .font(.caption2)
                                 .foregroundColor(CosmicTheme.textMuted)
                         }
@@ -710,7 +775,7 @@ struct ProfileView: View {
                 .buttonStyle(.plain)
             }
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 6)
                     .fill(CosmicTheme.cardBackground)
             )
 
@@ -720,7 +785,7 @@ struct ProfileView: View {
                     .font(.caption2)
                     .foregroundColor(CosmicTheme.textMuted)
 
-                Text("Export your positions as CSV from your broker and import them to sync your cosmic portfolio.")
+                Text("Your reading gets sharper once Cosmo knows what you own. Start with 3-5 tickers and refine later.")
                     .font(.caption2)
                     .foregroundColor(CosmicTheme.textMuted)
             }
@@ -744,6 +809,41 @@ struct ProfileView: View {
             }
 
             VStack(spacing: 0) {
+                // Analytics Opt-Out
+                HStack(spacing: 12) {
+                    Image(systemName: "chart.pie.fill")
+                        .font(.body)
+                        .foregroundColor(CosmicTheme.textSecondary)
+                        .frame(width: 28)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Share Analytics Data")
+                            .font(.subheadline)
+                            .foregroundColor(CosmicTheme.textPrimary)
+
+                        Text("Help improve the app with anonymous usage data")
+                            .font(.caption2)
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+
+                    Spacer()
+
+                    Toggle("", isOn: Binding(
+                        get: { !AnalyticsService.shared.hasOptedOut },
+                        set: { isEnabled in
+                            AnalyticsService.shared.setOptOut(!isEnabled)
+                        }
+                    ))
+                    .tint(CosmicTheme.gold)
+                    .labelsHidden()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+
+                Divider()
+                    .background(CosmicTheme.textMuted.opacity(0.3))
+                    .padding(.leading, 48)
+
                 // Export My Data
                 Button(action: { exportMyData() }) {
                     HStack(spacing: 12) {
@@ -772,9 +872,10 @@ struct ProfileView: View {
                     .padding(.vertical, 12)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("profile.backendStatusLink")
 
                 Divider()
-                    .background(CosmicTheme.textMuted.opacity(0.2))
+                    .background(CosmicTheme.textMuted.opacity(0.3))
                     .padding(.leading, 48)
 
                 // Delete All Data
@@ -790,7 +891,7 @@ struct ProfileView: View {
                                 .font(.subheadline)
                                 .foregroundColor(CosmicTheme.negative)
 
-                            Text("Permanently remove all your data")
+                            Text("Reset profile, portfolio, watchlist, preferences")
                                 .font(.caption2)
                                 .foregroundColor(CosmicTheme.textMuted)
                         }
@@ -807,7 +908,7 @@ struct ProfileView: View {
                 .buttonStyle(.plain)
             }
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 6)
                     .fill(CosmicTheme.cardBackground)
             )
 
@@ -822,6 +923,273 @@ struct ProfileView: View {
                     .foregroundColor(CosmicTheme.textMuted)
             }
             .padding(.horizontal, 4)
+        }
+    }
+
+    // MARK: - Referral Section
+
+    private var referralSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "person.2.fill")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold)
+                Text("Referrals")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(CosmicTheme.textSecondary)
+            }
+
+            VStack(spacing: 0) {
+                NavigationLink(destination: ReferralCodeView()) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "ticket.fill")
+                            .font(.body)
+                            .foregroundColor(CosmicTheme.gold)
+                            .frame(width: 28)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Referral Code")
+                                .font(.subheadline)
+                                .foregroundColor(CosmicTheme.textPrimary)
+                            Text("Apply a code")
+                                .font(.caption2)
+                                .foregroundColor(CosmicTheme.textMuted)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+
+                Divider()
+                    .background(CosmicTheme.textMuted.opacity(0.3))
+                    .padding(.leading, 48)
+
+                NavigationLink(destination: ReferralLeaderboardView()) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "list.number")
+                            .font(.body)
+                            .foregroundColor(CosmicTheme.gold)
+                            .frame(width: 28)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Referral Leaderboard")
+                                .font(.subheadline)
+                                .foregroundColor(CosmicTheme.textPrimary)
+                            Text("Top referrers")
+                                .font(.caption2)
+                                .foregroundColor(CosmicTheme.textMuted)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+
+                Divider()
+                    .background(CosmicTheme.textMuted.opacity(0.3))
+                    .padding(.leading, 48)
+
+                NavigationLink(destination: RewardsStatusView()) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "gift.fill")
+                            .font(.body)
+                            .foregroundColor(CosmicTheme.gold)
+                            .frame(width: 28)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Rewards")
+                                .font(.subheadline)
+                                .foregroundColor(CosmicTheme.textPrimary)
+                            Text("Credits and premium status")
+                                .font(.caption2)
+                                .foregroundColor(CosmicTheme.textMuted)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(CosmicTheme.cardBackground)
+            )
+        }
+    }
+
+    // MARK: - Backend Diagnostics
+
+    private var backendStatusSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "waveform.path.ecg")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold)
+                Text("App Status")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(CosmicTheme.textSecondary)
+            }
+
+            VStack(spacing: 0) {
+                NavigationLink(destination: BackendStatusView()) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "server.rack")
+                            .font(.body)
+                            .foregroundColor(CosmicTheme.gold)
+                            .frame(width: 28)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Connection Status")
+                                .font(.subheadline)
+                                .foregroundColor(CosmicTheme.textPrimary)
+
+                            Text("Check service availability")
+                                .font(.caption2)
+                                .foregroundColor(CosmicTheme.textMuted)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+
+                Divider()
+                    .background(CosmicTheme.textMuted.opacity(0.3))
+                    .padding(.leading, 48)
+
+                NavigationLink(destination: ProfileSyncView()) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "person.crop.circle.badge.checkmark")
+                            .font(.body)
+                            .foregroundColor(CosmicTheme.gold)
+                            .frame(width: 28)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Profile Sync")
+                                .font(.subheadline)
+                                .foregroundColor(CosmicTheme.textPrimary)
+                            Text("Sync zodiac, risk, and notifications")
+                                .font(.caption2)
+                                .foregroundColor(CosmicTheme.textMuted)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+
+                Divider()
+                    .background(CosmicTheme.textMuted.opacity(0.3))
+                    .padding(.leading, 48)
+
+                NavigationLink(destination: InboxListView()) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "tray.full.fill")
+                            .font(.body)
+                            .foregroundColor(CosmicTheme.gold)
+                            .frame(width: 28)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Inbox")
+                                .font(.subheadline)
+                                .foregroundColor(CosmicTheme.textPrimary)
+                            Text("Messages and updates")
+                                .font(.caption2)
+                                .foregroundColor(CosmicTheme.textMuted)
+                        }
+
+                        Spacer()
+
+                        if inboxUnreadCount > 0 {
+                            Text(inboxUnreadCount > 99 ? "99+" : "\(inboxUnreadCount)")
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(CosmicTheme.background)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(
+                                    Capsule()
+                                        .fill(CosmicTheme.gold)
+                                )
+                        }
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+
+                Divider()
+                    .background(CosmicTheme.textMuted.opacity(0.3))
+                    .padding(.leading, 48)
+
+                NavigationLink(destination: DailyBriefBackendView()) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "doc.text.image.fill")
+                            .font(.body)
+                            .foregroundColor(CosmicTheme.gold)
+                            .frame(width: 28)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Daily Brief")
+                                .font(.subheadline)
+                                .foregroundColor(CosmicTheme.textPrimary)
+                            Text("Latest market brief with refresh")
+                                .font(.caption2)
+                                .foregroundColor(CosmicTheme.textMuted)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(CosmicTheme.cardBackground)
+            )
         }
     }
 
@@ -874,11 +1242,13 @@ struct ProfileView: View {
             // Status card
             subscriptionStatusCard(subscriptionManager)
         }
+        .manageSubscriptionsSheet(isPresented: $showingManageSubscription)
     }
 
     @ViewBuilder
     private func subscriptionStatusCard(_ manager: SubscriptionManager) -> some View {
         if manager.isPremium {
+            VStack(alignment: .leading, spacing: 10) {
             // Premium user card
             HStack(spacing: 16) {
                 ZStack {
@@ -917,7 +1287,7 @@ struct ProfileView: View {
                             .font(.caption)
                             .foregroundColor(CosmicTheme.textSecondary)
                     } else {
-                        Text("Full cosmic access unlocked")
+                        Text("Full reading library unlocked")
                             .font(.caption)
                             .foregroundColor(CosmicTheme.textSecondary)
                     }
@@ -931,13 +1301,30 @@ struct ProfileView: View {
             }
             .padding(16)
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 6)
                     .fill(CosmicTheme.gold.opacity(0.08))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: 6)
                             .stroke(CosmicTheme.gold.opacity(0.3), lineWidth: 1)
                     )
             )
+
+                Button {
+                    showingManageSubscription = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "gear")
+                            .font(.caption2)
+                        Text("Manage Subscription")
+                            .font(.caption)
+                    }
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .padding(.vertical, 4)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Manage Subscription")
+                .accessibilityHint("Open Apple subscription management")
+            }
         } else {
             // Free user card with upgrade prompt
             SubscriptionUpgradeCard()
@@ -964,7 +1351,7 @@ struct ProfileView: View {
                 NotificationSettingsCard()
             }
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 6)
                     .fill(CosmicTheme.cardBackground)
             )
         }
@@ -998,9 +1385,9 @@ struct ProfileView: View {
             VStack(spacing: 0) {
                 // Full moon alert (free)
                 LunarSettingRow(
-                    icon: "🌕",
+                    icon: "circle.fill",
                     title: "Full Moon Alert",
-                    subtitle: "Heightened volatility warning",
+                    subtitle: "Calendar marker reminder",
                     isEnabled: moonService.notifyOnFullMoon,
                     onToggle: {
                         moonService.notifyOnFullMoon.toggle()
@@ -1009,14 +1396,14 @@ struct ProfileView: View {
                 )
 
                 Divider()
-                    .background(CosmicTheme.textMuted.opacity(0.2))
+                    .background(CosmicTheme.textMuted.opacity(0.3))
                     .padding(.leading, 48)
 
                 // New moon alert (free)
                 LunarSettingRow(
-                    icon: "🌑",
+                    icon: "circle",
                     title: "New Moon Alert",
-                    subtitle: "Fresh cycle notification",
+                    subtitle: "Quiet calendar marker",
                     isEnabled: moonService.notifyOnNewMoon,
                     onToggle: {
                         moonService.notifyOnNewMoon.toggle()
@@ -1027,11 +1414,11 @@ struct ProfileView: View {
                 // Moon in Sign Alert (PREMIUM)
                 if subscriptionManager.isPremium {
                     Divider()
-                        .background(CosmicTheme.textMuted.opacity(0.2))
+                        .background(CosmicTheme.textMuted.opacity(0.3))
                         .padding(.leading, 48)
 
                     LunarSettingRow(
-                        icon: "✨",
+                        icon: "moon.stars.fill",
                         title: "Moon in Your Sign",
                         subtitle: "Alert when moon enters \(safeUser.sunSign.displayName)",
                         isEnabled: moonService.notifyOnMoonInUserSign,
@@ -1044,7 +1431,7 @@ struct ProfileView: View {
                 }
             }
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 6)
                     .fill(CosmicTheme.cardBackground)
             )
 
@@ -1128,7 +1515,7 @@ struct ProfileView: View {
 
                 if audioService.isEnabled {
                     Divider()
-                        .background(CosmicTheme.textMuted.opacity(0.2))
+                        .background(CosmicTheme.textMuted.opacity(0.3))
                         .padding(.leading, 48)
 
                     // Ambient volume slider
@@ -1154,7 +1541,7 @@ struct ProfileView: View {
                     .padding(.vertical, 12)
 
                     Divider()
-                        .background(CosmicTheme.textMuted.opacity(0.2))
+                        .background(CosmicTheme.textMuted.opacity(0.3))
                         .padding(.leading, 48)
 
                     // Effects volume slider
@@ -1181,7 +1568,7 @@ struct ProfileView: View {
                 }
             }
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 6)
                     .fill(CosmicTheme.cardBackground)
             )
             .animation(.easeInOut(duration: 0.2), value: audioService.isEnabled)
@@ -1198,6 +1585,91 @@ struct ProfileView: View {
             }
             .padding(.horizontal, 4)
         }
+    }
+
+    // MARK: - Reading Framing Section
+
+    private var signalFramingSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Section header
+            HStack(spacing: 6) {
+                Image(systemName: "slider.horizontal.below.square.filled.and.square")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold)
+                Text("Reading Framing")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(CosmicTheme.textSecondary)
+
+                Spacer()
+
+                // Current level indicator
+                SignalFramingIndicator(level: signalFramingBinding.wrappedValue)
+            }
+
+            VStack(spacing: 0) {
+                // Slider row
+                VStack(alignment: .leading, spacing: 16) {
+                    // Explanation text
+                    Text("Control how market astrology readings are presented")
+                        .font(.caption)
+                        .foregroundColor(CosmicTheme.textMuted)
+
+                    // The slider
+                    SignalFramingSlider(level: signalFramingBinding)
+                }
+                .padding(16)
+
+                Divider()
+                    .background(CosmicTheme.textMuted.opacity(0.3))
+
+                // Preview section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("PREVIEW")
+                        .font(TerminalFont.data(9, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .tracking(1)
+
+                    Text(framingPreviewText)
+                        .font(TerminalFont.data(11))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                        .background(CosmicTheme.background)
+                        .overlay(
+                            Rectangle()
+                                .stroke(CosmicTheme.border, lineWidth: 1)
+                        )
+                }
+                .padding(16)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(CosmicTheme.cardBackground)
+            )
+
+            // Info text
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "info.circle")
+                    .font(.caption2)
+                    .foregroundColor(CosmicTheme.textMuted)
+
+                Text("Rational mode uses data-focused language. Mystical mode adds more astrological framing while staying grounded.")
+                    .font(.caption2)
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+            .padding(.horizontal, 4)
+        }
+    }
+
+    /// Preview text that changes based on framing level
+    private var framingPreviewText: String {
+        let level = signalFramingBinding.wrappedValue
+        return framingService.frameHeadline(
+            rational: "Market conditions suggest cautious context today",
+            mystical: "Cosmic conditions favor patience and risk control today",
+            level: level
+        )
     }
 
     private func settingsGroup(title: String, icon: String, settings: [SettingItem]) -> some View {
@@ -1223,13 +1695,13 @@ struct ProfileView: View {
 
                     if setting.id != settings.last?.id {
                         Divider()
-                            .background(CosmicTheme.textMuted.opacity(0.2))
+                            .background(CosmicTheme.textMuted.opacity(0.3))
                             .padding(.leading, 48)
                     }
                 }
             }
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 6)
                     .fill(CosmicTheme.cardBackground)
             )
         }
@@ -1248,11 +1720,13 @@ struct ProfileView: View {
             // Karmic Ledger - Track losses as cosmic lessons
             KarmicLedgerCard()
 
-            // Cosmic Graveyard - Obituaries for fallen stocks
-            CosmicObituaryCard()
+            if LaunchSurfacePolicy.showsCosmicGraveyard {
+                CosmicObituaryCard()
+            }
 
-            // Referral program card
-            ReferralCard()
+            if LaunchSurfacePolicy.showsUnprovenGrowthSurfaces {
+                ReferralCard()
+            }
 
             // Share profile button
             Button(action: { viewModel?.showingShareSheet = true }) {
@@ -1275,10 +1749,10 @@ struct ProfileView: View {
                 .foregroundColor(CosmicTheme.textPrimary)
                 .padding()
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: 6)
                         .fill(CosmicTheme.cardBackground)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 12)
+                            RoundedRectangle(cornerRadius: 6)
                                 .stroke(CosmicTheme.goldGradient, lineWidth: 1)
                         )
                 )
@@ -1296,18 +1770,18 @@ struct ProfileView: View {
                 cosmicJourneyItem(
                     icon: "calendar",
                     value: viewModel?.cosmicJourneyDuration ?? "",
-                    label: "Cosmic Journey"
+                    label: "Member Since"
                 )
 
                 cosmicJourneyItem(
-                    icon: "sparkles",
+                    icon: "scope",
                     value: "\(safeUser.sunSign.compatibleSigns.count)",
                     label: "Compatible Signs"
                 )
             }
             .padding()
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 6)
                     .fill(CosmicTheme.cardBackground)
             )
         }
@@ -1356,7 +1830,7 @@ struct ProfileView: View {
                 )
 
                 Divider()
-                    .background(CosmicTheme.textMuted.opacity(0.2))
+                    .background(CosmicTheme.textMuted.opacity(0.3))
                     .padding(.leading, 48)
 
                 // Privacy Policy
@@ -1367,7 +1841,7 @@ struct ProfileView: View {
                 )
 
                 Divider()
-                    .background(CosmicTheme.textMuted.opacity(0.2))
+                    .background(CosmicTheme.textMuted.opacity(0.3))
                     .padding(.leading, 48)
 
                 // Terms of Service
@@ -1378,7 +1852,7 @@ struct ProfileView: View {
                 )
 
                 Divider()
-                    .background(CosmicTheme.textMuted.opacity(0.2))
+                    .background(CosmicTheme.textMuted.opacity(0.3))
                     .padding(.leading, 48)
 
                 // NFA Disclaimer (Important!)
@@ -1390,7 +1864,7 @@ struct ProfileView: View {
                 )
             }
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 6)
                     .fill(CosmicTheme.cardBackground)
             )
 
@@ -1414,7 +1888,7 @@ struct ProfileView: View {
             .frame(maxWidth: .infinity)
             .padding()
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 6)
                     .stroke(CosmicTheme.negative.opacity(0.5), lineWidth: 1)
             )
         }
@@ -1568,9 +2042,9 @@ struct LunarSettingRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Moon emoji icon
-            Text(icon)
+            Image(systemName: icon)
                 .font(.title2)
+                .foregroundColor(CosmicTheme.gold)
                 .frame(width: 32)
 
             // Labels
@@ -1729,12 +2203,12 @@ struct ProfileEditSheet: View {
                 .foregroundColor(CosmicTheme.textPrimary)
                 .padding(14)
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: 6)
                         .fill(CosmicTheme.secondaryBackground)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(CosmicTheme.textMuted.opacity(0.3), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(CosmicTheme.textMuted.opacity(0.4), lineWidth: 1)
                 )
                 .onChange(of: viewModel.editingName) { _, newValue in
                     if newValue.count > 50 {
@@ -1765,12 +2239,12 @@ struct ProfileEditSheet: View {
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 6)
                     .fill(CosmicTheme.secondaryBackground)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(CosmicTheme.textMuted.opacity(0.3), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(CosmicTheme.textMuted.opacity(0.4), lineWidth: 1)
             )
 
             // Show new sign preview if date changed
@@ -1866,12 +2340,12 @@ struct ProfileEditSheet: View {
         }
         .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 6)
                 .fill(CosmicTheme.secondaryBackground)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(CosmicTheme.textMuted.opacity(0.3), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(CosmicTheme.textMuted.opacity(0.4), lineWidth: 1)
         )
     }
 
@@ -1890,7 +2364,7 @@ struct ProfileEditSheet: View {
                         .fontWeight(.semibold)
                         .foregroundColor(CosmicTheme.textPrimary)
 
-                    Text("Determined by your birth date. Changing it will update your cosmic profile.")
+                    Text("Determined by your birth date. Changing it will update your astrological profile.")
                         .font(.caption2)
                         .foregroundColor(CosmicTheme.textMuted)
                 }
@@ -1898,7 +2372,7 @@ struct ProfileEditSheet: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             Divider()
-                .background(CosmicTheme.textMuted.opacity(0.3))
+                .background(CosmicTheme.textMuted.opacity(0.4))
 
             // Rising sign info
             HStack(alignment: .top, spacing: 10) {
@@ -1916,7 +2390,7 @@ struct ProfileEditSheet: View {
                             .font(.caption2)
                             .foregroundColor(CosmicTheme.textMuted)
                     } else {
-                        Text("Add your birth time to unlock rising sign calculations and more precise cosmic readings.")
+                        Text("Add your birth time to unlock rising sign calculations and more precise readings.")
                             .font(.caption2)
                             .foregroundColor(CosmicTheme.textMuted)
                     }
@@ -1926,7 +2400,7 @@ struct ProfileEditSheet: View {
         }
         .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 6)
                 .fill(CosmicTheme.cardBackground)
         )
     }

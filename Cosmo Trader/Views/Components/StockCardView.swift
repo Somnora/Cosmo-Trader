@@ -2,70 +2,114 @@ import SwiftUI
 
 // MARK: - StockCardView
 // ======================
-// A "dating app profile" style card for stocks.
+// A portfolio-aware signal card for stock discovery.
 //
-// DISPLAYS:
-// - Company name, ticker, logo placeholder
-// - Zodiac sign with symbol
-// - Price and performance
-// - Sector and description
-// - Compatibility score (big and prominent)
-// - Co-Star style compatibility description
+// COMPOSITION (visual redesign pass):
+//   1. Header row    - ticker plate + name/sector + zodiac glyph
+//   2. Price row     - price | daily change (no eyebrow labels)
+//   3. Hero score    - large MATCH % + cosmic match pill
+//   4. Why Today     - single navy panel with one rationale (the only
+//                      explainer on the card)
 //
-// DESIGN: Premium, clean, swipeable dating app aesthetic
+// REMOVED FROM THE ROOT CARD:
+//   - CEO context row  → lives in StockDetailView
+//   - Standalone advice line → lives in StockDetailView
+//   - "PRICE" / "TODAY" eyebrow labels → noise
+//   - Separate compatibility section vstack → consolidated
+//   - Element-dynamic row → was duplicating Why Today
+//
+// COMPACT DIFFERENCES:
+//   - Tighter padding, smaller score, single-line Why Today.
+//   - Zodiac shows glyph only (no sign label).
+//   - Subtitle drops sector when name is long.
 
 struct StockCardView: View {
+
+    // MARK: - Environment
+
+    @Environment(AppState.self) private var appState
 
     // MARK: - Properties
 
     let card: StockCard
     let cardOffset: CGSize
     let isTopCard: Bool
+    let isCompact: Bool
+    let onOpenProfile: (() -> Void)?
 
-    /// Swipe threshold before triggering action
+    init(
+        card: StockCard,
+        cardOffset: CGSize,
+        isTopCard: Bool,
+        isCompact: Bool = false,
+        onOpenProfile: (() -> Void)? = nil
+    ) {
+        self.card = card
+        self.cardOffset = cardOffset
+        self.isTopCard = isTopCard
+        self.isCompact = isCompact
+        self.onOpenProfile = onOpenProfile
+    }
+
     private let swipeThreshold: CGFloat = 100
+
+    // MARK: - Framing
+
+    private var framingLevel: SignalFramingLevel {
+        appState.currentUser?.framingLevel(for: card.stock.symbol) ?? .balanced
+    }
+
+    private var signalRatingLabel: String {
+        switch card.compatibility.rating {
+        case .cosmicSoulmates:   return "STRONG COSMIC MATCH"
+        case .highCompatibility: return "POSITIVE MATCH"
+        case .neutral:           return "NEUTRAL MATCH"
+        case .challenging:       return "MIXED MATCH"
+        case .cosmicClash:       return "OPPOSITE ENERGY"
+        }
+    }
 
     // MARK: - Computed Properties
 
-    /// Normalized swipe progress (-1 to 1)
     private var swipeProgress: CGFloat {
         cardOffset.width / swipeThreshold
     }
 
-    /// Show like indicator
     private var showLikeIndicator: Bool {
         cardOffset.width > 30
     }
 
-    /// Show skip indicator
     private var showSkipIndicator: Bool {
         cardOffset.width < -30
-    }
-
-    /// Show detail indicator (swipe up)
-    private var showDetailIndicator: Bool {
-        cardOffset.height < -30
     }
 
     // MARK: - Body
 
     var body: some View {
         GeometryReader { geometry in
+            // Hero composition. Score block is centered with VStack
+            // spacing balancing the header and the why-today block.
             VStack(spacing: 0) {
-                // Top section: Company info and zodiac
-                topSection
+                headerSection
 
-                // Middle section: Compatibility score
-                compatibilitySection
+                priceSection
+                    .padding(.top, isCompact ? 10 : 14)
 
-                // Bottom section: Description and advice
-                bottomSection
+                Spacer(minLength: isCompact ? 12 : 18)
+
+                scoreSection
+
+                Spacer(minLength: isCompact ? 12 : 18)
+
+                whyTodayPanel
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
+            .padding(.horizontal, isCompact ? 14 : 18)
+            .padding(.top, isCompact ? 14 : 20)
+            .padding(.bottom, isCompact ? 12 : 18)
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
             .background(cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(swipeIndicators)
-            .overlay(cosmicMatchBadge, alignment: .top)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
@@ -79,244 +123,268 @@ struct StockCardView: View {
     private var accessibilityLabel: String {
         var label = "\(card.stock.name), ticker \(card.stock.symbol)"
         if card.isCosmicMatch {
-            label += ". Cosmic match!"
+            label += ". High cosmic match."
         }
         return label
     }
 
     private var accessibilityValue: String {
         let direction = card.stock.isPositive ? "up" : "down"
-        var value = "\(card.compatibility.score) percent compatibility. "
+        var value = "\(card.compatibility.score) percent cosmic match. "
         value += "Price \(card.stock.formattedPrice), \(direction) \(card.stock.formattedPercentageChange). "
         value += "\(card.stock.zodiacSign.displayName) sign, \(card.stock.zodiacSign.element.displayName) element. "
-        value += card.compatibility.description
+        value += card.whyToday
         return value
     }
 
     private var accessibilityHint: String {
-        "Swipe right to add to watchlist, swipe left to skip, swipe up for details"
+        "Swipe right to add to watchlist, swipe left to skip, tap the company name to view profile."
     }
 
-    // MARK: - Top Section
+    // MARK: - Header Section
 
-    private var topSection: some View {
-        VStack(spacing: 16) {
-            // Company logo placeholder and zodiac badge
-            HStack {
-                // Logo placeholder
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(CosmicTheme.secondaryBackground)
-                        .frame(width: 60, height: 60)
+    /// Single-row header. Ticker plate sits left as the brand chip, the
+    /// flexible name/subtitle column reads as the primary identifier,
+    /// and the zodiac glyph sits right as a small contextual mark.
+    private var headerSection: some View {
+        let plateSize: CGFloat = isCompact ? 40 : 48
+        let glyphBox: CGFloat = isCompact ? 36 : 42
+        let glyphSize: CGFloat = isCompact ? 20 : 24
 
-                    Text(String(card.stock.symbol.prefix(2)))
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(CosmicTheme.gold)
-                }
-
-                Spacer()
-
-                // Zodiac sign badge
-                zodiacBadge
-            }
-
-            // Company name and ticker
-            VStack(alignment: .leading, spacing: 4) {
-                Text(card.stock.name)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(CosmicTheme.textPrimary)
-                    .lineLimit(2)
-
-                HStack(spacing: 8) {
-                    Text(card.stock.symbol)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(CosmicTheme.gold)
-
-                    Text("•")
-                        .foregroundColor(CosmicTheme.textMuted)
-
-                    Text(card.stock.sector)
-                        .font(.subheadline)
-                        .foregroundColor(CosmicTheme.textSecondary)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            // Price and performance
-            priceSection
-        }
-        .padding(20)
-    }
-
-    private var zodiacBadge: some View {
-        VStack(spacing: 4) {
+        return HStack(alignment: .center, spacing: 12) {
+            // Ticker plate
             ZStack {
-                Circle()
-                    .fill(elementColor.opacity(0.2))
-                    .frame(width: 56, height: 56)
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(CosmicTheme.panelElevated)
 
-                // Custom zodiac glyph
-                ZodiacSymbolView(sign: card.stock.zodiacSign, size: 32, color: elementColor)
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(CosmicTheme.borderStrong, lineWidth: 1)
+
+                Text(card.stock.symbol)
+                    .font(TerminalFont.ticker(isCompact ? 13 : 15))
+                    .fontWeight(.bold)
+                    .foregroundColor(CosmicTheme.gold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                    .padding(.horizontal, 4)
             }
+            .frame(width: plateSize, height: plateSize)
 
-            Text(card.stock.zodiacSign.displayName)
-                .font(TerminalFont.data(11))
-                .foregroundColor(CosmicTheme.textSecondary)
+            // Name + subtitle. Tapping it opens profile.
+            companyTitle
+
+            Spacer(minLength: 4)
+
+            // Zodiac glyph — element-tinted, no label, no decorative box
+            // border. Smaller and quieter than before so it reads as
+            // contextual ornament rather than a third primary widget.
+            ZStack {
+                Rectangle()
+                    .fill(elementColor.opacity(0.18))
+
+                Rectangle()
+                    .stroke(elementColor.opacity(0.45), lineWidth: 1)
+
+                ZodiacSymbolView(sign: card.stock.zodiacSign, size: glyphSize, color: elementColor)
+            }
+            .frame(width: glyphBox, height: glyphBox)
         }
     }
 
-    private var priceSection: some View {
-        HStack {
-            // Current price - monospace terminal style
-            VStack(alignment: .leading, spacing: 2) {
-                Text("PRICE")
-                    .font(TerminalFont.data(10))
+    @ViewBuilder
+    private var companyTitle: some View {
+        let nameFont: Font = isCompact ? .title3 : .title2
+        let subFont: Font = isCompact ? .caption : .footnote
+
+        let content = VStack(alignment: .leading, spacing: 2) {
+            Text(card.stock.name)
+                .font(nameFont)
+                .fontWeight(.bold)
+                .foregroundColor(CosmicTheme.textPrimary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+
+            HStack(spacing: 6) {
+                Text(card.stock.zodiacSign.displayName.uppercased())
+                    .font(TerminalFont.data(isCompact ? 9 : 10, weight: .semibold))
+                    .foregroundColor(elementColor)
+                    .tracking(1)
+
+                Text("·")
+                    .font(.caption2)
                     .foregroundColor(CosmicTheme.textMuted)
 
-                Text(card.stock.formattedPrice)
-                    .font(TerminalFont.price(22))
-                    .foregroundColor(CosmicTheme.textPrimary)
+                Text(card.stock.sector)
+                    .font(subFont)
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+
+        if onOpenProfile != nil {
+            content
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onOpenProfile?()
+                }
+        } else {
+            content
+        }
+    }
+
+    // MARK: - Price Section
+
+    /// Confident price + daily move on one row. No "PRICE / TODAY"
+    /// eyebrow labels — the values are self-evident, and removing the
+    /// labels reclaims ~16pt of vertical real estate for the score.
+    private var priceSection: some View {
+        let priceSize: CGFloat = isCompact ? 22 : 28
+        let changeSize: CGFloat = isCompact ? 13 : 15
+
+        return HStack(alignment: .firstTextBaseline) {
+            Text(card.stock.formattedPrice)
+                .font(TerminalFont.price(priceSize, weight: .semibold))
+                .foregroundColor(CosmicTheme.textPrimary)
 
             Spacer()
 
-            // Daily change
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("TODAY")
-                    .font(TerminalFont.data(10))
-                    .foregroundColor(CosmicTheme.textMuted)
+            HStack(spacing: 5) {
+                Image(systemName: card.stock.isPositive ? "arrow.up.right" : "arrow.down.right")
+                    .font(.system(size: changeSize - 2, weight: .bold))
 
-                HStack(spacing: 4) {
-                    Image(systemName: card.stock.isPositive ? "arrow.up.right" : "arrow.down.right")
-                        .font(.caption)
-
-                    Text(card.stock.formattedPercentageChange)
-                        .font(TerminalFont.data(15, weight: .semibold))
-                }
-                .foregroundColor(card.stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
+                Text(card.stock.formattedPercentageChange)
+                    .font(TerminalFont.data(changeSize, weight: .semibold))
             }
-        }
-        .padding(16)
-        .background(
-            Rectangle()
-                .fill(CosmicTheme.secondaryBackground)
-        )
-        .overlay(
-            Rectangle()
-                .stroke(CosmicTheme.border, lineWidth: 0.5)
-        )
-    }
-
-    // MARK: - Compatibility Section
-
-    private var compatibilitySection: some View {
-        VStack(spacing: 12) {
-            // Big compatibility score - monospace terminal style
-            HStack(spacing: 8) {
-                Text("\(card.compatibility.score)%")
-                    .font(TerminalFont.price(52))
-                    .foregroundStyle(compatibilityGradient)
-
-                Text("MATCH")
-                    .font(TerminalFont.data(16))
-                    .foregroundColor(CosmicTheme.textSecondary)
-            }
-
-            // Rating badge - sharp corners
-            HStack(spacing: 6) {
-                Text(card.compatibility.rating.emoji)
-
-                Text(card.compatibility.rating.displayName.uppercased())
-                    .font(TerminalFont.data(12, weight: .semibold))
-                    .foregroundColor(ratingColor)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .foregroundColor(card.stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
             .background(
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(ratingColor.opacity(0.15))
+                Capsule()
+                    .fill(card.stock.isPositive ? CosmicTheme.positive.opacity(0.10) : CosmicTheme.negative.opacity(0.10))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 2)
-                    .stroke(ratingColor.opacity(0.3), lineWidth: 0.5)
+                Capsule()
+                    .stroke(
+                        (card.stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative).opacity(0.32),
+                        lineWidth: 0.75
+                    )
+            )
+        }
+    }
+
+    // MARK: - Score Section (Hero)
+
+    /// The large MATCH score is the visual centerpiece: what the user
+    /// reads first. The cosmic match pill below it is the single
+    /// rating-language treatment on the card.
+    private var scoreSection: some View {
+        let scoreSize: CGFloat = isCompact ? 56 : 84
+        let pctSize: CGFloat = isCompact ? 26 : 36
+        let pillFont: CGFloat = isCompact ? 11 : 12
+
+        return VStack(spacing: isCompact ? 8 : 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(card.compatibility.score)")
+                    .font(.system(size: scoreSize, weight: .bold, design: .monospaced))
+                    .foregroundStyle(scoreGradient)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+
+                Text("%")
+                    .font(.system(size: pctSize, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(scoreGradient)
+                    .baselineOffset(2)
+
+                Text("MATCH")
+                    .font(TerminalFont.data(isCompact ? 14 : 16, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .tracking(2)
+                    .padding(.leading, 6)
+            }
+
+            HStack(spacing: 6) {
+                Image(systemName: card.compatibility.rating.sfSymbol)
+                    .font(.system(size: pillFont, weight: .semibold))
+                    .foregroundColor(ratingColor)
+
+                Text(signalRatingLabel)
+                    .font(TerminalFont.data(pillFont, weight: .semibold))
+                    .foregroundColor(ratingColor)
+                    .tracking(1.4)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(ratingColor.opacity(0.12))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(ratingColor.opacity(0.32), lineWidth: 0.75)
             )
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
     }
 
-    // MARK: - Bottom Section
+    // MARK: - Why Today Panel
 
-    private var bottomSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Element dynamic
-            HStack(spacing: 8) {
-                ElementSymbolView(element: card.stock.zodiacSign.element, size: 14)
+    /// The single explainer on the card. Replaces the CEO row, the
+    /// element-dynamic row, and the standalone advice line — all of
+    /// which were competing for the same "context" slot.
+    private var whyTodayPanel: some View {
+        let bodySize: CGFloat = isCompact ? 11 : 12
+        let bodyLines: Int = isCompact ? 3 : 3
 
-                Text(card.compatibility.elementDynamic)
-                    .font(.subheadline)
-                    .foregroundColor(CosmicTheme.textSecondary)
-                    .italic()
-                    .lineLimit(2)
+        return HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "scope")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(CosmicTheme.gold)
+                .frame(width: 14, height: 14)
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("WHY TODAY")
+                    .font(TerminalFont.data(9, weight: .semibold))
+                    .foregroundColor(CosmicTheme.gold)
+                    .tracking(1.4)
+
+                Text(card.whyToday)
+                    .font(TerminalFont.data(bodySize))
+                    .foregroundColor(CosmicTheme.textPrimary.opacity(0.92))
+                    .lineSpacing(2)
+                    .lineLimit(bodyLines)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            // CEO info (if available)
-            if card.stock.hasCEOInfo {
-                ceoBadge
-            }
-
-            Divider()
-                .background(CosmicTheme.textMuted.opacity(0.3))
-
-            // Co-Star style description
-            Text(card.compatibility.description)
-                .font(.body)
-                .foregroundColor(CosmicTheme.textPrimary)
-                .lineSpacing(4)
-                .lineLimit(4)
-                .fixedSize(horizontal: false, vertical: true)
-
-            // Advice
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "lightbulb.fill")
-                    .font(.caption)
-                    .foregroundColor(CosmicTheme.gold)
-
-                Text(card.compatibility.advice)
-                    .font(.caption)
-                    .foregroundColor(CosmicTheme.textMuted)
-                    .lineLimit(2)
-            }
-            .padding(.top, 4)
+            Spacer(minLength: 0)
         }
-        .padding(20)
+        .padding(.horizontal, isCompact ? 12 : 14)
+        .padding(.vertical, isCompact ? 10 : 12)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(CosmicTheme.panelNavy)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .stroke(CosmicTheme.borderNavy, lineWidth: 1)
+        )
     }
 
     // MARK: - Swipe Indicators
 
     private var swipeIndicators: some View {
         ZStack {
-            // Like indicator (right swipe)
             if showLikeIndicator {
                 likeIndicator
                     .opacity(Double(min(swipeProgress, 1)))
             }
 
-            // Skip indicator (left swipe)
             if showSkipIndicator {
                 skipIndicator
                     .opacity(Double(min(-swipeProgress, 1)))
-            }
-
-            // Detail indicator (up swipe)
-            if showDetailIndicator {
-                detailIndicator
-                    .opacity(Double(min(-cardOffset.height / swipeThreshold, 1)))
             }
         }
     }
@@ -360,119 +428,15 @@ struct StockCardView: View {
         }
     }
 
-    private var detailIndicator: some View {
-        VStack {
-            ZStack {
-                Capsule()
-                    .fill(CosmicTheme.gold.opacity(0.9))
-                    .frame(width: 120, height: 44)
-
-                HStack(spacing: 6) {
-                    Image(systemName: "star.fill")
-                        .font(.headline)
-
-                    Text("View")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                }
-                .foregroundColor(CosmicTheme.background)
-            }
-            .padding(.top, 24)
-            Spacer()
-        }
-    }
-
-    // MARK: - Cosmic Match Badge
-
-    @ViewBuilder
-    private var cosmicMatchBadge: some View {
-        if card.isCosmicMatch {
-            HStack(spacing: 6) {
-                Image(systemName: "sparkles")
-                    .font(.caption)
-
-                Text("COSMIC MATCH")
-                    .font(.caption)
-                    .fontWeight(.bold)
-            }
-            .foregroundColor(CosmicTheme.background)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                Capsule()
-                    .fill(CosmicTheme.goldGradient)
-            )
-            .offset(y: -12)
-        }
-    }
-
-    // MARK: - CEO Badge
-
-    private var ceoBadge: some View {
-        HStack(spacing: 10) {
-            // CEO zodiac indicator
-            if let ceoSign = card.stock.ceoZodiacSign {
-                ZStack {
-                    Circle()
-                        .fill(ceoElementColor.opacity(0.2))
-                        .frame(width: 28, height: 28)
-
-                    ZodiacSymbolView(sign: ceoSign, size: 14, color: ceoElementColor)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Led by \(card.stock.ceoName ?? "CEO")")
-                    .font(TerminalFont.data(11, weight: .medium))
-                    .foregroundColor(CosmicTheme.textPrimary)
-
-                if let ceoSign = card.stock.ceoZodiacSign {
-                    Text(ceoSign.displayName)
-                        .font(TerminalFont.data(10))
-                        .foregroundColor(ceoElementColor)
-                }
-            }
-
-            Spacer()
-
-            // CEO-User alignment indicator
-            Image(systemName: "person.fill.checkmark")
-                .font(.caption)
-                .foregroundColor(CosmicTheme.cosmicPurple.opacity(0.7))
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(CosmicTheme.cosmicPurple.opacity(0.08))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(CosmicTheme.cosmicPurple.opacity(0.2), lineWidth: 0.5)
-        )
-    }
-
-    private var ceoElementColor: Color {
-        guard let element = card.stock.ceoElement else { return CosmicTheme.textSecondary }
-        switch element {
-        case .fire:  return CosmicTheme.fireElement
-        case .earth: return CosmicTheme.earthElement
-        case .air:   return CosmicTheme.airElement
-        case .water: return CosmicTheme.waterElement
-        }
-    }
-
     // MARK: - Card Background
 
     private var cardBackground: some View {
         ZStack {
-            // Base terminal color
-            CosmicTheme.cardBackground
+            CosmicTheme.panelElevated
 
-            // Very subtle gradient overlay based on element
             LinearGradient(
                 colors: [
-                    elementColor.opacity(0.05),
+                    elementColor.opacity(0.06),
                     Color.clear
                 ],
                 startPoint: .topTrailing,
@@ -480,17 +444,17 @@ struct StockCardView: View {
             )
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 24)
+            RoundedRectangle(cornerRadius: 8)
                 .stroke(
                     LinearGradient(
                         colors: [
-                            elementColor.opacity(0.3),
-                            CosmicTheme.border
+                            elementColor.opacity(0.4),
+                            CosmicTheme.borderStrong
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
-                    lineWidth: 0.5
+                    lineWidth: 1
                 )
         )
     }
@@ -516,7 +480,7 @@ struct StockCardView: View {
         }
     }
 
-    private var compatibilityGradient: LinearGradient {
+    private var scoreGradient: LinearGradient {
         if card.isCosmicMatch {
             return CosmicTheme.goldGradient
         } else {
@@ -561,6 +525,23 @@ struct StockCardView: View {
 
         StockCardView(card: card, cardOffset: .zero, isTopCard: true)
             .frame(height: 600)
+            .padding(20)
+    }
+}
+
+#Preview("Stock Card - Compact") {
+    let stock = MockStockData.all.first { $0.symbol == "DIS" } ?? MockStockData.all.first!
+    let user = UserProfile.sampleWithHoldings
+    let card = StockCard(
+        stock: stock,
+        compatibility: user.compatibility(with: stock)
+    )
+
+    ZStack {
+        CosmicTheme.background.ignoresSafeArea()
+
+        StockCardView(card: card, cardOffset: .zero, isTopCard: true, isCompact: true)
+            .frame(height: 380)
             .padding(20)
     }
 }

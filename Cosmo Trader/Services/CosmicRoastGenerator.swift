@@ -351,13 +351,13 @@ final class CosmicRoastGenerator {
         }
 
         if ytdReturn < -10 {
-            return "Suggested Action: Add \(deficientElement.displayName) sector for stability. Consider also: therapy."
+            return "Cosmic note: your chart leans away from \(deficientElement.displayName) energy. Read it as a reflection prompt, not a trade."
         } else if ytdReturn < 0 {
-            return "Suggested Action: Balance with \(deficientElement.displayName) energy. Or blame Mercury. Your choice."
+            return "Cosmic note: the chart wants more \(deficientElement.displayName) energy. Or you can keep blaming Mercury. Up to you."
         } else if ytdReturn < 15 {
-            return "Suggested Action: Maintain course. Maybe add some \(deficientElement.displayName) for cosmic balance."
+            return "Cosmic note: chart is steady. Sprinkle in some \(deficientElement.displayName) energy if you want symmetry."
         } else {
-            return "Suggested Action: Touch grass. Your gains have gone to your head. Classic \(userSign.displayName)."
+            return "Cosmic note: touch grass. Your gains have gone to your head. Classic \(userSign.displayName)."
         }
     }
 

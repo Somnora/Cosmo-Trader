@@ -4,7 +4,7 @@ import SwiftUI
 
 // MARK: - Notification Service
 // =============================
-// Handles all push notification logic for Cosmo Trader.
+// Handles local notification logic for Cosmo Trader.
 // Requests permission thoughtfully, schedules strategic notifications,
 // and respects user preferences at all times.
 
@@ -287,11 +287,11 @@ final class NotificationService {
 
     private func randomHoroscopeMessage() -> String {
         let messages = [
-            "Your cosmic portfolio reading is ready.",
-            "The stars have aligned. Check your holdings.",
-            "A new day, new cosmic insights await.",
-            "Your celestial market forecast is in.",
-            "The universe has something to say about your portfolio."
+            "Your portfolio reading is ready.",
+            "Today's reading is ready.",
+            "A new market-astrology note is available.",
+            "Today's lens is in.",
+            "Your portfolio reading has refreshed."
         ]
         return messages.randomElement() ?? messages[0]
     }
@@ -316,7 +316,7 @@ final class NotificationService {
                     await scheduleNotification(
                         id: "\(NotificationID.moonPhasePrefix)full.\(dayOffset)",
                         title: "Full Moon Tomorrow",
-                        body: "Expect heightened volatility. The lunar tide is rising.",
+                        body: "Full Moon overnight - a calendar marker, not a market call.",
                         date: dayBefore,
                         hour: 18,
                         minute: 0
@@ -329,7 +329,7 @@ final class NotificationService {
                 await scheduleNotification(
                     id: "\(NotificationID.moonPhasePrefix)new.\(dayOffset)",
                     title: "New Moon Today",
-                    body: "Fresh cycle for fresh positions. Plant seeds for growth.",
+                    body: "New Moon today - a quiet marker in the lunar calendar.",
                     date: date,
                     hour: 8,
                     minute: 0
@@ -385,8 +385,8 @@ final class NotificationService {
 
     private func scheduleWeeklySummary() async {
         let content = UNMutableNotificationContent()
-        content.title = "Your Week in the Cosmos"
-        content.body = "Your cosmic portfolio summary is ready. Tap to see how the stars treated you."
+        content.title = "Your Weekly Portfolio Read"
+        content.body = "Your portfolio summary is ready. Tap to review this week's market astrology reading."
         content.sound = .default
 
         // Sunday at 6:00 PM
@@ -530,8 +530,8 @@ final class NotificationService {
         guard isAuthorized && portfolioAlertsEnabled else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "⚡ \(symbol): Cosmic Confluence"
-        content.body = "\(pattern) detected as \(cosmicEvent). \(compatibility)% compatible with \(userSign.displayName)."
+        content.title = "\(symbol): chart + chart-of-the-sky note"
+        content.body = "A \(pattern) overlaps with \(cosmicEvent). Lens only - not a signal."
         content.sound = .default
         content.badge = 1
         content.userInfo = [
@@ -568,14 +568,14 @@ final class NotificationService {
         let content = UNMutableNotificationContent()
 
         if daysUntil == 0 {
-            content.title = "⚠️ Mercury Retrograde Begins Today"
-            content.body = "\(affectedStocksCount) stocks in your portfolio historically volatile during retrogrades."
+            content.title = "Mercury Retrograde Begins Today"
+            content.body = "Mercury retrograde begins today. A traditional calendar marker - not a market forecast."
         } else if daysUntil == 1 {
-            content.title = "⚠️ Mercury Retrograde Tomorrow"
-            content.body = "\(affectedStocksCount) stocks in your portfolio may see increased volatility."
+            content.title = "Mercury Retrograde Tomorrow"
+            content.body = "Mercury retrograde begins tomorrow. A traditional calendar marker - not a market forecast."
         } else {
             content.title = "Mercury Retrograde Approaching"
-            content.body = "Begins in \(daysUntil) days. \(affectedStocksCount) portfolio stocks to watch."
+            content.body = "Mercury retrograde begins in \(daysUntil) days. A traditional calendar marker - not a market forecast."
         }
 
         content.sound = .default
@@ -601,7 +601,7 @@ final class NotificationService {
         guard isAuthorized && portfolioAlertsEnabled else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "🎯 Portfolio Milestone"
+        content.title = "Portfolio milestone"
         content.body = "\(milestone) — \(message)"
         content.sound = .default
         content.userInfo = ["type": "portfolio_milestone", "milestone": milestone]
@@ -669,7 +669,7 @@ final class NotificationService {
 
         let content = UNMutableNotificationContent()
         content.title = "Portfolio Alert"
-        content.body = "Your portfolio moved \(String(format: "%.1f", abs(changePercent)))% \(direction) today. The stars are loud."
+        content.body = "Your portfolio moved \(String(format: "%.1f", abs(changePercent)))% \(direction) today. Review the reading."
         content.sound = .default
         content.userInfo = ["type": "portfolio_move", "change": changePercent]
 
@@ -695,8 +695,8 @@ final class NotificationService {
         guard isAuthorized else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "Cosmic Connection Established"
-        content.body = "Your notifications are working. The stars can reach you now."
+        content.title = "Notifications Enabled"
+        content.body = "Your alerts are working. Signal updates can reach you now."
         content.sound = .default
 
         // Deliver in 2 seconds
@@ -827,15 +827,15 @@ struct NotificationPermissionView: View {
             // Benefits list
             VStack(alignment: .leading, spacing: 16) {
                 benefitRow(
-                    icon: "sparkles",
-                    title: "Daily Horoscopes",
-                    description: "Your morning cosmic portfolio reading"
+                    icon: "chart.line.uptrend.xyaxis",
+                    title: "Daily Readings",
+                    description: "Your morning portfolio reading"
                 )
 
                 benefitRow(
                     icon: "moon.stars.fill",
                     title: "Moon Phase Alerts",
-                    description: "Full moon volatility & new moon opportunities"
+                    description: "Local lunar calendar markers"
                 )
 
                 benefitRow(
