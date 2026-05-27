@@ -325,7 +325,14 @@ struct DailyBriefView: View {
                         .font(TerminalFont.data(14, weight: .semibold))
                         .foregroundColor(CosmicTheme.textPrimary)
 
-                    ZodiacMark(sign: highlight.stock.zodiacSign, size: .tiny, style: .element)
+                    if let foundedZodiacSign = highlight.stock.foundedZodiacSign {
+                        ZodiacMark(sign: foundedZodiacSign, size: .tiny, style: .element)
+                    } else {
+                        Text("?")
+                            .font(TerminalFont.data(11, weight: .semibold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .accessibilityLabel("unknown zodiac sign")
+                    }
                 }
 
                 HStack(spacing: 4) {

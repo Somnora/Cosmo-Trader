@@ -144,12 +144,14 @@ class AstroAlertService {
 
     /// Check if a stock's zodiac sign is affected by current events
     func isStockAffected(_ stock: Stock) -> Bool {
-        isElementAffected(stock.zodiacSign.element)
+        guard let element = stock.element else { return false }
+        return isElementAffected(element)
     }
 
     /// Get active events affecting a specific stock
     func eventsAffecting(stock: Stock) -> [CosmicEvent] {
-        eventsAffecting(element: stock.zodiacSign.element)
+        guard let element = stock.element else { return [] }
+        return eventsAffecting(element: element)
     }
 
     /// Get cosmic caution level for a stock (0-100)

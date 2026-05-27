@@ -32,16 +32,37 @@ struct StockDetailView: View {
         appState.currentUser
     }
 
+    /// Verified company sign, nil when the founding/IPO date is unknown.
+    private var companyZodiacSign: ZodiacSign? {
+        stock.foundedZodiacSign
+    }
+
+    private var companyAstroUnavailableText: String {
+        "Company founding date is unknown, so zodiac-based readings are unavailable."
+    }
+
     /// Computed compatibility result (nil if no user)
     private var compatibility: CompatibilityResult? {
-        user?.compatibility(with: stock)
+        guard companyZodiacSign != nil else { return nil }
+        return user?.compatibility(with: stock)
     }
 
     /// Safe compatibility for rendering (uses stock's default when no user)
     private var safeCompatibility: CompatibilityResult {
-        user?.compatibility(with: stock) ?? CompatibilityResult(
+        guard let companyZodiacSign else {
+            return CompatibilityResult(
+                userSign: user?.sunSign ?? .aries,
+                stockSign: .aries,
+                score: 0,
+                description: companyAstroUnavailableText,
+                advice: "Add a verified founding or IPO date before using company-specific astrology.",
+                elementDynamic: companyAstroUnavailableText
+            )
+        }
+
+        return user?.compatibility(with: stock) ?? CompatibilityResult(
             userSign: .aries,
-            stockSign: stock.zodiacSign,
+            stockSign: companyZodiacSign,
             score: 50,
             description: "Sign in to see your personal compatibility",
             advice: "Complete your profile to get personalized cosmic insights.",
@@ -93,16 +114,18 @@ struct StockDetailView: View {
 
     /// Framed zodiac personality description
     private var framedPersonalityDescription: String {
-        SignalFramingService.shared.frameZodiacPersonality(
-            sign: stock.zodiacSign,
+        guard let companyZodiacSign else { return companyAstroUnavailableText }
+        return SignalFramingService.shared.frameZodiacPersonality(
+            sign: companyZodiacSign,
             level: effectiveFramingLevel
         )
     }
 
     /// Framed corporate personality description
     private var framedCorporatePersonality: String {
-        SignalFramingService.shared.frameCorporatePersonality(
-            sign: stock.zodiacSign,
+        guard let companyZodiacSign else { return companyAstroUnavailableText }
+        return SignalFramingService.shared.frameCorporatePersonality(
+            sign: companyZodiacSign,
             level: effectiveFramingLevel
         )
     }
@@ -121,12 +144,13 @@ struct StockDetailView: View {
 
     /// Framed element dynamic description
     private var framedElementDynamic: String {
+        guard let companyZodiacSign else { return companyAstroUnavailableText }
         guard let userSign = user?.sunSign else {
             return safeCompatibility.elementDynamic
         }
         return SignalFramingService.shared.frameElementDynamic(
             userElement: userSign.element,
-            stockElement: stock.zodiacSign.element,
+            stockElement: companyZodiacSign.element,
             level: effectiveFramingLevel
         )
     }
@@ -167,31 +191,37 @@ struct StockDetailView: View {
                     // 3. Key Statistics
                     keyStatsSection
 
-                    // 3.5. Cosmic Signals (Technical + Astro Analysis)
-                    cosmicSignalsSection
+                    if companyZodiacSign != nil {
+                        // 3.5. Cosmic Signals (Technical + Astro Analysis)
+                        cosmicSignalsSection
 
-                    // 4. Compatibility Section
-                    compatibilitySection
+                        // 4. Compatibility Section
+                        compatibilitySection
 
-                    // 4.5 Signal Framing Override (Premium)
-                    framingOverrideSection
+                        // 4.5 Signal Framing Override (Premium)
+                        framingOverrideSection
 
-                    // 3. Astrological Profile
-                    astrologicalProfileSection
+                        // 3. Astrological Profile
+                        astrologicalProfileSection
+                    } else {
+                        unknownCompanyAstroSection
+                    }
 
                     // 3.5 CEO Compatibility (if CEO info available)
                     if stock.hasCEOInfo {
                         ceoCompatibilitySection
                     }
 
-                    // 4. Saturn Return Analysis (if company is approaching/in Saturn Return)
-                    SaturnReturnCard(stock: stock)
+                    if companyZodiacSign != nil {
+                        // 4. Saturn Return Analysis (if company is approaching/in Saturn Return)
+                        SaturnReturnCard(stock: stock)
 
-                    // 5. Cosmic Rivals (opposition stocks)
-                    CosmicRivalCard(stock: stock, allStocks: MockStockData.all)
+                        // 5. Cosmic Rivals (opposition stocks)
+                        CosmicRivalCard(stock: stock, allStocks: MockStockData.knownStocks)
 
-                    // 6. Upcoming Earnings with Cosmic Horoscope
-                    StockEarningsSection(stock: stock)
+                        // 6. Upcoming Earnings with Cosmic Horoscope
+                        StockEarningsSection(stock: stock)
+                    }
 
                     // 7. Financial Stats
                     financialStatsSection
@@ -358,11 +388,17 @@ struct StockDetailView: View {
                     .stroke(elementColor.opacity(0.5), lineWidth: 1)
                     .frame(width: 56, height: 56)
 
-                // Custom zodiac glyph
-                ZodiacSymbolView(sign: stock.zodiacSign, size: 28, color: elementColor)
+                if let companyZodiacSign {
+                    // Custom zodiac glyph
+                    ZodiacSymbolView(sign: companyZodiacSign, size: 28, color: elementColor)
+                } else {
+                    Image(systemName: "questionmark")
+                        .font(TerminalFont.data(18, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
             }
 
-            Text(stock.zodiacSign.displayName)
+            Text(companyZodiacSign?.displayName ?? "Unknown")
                 .font(TerminalFont.data(11))
                 .foregroundColor(CosmicTheme.textSecondary)
         }
@@ -529,6 +565,14 @@ struct StockDetailView: View {
     }
 
     private func loadCosmicPatterns() async {
+        guard companyZodiacSign != nil else {
+            await MainActor.run {
+                cosmicInsights = []
+                isLoadingPatterns = false
+            }
+            return
+        }
+
         isLoadingPatterns = true
 
         // Small delay to simulate analysis
@@ -542,6 +586,55 @@ struct StockDetailView: View {
             )
             isLoadingPatterns = false
         }
+    }
+
+    private var unknownCompanyAstroSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                Image(systemName: "questionmark.circle")
+                    .foregroundColor(CosmicTheme.textMuted)
+
+                Text("COMPANY ASTROLOGY")
+                    .font(TerminalFont.data(12, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textPrimary)
+
+                Spacer()
+            }
+
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Founded")
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textMuted)
+
+                    Text("Unknown")
+                        .font(TerminalFont.data(13, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Sign")
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textMuted)
+
+                    Text("Unknown")
+                        .font(TerminalFont.data(13, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            Text(companyAstroUnavailableText)
+                .font(TerminalFont.data(11))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineSpacing(3)
+        }
+        .padding(20)
+        .background(cardBackground)
+        .opacity(appearAnimation ? 1 : 0)
+        .offset(y: appearAnimation ? 0 : 20)
+        .animation(.easeOut(duration: 0.5).delay(0.1), value: appearAnimation)
     }
 
     // MARK: - Compatibility Section
@@ -646,48 +739,54 @@ struct StockDetailView: View {
                 .fontWeight(.semibold)
                 .foregroundColor(CosmicTheme.textMuted)
 
-            // Element synergy
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(userElementColor.opacity(0.2))
-                        .frame(width: 36, height: 36)
+            if let companyZodiacSign {
+                // Element synergy
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(userElementColor.opacity(0.2))
+                            .frame(width: 36, height: 36)
 
-                    ElementSymbolView(element: (user?.sunSign ?? .aries).element, size: 18)
+                        ElementSymbolView(element: (user?.sunSign ?? .aries).element, size: 18)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Element Synergy")
+                            .font(TerminalFont.data(11, weight: .semibold))
+                            .foregroundColor(CosmicTheme.textPrimary)
+
+                        Text(framedElementDynamic)
+                            .font(TerminalFont.data(11))
+                            .foregroundColor(CosmicTheme.textSecondary)
+                            .lineLimit(2)
+                    }
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Element Synergy")
-                        .font(TerminalFont.data(11, weight: .semibold))
-                        .foregroundColor(CosmicTheme.textPrimary)
+                Divider()
+                    .background(CosmicTheme.textMuted.opacity(0.4))
 
-                    Text(framedElementDynamic)
-                        .font(TerminalFont.data(11))
-                        .foregroundColor(CosmicTheme.textSecondary)
-                        .lineLimit(2)
+                // Sign connection
+                HStack(spacing: 12) {
+                    HStack(spacing: 4) {
+                        ZodiacSymbolView(sign: user?.sunSign ?? .aries, size: 20, color: userElementColor)
+                        ZodiacSymbolView(sign: companyZodiacSign, size: 20, color: elementColor)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\((user?.sunSign ?? .aries).displayName) + \(companyZodiacSign.displayName)")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(CosmicTheme.textPrimary)
+
+                        Text(signConnectionDescription)
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.textSecondary)
+                    }
                 }
-            }
-
-            Divider()
-                .background(CosmicTheme.textMuted.opacity(0.4))
-
-            // Sign connection
-            HStack(spacing: 12) {
-                HStack(spacing: 4) {
-                    ZodiacSymbolView(sign: user?.sunSign ?? .aries, size: 20, color: userElementColor)
-                    ZodiacSymbolView(sign: stock.zodiacSign, size: 20, color: elementColor)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\((user?.sunSign ?? .aries).displayName) + \(stock.zodiacSign.displayName)")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(CosmicTheme.textPrimary)
-
-                    Text(signConnectionDescription)
-                        .font(.caption)
-                        .foregroundColor(CosmicTheme.textSecondary)
-                }
+            } else {
+                Text(companyAstroUnavailableText)
+                    .font(TerminalFont.data(11))
+                    .foregroundColor(CosmicTheme.textSecondary)
             }
         }
         .padding(14)
@@ -698,11 +797,13 @@ struct StockDetailView: View {
     }
 
     private var signConnectionDescription: String {
-        if user?.sunSign ?? .aries == stock.zodiacSign {
+        guard let companyZodiacSign else { return companyAstroUnavailableText }
+
+        if user?.sunSign ?? .aries == companyZodiacSign {
             return "Same sign energy - deep mutual understanding"
-        } else if (user?.sunSign ?? .aries).element == stock.zodiacSign.element {
+        } else if (user?.sunSign ?? .aries).element == companyZodiacSign.element {
             return "Same element - natural elemental harmony"
-        } else if (user?.sunSign ?? .aries).isCompatible(with: stock.zodiacSign) {
+        } else if (user?.sunSign ?? .aries).isCompatible(with: companyZodiacSign) {
             return "Traditional compatibility - aligned energy"
         } else {
             return "Contrasting energies - potential for growth"
@@ -711,7 +812,16 @@ struct StockDetailView: View {
 
     // MARK: - Astrological Profile Section
 
+    @ViewBuilder
     private var astrologicalProfileSection: some View {
+        if let companyZodiacSign {
+            astrologicalProfileContent(for: companyZodiacSign)
+        } else {
+            unknownCompanyAstroSection
+        }
+    }
+
+    private func astrologicalProfileContent(for companyZodiacSign: ZodiacSign) -> some View {
         VStack(alignment: .leading, spacing: 20) {
             // Section header
             HStack {
@@ -731,14 +841,14 @@ struct StockDetailView: View {
             // Sign description
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
-                    ZodiacSymbolView(sign: stock.zodiacSign, size: 36, color: elementColor)
+                    ZodiacSymbolView(sign: companyZodiacSign, size: 36, color: elementColor)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(stock.zodiacSign.displayName)
+                        Text(companyZodiacSign.displayName)
                             .font(TerminalFont.headline(18))
                             .foregroundColor(CosmicTheme.textPrimary)
 
-                        Text(stock.zodiacSign.dateRangeDescription)
+                        Text(companyZodiacSign.dateRangeDescription)
                             .font(TerminalFont.data(11))
                             .foregroundColor(CosmicTheme.textMuted)
                     }
@@ -799,12 +909,18 @@ struct StockDetailView: View {
                     .font(TerminalFont.data(10))
                     .foregroundColor(CosmicTheme.textMuted)
 
-                HStack(spacing: 6) {
-                    ElementSymbolView(element: stock.zodiacSign.element, size: 14)
+                if let companyZodiacSign {
+                    HStack(spacing: 6) {
+                        ElementSymbolView(element: companyZodiacSign.element, size: 14)
 
-                    Text(stock.zodiacSign.element.displayName)
+                        Text(companyZodiacSign.element.displayName)
+                            .font(TerminalFont.data(13, weight: .semibold))
+                            .foregroundColor(elementColor)
+                    }
+                } else {
+                    Text("Unknown")
                         .font(TerminalFont.data(13, weight: .semibold))
-                        .foregroundColor(elementColor)
+                        .foregroundColor(CosmicTheme.textSecondary)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -819,10 +935,10 @@ struct StockDetailView: View {
                     .font(.caption)
                     .foregroundColor(CosmicTheme.textMuted)
 
-                Text(stock.zodiacSign.modality.displayName)
+                Text(companyZodiacSign?.modality.displayName ?? "Unknown")
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                    .foregroundColor(CosmicTheme.textPrimary)
+                    .foregroundColor(companyZodiacSign == nil ? CosmicTheme.textSecondary : CosmicTheme.textPrimary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -1124,9 +1240,11 @@ struct StockDetailView: View {
 
     /// Sample text showing how this stock's signals would be framed
     private var framingSampleText: String {
-        SignalFramingService.shared.frameCompatibility(
+        guard let companyZodiacSign else { return companyAstroUnavailableText }
+
+        return SignalFramingService.shared.frameCompatibility(
             userSign: user?.sunSign ?? .aries,
-            stockSign: stock.zodiacSign,
+            stockSign: companyZodiacSign,
             rating: safeCompatibility.rating,
             level: effectiveFramingLevel
         )
@@ -1142,7 +1260,14 @@ struct StockDetailView: View {
                 VStack(spacing: 24) {
                     // Stock info header
                     HStack(spacing: 12) {
-                        ZodiacSymbolView(sign: stock.zodiacSign, size: 40, color: elementColor)
+                        if let companyZodiacSign {
+                            ZodiacSymbolView(sign: companyZodiacSign, size: 40, color: elementColor)
+                        } else {
+                            Image(systemName: "questionmark.circle")
+                                .font(.title2)
+                                .foregroundColor(CosmicTheme.textMuted)
+                                .frame(width: 40, height: 40)
+                        }
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(stock.symbol)
@@ -1293,7 +1418,7 @@ struct StockDetailView: View {
             StatsGridView(stats: [
                 .price("Price", liveStock.formattedPrice),
                 .change("Today", liveStock.percentageChange),
-                .gold("Match", "\(safeCompatibility.score)%"),
+                matchStat,
                 .text("Sector", stock.sector),
                 .price("Mkt Cap", stock.formattedMarketCap),
                 .text("Industry", stock.industry)
@@ -1412,6 +1537,12 @@ struct StockDetailView: View {
         .animation(.easeOut(duration: 0.5).delay(0.4), value: appearAnimation)
     }
 
+    private var matchStat: StatItem {
+        companyZodiacSign == nil
+            ? .text("Match", "Unknown")
+            : .gold("Match", "\(safeCompatibility.score)%")
+    }
+
     // MARK: - Actions
 
     private func addToPortfolio() {
@@ -1468,26 +1599,33 @@ struct StockDetailView: View {
                     // Preview card
                     VStack(spacing: 16) {
                         HStack(spacing: 16) {
-                            ZodiacSymbolView(sign: stock.zodiacSign, size: 40, color: elementColor)
+                            if let companyZodiacSign {
+                                ZodiacSymbolView(sign: companyZodiacSign, size: 40, color: elementColor)
+                            } else {
+                                Image(systemName: "questionmark.circle")
+                                    .font(.title2)
+                                    .foregroundColor(CosmicTheme.textMuted)
+                                    .frame(width: 40, height: 40)
+                            }
 
                             VStack(alignment: .leading) {
                                 Text(stock.name)
                                     .font(TerminalFont.headline(16))
                                     .foregroundColor(CosmicTheme.textPrimary)
 
-                                Text("\(stock.symbol) • \(stock.zodiacSign.displayName)")
+                                Text("\(stock.symbol) • \(companyZodiacSign?.displayName ?? "Unknown")")
                                     .font(TerminalFont.data(13))
                                     .foregroundColor(CosmicTheme.textSecondary)
                             }
 
                             Spacer()
 
-                            Text("\(safeCompatibility.score)% Match")
+                            Text(companyZodiacSign == nil ? "Unknown Match" : "\(safeCompatibility.score)% Match")
                                 .font(TerminalFont.price(16))
-                                .foregroundColor(CosmicTheme.gold)
+                                .foregroundColor(companyZodiacSign == nil ? CosmicTheme.textSecondary : CosmicTheme.gold)
                         }
 
-                        Text("\"\(safeCompatibility.description)\"")
+                        Text("\"\(companyZodiacSign == nil ? companyAstroUnavailableText : safeCompatibility.description)\"")
                             .font(.subheadline)
                             .foregroundColor(CosmicTheme.textSecondary)
                             .italic()
@@ -1544,7 +1682,15 @@ struct StockDetailView: View {
     // MARK: - Helpers
 
     private var elementColor: Color {
-        switch stock.zodiacSign.element {
+        guard let element = companyZodiacSign?.element else {
+            return CosmicTheme.textMuted
+        }
+
+        return color(for: element)
+    }
+
+    private func color(for element: ZodiacSign.Element) -> Color {
+        switch element {
         case .fire:  return CosmicTheme.fireElement
         case .earth: return CosmicTheme.earthElement
         case .air:   return CosmicTheme.airElement
@@ -1592,7 +1738,16 @@ struct StockDetailView: View {
     // MARK: - Share
 
     private func shareStock() {
-        let zodiacSign = stock.zodiacSign
+        let zodiacLine: String
+        let compatibilityLine: String
+
+        if let companyZodiacSign {
+            zodiacLine = "Zodiac: \(companyZodiacSign.textSymbol) \(companyZodiacSign.rawValue)"
+            compatibilityLine = "My Compatibility: \(safeCompatibility.score)%"
+        } else {
+            zodiacLine = "Zodiac: Unknown"
+            compatibilityLine = "My Compatibility: Unknown"
+        }
 
         // Create shareable text
         let shareText = """
@@ -1600,8 +1755,8 @@ struct StockDetailView: View {
 
         \(stock.name)
         Price: \(stock.formattedPrice)
-        Zodiac: \(zodiacSign.textSymbol) \(zodiacSign.rawValue)
-        My Compatibility: \(safeCompatibility.score)%
+        \(zodiacLine)
+        \(compatibilityLine)
 
         Download Cosmo Trader to compare market data with an astrology lens.
         """
@@ -1633,6 +1788,8 @@ struct StockDetailView: View {
 extension Stock {
 
     var formattedFoundedDate: String {
+        guard let foundedDate else { return "Unknown" }
+
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM d, yyyy"
         return formatter.string(from: foundedDate)
@@ -1673,7 +1830,7 @@ extension Stock {
 #Preview("Stock Detail - High Compatibility") {
     NavigationStack {
         StockDetailView(
-            stock: MockStockData.all.first { $0.symbol == "AAPL" }!
+            stock: Stock.samples.first { $0.symbol == "AAPL" }!
         )
     }
     .environment(AppState.preview)
@@ -1683,7 +1840,7 @@ extension Stock {
 #Preview("Stock Detail - Low Compatibility") {
     NavigationStack {
         StockDetailView(
-            stock: MockStockData.all.first { $0.symbol == "JPM" }!
+            stock: Stock.samples.first { $0.symbol == "JPM" }!
         )
     }
     .environment(AppState.preview)

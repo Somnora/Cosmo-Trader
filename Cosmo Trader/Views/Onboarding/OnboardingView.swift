@@ -46,13 +46,14 @@ struct OnboardingView: View {
 
     /// Top 3 compatible stocks for the user's sign
     private var compatibleStocks: [Stock] {
-        let allStocks = MockStockData.all
+        let allStocks = Stock.samples + MockStockData.all
         let userSign = previewSign
 
         // Sort by compatibility and take top 3
         return allStocks
-            .map { (stock: Stock) -> (stock: Stock, score: Int) in
-                let result = userSign.compatibility(with: stock.zodiacSign)
+            .compactMap { (stock: Stock) -> (stock: Stock, score: Int)? in
+                guard let stockSign = stock.zodiacSign else { return nil }
+                let result = userSign.compatibility(with: stockSign)
                 return (stock: stock, score: result.score)
             }
             .sorted { $0.score > $1.score }
@@ -1008,7 +1009,7 @@ struct OnboardingView: View {
                 // Track first stock added
                 AnalyticsService.shared.trackStockAddedToPortfolio(
                     symbol: stock.symbol,
-                    zodiacSign: stock.zodiacSign.displayName,
+                    zodiacSign: stock.zodiacSign?.displayName ?? "Unknown",
                     source: "onboarding"
                 )
             }
@@ -1052,8 +1053,9 @@ struct StockMatchCard: View {
     let isSelected: Bool
     let onSelect: () -> Void
 
-    private var compatibilityScore: Int {
-        userSign.compatibility(with: stock.zodiacSign).score
+    private var compatibilityScore: Int? {
+        guard let stockSign = stock.zodiacSign else { return nil }
+        return userSign.compatibility(with: stockSign).score
     }
 
     var body: some View {
@@ -1062,10 +1064,17 @@ struct StockMatchCard: View {
                 // Stock zodiac symbol
                 ZStack {
                     Circle()
-                        .fill(stock.zodiacSign.element.color.opacity(0.2))
+                        .fill((stock.foundedElement?.color ?? CosmicTheme.textMuted).opacity(0.2))
                         .frame(width: 50, height: 50)
 
-                    ZodiacSymbolView(sign: stock.zodiacSign, size: 26, color: stock.zodiacSign.element.color)
+                    if let sign = stock.zodiacSign {
+                        ZodiacSymbolView(sign: sign, size: 26, color: sign.element.color)
+                    } else {
+                        Text("?")
+                            .font(TerminalFont.body(24, weight: .semibold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .accessibilityLabel("unknown sign")
+                    }
                 }
 
                 // Stock info
@@ -1084,9 +1093,15 @@ struct StockMatchCard: View {
 
                 // Compatibility
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(compatibilityScore)%")
-                        .font(TerminalFont.price(16))
-                        .foregroundColor(CosmicTheme.gold)
+                    if let compatibilityScore {
+                        Text("\(compatibilityScore)%")
+                            .font(TerminalFont.price(16))
+                            .foregroundColor(CosmicTheme.gold)
+                    } else {
+                        Text("Unknown")
+                            .font(TerminalFont.data(12, weight: .semibold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
 
                     Text("match")
                         .font(TerminalFont.data(10))

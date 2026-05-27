@@ -58,6 +58,14 @@ struct ProfileView: View {
         )
     }
 
+    private var averageCompatibilityText: String {
+        safeUser.averagePortfolioCompatibility.map { "\($0)%" } ?? "Unknown"
+    }
+
+    private var averageCompatibilityColor: Color {
+        safeUser.averagePortfolioCompatibility == nil ? CosmicTheme.textMuted : CosmicTheme.gold
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -523,8 +531,8 @@ struct ProfileView: View {
                 statItem(
                     icon: "percent",
                     title: "Avg Compatibility",
-                    value: "\(safeUser.averagePortfolioCompatibility)%",
-                    color: CosmicTheme.gold
+                    value: averageCompatibilityText,
+                    color: averageCompatibilityColor
                 )
             }
 
@@ -550,9 +558,10 @@ struct ProfileView: View {
                 }
 
                 // Most compatible holding
-                if let stock = viewModel?.mostCompatibleStock {
+                if let stock = viewModel?.mostCompatibleStock,
+                   let foundedZodiacSign = stock.foundedZodiacSign {
                     cosmicInsightItem(
-                        sign: stock.zodiacSign,
+                        sign: foundedZodiacSign,
                         label: "Best Match Held",
                         value: stock.symbol,
                         color: CosmicTheme.positive

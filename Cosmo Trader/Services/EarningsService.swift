@@ -341,7 +341,7 @@ final class EarningsService {
 
     /// Generate a cosmic earnings horoscope for a stock
     private func generateHoroscope(stock: Stock, earningsDate: Date) -> EarningsHoroscope {
-        let sign = stock.zodiacSign
+        let sign = stock.foundedZodiacSign
         let isMercuryRetrograde = astroAlertService.isMercuryRetrograde
         let lunarData = moonService.getLunarData(for: earningsDate)
         let moonPhase = lunarData.phase
@@ -351,7 +351,9 @@ final class EarningsService {
         var cosmicFactors: [CosmicFactor] = []
 
         // 1. Zodiac sign influence
-        cosmicFactors.append(generateSignFactor(sign: sign))
+        if let sign {
+            cosmicFactors.append(generateSignFactor(sign: sign))
+        }
 
         // 2. Mercury retrograde (if active)
         if isMercuryRetrograde {
@@ -402,7 +404,9 @@ final class EarningsService {
     // MARK: - Horoscope Text Generation
 
     private func generateMainHoroscope(stock: Stock, isMercuryRetrograde: Bool, moonPhase: MoonPhase, dayOfWeek: String) -> String {
-        let sign = stock.zodiacSign
+        guard let sign = stock.foundedZodiacSign else {
+            return "\(stock.symbol)'s founding or IPO date is unknown, so sign-based earnings context is unavailable. Use the lunar and Mercury context as market color only."
+        }
         let element = sign.element
 
         var parts: [String] = []
@@ -425,7 +429,9 @@ final class EarningsService {
     }
 
     private func generateSignOpening(stock: Stock) -> String {
-        let sign = stock.zodiacSign
+        guard let sign = stock.foundedZodiacSign else {
+            return "\(stock.symbol)'s verified company sign is unknown, so this earnings read skips sign-specific framing."
+        }
 
         switch sign {
         case .aries:

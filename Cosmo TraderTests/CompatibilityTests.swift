@@ -344,15 +344,20 @@ struct UserProfileCompatibilityExtensionTests {
 
         let average = user.averagePortfolioCompatibility
 
+        guard let average else {
+            Issue.record("Expected sample portfolio to have verified-date compatibility")
+            return
+        }
+
         #expect(average >= 0)
         #expect(average <= 100)
     }
 
-    @Test("Empty portfolio has zero average compatibility")
-    func emptyPortfolioZeroCompatibility() {
+    @Test("Empty portfolio has unknown average compatibility")
+    func emptyPortfolioUnknownCompatibility() {
         let user = UserProfile.newUser
 
-        #expect(user.averagePortfolioCompatibility == 0)
+        #expect(user.averagePortfolioCompatibility == nil)
     }
 }
 
@@ -366,8 +371,8 @@ struct StockCompatibilityExtensionTests {
 
         let result = stock.compatibility(with: .leo)
 
-        #expect(result.stockSign == .aries)
-        #expect(result.userSign == .leo)
+        #expect(result?.stockSign == .aries)
+        #expect(result?.userSign == .leo)
     }
 }
 

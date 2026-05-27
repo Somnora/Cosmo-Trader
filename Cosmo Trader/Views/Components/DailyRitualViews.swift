@@ -373,7 +373,15 @@ struct DailyRitualFlow: View {
                         .foregroundColor(CosmicTheme.textMuted)
 
                     HStack(spacing: 8) {
-                        ZodiacMark(sign: topMover.zodiacSign, size: 22, style: .element)
+                        if let sign = topMover.zodiacSign {
+                            ZodiacMark(sign: sign, size: 22, style: .element)
+                        } else {
+                            Text("?")
+                                .font(TerminalFont.body(18, weight: .semibold))
+                                .foregroundColor(CosmicTheme.textMuted)
+                                .frame(width: 22, height: 22)
+                                .accessibilityLabel("unknown sign")
+                        }
 
                         Text(topMover.symbol)
                             .font(TerminalFont.body(14, weight: .semibold))

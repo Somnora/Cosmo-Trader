@@ -76,11 +76,19 @@ struct TableRowView: View {
     // MARK: - Subviews
 
     private var glyphSection: some View {
-        ZodiacSymbolView(
-            sign: stock.zodiacSign,
-            size: 16,
-            color: elementColor
-        )
+        Group {
+            if let foundedZodiacSign = stock.foundedZodiacSign {
+                ZodiacSymbolView(
+                    sign: foundedZodiacSign,
+                    size: 16,
+                    color: elementColor
+                )
+            } else {
+                Text("?")
+                    .font(TerminalFont.data(14, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+        }
         .frame(width: 28)
     }
 
@@ -131,7 +139,11 @@ struct TableRowView: View {
     }
 
     private var elementColor: Color {
-        switch stock.zodiacSign.element {
+        guard let foundedElement = stock.foundedElement else {
+            return CosmicTheme.textMuted
+        }
+
+        switch foundedElement {
         case .fire:  return CosmicTheme.fireElement
         case .earth: return CosmicTheme.earthElement
         case .air:   return CosmicTheme.airElement
@@ -165,7 +177,13 @@ struct DenseTableRow: View {
                     .frame(width: 44, alignment: .leading)
 
                 // Zodiac glyph (tiny)
-                ZodiacSymbolView(sign: stock.zodiacSign, size: 10, color: CosmicTheme.textMuted)
+                if let foundedZodiacSign = stock.foundedZodiacSign {
+                    ZodiacSymbolView(sign: foundedZodiacSign, size: 10, color: CosmicTheme.textMuted)
+                } else {
+                    Text("?")
+                        .font(TerminalFont.data(10, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
 
                 Spacer()
 
@@ -307,11 +325,19 @@ struct WatchlistTableRow: View {
             Button(action: { onTap?() }) {
                 HStack(spacing: 8) {
                     // Glyph
-                    ZodiacSymbolView(
-                        sign: stock.zodiacSign,
-                        size: 14,
-                        color: CosmicTheme.textMuted
-                    )
+                    Group {
+                        if let foundedZodiacSign = stock.foundedZodiacSign {
+                            ZodiacSymbolView(
+                                sign: foundedZodiacSign,
+                                size: 14,
+                                color: CosmicTheme.textMuted
+                            )
+                        } else {
+                            Text("?")
+                                .font(TerminalFont.data(12, weight: .semibold))
+                                .foregroundColor(CosmicTheme.textMuted)
+                        }
+                    }
                     .frame(width: 24)
 
                     // Symbol

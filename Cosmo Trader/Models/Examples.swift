@@ -292,8 +292,12 @@ enum PortfolioCompatibilityExample {
             let sameElement = stock.sharesElement(with: user.sunSign)
             let icon = compatible ? "✨" : (sameElement ? "🔥" : "  ")
 
-            print("\(icon) \(stock.symbol) - \(stock.zodiacSign.displayName) \(stock.zodiacSign.symbol)")
-            print("     Element: \(stock.element.displayName)")
+            let signName = stock.zodiacSign?.displayName ?? "Unknown"
+            let signSymbol = stock.zodiacSign?.symbol ?? "?"
+            let elementName = stock.element?.displayName ?? "Unknown"
+
+            print("\(icon) \(stock.symbol) - \(signName) \(signSymbol)")
+            print("     Element: \(elementName)")
             print("     Compatible: \(compatible ? "Yes" : "No")")
         }
 

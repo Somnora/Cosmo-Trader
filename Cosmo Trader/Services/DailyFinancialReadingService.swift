@@ -33,7 +33,7 @@ final class DailyFinancialReadingService {
         let events = AstroAlertService.shared.activeEvents
         let dominantElement = dominantElementExposure(in: holdings)
         let dominantSector = dominantSectorExposure(in: holdings)
-        let alignedElementCount = holdings.filter { $0.element == lunarData.activatedElement }.count
+        let alignedElementCount = holdings.filter { $0.foundedElement == lunarData.activatedElement }.count
         let affectedHoldings = holdings.filter { stock in
             AstroAlertService.shared.isStockAffected(stock) || isMercurySensitive(stock, mercury: mercury)
         }
@@ -248,7 +248,7 @@ final class DailyFinancialReadingService {
         var items = Array(uniqueHoldings)
         if items.count < 4 {
             let watchlistStocks = user.watchlist.compactMap { symbol in
-                MockStockData.all.first { $0.symbol == symbol }
+                MockStockData.knownStocks.first { $0.symbol == symbol }
             }
             for stock in watchlistStocks where !items.contains(where: { $0.symbol == stock.symbol }) {
                 items.append(
@@ -278,8 +278,8 @@ final class DailyFinancialReadingService {
             return "Large move today; confirm volume before trusting the tape."
         }
 
-        if stock.element == lunarElement {
-            return "\(stock.element.displayName) signature matches today's lunar activation."
+        if stock.foundedElement == lunarElement {
+            return "\(lunarElement.displayName) signature matches today's lunar activation."
         }
 
         if stock.totalValue > 0 {
@@ -332,11 +332,14 @@ final class DailyFinancialReadingService {
     }
 
     private func dominantElementExposure(in holdings: [Stock]) -> (element: ZodiacSign.Element, weight: Double)? {
-        let totalValue = holdings.reduce(0) { $0 + max($1.totalValue, 0) }
+        let verifiedHoldings = holdings.filter { $0.foundedElement != nil }
+        let totalValue = verifiedHoldings.reduce(0) { $0 + max($1.totalValue, 0) }
         guard totalValue > 0 else { return nil }
 
-        let exposures = Dictionary(grouping: holdings, by: \.element).mapValues { stocks in
-            stocks.reduce(0) { $0 + max($1.totalValue, 0) } / totalValue
+        var exposures: [ZodiacSign.Element: Double] = [:]
+        for stock in verifiedHoldings {
+            guard let element = stock.foundedElement else { continue }
+            exposures[element, default: 0] += max(stock.totalValue, 0) / totalValue
         }
 
         return exposures.max { $0.value < $1.value }.map { ($0.key, $0.value) }
@@ -368,7 +371,7 @@ final class DailyFinancialReadingService {
         return sector.contains("technology")
             || sector.contains("communication")
             || sector.contains("fintech")
-            || stock.element == .air
+            || stock.foundedElement == .air
     }
 
     private func terminalElementColor(_ element: ZodiacSign.Element) -> Color {

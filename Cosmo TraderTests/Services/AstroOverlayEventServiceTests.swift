@@ -95,6 +95,83 @@ struct AstroOverlayEventServiceTests {
         #expect(events.isEmpty)
     }
 
+    @Test("Unknown founding date suppresses company-specific overlay events")
+    func unknownFoundingDateSuppressesCompanySpecificOverlayEvents() {
+        let stock = makeUnknownDateStock()
+        let filters = AstroOverlayFilterState(
+            enabledKinds: [.companyBirthMonth, .companyFoundingAnniversary, .moonInSign],
+            showEstimatedEvents: true,
+            eventWindowDays: 3
+        )
+
+        let events = AstroOverlayEventService.shared.events(
+            for: stock,
+            from: date("2025-01-01"),
+            to: date("2025-12-31"),
+            filters: filters
+        )
+
+        #expect(events.isEmpty)
+    }
+
+    @Test("ETF symbols suppress company-specific overlay events")
+    func etfSymbolsSuppressCompanySpecificOverlayEvents() {
+        let stock = Stock(
+            symbol: "SPY",
+            name: "SPDR S&P 500 ETF Trust",
+            currentPrice: 500,
+            priceChange: 1,
+            percentageChange: 0.2,
+            foundedDate: date("1993-01-22"),
+            sector: "ETF"
+        )
+        let filters = AstroOverlayFilterState(
+            enabledKinds: [.companyBirthMonth, .companyFoundingAnniversary, .moonInSign],
+            showEstimatedEvents: true,
+            eventWindowDays: 3
+        )
+
+        let events = AstroOverlayEventService.shared.events(
+            for: stock,
+            from: date("2025-01-01"),
+            to: date("2025-12-31"),
+            filters: filters
+        )
+
+        #expect(events.isEmpty)
+    }
+
+    @Test("Quarter moon filter generates first and last quarter events")
+    func quarterMoonFilterGeneratesFirstAndLastQuarterEvents() {
+        let stock = makeStock()
+        let filters = AstroOverlayFilterState(
+            enabledKinds: [.firstQuarter, .lastQuarter],
+            showEstimatedEvents: true,
+            eventWindowDays: 3
+        )
+
+        let events = AstroOverlayEventService.shared.events(
+            for: stock,
+            from: date("2025-01-01"),
+            to: date("2025-04-01"),
+            filters: filters
+        )
+
+        #expect(events.contains { $0.kind == .firstQuarter })
+        #expect(events.contains { $0.kind == .lastQuarter })
+        #expect(events.allSatisfy { $0.kind == .firstQuarter || $0.kind == .lastQuarter })
+    }
+
+    @Test("Mercury retrograde provider includes estimated 2030 windows")
+    func mercuryRetrogradeProviderIncludesEstimated2030Windows() {
+        let provider = MercuryRetrogradeEphemerisProvider.shared
+        let windows = provider.windows(from: date("2030-12-01"), to: date("2030-12-31"))
+
+        #expect(windows.count == 1)
+        #expect(windows.first?.id == "2030-12")
+        #expect(windows.first?.isEstimated == true)
+    }
+
     @Test("Filter state includes only enabled event types")
     func filterStateIncludesOnlyEnabledEventTypes() {
         let stock = makeStock()
@@ -141,6 +218,18 @@ struct AstroOverlayEventServiceTests {
             foundedDay: 1,
             foundedYear: 1976,
             sector: "Technology"
+        )
+    }
+
+    private func makeUnknownDateStock() -> Stock {
+        Stock(
+            symbol: "ZZZZ",
+            name: "Unknown Listing",
+            currentPrice: 10,
+            priceChange: 0,
+            percentageChange: 0,
+            foundedDate: nil,
+            sector: "Unknown"
         )
     }
 

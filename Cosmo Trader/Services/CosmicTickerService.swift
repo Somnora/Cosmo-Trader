@@ -66,7 +66,7 @@ final class CosmicTickerService {
         var items: [TickerItem] = []
 
         // Get stocks to display
-        let stocksToShow = stocks ?? MockStockData.all.shuffled().prefix(12).map { $0 }
+        let stocksToShow = stocks ?? MockStockData.knownStocks.shuffled().prefix(12).map { $0 }
 
         // Build ticker with interspersed cosmic items
         var cosmicItemsAdded = 0

@@ -35,7 +35,7 @@ struct CosmicRivalCard: View {
                     Spacer()
 
                     // Opposition symbol
-                    Text(stock.zodiacSign.oppositionTheme)
+                    Text(stock.zodiacSign?.oppositionTheme ?? "Unknown opposition")
                         .font(TerminalFont.data(10))
                         .foregroundColor(CosmicTheme.textMuted)
                 }
@@ -46,7 +46,7 @@ struct CosmicRivalCard: View {
                     oppositionVisualization
 
                     // Description
-                    Text(stock.zodiacSign.oppositionDescription)
+                    Text(stock.zodiacSign?.oppositionDescription ?? "Verified company sign unavailable; rival framing is hidden until the company date is known.")
                         .font(.caption)
                         .foregroundColor(CosmicTheme.textSecondary)
                         .lineSpacing(4)
@@ -57,7 +57,7 @@ struct CosmicRivalCard: View {
                             .background(CosmicTheme.borderDim)
 
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Stocks in \(stock.zodiacSign.oppositeSign.displayName)")
+                            Text("Stocks in \(stock.zodiacSign?.oppositeSign.displayName ?? "Unknown")")
                                 .font(TerminalFont.data(11, weight: .semibold))
                                 .foregroundColor(CosmicTheme.textMuted)
 
@@ -109,14 +109,21 @@ struct CosmicRivalCard: View {
                         .fill(elementColor(for: stock.zodiacSign).opacity(0.2))
                         .frame(width: 50, height: 50)
 
-                    ZodiacSymbolView(
-                        sign: stock.zodiacSign,
-                        size: 24,
-                        color: elementColor(for: stock.zodiacSign)
-                    )
+                    if let sign = stock.zodiacSign {
+                        ZodiacSymbolView(
+                            sign: sign,
+                            size: 24,
+                            color: elementColor(for: sign)
+                        )
+                    } else {
+                        Text("?")
+                            .font(TerminalFont.body(24, weight: .semibold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .accessibilityLabel("unknown sign")
+                    }
                 }
 
-                Text(stock.zodiacSign.displayName)
+                Text(stock.zodiacSign?.displayName ?? "Unknown")
                     .font(TerminalFont.data(11, weight: .semibold))
                     .foregroundColor(CosmicTheme.textPrimary)
 
@@ -147,18 +154,26 @@ struct CosmicRivalCard: View {
             // Opposite sign
             VStack(spacing: 6) {
                 ZStack {
+                    let oppositeSign = stock.zodiacSign?.oppositeSign
                     Circle()
-                        .fill(elementColor(for: stock.zodiacSign.oppositeSign).opacity(0.2))
+                        .fill(elementColor(for: oppositeSign).opacity(0.2))
                         .frame(width: 50, height: 50)
 
-                    ZodiacSymbolView(
-                        sign: stock.zodiacSign.oppositeSign,
-                        size: 24,
-                        color: elementColor(for: stock.zodiacSign.oppositeSign)
-                    )
+                    if let oppositeSign {
+                        ZodiacSymbolView(
+                            sign: oppositeSign,
+                            size: 24,
+                            color: elementColor(for: oppositeSign)
+                        )
+                    } else {
+                        Text("?")
+                            .font(TerminalFont.body(24, weight: .semibold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .accessibilityLabel("unknown opposing sign")
+                    }
                 }
 
-                Text(stock.zodiacSign.oppositeSign.displayName)
+                Text(stock.zodiacSign?.oppositeSign.displayName ?? "Unknown")
                     .font(TerminalFont.data(11, weight: .semibold))
                     .foregroundColor(CosmicTheme.textPrimary)
 
@@ -180,11 +195,18 @@ struct CosmicRivalCard: View {
 
     private func rivalRow(_ rival: Stock) -> some View {
         HStack(spacing: 10) {
-            ZodiacSymbolView(
-                sign: rival.zodiacSign,
-                size: 16,
-                color: elementColor(for: rival.zodiacSign)
-            )
+            if let sign = rival.zodiacSign {
+                ZodiacSymbolView(
+                    sign: sign,
+                    size: 16,
+                    color: elementColor(for: sign)
+                )
+            } else {
+                Text("?")
+                    .font(TerminalFont.body(16, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .accessibilityLabel("unknown sign")
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(rival.symbol)
@@ -208,7 +230,8 @@ struct CosmicRivalCard: View {
 
     // MARK: - Helpers
 
-    private func elementColor(for sign: ZodiacSign) -> Color {
+    private func elementColor(for sign: ZodiacSign?) -> Color {
+        guard let sign else { return CosmicTheme.textMuted }
         switch sign.element {
         case .fire:  return CosmicTheme.fireElement
         case .earth: return CosmicTheme.earthElement
@@ -306,7 +329,8 @@ struct PortfolioTensionBanner: View {
         }
     }
 
-    private func elementColor(for sign: ZodiacSign) -> Color {
+    private func elementColor(for sign: ZodiacSign?) -> Color {
+        guard let sign else { return CosmicTheme.textMuted }
         switch sign.element {
         case .fire:  return CosmicTheme.fireElement
         case .earth: return CosmicTheme.earthElement
@@ -429,12 +453,19 @@ struct PortfolioTensionSheet: View {
                         .foregroundColor(CosmicTheme.textPrimary)
 
                     HStack(spacing: 4) {
-                        ZodiacSymbolView(
-                            sign: tension.stock1.zodiacSign,
-                            size: 14,
-                            color: elementColor(for: tension.stock1.zodiacSign)
-                        )
-                        Text(tension.stock1.zodiacSign.displayName)
+                        if let sign = tension.stock1.zodiacSign {
+                            ZodiacSymbolView(
+                                sign: sign,
+                                size: 14,
+                                color: elementColor(for: sign)
+                            )
+                        } else {
+                            Text("?")
+                                .font(TerminalFont.body(14, weight: .semibold))
+                                .foregroundColor(CosmicTheme.textMuted)
+                                .accessibilityLabel("unknown sign")
+                        }
+                        Text(tension.stock1.zodiacSign?.displayName ?? "Unknown")
                             .font(TerminalFont.data(10))
                             .foregroundColor(CosmicTheme.textSecondary)
                     }
@@ -459,12 +490,19 @@ struct PortfolioTensionSheet: View {
                         .foregroundColor(CosmicTheme.textPrimary)
 
                     HStack(spacing: 4) {
-                        ZodiacSymbolView(
-                            sign: tension.stock2.zodiacSign,
-                            size: 14,
-                            color: elementColor(for: tension.stock2.zodiacSign)
-                        )
-                        Text(tension.stock2.zodiacSign.displayName)
+                        if let sign = tension.stock2.zodiacSign {
+                            ZodiacSymbolView(
+                                sign: sign,
+                                size: 14,
+                                color: elementColor(for: sign)
+                            )
+                        } else {
+                            Text("?")
+                                .font(TerminalFont.body(14, weight: .semibold))
+                                .foregroundColor(CosmicTheme.textMuted)
+                                .accessibilityLabel("unknown sign")
+                        }
+                        Text(tension.stock2.zodiacSign?.displayName ?? "Unknown")
                             .font(TerminalFont.data(10))
                             .foregroundColor(CosmicTheme.textSecondary)
                     }
@@ -600,7 +638,8 @@ struct PortfolioTensionSheet: View {
         }
     }
 
-    private func elementColor(for sign: ZodiacSign) -> Color {
+    private func elementColor(for sign: ZodiacSign?) -> Color {
+        guard let sign else { return CosmicTheme.textMuted }
         switch sign.element {
         case .fire:  return CosmicTheme.fireElement
         case .earth: return CosmicTheme.earthElement
@@ -643,8 +682,8 @@ struct CosmicRivalBadge: View {
 #Preview("Cosmic Rival Card") {
     ScrollView {
         CosmicRivalCard(
-            stock: MockStockData.all.first!,
-            allStocks: MockStockData.all
+            stock: MockStockData.knownStocks.first!,
+            allStocks: MockStockData.knownStocks
         )
     }
     .background(CosmicTheme.background)
@@ -653,7 +692,7 @@ struct CosmicRivalBadge: View {
 
 #Preview("Portfolio Tension Banner") {
     VStack(spacing: 20) {
-        PortfolioTensionBanner(holdings: MockStockData.all.prefix(6).map { $0 })
+        PortfolioTensionBanner(holdings: MockStockData.knownStocks.prefix(6).map { $0 })
     }
     .padding()
     .background(CosmicTheme.background)
@@ -662,7 +701,7 @@ struct CosmicRivalBadge: View {
 
 #Preview("Tension Sheet") {
     let service = CosmicRivalsService.shared
-    let tensions = service.detectPortfolioTensions(in: Array(MockStockData.all.prefix(6)))
+    let tensions = service.detectPortfolioTensions(in: Array(MockStockData.knownStocks.prefix(6)))
     PortfolioTensionSheet(tensions: tensions)
         .preferredColorScheme(.dark)
 }

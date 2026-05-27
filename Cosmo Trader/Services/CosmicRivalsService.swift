@@ -40,13 +40,15 @@ final class CosmicRivalsService {
 
     /// Find the cosmic rival for a given stock from available stocks
     func findRival(for stock: Stock, in availableStocks: [Stock]) -> Stock? {
-        let rivalSign = stock.zodiacSign.oppositeSign
+        guard let stockSign = stock.zodiacSign else { return nil }
+        let rivalSign = stockSign.oppositeSign
         return availableStocks.first { $0.zodiacSign == rivalSign && $0.symbol != stock.symbol }
     }
 
     /// Find all stocks that are cosmic rivals to the given stock
     func findAllRivals(for stock: Stock, in availableStocks: [Stock]) -> [Stock] {
-        let rivalSign = stock.zodiacSign.oppositeSign
+        guard let stockSign = stock.zodiacSign else { return [] }
+        let rivalSign = stockSign.oppositeSign
         return availableStocks.filter { $0.zodiacSign == rivalSign && $0.symbol != stock.symbol }
     }
 
@@ -61,7 +63,9 @@ final class CosmicRivalsService {
                 guard stock1.symbol != stock2.symbol else { continue }
 
                 // Check if they're cosmic rivals
-                guard stock1.zodiacSign.isOpposite(to: stock2.zodiacSign) else { continue }
+                guard let stock1Sign = stock1.zodiacSign,
+                      let stock2Sign = stock2.zodiacSign,
+                      stock1Sign.isOpposite(to: stock2Sign) else { continue }
 
                 // Create a unique key for this pair (to avoid duplicates)
                 let pairKey = [stock1.symbol, stock2.symbol].sorted().joined(separator: "-")
@@ -72,8 +76,8 @@ final class CosmicRivalsService {
                 let tension = CosmicTension(
                     stock1: stock1,
                     stock2: stock2,
-                    theme: stock1.zodiacSign.oppositionTheme,
-                    description: stock1.zodiacSign.oppositionDescription
+                    theme: stock1Sign.oppositionTheme,
+                    description: stock1Sign.oppositionDescription
                 )
                 tensions.append(tension)
             }
@@ -123,14 +127,16 @@ final class CosmicRivalsService {
 
     /// Get detailed rivalry information between two stocks
     func getRivalryInfo(stock1: Stock, stock2: Stock) -> CosmicRivalry? {
-        guard stock1.zodiacSign.isOpposite(to: stock2.zodiacSign) else { return nil }
+        guard let stock1Sign = stock1.zodiacSign,
+              let stock2Sign = stock2.zodiacSign,
+              stock1Sign.isOpposite(to: stock2Sign) else { return nil }
 
         return CosmicRivalry(
             stock1: stock1,
             stock2: stock2,
-            theme: stock1.zodiacSign.oppositionTheme,
-            description: stock1.zodiacSign.oppositionDescription,
-            tradingImplication: getTradingImplication(for: stock1.zodiacSign)
+            theme: stock1Sign.oppositionTheme,
+            description: stock1Sign.oppositionDescription,
+            tradingImplication: getTradingImplication(for: stock1Sign)
         )
     }
 
@@ -223,7 +229,7 @@ struct CosmicRivalry: Identifiable {
     let tradingImplication: String
 
     var oppositionSymbol: String {
-        "\(stock1.zodiacSign.textSymbol) ☍ \(stock2.zodiacSign.textSymbol)"
+        "\(stock1.zodiacSign?.textSymbol ?? "?") ☍ \(stock2.zodiacSign?.textSymbol ?? "?")"
     }
 }
 

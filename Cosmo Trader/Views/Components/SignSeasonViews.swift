@@ -616,11 +616,18 @@ struct SpotlightStockRow: View {
                     .fill(elementColor.opacity(0.2))
                     .frame(width: 36, height: 36)
 
-                ZodiacSymbolView(
-                    sign: stock.zodiacSign,
-                    size: 18,
-                    color: elementColor
-                )
+                if let sign = stock.zodiacSign {
+                    ZodiacSymbolView(
+                        sign: sign,
+                        size: 18,
+                        color: elementColor
+                    )
+                } else {
+                    Text("?")
+                        .font(TerminalFont.body(18, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .accessibilityLabel("unknown sign")
+                }
             }
 
             // Stock info
@@ -659,18 +666,25 @@ struct ElementStockRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ZodiacSymbolView(
-                sign: stock.zodiacSign,
-                size: 16,
-                color: elementColor
-            )
+            if let sign = stock.zodiacSign {
+                ZodiacSymbolView(
+                    sign: sign,
+                    size: 16,
+                    color: elementColor
+                )
+            } else {
+                Text("?")
+                    .font(TerminalFont.body(16, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .accessibilityLabel("unknown sign")
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(stock.symbol)
                     .font(TerminalFont.data(12, weight: .semibold))
                     .foregroundColor(CosmicTheme.textPrimary)
 
-                Text(stock.zodiacSign.displayName)
+                Text(stock.zodiacSign?.displayName ?? "Unknown")
                     .font(TerminalFont.data(10))
                     .foregroundColor(CosmicTheme.textMuted)
             }
@@ -685,12 +699,7 @@ struct ElementStockRow: View {
     }
 
     private var elementColor: Color {
-        switch stock.zodiacSign.element {
-        case .fire:  return CosmicTheme.fireElement
-        case .earth: return CosmicTheme.earthElement
-        case .air:   return CosmicTheme.airElement
-        case .water: return CosmicTheme.waterElement
-        }
+        stock.foundedElement?.color ?? CosmicTheme.textMuted
     }
 }
 

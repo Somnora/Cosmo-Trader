@@ -61,15 +61,16 @@ final class PortfolioAscendantService {
 
     /// Analyze the true elemental/sign composition of the portfolio
     private func analyzeSunNature(holdings: [Stock]) -> PortfolioSunAnalysis {
-        let totalValue = holdings.reduce(0) { $0 + $1.totalValue }
+        let verifiedHoldings = holdings.filter { $0.foundedZodiacSign != nil }
+        let totalValue = verifiedHoldings.reduce(0) { $0 + $1.totalValue }
         guard totalValue > 0 else {
             return PortfolioSunAnalysis(
                 dominantElement: .earth,
                 elementBreakdown: [:],
                 dominantSign: .taurus,
                 signBreakdown: [:],
-                personality: "Empty",
-                description: "Add holdings to generate a portfolio-specific signal profile."
+                personality: "Unknown",
+                description: "Add holdings with verified founding or IPO dates to generate a portfolio-specific signal profile."
             )
         }
 
@@ -77,9 +78,9 @@ final class PortfolioAscendantService {
         var elementValues: [ZodiacSign.Element: Double] = [:]
         var signValues: [ZodiacSign: Double] = [:]
 
-        for stock in holdings {
-            let element = stock.zodiacSign.element
-            let sign = stock.zodiacSign
+        for stock in verifiedHoldings {
+            guard let sign = stock.foundedZodiacSign else { continue }
+            let element = sign.element
             elementValues[element, default: 0] += stock.totalValue
             signValues[sign, default: 0] += stock.totalValue
         }
@@ -358,12 +359,22 @@ final class PortfolioAscendantService {
             )
 
         case .largestHolding:
+            guard let sign = stock.foundedZodiacSign else {
+                return PortfolioAscendantAnalysis(
+                    perceivedAs: "The Unknown-Date Investor",
+                    standoutStock: stock,
+                    standoutReason: "\(stock.symbol) leads your portfolio",
+                    socialLabel: "Unknown Energy",
+                    description: "\(stock.symbol) sets the tone, but its founding or IPO date is unknown.",
+                    roast: "Your largest holding is real. Its cosmic paperwork is not."
+                )
+            }
             return PortfolioAscendantAnalysis(
-                perceivedAs: "The \(stock.zodiacSign.element.displayName) Investor",
+                perceivedAs: "The \(sign.element.displayName) Investor",
                 standoutStock: stock,
                 standoutReason: "\(stock.symbol) leads your portfolio",
-                socialLabel: stock.zodiacSign.element.displayName + " Energy",
-                description: "\(stock.symbol) sets the tone. Your portfolio inherits its \(stock.zodiacSign.displayName) energy.",
+                socialLabel: sign.element.displayName + " Energy",
+                description: "\(stock.symbol) sets the tone. Your portfolio inherits its \(sign.displayName) energy.",
                 roast: "Your largest holding defines you. For better or worse, you're a \(stock.symbol) person now."
             )
         }

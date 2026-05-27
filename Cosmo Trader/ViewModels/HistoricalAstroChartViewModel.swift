@@ -206,6 +206,7 @@ final class HistoricalAstroChartViewModel {
             case .week: return 45
             case .month: return 62
             case .threeMonth: return 92
+            case .sixMonth: return 182
             case .year: return 180
             case .all: return 365
             }

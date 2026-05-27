@@ -230,7 +230,7 @@ class ProfileViewModel {
 
         var elementValues: [ZodiacSign.Element: Double] = [:]
         for stock in holdings {
-            let element = stock.zodiacSign.element
+            guard let element = stock.foundedElement else { continue }
             elementValues[element, default: 0] += stock.totalValue
         }
 
@@ -240,18 +240,18 @@ class ProfileViewModel {
     /// Most compatible stock in portfolio
     var mostCompatibleStock: Stock? {
         guard let user = user else { return nil }
-        let holdings = user.portfolio.filter { $0.sharesOwned > 0 }
+        let holdings = user.portfolio.filter { $0.sharesOwned > 0 && $0.foundedZodiacSign != nil }
         return holdings.max(by: {
-            user.compatibility(with: $0).score < user.compatibility(with: $1).score
+            (user.verifiedCompatibility(with: $0)?.score ?? 0) < (user.verifiedCompatibility(with: $1)?.score ?? 0)
         })
     }
 
     /// Least compatible stock in portfolio
     var leastCompatibleStock: Stock? {
         guard let user = user else { return nil }
-        let holdings = user.portfolio.filter { $0.sharesOwned > 0 }
+        let holdings = user.portfolio.filter { $0.sharesOwned > 0 && $0.foundedZodiacSign != nil }
         return holdings.min(by: {
-            user.compatibility(with: $0).score < user.compatibility(with: $1).score
+            (user.verifiedCompatibility(with: $0)?.score ?? 0) < (user.verifiedCompatibility(with: $1)?.score ?? 0)
         })
     }
 
@@ -320,6 +320,8 @@ class ProfileViewModel {
     /// Generate shareable profile text
     var shareableProfileText: String {
         guard let user = user else { return "" }
+        let averageCompatibility = user.averagePortfolioCompatibility.map { "\($0)%" } ?? "Unknown"
+
         return """
         My Cosmic Investor Profile
 
@@ -332,7 +334,7 @@ class ProfileViewModel {
         Strengths: \(investorStrengths.joined(separator: ", "))
 
         Portfolio: \(formattedPortfolioValue)
-        Average Compatibility: \(user.averagePortfolioCompatibility)%
+        Average Compatibility: \(averageCompatibility)
 
         #CosmicTrader #\(user.sunSign.displayName)Investor
         """

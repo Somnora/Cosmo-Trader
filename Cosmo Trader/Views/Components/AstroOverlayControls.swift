@@ -2,15 +2,21 @@ import SwiftUI
 
 struct AstroOverlayControls: View {
     let filterState: AstroOverlayFilterState
+    let hasCompanyEventDate: Bool
     let onToggle: (AstroOverlayFilterOption) -> Void
 
-    private let options: [AstroOverlayFilterOption] = [
+    private static let allOptions: [AstroOverlayFilterOption] = [
         .init(label: "Moon Phases", kinds: [.newMoon, .fullMoon], icon: "moon.stars"),
+        .init(label: "Quarter Moons", kinds: [.firstQuarter, .lastQuarter], icon: "moonphase.first.quarter"),
         .init(label: "Mercury Rx", kinds: [.mercuryRetrograde], icon: "arrow.uturn.backward.circle"),
         .init(label: "Birth Month", kinds: [.companyBirthMonth], icon: "calendar"),
         .init(label: "Founding Day", kinds: [.companyFoundingAnniversary], icon: "building.2"),
         .init(label: "Moon In Sign", kinds: [.moonInSign], icon: "moon.haze")
     ]
+
+    private var options: [AstroOverlayFilterOption] {
+        Self.allOptions.filter { hasCompanyEventDate || !$0.isCompanySpecific }
+    }
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -62,4 +68,8 @@ struct AstroOverlayFilterOption: Identifiable {
     let icon: String
 
     var id: String { label }
+
+    var isCompanySpecific: Bool {
+        !kinds.isDisjoint(with: [.companyBirthMonth, .companyFoundingAnniversary, .moonInSign])
+    }
 }

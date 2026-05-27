@@ -609,8 +609,13 @@ struct ImportPortfolioView: View {
                     .font(TerminalFont.data(12, weight: .semibold))
                     .foregroundColor(CosmicTheme.textPrimary)
 
-                if let stock = holding.matchedStock {
-                    ZodiacMark(sign: stock.zodiacSign, size: .tiny, style: .element)
+                if let sign = holding.matchedStock?.zodiacSign {
+                    ZodiacMark(sign: sign, size: .tiny, style: .element)
+                } else if holding.matchedStock != nil {
+                    Text("?")
+                        .font(TerminalFont.data(10, weight: .bold))
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .accessibilityLabel("unknown sign")
                 }
             }
             .frame(width: 70, alignment: .leading)

@@ -157,9 +157,11 @@ enum CompatibilityCalculator {
         )
     }
 
-    /// Calculate compatibility for a user profile and stock
-    static func calculate(user: UserProfile, stock: Stock) -> CompatibilityResult {
-        calculate(userSign: user.sunSign, stockSign: stock.zodiacSign)
+    /// Calculate compatibility for a user profile and verified-date stock.
+    /// Returns nil when the company's founding/IPO date is unknown.
+    static func calculate(user: UserProfile, stock: Stock) -> CompatibilityResult? {
+        guard let stockSign = stock.foundedZodiacSign else { return nil }
+        return calculate(userSign: user.sunSign, stockSign: stockSign)
     }
 
     // MARK: - Score Calculation
@@ -468,39 +470,58 @@ private struct ElementPair: Hashable {
 
 extension UserProfile {
 
-    /// Get full compatibility analysis with a stock
-    func compatibility(with stock: Stock) -> CompatibilityResult {
+    /// Get full compatibility analysis only when the stock has a verified company date.
+    func verifiedCompatibility(with stock: Stock) -> CompatibilityResult? {
         CompatibilityCalculator.calculate(user: self, stock: stock)
     }
 
-    /// Get compatibility results for entire portfolio, sorted by score
+    /// Get full compatibility analysis with a stock
+    func compatibility(with stock: Stock) -> CompatibilityResult {
+        verifiedCompatibility(with: stock) ?? CompatibilityResult(
+            userSign: sunSign,
+            stockSign: sunSign,
+            score: 0,
+            description: "Verified company date unavailable.",
+            advice: "Add a verified founding or IPO date before using company-specific compatibility.",
+            elementDynamic: "Verified company date unavailable."
+        )
+    }
+
+    /// Get compatibility results for verified-date portfolio holdings, sorted by score.
     var portfolioCompatibility: [CompatibilityResult] {
-        portfolio.map { compatibility(with: $0) }
+        portfolio.compactMap { verifiedCompatibility(with: $0) }
             .sorted { $0.score > $1.score }
     }
 
-    /// Average compatibility score across portfolio
-    var averagePortfolioCompatibility: Int {
-        guard !portfolio.isEmpty else { return 0 }
-        let total = portfolio.reduce(0) { sum, stock in
-            sum + CompatibilityCalculator.calculate(user: self, stock: stock).score
+    /// Average compatibility score across verified-date portfolio holdings.
+    var averagePortfolioCompatibility: Int? {
+        let verifiedResults = portfolio.compactMap { verifiedCompatibility(with: $0) }
+        guard !verifiedResults.isEmpty else { return nil }
+
+        let total = verifiedResults.reduce(0) { sum, result in
+            sum + result.score
         }
-        return total / portfolio.count
+        return total / verifiedResults.count
     }
 
-    /// Get stocks grouped by compatibility rating
+    /// Get verified-date stocks grouped by compatibility rating.
     var portfolioByCompatibility: [CompatibilityRating: [Stock]] {
-        Dictionary(grouping: portfolio) { stock in
-            compatibility(with: stock).rating
+        let ratedStocks = portfolio.compactMap { stock -> (stock: Stock, rating: CompatibilityRating)? in
+            guard let result = verifiedCompatibility(with: stock) else { return nil }
+            return (stock, result.rating)
         }
+
+        return Dictionary(grouping: ratedStocks, by: { $0.rating })
+            .mapValues { $0.map { $0.stock } }
     }
 }
 
 extension Stock {
 
-    /// Get compatibility with a specific zodiac sign
-    func compatibility(with userSign: ZodiacSign) -> CompatibilityResult {
-        CompatibilityCalculator.calculate(userSign: userSign, stockSign: zodiacSign)
+    /// Get compatibility with a specific zodiac sign when the stock has a verified company date.
+    func compatibility(with userSign: ZodiacSign) -> CompatibilityResult? {
+        guard let zodiacSign else { return nil }
+        return CompatibilityCalculator.calculate(userSign: userSign, stockSign: zodiacSign)
     }
 }
 

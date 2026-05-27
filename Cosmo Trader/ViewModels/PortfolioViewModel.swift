@@ -109,14 +109,20 @@ class PortfolioViewModel {
 
     /// Holdings grouped by zodiac element (for ZodiacWheelView)
     var holdingsByElement: [ZodiacSign.Element: [Stock]] {
-        Dictionary(grouping: holdings) { $0.zodiacSign.element }
+        var groups: [ZodiacSign.Element: [Stock]] = [:]
+        for stock in holdings {
+            guard let foundedElement = stock.foundedElement else { continue }
+            groups[foundedElement, default: []].append(stock)
+        }
+        return groups
     }
 
     // MARK: - Element Breakdown
 
     /// Calculate the percentage breakdown by element
     var elementBreakdown: [ElementBreakdown] {
-        let totalValue = totalPortfolioValue
+        let verifiedHoldings = holdings.filter { $0.foundedElement != nil }
+        let totalValue = verifiedHoldings.reduce(0) { $0 + $1.totalValue }
         guard totalValue > 0 else {
             return ZodiacSign.Element.allCases.map {
                 ElementBreakdown(element: $0, percentage: 0, value: 0)
@@ -125,9 +131,9 @@ class PortfolioViewModel {
 
         // Group holdings by element and sum values
         var elementValues: [ZodiacSign.Element: Double] = [:]
-        for stock in holdings {
-            let element = stock.zodiacSign.element
-            elementValues[element, default: 0] += stock.totalValue
+        for stock in verifiedHoldings {
+            guard let foundedElement = stock.foundedElement else { continue }
+            elementValues[foundedElement, default: 0] += stock.totalValue
         }
 
         // Convert to breakdown structs
@@ -190,8 +196,8 @@ class PortfolioViewModel {
         user.compatibility(with: stock)
     }
 
-    /// Average compatibility across the portfolio
-    var averageCompatibility: Int {
+    /// Average compatibility across verified-date portfolio holdings.
+    var averageCompatibility: Int? {
         user.averagePortfolioCompatibility
     }
 
@@ -304,42 +310,43 @@ extension UserProfile {
             memberSince: Calendar.current.date(byAdding: .month, value: -8, to: Date()) ?? Date()
         )
 
-        // Add stocks from MockStockData with varying share amounts
+        // Add stocks from the canonical sample universe with varying share amounts
         // Mix of different elements for interesting breakdown
+        let knownStocks = MockStockData.knownStocks
 
         // Fire signs
-        var apple = MockStockData.all.first { $0.symbol == "AAPL" }!
+        var apple = knownStocks.first { $0.symbol == "AAPL" }!
         apple.sharesOwned = 15
         user.addStock(apple)
 
-        var ford = MockStockData.all.first { $0.symbol == "F" }!
+        var ford = knownStocks.first { $0.symbol == "F" }!
         ford.sharesOwned = 50
         user.addStock(ford)
 
         // Earth signs
-        var google = MockStockData.all.first { $0.symbol == "GOOGL" }!
+        var google = knownStocks.first { $0.symbol == "GOOGL" }!
         google.sharesOwned = 8
         user.addStock(google)
 
-        var berkshire = MockStockData.all.first { $0.symbol == "BRK.B" }!
+        var berkshire = knownStocks.first { $0.symbol == "BRK.B" }!
         berkshire.sharesOwned = 5
         user.addStock(berkshire)
 
         // Water signs
-        var tesla = MockStockData.all.first { $0.symbol == "TSLA" }!
+        var tesla = knownStocks.first { $0.symbol == "TSLA" }!
         tesla.sharesOwned = 10
         user.addStock(tesla)
 
-        var amazon = MockStockData.all.first { $0.symbol == "AMZN" }!
+        var amazon = knownStocks.first { $0.symbol == "AMZN" }!
         amazon.sharesOwned = 12
         user.addStock(amazon)
 
         // Air signs
-        var nvidia = MockStockData.all.first { $0.symbol == "NVDA" }!
+        var nvidia = knownStocks.first { $0.symbol == "NVDA" }!
         nvidia.sharesOwned = 6
         user.addStock(nvidia)
 
-        var meta = MockStockData.all.first { $0.symbol == "META" }!
+        var meta = knownStocks.first { $0.symbol == "META" }!
         meta.sharesOwned = 4
         user.addStock(meta)
 

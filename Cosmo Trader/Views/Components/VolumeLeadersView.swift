@@ -270,9 +270,16 @@ struct VolumeLeaderRow: View {
                 .foregroundColor(CosmicTheme.textPrimary)
 
             HStack(spacing: 4) {
-                ZodiacSymbolView(sign: leader.stock.zodiacSign, size: 10, color: elementColor)
+                if let sign = leader.stock.zodiacSign {
+                    ZodiacSymbolView(sign: sign, size: 10, color: elementColor)
+                } else {
+                    Text("?")
+                        .font(TerminalFont.data(10, weight: .bold))
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .accessibilityLabel("unknown sign")
+                }
 
-                Text(leader.stock.zodiacSign.displayName)
+                Text(leader.stock.zodiacSign?.displayName ?? "Unknown")
                     .font(TerminalFont.data(10))
                     .foregroundColor(CosmicTheme.textMuted)
             }
@@ -281,12 +288,7 @@ struct VolumeLeaderRow: View {
     }
 
     private var elementColor: Color {
-        switch leader.stock.zodiacSign.element {
-        case .fire: return CosmicTheme.fireElement
-        case .earth: return CosmicTheme.earthElement
-        case .air: return CosmicTheme.airElement
-        case .water: return CosmicTheme.waterElement
-        }
+        leader.stock.foundedElement?.color ?? CosmicTheme.textMuted
     }
 
     // MARK: - Volume Info
@@ -368,7 +370,7 @@ struct VolumeLeadersSection: View {
         let volumeService = VolumeService.shared
 
         leaders = await volumeService.getVolumeLeaders(
-            from: MockStockData.all,
+            from: MockStockData.knownStocks,
             userSign: userSign,
             limit: 10
         )
@@ -533,10 +535,10 @@ struct CosmicConfluenceAlert: View {
     ZStack {
         CosmicTheme.background.ignoresSafeArea()
 
-        CosmicConfluenceAlert(
-            leader: VolumeLeader(
-                stock: MockStockData.all.first!,
-                volumeData: VolumeData(
+            CosmicConfluenceAlert(
+                leader: VolumeLeader(
+                    stock: MockStockData.knownStocks.first!,
+                    volumeData: VolumeData(
                     symbol: "AAPL",
                     currentVolume: 150_000_000,
                     averageVolume: 50_000_000,

@@ -17,7 +17,10 @@ struct HistoricalAstroChartView: View {
             content
             timeframeSelector
             if !viewModel.ohlcData.isEmpty {
-                AstroOverlayControls(filterState: viewModel.filterState) { option in
+                AstroOverlayControls(
+                    filterState: viewModel.filterState,
+                    hasCompanyEventDate: stock.supportsCompanyOverlayEvents
+                ) { option in
                     viewModel.toggleKinds(option.kinds)
                     AnalyticsService.shared.trackAstroOverlayFilterChanged(
                         symbol: stock.symbol,
@@ -201,6 +204,22 @@ struct HistoricalAstroChartView: View {
                 .foregroundStyle(chartColor)
                 .lineStyle(StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
                 .interpolationMethod(.catmullRom)
+            }
+
+            // Primary moon markers on the price curve
+            ForEach(curveMoonEvents) { event in
+                if let candle = viewModel.nearestCandle(to: event.markerDate) {
+                    let isSelected = viewModel.selectedEvent?.id == event.id
+                    PointMark(
+                        x: .value("Moon Event", candle.date),
+                        y: .value("Close", candle.close)
+                    )
+                    .symbol {
+                        MoonCurveMarker(kind: event.kind, isSelected: isSelected)
+                    }
+                    .symbolSize(isSelected ? 150 : 95)
+                    .foregroundStyle(event.kind.overlayColor)
+                }
             }
 
             // Bottom event rail (always-on point markers)
@@ -489,6 +508,12 @@ struct HistoricalAstroChartView: View {
         return viewModel.nearestEvent(to: scrubDate, within: 60 * 60 * 24 * 5)
     }
 
+    private var curveMoonEvents: [AstroOverlayEvent] {
+        viewModel.overlayEvents.filter { event in
+            event.kind == .newMoon || event.kind == .fullMoon
+        }
+    }
+
     private var performancePercentText: String {
         guard let first = viewModel.ohlcData.first?.close,
               let last = viewModel.ohlcData.last?.close,
@@ -536,6 +561,34 @@ struct HistoricalAstroChartView: View {
             return "\(DateFormatter.astroOverlayMonthDay.string(from: event.startDate)) to \(DateFormatter.astroOverlayMonthDay.string(from: end))"
         }
         return DateFormatter.astroOverlayShort.string(from: event.markerDate)
+    }
+}
+
+private struct MoonCurveMarker: View {
+    let kind: AstroOverlayEventKind
+    let isSelected: Bool
+
+    private var size: CGFloat {
+        isSelected ? 11 : 8
+    }
+
+    var body: some View {
+        switch kind {
+        case .newMoon:
+            Circle()
+                .fill(CosmicTheme.steelBlue)
+                .overlay(Circle().stroke(CosmicTheme.textPrimary, lineWidth: isSelected ? 1.4 : 1))
+                .frame(width: size, height: size)
+        case .fullMoon:
+            Circle()
+                .fill(CosmicTheme.terminalBlack)
+                .overlay(Circle().stroke(CosmicTheme.gold, lineWidth: isSelected ? 2.4 : 1.8))
+                .frame(width: size + 1, height: size + 1)
+        default:
+            Circle()
+                .fill(kind.overlayColor)
+                .frame(width: size, height: size)
+        }
     }
 }
 

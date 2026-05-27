@@ -848,7 +848,7 @@ struct CosmosView: View {
     // MARK: - Weekly Zodiac Performance Section
 
     private var weeklyZodiacPerformanceSection: some View {
-        let leaderboard = ZodiacPerformanceService.getLeaderboard(stocks: MockStockData.all)
+        let leaderboard = ZodiacPerformanceService.getLeaderboard(stocks: MockStockData.knownStocks)
         let topThree = leaderboard.prefix(3)
         let userSign = viewModel.user?.sunSign ?? .aries
         let performances = leaderboard.map { $0.performance }

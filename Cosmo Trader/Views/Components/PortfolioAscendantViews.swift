@@ -343,7 +343,15 @@ struct PortfolioAscendantSheet: View {
                         .foregroundColor(CosmicTheme.textMuted)
 
                     HStack(spacing: 12) {
-                        ZodiacMark(sign: standout.zodiacSign, size: 28, style: .element)
+                        if let sign = standout.zodiacSign {
+                            ZodiacMark(sign: sign, size: 28, style: .element)
+                        } else {
+                            Text("?")
+                                .font(TerminalFont.body(20, weight: .semibold))
+                                .foregroundColor(CosmicTheme.textMuted)
+                                .frame(width: 28, height: 28)
+                                .accessibilityLabel("unknown sign")
+                        }
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(standout.symbol)
@@ -357,14 +365,15 @@ struct PortfolioAscendantSheet: View {
 
                         Spacer()
 
-                        Text(standout.zodiacSign.displayName)
+                        let sign = standout.zodiacSign
+                        Text(sign?.displayName ?? "Unknown")
                             .font(TerminalFont.caption(11))
-                            .foregroundColor(standout.zodiacSign.element.color)
+                            .foregroundColor(sign?.element.color ?? CosmicTheme.textMuted)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(
                                 Capsule()
-                                    .fill(standout.zodiacSign.element.color.opacity(0.2))
+                                    .fill((sign?.element.color ?? CosmicTheme.textMuted).opacity(0.2))
                             )
                     }
                 }

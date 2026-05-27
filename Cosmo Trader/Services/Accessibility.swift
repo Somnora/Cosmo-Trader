@@ -58,7 +58,11 @@ extension Stock {
     /// Full accessibility description
     var accessibilityDescription: String {
         var description = "\(accessibilityLabel). \(accessibilityPriceDescription). "
-        description += "\(zodiacSign.displayName) sign, \(element.displayName) element."
+        if let zodiacSign, let element {
+            description += "\(zodiacSign.displayName) sign, \(element.displayName) element."
+        } else {
+            description += "Unknown sign, unknown element."
+        }
 
         if sharesOwned > 0 {
             description += " You own \(formattedSharesOwned) shares worth \(formattedTotalValue)."

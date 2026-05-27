@@ -20,11 +20,17 @@ struct HoldingRow: View {
             HStack(spacing: 0) {
                 // Symbol with zodiac glyph
                 HStack(spacing: 4) {
-                    ZodiacSymbolView(
-                        sign: stock.zodiacSign,
-                        size: 10,
-                        color: CosmicTheme.gold.opacity(0.7)
-                    )
+                    if let foundedZodiacSign = stock.foundedZodiacSign {
+                        ZodiacSymbolView(
+                            sign: foundedZodiacSign,
+                            size: 10,
+                            color: CosmicTheme.gold.opacity(0.7)
+                        )
+                    } else {
+                        Text("?")
+                            .font(TerminalFont.data(10, weight: .semibold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
                     Text(stock.symbol)
                         .font(TerminalFont.ticker(11))
                         .foregroundColor(CosmicTheme.textPrimary)
@@ -74,11 +80,17 @@ struct CompactHoldingRow: View {
         HStack(spacing: 8) {
             // Symbol with glyph
             HStack(spacing: 4) {
-                ZodiacSymbolView(
-                    sign: stock.zodiacSign,
-                    size: 10,
-                    color: CosmicTheme.gold.opacity(0.7)
-                )
+                if let foundedZodiacSign = stock.foundedZodiacSign {
+                    ZodiacSymbolView(
+                        sign: foundedZodiacSign,
+                        size: 10,
+                        color: CosmicTheme.gold.opacity(0.7)
+                    )
+                } else {
+                    Text("?")
+                        .font(TerminalFont.data(10, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
                 Text(stock.symbol)
                     .font(TerminalFont.ticker(11))
                     .foregroundColor(CosmicTheme.textPrimary)
@@ -131,7 +143,7 @@ struct CompactHoldingRow: View {
 
         // Sample rows
         let stock: Stock = {
-            var s = MockStockData.all.first { $0.symbol == "AAPL" }!
+            var s = MockStockData.knownStocks.first { $0.symbol == "AAPL" }!
             s.sharesOwned = 15
             return s
         }()

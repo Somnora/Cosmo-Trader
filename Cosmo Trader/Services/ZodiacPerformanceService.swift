@@ -146,22 +146,27 @@ enum ZodiacPerformanceService {
     /// - Returns: Array of performance data sorted by return (best first)
     static func calculateWeeklyPerformance(stocks: [Stock]) -> [ZodiacWeeklyPerformance] {
         // Group stocks by zodiac sign
-        let grouped = Dictionary(grouping: stocks) { $0.zodiacSign }
+        let verifiedStocks = stocks.compactMap { stock -> (sign: ZodiacSign, stock: Stock)? in
+            guard let sign = stock.zodiacSign else { return nil }
+            return (sign, stock)
+        }
+        let grouped = Dictionary(grouping: verifiedStocks, by: { $0.sign })
 
         return grouped.map { sign, signStocks in
+            let stocks = signStocks.map(\.stock)
             // Calculate average return (using percentageChange as proxy for weekly)
-            let returns = signStocks.map { $0.percentageChange }
+            let returns = stocks.map { $0.percentageChange }
             let avgReturn = returns.isEmpty ? 0 : returns.reduce(0, +) / Double(returns.count)
 
             // Sort to find top/bottom performers
-            let sorted = signStocks.sorted { $0.percentageChange > $1.percentageChange }
+            let sorted = stocks.sorted { $0.percentageChange > $1.percentageChange }
 
             return ZodiacWeeklyPerformance(
                 sign: sign,
                 averageReturn: avgReturn,
                 topPerformer: sorted.first,
                 bottomPerformer: sorted.last,
-                stockCount: signStocks.count,
+                stockCount: stocks.count,
                 totalMarketCap: nil
             )
         }.sorted { $0.averageReturn > $1.averageReturn }

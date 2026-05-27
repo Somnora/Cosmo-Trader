@@ -323,8 +323,8 @@ struct SearchView: View {
         searchService.addToRecentSearches(symbol: result.symbol, name: result.description)
 
         // Find stock in mock data or create a placeholder
-        if let mockStock = MockStockData.all.first(where: { $0.symbol == result.symbol }) {
-            navPath.append(mockStock)
+        if let knownStock = knownStock(symbol: result.symbol) {
+            navPath.append(knownStock)
         } else {
             // Create placeholder stock for non-mock symbols
             navPath.append(createPlaceholderStock(symbol: result.symbol, name: result.description))
@@ -332,8 +332,8 @@ struct SearchView: View {
     }
 
     private func selectRecentSearch(_ recent: RecentSearch) {
-        if let mockStock = MockStockData.all.first(where: { $0.symbol == recent.symbol }) {
-            navPath.append(mockStock)
+        if let knownStock = knownStock(symbol: recent.symbol) {
+            navPath.append(knownStock)
         } else {
             navPath.append(createPlaceholderStock(symbol: recent.symbol, name: recent.name))
         }
@@ -342,11 +342,17 @@ struct SearchView: View {
     private func selectPopularSuggestion(symbol: String, name: String) {
         searchService.addToRecentSearches(symbol: symbol, name: name)
 
-        if let mockStock = MockStockData.all.first(where: { $0.symbol == symbol }) {
-            navPath.append(mockStock)
+        if let knownStock = knownStock(symbol: symbol) {
+            navPath.append(knownStock)
         } else {
             navPath.append(createPlaceholderStock(symbol: symbol, name: name))
         }
+    }
+
+    private func knownStock(symbol: String) -> Stock? {
+        let normalized = symbol.uppercased()
+        return Stock.samples.first { $0.symbol.uppercased() == normalized }
+            ?? MockStockData.all.first { $0.symbol.uppercased() == normalized }
     }
 
     /// Create a placeholder stock for symbols not in mock data
@@ -357,7 +363,7 @@ struct SearchView: View {
             currentPrice: 0,
             priceChange: 0,
             percentageChange: 0,
-            foundedDate: Date(), // Unknown founding date
+            foundedDate: nil,
             sector: "Unknown"
         )
     }

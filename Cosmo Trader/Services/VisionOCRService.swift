@@ -44,7 +44,7 @@ struct OCRExtractedHolding: Identifiable {
 
     /// Matched stock from our database (if found)
     var matchedStock: Stock? {
-        MockStockData.all.first { $0.symbol.uppercased() == symbol.uppercased() }
+        MockStockData.knownStocks.first { $0.symbol.uppercased() == symbol.uppercased() }
     }
 
     /// Whether we have this stock in our database
@@ -294,7 +294,7 @@ final class VisionOCRService {
 
                     // Calculate confidence
                     var confidence = 0.0
-                    let isKnownSymbol = MockStockData.all.contains { $0.symbol == cleanedWord }
+                    let isKnownSymbol = MockStockData.knownStocks.contains { $0.symbol == cleanedWord }
                     if isKnownSymbol { confidence += 0.5 }
                     if quantity != nil { confidence += 0.25 }
                     if price != nil { confidence += 0.25 }

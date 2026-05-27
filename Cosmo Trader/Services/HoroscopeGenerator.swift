@@ -173,10 +173,11 @@ struct HoroscopeGenerator {
         let templates: [String]
 
         if let gainer = context.performance.topGainer {
+            let gainerSign = gainer.zodiacSign?.displayName ?? "unknown"
             templates = [
-                "\(gainer.name)'s \(gainer.formattedPercentageChange) surge is carrying your portfolio today. \(gainer.zodiacSign.displayName) energy said 'you're welcome.'",
+                "\(gainer.name)'s \(gainer.formattedPercentageChange) surge is carrying your portfolio today. \(gainerSign) energy said 'you're welcome.'",
                 "Your portfolio is up {change}. \(gainer.symbol) is doing the heavy lifting while the rest of your picks watch.",
-                "\(gainer.symbol)'s \(gainer.zodiacSign.displayName) confidence is radiating through your account. {change} up and counting.",
+                "\(gainer.symbol)'s \(gainerSign) confidence is radiating through your account. {change} up and counting.",
                 "The {change} gain is real. \(gainer.name) remembered it has shareholders to impress.",
             ]
         } else {
@@ -249,9 +250,10 @@ struct HoroscopeGenerator {
         var templates: [String]
 
         if let loser = context.performance.topLoser {
+            let loserSign = loser.zodiacSign?.displayName ?? "unknown"
             templates = [
                 "Your portfolio's {change} dip is Saturn saying 'I told you so.' \(loser.symbol) took the hint personally.",
-                "\(loser.name)'s \(loser.formattedPercentageChange) slide is testing your conviction. \(loser.zodiacSign.displayName) mood swings are real.",
+                "\(loser.name)'s \(loser.formattedPercentageChange) slide is testing your conviction. \(loserSign) mood swings are real.",
                 "\(loser.symbol) is having an existential crisis. Your portfolio is having one too, down {change}.",
                 "The {change} loss has a face: \(loser.symbol). Don't take it personally. Or do. The stock doesn't care.",
             ]
@@ -270,9 +272,10 @@ struct HoroscopeGenerator {
         var templates: [String]
 
         if let loser = context.performance.topLoser {
+            let loserSign = loser.zodiacSign?.displayName ?? "unknown"
             templates = [
                 "Mercury retrograde isn't why \(loser.symbol) dropped \(loser.formattedPercentageChange). But it's a convenient excuse.",
-                "\(loser.name) said 'not today' and took your portfolio down {change} with it. \(loser.zodiacSign.displayName) chaos.",
+                "\(loser.name) said 'not today' and took your portfolio down {change} with it. \(loserSign) chaos.",
                 "Your portfolio is down {change}. \(loser.symbol) is the main character in this tragedy.",
                 "The void stared back today, and \(loser.symbol)'s \(loser.formattedPercentageChange) drop was its hello.",
             ]
@@ -495,12 +498,12 @@ struct HoroscopeGenerator {
     }
 
     private static func findDominantElement(in user: UserProfile) -> ZodiacSign.Element? {
-        let holdings = user.portfolio.filter { $0.sharesOwned > 0 }
+        let holdings = user.portfolio.filter { $0.sharesOwned > 0 && $0.foundedElement != nil }
         guard !holdings.isEmpty else { return nil }
 
         var elementValues: [ZodiacSign.Element: Double] = [:]
         for stock in holdings {
-            let element = stock.zodiacSign.element
+            guard let element = stock.foundedElement else { continue }
             elementValues[element, default: 0] += stock.totalValue
         }
 
@@ -518,7 +521,8 @@ struct HoroscopeGenerator {
 
     private static func analyzePortfolioComposition(user: UserProfile) -> PortfolioAnalysis {
         let holdings = user.portfolio.filter { $0.sharesOwned > 0 }
-        let totalValue = holdings.reduce(0.0) { $0 + $1.totalValue }
+        let verifiedHoldings = holdings.filter { $0.foundedElement != nil }
+        let totalValue = verifiedHoldings.reduce(0.0) { $0 + $1.totalValue }
 
         guard totalValue > 0 else {
             return PortfolioAnalysis(
@@ -531,8 +535,8 @@ struct HoroscopeGenerator {
         }
 
         // Calculate tech percentage (Fire + Air signs are typically tech/growth)
-        let techValue = holdings
-            .filter { $0.zodiacSign.element == .fire || $0.zodiacSign.element == .air }
+        let techValue = verifiedHoldings
+            .filter { $0.foundedElement == .fire || $0.foundedElement == .air }
             .reduce(0.0) { $0 + $1.totalValue }
         let techPercentage = (techValue / totalValue) * 100
 
@@ -540,7 +544,7 @@ struct HoroscopeGenerator {
         var elementPercentages: [ZodiacSign.Element: Double] = [:]
         for element in ZodiacSign.Element.allCases {
             let elementValue = holdings
-                .filter { $0.zodiacSign.element == element }
+                .filter { $0.foundedElement == element }
                 .reduce(0.0) { $0 + $1.totalValue }
             elementPercentages[element] = (elementValue / totalValue) * 100
         }

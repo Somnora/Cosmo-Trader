@@ -112,14 +112,15 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
     // ===========================
     // Static information about the company itself.
 
-    /// The date the company was founded/incorporated
-    /// WHY: We use this to calculate the company's zodiac sign!
+    /// The date the company was founded/incorporated, when known.
+    /// WHY: We use verified dates for company-specific astrological overlays.
+    ///      Unknown dates stay nil; callers must not invent a fallback date.
     ///      Just like people have birth signs, companies have "founding signs."
     /// EXAMPLES:
     ///   - Apple: April 1, 1976 (Aries)
     ///   - Microsoft: April 4, 1975 (Aries)
     ///   - Google: September 4, 1998 (Virgo)
-    let foundedDate: Date
+    let foundedDate: Date?
 
     /// The industry sector this company belongs to
     /// WHY: Helps categorize stocks and find related companies.
@@ -157,8 +158,17 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
     /// - It's derived from foundedDate, so storing it would be redundant
     /// - If foundedDate somehow changed, zodiacSign updates automatically
     /// - Computed properties don't take up memory
-    var zodiacSign: ZodiacSign {
-        ZodiacSign.from(date: foundedDate)
+    var foundedZodiacSign: ZodiacSign? {
+        guard let foundedDate else { return nil }
+        return ZodiacSign.from(date: foundedDate)
+    }
+
+    var foundedElement: ZodiacSign.Element? {
+        foundedZodiacSign?.element
+    }
+
+    var zodiacSign: ZodiacSign? {
+        foundedZodiacSign
     }
 
     /// Total value of shares owned in USD
@@ -251,8 +261,8 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
 
     /// The element of this stock's zodiac sign
     /// WHY: Quick access for UI grouping by element (Fire, Earth, Air, Water)
-    var element: ZodiacSign.Element {
-        zodiacSign.element
+    var element: ZodiacSign.Element? {
+        zodiacSign?.element
     }
 
     /// The zodiac sign of the CEO based on their birth date
@@ -340,6 +350,7 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
             case .week: return (35, .hour, 4)       // 4-hour intervals
             case .month: return (30, .day, 1)       // Daily
             case .threeMonth: return (90, .day, 1)  // Daily
+            case .sixMonth: return (180, .day, 1)   // Daily
             case .year: return (52, .weekOfYear, 1) // Weekly
             case .all: return (36, .month, 1)       // Monthly (3 years) - reduced for stability
             }
@@ -379,6 +390,7 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
                 case .week: return 0.005   // 0.5% per 4 hours
                 case .month: return 0.015  // 1.5% per day
                 case .threeMonth: return 0.02
+                case .sixMonth: return 0.022
                 case .year: return 0.025
                 case .all: return 0.025    // Reduced from 0.04 for stability
                 }
@@ -426,6 +438,8 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
             return dailyChange * (8 + Double.random(in: -3...3, using: &generator))
         case .threeMonth:
             return dailyChange * (15 + Double.random(in: -5...5, using: &generator))
+        case .sixMonth:
+            return dailyChange * (25 + Double.random(in: -8...8, using: &generator))
         case .year:
             return dailyChange * (40 + Double.random(in: -15...15, using: &generator))
         case .all:
@@ -491,7 +505,7 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         sharesOwned: Double = 0,
         purchasePrice: Double? = nil,
         purchaseDate: Date? = nil,
-        foundedDate: Date,
+        foundedDate: Date?,
         sector: String,
         ceoName: String? = nil,
         ceoBirthDate: Date? = nil
@@ -558,7 +572,7 @@ struct Stock: Identifiable, Codable, Equatable, Hashable {
         components.month = foundedMonth
         components.day = foundedDay
         components.year = foundedYear
-        self.foundedDate = Calendar.current.date(from: components) ?? Date()
+        self.foundedDate = Calendar.current.date(from: components)
 
         // Create CEO birth date if all components provided
         if let month = ceoBirthMonth, let day = ceoBirthDay, let year = ceoBirthYear {
@@ -674,13 +688,14 @@ extension Stock {
     /// Check if this stock is cosmically compatible with a user's sign
     /// WHY: Fun feature - "This stock aligns with your energy!"
     func isCompatible(with userSign: ZodiacSign) -> Bool {
-        userSign.isCompatible(with: zodiacSign)
+        guard let zodiacSign else { return false }
+        return userSign.isCompatible(with: zodiacSign)
     }
 
     /// Check if this stock shares the same element as the user
     /// WHY: Same-element stocks might resonate with the user's trading style
     func sharesElement(with userSign: ZodiacSign) -> Bool {
-        zodiacSign.element == userSign.element
+        zodiacSign?.element == userSign.element
     }
 }
 
@@ -691,10 +706,17 @@ extension Stock {
 
 extension Stock {
 
-    /// Sample stocks with REAL founding dates and purchase tracking data
+    /// ETFs track baskets and have fund inception dates, not company founding dates.
+    /// They must not generate company-specific natal/founding overlay events.
+    static let companyEventExcludedSymbols: Set<String> = ["SPY", "QQQ", "VTI"]
+
+    var supportsCompanyOverlayEvents: Bool {
+        foundedDate != nil && !Self.companyEventExcludedSymbols.contains(symbol.uppercased())
+    }
+
+    /// Sample/curated stocks with verified founding or IPO dates.
     static let samples: [Stock] = [
-        // Apple - Founded April 1, 1976 (ARIES - Fire sign)
-        // Purchased at $150 in March 2024
+        // Source: https://en.wikipedia.org/wiki/Apple_Inc. - founded April 1, 1976.
         Stock(
             symbol: "AAPL",
             name: "Apple Inc.",
@@ -708,8 +730,7 @@ extension Stock {
             sector: "Technology"
         ),
 
-        // Google/Alphabet - Founded September 4, 1998 (VIRGO - Earth sign)
-        // Purchased at $135 in January 2024
+        // Source: https://en.wikipedia.org/wiki/Alphabet_Inc. - Google founded September 4, 1998.
         Stock(
             symbol: "GOOGL",
             name: "Alphabet Inc.",
@@ -723,8 +744,7 @@ extension Stock {
             sector: "Technology"
         ),
 
-        // Tesla - Founded July 1, 2003 (CANCER - Water sign)
-        // Purchased at $200 in June 2024
+        // Source: https://en.wikipedia.org/wiki/Tesla,_Inc. - founded July 1, 2003.
         Stock(
             symbol: "TSLA",
             name: "Tesla Inc.",
@@ -738,8 +758,7 @@ extension Stock {
             sector: "Automotive"
         ),
 
-        // Microsoft - Founded April 4, 1975 (ARIES - Fire sign)
-        // Purchased at $350 in February 2024
+        // Source: https://en.wikipedia.org/wiki/Microsoft - founded April 4, 1975.
         Stock(
             symbol: "MSFT",
             name: "Microsoft Corp.",
@@ -753,8 +772,7 @@ extension Stock {
             sector: "Technology"
         ),
 
-        // Amazon - Founded July 5, 1994 (CANCER - Water sign)
-        // Watchlist only - no purchase data
+        // Source: https://en.wikipedia.org/wiki/Amazon_(company) - founded July 5, 1994.
         Stock(
             symbol: "AMZN",
             name: "Amazon.com Inc.",
@@ -766,8 +784,7 @@ extension Stock {
             sector: "Consumer Cyclical"
         ),
 
-        // NVIDIA - Founded January 25, 1993 (AQUARIUS - Air sign)
-        // Purchased at $300 in April 2024 - big winner!
+        // Source: https://en.wikipedia.org/wiki/Nvidia - founded April 5, 1993.
         Stock(
             symbol: "NVDA",
             name: "NVIDIA Corp.",
@@ -777,12 +794,11 @@ extension Stock {
             sharesOwned: 2,
             purchasePrice: 300.00,
             purchaseDate: Calendar.current.date(from: DateComponents(year: 2024, month: 4, day: 5)),
-            foundedMonth: 1, foundedDay: 25, foundedYear: 1993,
+            foundedMonth: 4, foundedDay: 5, foundedYear: 1993,
             sector: "Technology"
         ),
 
-        // Meta (Facebook) - Founded February 4, 2004 (AQUARIUS - Air sign)
-        // Watchlist only - no purchase data
+        // Source: https://en.wikipedia.org/wiki/Meta_Platforms - Facebook founded February 4, 2004.
         Stock(
             symbol: "META",
             name: "Meta Platforms Inc.",
@@ -794,8 +810,7 @@ extension Stock {
             sector: "Technology"
         ),
 
-        // Netflix - Founded August 29, 1997 (VIRGO - Earth sign)
-        // Purchased at $450 in May 2024
+        // Source: https://en.wikipedia.org/wiki/Netflix - founded August 29, 1997.
         Stock(
             symbol: "NFLX",
             name: "Netflix Inc.",
@@ -807,6 +822,545 @@ extension Stock {
             purchaseDate: Calendar.current.date(from: DateComponents(year: 2024, month: 5, day: 12)),
             foundedMonth: 8, foundedDay: 29, foundedYear: 1997,
             sector: "Communication Services"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Oracle_Corporation - founded June 16, 1977.
+        Stock(
+            symbol: "ORCL",
+            name: "Oracle Corp.",
+            currentPrice: 120.15,
+            priceChange: 1.34,
+            percentageChange: 1.13,
+            foundedMonth: 6, foundedDay: 16, foundedYear: 1977,
+            sector: "Technology"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Advanced_Micro_Devices - founded May 1, 1969.
+        Stock(
+            symbol: "AMD",
+            name: "Advanced Micro Devices Inc.",
+            currentPrice: 164.20,
+            priceChange: 3.18,
+            percentageChange: 1.97,
+            foundedMonth: 5, foundedDay: 1, foundedYear: 1969,
+            sector: "Technology"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Intel - founded July 18, 1968.
+        Stock(
+            symbol: "INTC",
+            name: "Intel Corp.",
+            currentPrice: 31.45,
+            priceChange: -0.89,
+            percentageChange: -2.75,
+            foundedMonth: 7, foundedDay: 18, foundedYear: 1968,
+            sector: "Technology"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Cisco - founded December 10, 1984.
+        Stock(
+            symbol: "CSCO",
+            name: "Cisco Systems Inc.",
+            currentPrice: 49.85,
+            priceChange: 0.42,
+            percentageChange: 0.85,
+            foundedMonth: 12, foundedDay: 10, foundedYear: 1984,
+            sector: "Technology"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Salesforce - founded February 3, 1999.
+        Stock(
+            symbol: "CRM",
+            name: "Salesforce Inc.",
+            currentPrice: 287.50,
+            priceChange: 2.75,
+            percentageChange: 0.97,
+            foundedMonth: 2, foundedDay: 3, foundedYear: 1999,
+            sector: "Technology"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/IBM - founded June 16, 1911.
+        Stock(
+            symbol: "IBM",
+            name: "IBM",
+            currentPrice: 187.30,
+            priceChange: 1.20,
+            percentageChange: 0.64,
+            foundedMonth: 6, foundedDay: 16, foundedYear: 1911,
+            sector: "Technology"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Uber - IPO May 10, 2019.
+        Stock(
+            symbol: "UBER",
+            name: "Uber Technologies Inc.",
+            currentPrice: 68.75,
+            priceChange: 1.62,
+            percentageChange: 2.41,
+            foundedMonth: 5, foundedDay: 10, foundedYear: 2019,
+            sector: "Technology"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Airbnb - IPO December 10, 2020.
+        Stock(
+            symbol: "ABNB",
+            name: "Airbnb Inc.",
+            currentPrice: 145.20,
+            priceChange: -1.85,
+            percentageChange: -1.26,
+            foundedMonth: 12, foundedDay: 10, foundedYear: 2020,
+            sector: "Consumer Cyclical"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Palantir_Technologies - direct listing September 30, 2020.
+        Stock(
+            symbol: "PLTR",
+            name: "Palantir Technologies Inc.",
+            currentPrice: 24.40,
+            priceChange: 1.10,
+            percentageChange: 4.72,
+            foundedMonth: 9, foundedDay: 30, foundedYear: 2020,
+            sector: "Technology"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Coinbase - direct listing April 14, 2021.
+        Stock(
+            symbol: "COIN",
+            name: "Coinbase Global Inc.",
+            currentPrice: 228.60,
+            priceChange: 7.15,
+            percentageChange: 3.23,
+            foundedMonth: 4, foundedDay: 14, foundedYear: 2021,
+            sector: "Crypto"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/GameStop - IPO February 13, 2002.
+        Stock(
+            symbol: "GME",
+            name: "GameStop Corp.",
+            currentPrice: 22.35,
+            priceChange: 0.85,
+            percentageChange: 3.95,
+            foundedMonth: 2, foundedDay: 13, foundedYear: 2002,
+            sector: "Consumer Cyclical"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/AMC_Theatres - IPO December 18, 2013.
+        Stock(
+            symbol: "AMC",
+            name: "AMC Entertainment Holdings Inc.",
+            currentPrice: 4.35,
+            priceChange: -0.18,
+            percentageChange: -3.97,
+            foundedMonth: 12, foundedDay: 18, foundedYear: 2013,
+            sector: "Consumer Cyclical"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Snowflake_Inc. - IPO September 16, 2020.
+        Stock(
+            symbol: "SNOW",
+            name: "Snowflake Inc.",
+            currentPrice: 154.80,
+            priceChange: 2.10,
+            percentageChange: 1.38,
+            foundedMonth: 9, foundedDay: 16, foundedYear: 2020,
+            sector: "Technology"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Shopify - IPO May 21, 2015.
+        Stock(
+            symbol: "SHOP",
+            name: "Shopify Inc.",
+            currentPrice: 76.90,
+            priceChange: 1.95,
+            percentageChange: 2.60,
+            foundedMonth: 5, foundedDay: 21, foundedYear: 2015,
+            sector: "Technology"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Block,_Inc. - IPO November 19, 2015.
+        Stock(
+            symbol: "SQ",
+            name: "Block Inc.",
+            currentPrice: 74.25,
+            priceChange: 0.95,
+            percentageChange: 1.30,
+            foundedMonth: 11, foundedDay: 19, foundedYear: 2015,
+            sector: "Finance"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Roblox_Corporation - direct listing March 10, 2021.
+        Stock(
+            symbol: "RBLX",
+            name: "Roblox Corp.",
+            currentPrice: 38.65,
+            priceChange: 0.72,
+            percentageChange: 1.90,
+            foundedMonth: 3, foundedDay: 10, foundedYear: 2021,
+            sector: "Communication Services"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Rivian - IPO November 10, 2021.
+        Stock(
+            symbol: "RIVN",
+            name: "Rivian Automotive Inc.",
+            currentPrice: 11.85,
+            priceChange: 0.31,
+            percentageChange: 2.69,
+            foundedMonth: 11, foundedDay: 10, foundedYear: 2021,
+            sector: "Automotive"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Robinhood_Markets - IPO July 29, 2021.
+        Stock(
+            symbol: "HOOD",
+            name: "Robinhood Markets Inc.",
+            currentPrice: 20.15,
+            priceChange: 0.44,
+            percentageChange: 2.23,
+            foundedMonth: 7, foundedDay: 29, foundedYear: 2021,
+            sector: "Finance"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Visa_Inc. - IPO March 19, 2008.
+        Stock(
+            symbol: "V",
+            name: "Visa Inc.",
+            currentPrice: 275.34,
+            priceChange: 4.56,
+            percentageChange: 1.68,
+            foundedMonth: 3, foundedDay: 19, foundedYear: 2008,
+            sector: "Finance"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Mastercard - IPO May 25, 2006.
+        Stock(
+            symbol: "MA",
+            name: "Mastercard Inc.",
+            currentPrice: 456.78,
+            priceChange: 5.67,
+            percentageChange: 1.26,
+            foundedMonth: 5, foundedDay: 25, foundedYear: 2006,
+            sector: "Finance"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/JPMorgan_Chase - formed December 1, 2000.
+        Stock(
+            symbol: "JPM",
+            name: "JPMorgan Chase & Co.",
+            currentPrice: 198.67,
+            priceChange: 3.21,
+            percentageChange: 1.64,
+            foundedMonth: 12, foundedDay: 1, foundedYear: 2000,
+            sector: "Finance"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Bank_of_America - Bank of Italy founded October 17, 1904.
+        Stock(
+            symbol: "BAC",
+            name: "Bank of America Corp.",
+            currentPrice: 37.10,
+            priceChange: 0.42,
+            percentageChange: 1.14,
+            foundedMonth: 10, foundedDay: 17, foundedYear: 1904,
+            sector: "Finance"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/American_Express - founded March 18, 1850.
+        Stock(
+            symbol: "AXP",
+            name: "American Express Co.",
+            currentPrice: 235.40,
+            priceChange: 2.35,
+            percentageChange: 1.01,
+            foundedMonth: 3, foundedDay: 18, foundedYear: 1850,
+            sector: "Finance"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Wells_Fargo - founded March 18, 1852.
+        Stock(
+            symbol: "WFC",
+            name: "Wells Fargo & Co.",
+            currentPrice: 58.20,
+            priceChange: 0.51,
+            percentageChange: 0.88,
+            foundedMonth: 3, foundedDay: 18, foundedYear: 1852,
+            sector: "Finance"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Goldman_Sachs - IPO May 4, 1999.
+        Stock(
+            symbol: "GS",
+            name: "Goldman Sachs Group Inc.",
+            currentPrice: 440.75,
+            priceChange: 3.80,
+            percentageChange: 0.87,
+            foundedMonth: 5, foundedDay: 4, foundedYear: 1999,
+            sector: "Finance"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Morgan_Stanley - founded September 16, 1935.
+        Stock(
+            symbol: "MS",
+            name: "Morgan Stanley",
+            currentPrice: 97.30,
+            priceChange: 1.22,
+            percentageChange: 1.27,
+            foundedMonth: 9, foundedDay: 16, foundedYear: 1935,
+            sector: "Finance"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Citibank - City Bank of New York founded June 16, 1812.
+        Stock(
+            symbol: "C",
+            name: "Citigroup Inc.",
+            currentPrice: 61.15,
+            priceChange: 0.74,
+            percentageChange: 1.22,
+            foundedMonth: 6, foundedDay: 16, foundedYear: 1812,
+            sector: "Finance"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Walmart - founded July 2, 1962.
+        Stock(
+            symbol: "WMT",
+            name: "Walmart Inc.",
+            currentPrice: 165.34,
+            priceChange: 0.78,
+            percentageChange: 0.47,
+            foundedMonth: 7, foundedDay: 2, foundedYear: 1962,
+            sector: "Consumer Staples"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Costco - first warehouse opened September 15, 1983.
+        Stock(
+            symbol: "COST",
+            name: "Costco Wholesale Corp.",
+            currentPrice: 745.23,
+            priceChange: 8.92,
+            percentageChange: 1.21,
+            foundedMonth: 9, foundedDay: 15, foundedYear: 1983,
+            sector: "Consumer Staples"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/The_Home_Depot - founded February 6, 1978.
+        Stock(
+            symbol: "HD",
+            name: "The Home Depot Inc.",
+            currentPrice: 345.67,
+            priceChange: 4.23,
+            percentageChange: 1.24,
+            foundedMonth: 2, foundedDay: 6, foundedYear: 1978,
+            sector: "Consumer Cyclical"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Lowe%27s - founded March 25, 1921.
+        Stock(
+            symbol: "LOW",
+            name: "Lowe's Companies Inc.",
+            currentPrice: 228.40,
+            priceChange: 1.42,
+            percentageChange: 0.63,
+            foundedMonth: 3, foundedDay: 25, foundedYear: 1921,
+            sector: "Consumer Cyclical"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Target_Corporation - founded June 24, 1902.
+        Stock(
+            symbol: "TGT",
+            name: "Target Corp.",
+            currentPrice: 151.20,
+            priceChange: -0.85,
+            percentageChange: -0.56,
+            foundedMonth: 6, foundedDay: 24, foundedYear: 1902,
+            sector: "Consumer Cyclical"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Nike,_Inc. - founded January 25, 1964.
+        Stock(
+            symbol: "NKE",
+            name: "Nike Inc.",
+            currentPrice: 98.45,
+            priceChange: -2.34,
+            percentageChange: -2.32,
+            foundedMonth: 1, foundedDay: 25, foundedYear: 1964,
+            sector: "Consumer Cyclical"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Starbucks - founded March 30, 1971.
+        Stock(
+            symbol: "SBUX",
+            name: "Starbucks Corp.",
+            currentPrice: 97.23,
+            priceChange: 1.34,
+            percentageChange: 1.40,
+            foundedMonth: 3, foundedDay: 30, foundedYear: 1971,
+            sector: "Consumer Cyclical"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/McDonald%27s - corporation founded April 15, 1955.
+        Stock(
+            symbol: "MCD",
+            name: "McDonald's Corp.",
+            currentPrice: 289.45,
+            priceChange: -1.87,
+            percentageChange: -0.64,
+            foundedMonth: 4, foundedDay: 15, foundedYear: 1955,
+            sector: "Consumer Cyclical"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/The_Coca-Cola_Company - incorporated January 29, 1892.
+        Stock(
+            symbol: "KO",
+            name: "The Coca-Cola Company",
+            currentPrice: 62.45,
+            priceChange: -0.38,
+            percentageChange: -0.60,
+            foundedMonth: 1, foundedDay: 29, foundedYear: 1892,
+            sector: "Consumer Staples"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Procter_%26_Gamble - founded October 31, 1837.
+        Stock(
+            symbol: "PG",
+            name: "Procter & Gamble Co.",
+            currentPrice: 156.78,
+            priceChange: 0.89,
+            percentageChange: 0.57,
+            foundedMonth: 10, foundedDay: 31, foundedYear: 1837,
+            sector: "Consumer Staples"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/The_Walt_Disney_Company - founded October 16, 1923.
+        Stock(
+            symbol: "DIS",
+            name: "The Walt Disney Company",
+            currentPrice: 112.34,
+            priceChange: 1.56,
+            percentageChange: 1.41,
+            foundedMonth: 10, foundedDay: 16, foundedYear: 1923,
+            sector: "Communication Services"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Comcast - founded June 28, 1963.
+        Stock(
+            symbol: "CMCSA",
+            name: "Comcast Corp.",
+            currentPrice: 39.80,
+            priceChange: -0.21,
+            percentageChange: -0.52,
+            foundedMonth: 6, foundedDay: 28, foundedYear: 1963,
+            sector: "Communication Services"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Verizon - formed June 30, 2000.
+        Stock(
+            symbol: "VZ",
+            name: "Verizon Communications Inc.",
+            currentPrice: 40.25,
+            priceChange: 0.14,
+            percentageChange: 0.35,
+            foundedMonth: 6, foundedDay: 30, foundedYear: 2000,
+            sector: "Communication Services"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/General_Motors - founded September 16, 1908.
+        Stock(
+            symbol: "GM",
+            name: "General Motors Co.",
+            currentPrice: 44.10,
+            priceChange: 0.88,
+            percentageChange: 2.04,
+            foundedMonth: 9, foundedDay: 16, foundedYear: 1908,
+            sector: "Automotive"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Ford_Motor_Company - founded June 16, 1903.
+        Stock(
+            symbol: "F",
+            name: "Ford Motor Company",
+            currentPrice: 12.34,
+            priceChange: 0.28,
+            percentageChange: 2.32,
+            foundedMonth: 6, foundedDay: 16, foundedYear: 1903,
+            sector: "Automotive"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Boeing - founded July 15, 1916.
+        Stock(
+            symbol: "BA",
+            name: "The Boeing Company",
+            currentPrice: 178.23,
+            priceChange: 3.45,
+            percentageChange: 1.97,
+            foundedMonth: 7, foundedDay: 15, foundedYear: 1916,
+            sector: "Industrials"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Caterpillar_Inc. - founded April 15, 1925.
+        Stock(
+            symbol: "CAT",
+            name: "Caterpillar Inc.",
+            currentPrice: 346.70,
+            priceChange: 2.15,
+            percentageChange: 0.62,
+            foundedMonth: 4, foundedDay: 15, foundedYear: 1925,
+            sector: "Industrials"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/General_Electric - founded April 15, 1892.
+        Stock(
+            symbol: "GE",
+            name: "General Electric Company",
+            currentPrice: 167.45,
+            priceChange: 2.34,
+            percentageChange: 1.42,
+            foundedMonth: 4, foundedDay: 15, foundedYear: 1892,
+            sector: "Industrials"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/AbbVie - spun off as a public company January 1, 2013.
+        Stock(
+            symbol: "ABBV",
+            name: "AbbVie Inc.",
+            currentPrice: 168.40,
+            priceChange: 1.18,
+            percentageChange: 0.71,
+            foundedMonth: 1, foundedDay: 1, foundedYear: 2013,
+            sector: "Healthcare"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Eli_Lilly_and_Company - founded May 10, 1876.
+        Stock(
+            symbol: "LLY",
+            name: "Eli Lilly and Company",
+            currentPrice: 770.25,
+            priceChange: 6.30,
+            percentageChange: 0.82,
+            foundedMonth: 5, foundedDay: 10, foundedYear: 1876,
+            sector: "Healthcare"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/ExxonMobil - Exxon Mobil merger completed November 30, 1999.
+        Stock(
+            symbol: "XOM",
+            name: "Exxon Mobil Corp.",
+            currentPrice: 104.56,
+            priceChange: -1.23,
+            percentageChange: -1.16,
+            foundedMonth: 11, foundedDay: 30, foundedYear: 1999,
+            sector: "Energy"
+        ),
+
+        // Source: https://en.wikipedia.org/wiki/Chevron_Corporation - Pacific Coast Oil founded September 10, 1879.
+        Stock(
+            symbol: "CVX",
+            name: "Chevron Corp.",
+            currentPrice: 147.23,
+            priceChange: -2.34,
+            percentageChange: -1.56,
+            foundedMonth: 9, foundedDay: 10, foundedYear: 1879,
+            sector: "Energy"
         )
     ]
 
@@ -827,7 +1381,12 @@ extension Stock {
 
     /// Group sample stocks by their zodiac element
     static var samplesByElement: [ZodiacSign.Element: [Stock]] {
-        Dictionary(grouping: samples) { $0.element }
+        var groups: [ZodiacSign.Element: [Stock]] = [:]
+        for stock in samples {
+            guard let element = stock.element else { continue }
+            groups[element, default: []].append(stock)
+        }
+        return groups
     }
 }
 
@@ -868,6 +1427,7 @@ enum ChartTimeframe: String, CaseIterable, Identifiable, Hashable {
     case week = "1W"
     case month = "1M"
     case threeMonth = "3M"
+    case sixMonth = "6M"
     case year = "1Y"
     case all = "ALL"
 
@@ -880,6 +1440,7 @@ enum ChartTimeframe: String, CaseIterable, Identifiable, Hashable {
         case .week: return "Past Week"
         case .month: return "Past Month"
         case .threeMonth: return "Past 3 Months"
+        case .sixMonth: return "Past 6 Months"
         case .year: return "Past Year"
         case .all: return "All Time"
         }
@@ -892,6 +1453,7 @@ enum ChartTimeframe: String, CaseIterable, Identifiable, Hashable {
         case .week: return 5
         case .month: return 22
         case .threeMonth: return 66
+        case .sixMonth: return 126
         case .year: return 252
         case .all: return 1260  // 5 years
         }
@@ -983,9 +1545,9 @@ struct StockKeyStats {
      foundedMonth: 4, foundedDay: 1, foundedYear: 1976,
      sector: "Technology"
  )
- print(apple.zodiacSign.displayName)  // "Aries"
- print(apple.zodiacSign.symbol)       // "♈"
- print(apple.element.sfSymbol)        // "flame.fill" (Fire)
+ print(apple.zodiacSign?.displayName ?? "Unknown")  // "Aries"
+ print(apple.zodiacSign?.symbol ?? "?")             // "♈"
+ print(apple.element?.sfSymbol ?? "questionmark")   // "flame.fill" (Fire)
 
  EXAMPLE 2: Check compatibility with user's sign
  -----------------------------------------------

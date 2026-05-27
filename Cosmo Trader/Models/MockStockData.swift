@@ -15,63 +15,12 @@ import Foundation
 
 struct MockStockData {
 
-    // MARK: - All Stocks (25-30 companies)
+    // MARK: - Mock-Only Stocks
 
-    /// Complete list of all mock stocks with real founding dates
+    /// Fallback stocks not already canonically sourced in `Stock.samples`.
+    /// If a symbol exists in `Stock.samples`, remove it from this list so the
+    /// sourced curated table stays the single source of truth.
     static let all: [Stock] = [
-
-        // ═══════════════════════════════════════════════════════════════════
-        // ARIES (March 21 - April 19) ♈ - Fire Sign
-        // ═══════════════════════════════════════════════════════════════════
-
-        // Apple Inc. - Founded April 1, 1976
-        // Steve Jobs, Steve Wozniak, and Ronald Wayne in Los Altos garage
-        // CEO: Tim Cook (born November 1, 1960 - Scorpio)
-        Stock(
-            symbol: "AAPL",
-            name: "Apple Inc.",
-            currentPrice: 178.72,
-            priceChange: 2.34,
-            percentageChange: 1.33,
-            sharesOwned: 0,
-            foundedMonth: 4, foundedDay: 1, foundedYear: 1976,
-            sector: "Technology",
-            ceoName: "Tim Cook",
-            ceoBirthMonth: 11, ceoBirthDay: 1, ceoBirthYear: 1960
-        ),
-
-        // Microsoft Corporation - Founded April 4, 1975
-        // Bill Gates and Paul Allen in Albuquerque, New Mexico
-        // CEO: Satya Nadella (born August 19, 1967 - Leo)
-        Stock(
-            symbol: "MSFT",
-            name: "Microsoft Corporation",
-            currentPrice: 378.91,
-            priceChange: 4.56,
-            percentageChange: 1.22,
-            sharesOwned: 0,
-            foundedMonth: 4, foundedDay: 4, foundedYear: 1975,
-            sector: "Technology",
-            ceoName: "Satya Nadella",
-            ceoBirthMonth: 8, ceoBirthDay: 19, ceoBirthYear: 1967
-        ),
-
-        // ═══════════════════════════════════════════════════════════════════
-        // TAURUS (April 20 - May 20) ♉ - Earth Sign
-        // ═══════════════════════════════════════════════════════════════════
-
-        // Coca-Cola Company - Founded May 8, 1886
-        // John Stith Pemberton in Atlanta, Georgia
-        Stock(
-            symbol: "KO",
-            name: "The Coca-Cola Company",
-            currentPrice: 62.45,
-            priceChange: -0.38,
-            percentageChange: -0.60,
-            sharesOwned: 0,
-            foundedMonth: 5, foundedDay: 8, foundedYear: 1886,
-            sector: "Consumer Staples"
-        ),
 
         // Pfizer Inc. - Founded April 25, 1849
         // Charles Pfizer and Charles Erhart in Brooklyn, NY
@@ -86,10 +35,6 @@ struct MockStockData {
             sector: "Healthcare"
         ),
 
-        // ═══════════════════════════════════════════════════════════════════
-        // GEMINI (May 21 - June 20) ♊ - Air Sign
-        // ═══════════════════════════════════════════════════════════════════
-
         // Hewlett-Packard (HP Inc.) - Founded May 24, 1939
         // Bill Hewlett and David Packard in Palo Alto garage
         Stock(
@@ -101,134 +46,6 @@ struct MockStockData {
             sharesOwned: 0,
             foundedMonth: 5, foundedDay: 24, foundedYear: 1939,
             sector: "Technology"
-        ),
-
-        // Boeing Company - Founded June 15, 1916
-        // William Boeing in Seattle, Washington
-        Stock(
-            symbol: "BA",
-            name: "The Boeing Company",
-            currentPrice: 178.23,
-            priceChange: 3.45,
-            percentageChange: 1.97,
-            sharesOwned: 0,
-            foundedMonth: 6, foundedDay: 15, foundedYear: 1916,
-            sector: "Industrials"
-        ),
-
-        // ═══════════════════════════════════════════════════════════════════
-        // CANCER (June 21 - July 22) ♋ - Water Sign
-        // ═══════════════════════════════════════════════════════════════════
-
-        // Tesla Inc. - Founded July 1, 2003
-        // Martin Eberhard and Marc Tarpenning in San Carlos, CA
-        // CEO: Elon Musk (born June 28, 1971 - Cancer)
-        Stock(
-            symbol: "TSLA",
-            name: "Tesla, Inc.",
-            currentPrice: 248.50,
-            priceChange: 12.30,
-            percentageChange: 5.21,
-            sharesOwned: 0,
-            foundedMonth: 7, foundedDay: 1, foundedYear: 2003,
-            sector: "Automotive",
-            ceoName: "Elon Musk",
-            ceoBirthMonth: 6, ceoBirthDay: 28, ceoBirthYear: 1971
-        ),
-
-        // Amazon.com Inc. - Founded July 5, 1994
-        // Jeff Bezos in Bellevue, Washington (garage)
-        // CEO: Andy Jassy (born January 13, 1968 - Capricorn)
-        Stock(
-            symbol: "AMZN",
-            name: "Amazon.com, Inc.",
-            currentPrice: 178.25,
-            priceChange: 3.42,
-            percentageChange: 1.96,
-            sharesOwned: 0,
-            foundedMonth: 7, foundedDay: 5, foundedYear: 1994,
-            sector: "Consumer Cyclical",
-            ceoName: "Andy Jassy",
-            ceoBirthMonth: 1, ceoBirthDay: 13, ceoBirthYear: 1968
-        ),
-
-        // ExxonMobil - Founded June 25, 1870 (as Standard Oil of NJ)
-        // John D. Rockefeller, reorganized 1999
-        Stock(
-            symbol: "XOM",
-            name: "Exxon Mobil Corporation",
-            currentPrice: 104.56,
-            priceChange: -1.23,
-            percentageChange: -1.16,
-            sharesOwned: 0,
-            foundedMonth: 6, foundedDay: 25, foundedYear: 1870,
-            sector: "Energy"
-        ),
-
-        // ═══════════════════════════════════════════════════════════════════
-        // LEO (July 23 - August 22) ♌ - Fire Sign
-        // ═══════════════════════════════════════════════════════════════════
-
-        // Ford Motor Company - Founded July 23, 1903
-        // Henry Ford in Detroit, Michigan (First day of Leo!)
-        Stock(
-            symbol: "F",
-            name: "Ford Motor Company",
-            currentPrice: 12.34,
-            priceChange: 0.28,
-            percentageChange: 2.32,
-            sharesOwned: 0,
-            foundedMonth: 7, foundedDay: 23, foundedYear: 1903,
-            sector: "Automotive"
-        ),
-
-        // Procter & Gamble - Founded July 31, 1837
-        // William Procter and James Gamble in Cincinnati
-        Stock(
-            symbol: "PG",
-            name: "Procter & Gamble Co.",
-            currentPrice: 156.78,
-            priceChange: 0.89,
-            percentageChange: 0.57,
-            sharesOwned: 0,
-            foundedMonth: 7, foundedDay: 31, foundedYear: 1837,
-            sector: "Consumer Staples"
-        ),
-
-        // ═══════════════════════════════════════════════════════════════════
-        // VIRGO (August 23 - September 22) ♍ - Earth Sign
-        // ═══════════════════════════════════════════════════════════════════
-
-        // Alphabet Inc. (Google) - Founded September 4, 1998
-        // Larry Page and Sergey Brin at Stanford
-        // CEO: Sundar Pichai (born June 10, 1972 - Gemini)
-        Stock(
-            symbol: "GOOGL",
-            name: "Alphabet Inc.",
-            currentPrice: 141.80,
-            priceChange: -1.20,
-            percentageChange: -0.84,
-            sharesOwned: 0,
-            foundedMonth: 9, foundedDay: 4, foundedYear: 1998,
-            sector: "Technology",
-            ceoName: "Sundar Pichai",
-            ceoBirthMonth: 6, ceoBirthDay: 10, ceoBirthYear: 1972
-        ),
-
-        // Netflix Inc. - Founded August 29, 1997
-        // Reed Hastings and Marc Randolph in Scotts Valley, CA
-        // Co-CEOs: Ted Sarandos (born August 30, 1964 - Virgo) & Greg Peters
-        Stock(
-            symbol: "NFLX",
-            name: "Netflix, Inc.",
-            currentPrice: 478.20,
-            priceChange: 6.85,
-            percentageChange: 1.45,
-            sharesOwned: 0,
-            foundedMonth: 8, foundedDay: 29, foundedYear: 1997,
-            sector: "Communication Services",
-            ceoName: "Ted Sarandos",
-            ceoBirthMonth: 8, ceoBirthDay: 30, ceoBirthYear: 1964
         ),
 
         // Berkshire Hathaway - Founded September 6, 1889
@@ -247,103 +64,6 @@ struct MockStockData {
             ceoBirthMonth: 8, ceoBirthDay: 30, ceoBirthYear: 1930
         ),
 
-        // ═══════════════════════════════════════════════════════════════════
-        // LIBRA (September 23 - October 22) ♎ - Air Sign
-        // ═══════════════════════════════════════════════════════════════════
-
-        // Nike Inc. - Founded October 1, 1964 (originally Blue Ribbon Sports)
-        // Phil Knight and Bill Bowerman in Eugene, Oregon
-        Stock(
-            symbol: "NKE",
-            name: "Nike, Inc.",
-            currentPrice: 98.45,
-            priceChange: -2.34,
-            percentageChange: -2.32,
-            sharesOwned: 0,
-            foundedMonth: 10, foundedDay: 1, foundedYear: 1964,
-            sector: "Consumer Cyclical"
-        ),
-
-        // JPMorgan Chase - Founded October 1, 2000 (merger)
-        // Traces history to 1799 (Bank of Manhattan)
-        Stock(
-            symbol: "JPM",
-            name: "JPMorgan Chase & Co.",
-            currentPrice: 198.67,
-            priceChange: 3.21,
-            percentageChange: 1.64,
-            sharesOwned: 0,
-            foundedMonth: 10, foundedDay: 1, foundedYear: 2000,
-            sector: "Finance"
-        ),
-
-        // ═══════════════════════════════════════════════════════════════════
-        // SCORPIO (October 23 - November 21) ♏ - Water Sign
-        // ═══════════════════════════════════════════════════════════════════
-
-        // Visa Inc. - Founded October 23, 2007 (incorporation)
-        // Originally BankAmericard (1958), restructured as Visa
-        Stock(
-            symbol: "V",
-            name: "Visa Inc.",
-            currentPrice: 275.34,
-            priceChange: 4.56,
-            percentageChange: 1.68,
-            sharesOwned: 0,
-            foundedMonth: 10, foundedDay: 23, foundedYear: 2007,
-            sector: "Finance"
-        ),
-
-        // McDonald's Corporation - Founded November 15, 1955 (incorporation)
-        // Ray Kroc's first franchise in Des Plaines, Illinois
-        Stock(
-            symbol: "MCD",
-            name: "McDonald's Corporation",
-            currentPrice: 289.45,
-            priceChange: -1.87,
-            percentageChange: -0.64,
-            sharesOwned: 0,
-            foundedMonth: 11, foundedDay: 15, foundedYear: 1955,
-            sector: "Consumer Cyclical"
-        ),
-
-        // ═══════════════════════════════════════════════════════════════════
-        // SAGITTARIUS (November 22 - December 21) ♐ - Fire Sign
-        // ═══════════════════════════════════════════════════════════════════
-
-        // The Walt Disney Company - Founded December 16, 1923
-        // Walt and Roy Disney in Hollywood
-        // CEO: Bob Iger (born February 10, 1951 - Aquarius)
-        Stock(
-            symbol: "DIS",
-            name: "The Walt Disney Company",
-            currentPrice: 112.34,
-            priceChange: 1.56,
-            percentageChange: 1.41,
-            sharesOwned: 0,
-            foundedMonth: 12, foundedDay: 16, foundedYear: 1923,
-            sector: "Communication Services",
-            ceoName: "Bob Iger",
-            ceoBirthMonth: 2, ceoBirthDay: 10, ceoBirthYear: 1951
-        ),
-
-        // Costco Wholesale - Founded December 15, 1983 (as Price Club merger)
-        // James Sinegal and Jeffrey Brotman in Seattle
-        Stock(
-            symbol: "COST",
-            name: "Costco Wholesale Corporation",
-            currentPrice: 745.23,
-            priceChange: 8.92,
-            percentageChange: 1.21,
-            sharesOwned: 0,
-            foundedMonth: 12, foundedDay: 15, foundedYear: 1983,
-            sector: "Consumer Staples"
-        ),
-
-        // ═══════════════════════════════════════════════════════════════════
-        // CAPRICORN (December 22 - January 19) ♑ - Earth Sign
-        // ═══════════════════════════════════════════════════════════════════
-
         // AT&T Inc. - Founded January 3, 1885 (American Telephone & Telegraph)
         // Alexander Graham Bell's company
         Stock(
@@ -355,19 +75,6 @@ struct MockStockData {
             sharesOwned: 0,
             foundedMonth: 1, foundedDay: 3, foundedYear: 1885,
             sector: "Communication Services"
-        ),
-
-        // General Electric - Founded December 22, 1892
-        // Thomas Edison's company merger (First day of Capricorn!)
-        Stock(
-            symbol: "GE",
-            name: "General Electric Company",
-            currentPrice: 167.45,
-            priceChange: 2.34,
-            percentageChange: 1.42,
-            sharesOwned: 0,
-            foundedMonth: 12, foundedDay: 22, foundedYear: 1892,
-            sector: "Industrials"
         ),
 
         // Johnson & Johnson - Founded January 5, 1886
@@ -383,72 +90,6 @@ struct MockStockData {
             sector: "Healthcare"
         ),
 
-        // ═══════════════════════════════════════════════════════════════════
-        // AQUARIUS (January 20 - February 18) ♒ - Air Sign
-        // ═══════════════════════════════════════════════════════════════════
-
-        // NVIDIA Corporation - Founded January 25, 1993
-        // Jensen Huang, Chris Malachowsky, Curtis Priem
-        // CEO: Jensen Huang (born February 17, 1963 - Aquarius)
-        Stock(
-            symbol: "NVDA",
-            name: "NVIDIA Corporation",
-            currentPrice: 467.80,
-            priceChange: 15.20,
-            percentageChange: 3.36,
-            sharesOwned: 0,
-            foundedMonth: 1, foundedDay: 25, foundedYear: 1993,
-            sector: "Technology",
-            ceoName: "Jensen Huang",
-            ceoBirthMonth: 2, ceoBirthDay: 17, ceoBirthYear: 1963
-        ),
-
-        // Meta Platforms (Facebook) - Founded February 4, 2004
-        // Mark Zuckerberg at Harvard
-        // CEO: Mark Zuckerberg (born May 14, 1984 - Taurus)
-        Stock(
-            symbol: "META",
-            name: "Meta Platforms, Inc.",
-            currentPrice: 505.75,
-            priceChange: -8.30,
-            percentageChange: -1.61,
-            sharesOwned: 0,
-            foundedMonth: 2, foundedDay: 4, foundedYear: 2004,
-            sector: "Technology",
-            ceoName: "Mark Zuckerberg",
-            ceoBirthMonth: 5, ceoBirthDay: 14, ceoBirthYear: 1984
-        ),
-
-        // Intel Corporation - Founded January 20, 1968 (First day of Aquarius!)
-        // Gordon Moore and Robert Noyce in Mountain View
-        Stock(
-            symbol: "INTC",
-            name: "Intel Corporation",
-            currentPrice: 31.45,
-            priceChange: -0.89,
-            percentageChange: -2.75,
-            sharesOwned: 0,
-            foundedMonth: 1, foundedDay: 20, foundedYear: 1968,
-            sector: "Technology"
-        ),
-
-        // ═══════════════════════════════════════════════════════════════════
-        // PISCES (February 19 - March 20) ♓ - Water Sign
-        // ═══════════════════════════════════════════════════════════════════
-
-        // Starbucks Corporation - Founded March 16, 1971
-        // Jerry Baldwin, Zev Siegl, Gordon Bowker in Seattle
-        Stock(
-            symbol: "SBUX",
-            name: "Starbucks Corporation",
-            currentPrice: 97.23,
-            priceChange: 1.34,
-            percentageChange: 1.40,
-            sharesOwned: 0,
-            foundedMonth: 3, foundedDay: 16, foundedYear: 1971,
-            sector: "Consumer Cyclical"
-        ),
-
         // Adobe Inc. - Founded February 26, 1982
         // John Warnock and Charles Geschke
         Stock(
@@ -462,23 +103,6 @@ struct MockStockData {
             sector: "Technology"
         ),
 
-        // Walmart Inc. - Founded March 2, 1962 (Walton's Five and Dime)
-        // Sam Walton in Rogers, Arkansas
-        Stock(
-            symbol: "WMT",
-            name: "Walmart Inc.",
-            currentPrice: 165.34,
-            priceChange: 0.78,
-            percentageChange: 0.47,
-            sharesOwned: 0,
-            foundedMonth: 3, foundedDay: 2, foundedYear: 1962,
-            sector: "Consumer Staples"
-        ),
-
-        // ═══════════════════════════════════════════════════════════════════
-        // ADDITIONAL STOCKS FOR VARIETY
-        // ═══════════════════════════════════════════════════════════════════
-
         // UnitedHealth Group - Founded March 15, 1974
         Stock(
             symbol: "UNH",
@@ -489,50 +113,25 @@ struct MockStockData {
             sharesOwned: 0,
             foundedMonth: 3, foundedDay: 15, foundedYear: 1974,
             sector: "Healthcare"
-        ),
-
-        // Chevron Corporation - Founded September 10, 1879
-        Stock(
-            symbol: "CVX",
-            name: "Chevron Corporation",
-            currentPrice: 147.23,
-            priceChange: -2.34,
-            percentageChange: -1.56,
-            sharesOwned: 0,
-            foundedMonth: 9, foundedDay: 10, foundedYear: 1879,
-            sector: "Energy"
-        ),
-
-        // Home Depot - Founded June 29, 1978
-        Stock(
-            symbol: "HD",
-            name: "The Home Depot, Inc.",
-            currentPrice: 345.67,
-            priceChange: 4.23,
-            percentageChange: 1.24,
-            sharesOwned: 0,
-            foundedMonth: 6, foundedDay: 29, foundedYear: 1978,
-            sector: "Consumer Cyclical"
-        ),
-
-        // Mastercard Inc. - Founded November 16, 1966
-        Stock(
-            symbol: "MA",
-            name: "Mastercard Incorporated",
-            currentPrice: 456.78,
-            priceChange: 5.67,
-            percentageChange: 1.26,
-            sharesOwned: 0,
-            foundedMonth: 11, foundedDay: 16, foundedYear: 1966,
-            sector: "Finance"
         )
     ]
+
+    /// Full app stock universe: sourced curated symbols first, then mock-only
+    /// fallback symbols.
+    static var knownStocks: [Stock] {
+        Stock.samples + all
+    }
 
     // MARK: - Stocks by Zodiac Sign
 
     /// All stocks grouped by their zodiac sign
     static var bySign: [ZodiacSign: [Stock]] {
-        Dictionary(grouping: all) { $0.zodiacSign }
+        var groups: [ZodiacSign: [Stock]] = [:]
+        for stock in knownStocks {
+            guard let sign = stock.zodiacSign else { continue }
+            groups[sign, default: []].append(stock)
+        }
+        return groups
     }
 
     /// Get stocks for a specific zodiac sign
@@ -544,7 +143,7 @@ struct MockStockData {
 
     /// All stocks grouped by sector
     static var bySector: [String: [Stock]] {
-        Dictionary(grouping: all) { $0.sector }
+        Dictionary(grouping: knownStocks) { $0.sector }
     }
 
     /// Get stocks for a specific sector
@@ -554,14 +153,19 @@ struct MockStockData {
 
     /// List of all available sectors
     static var allSectors: [String] {
-        Array(Set(all.map { $0.sector })).sorted()
+        Array(Set(knownStocks.map { $0.sector })).sorted()
     }
 
     // MARK: - Stocks by Element
 
     /// All stocks grouped by their zodiac element
     static var byElement: [ZodiacSign.Element: [Stock]] {
-        Dictionary(grouping: all) { $0.element }
+        var groups: [ZodiacSign.Element: [Stock]] = [:]
+        for stock in knownStocks {
+            guard let element = stock.element else { continue }
+            groups[element, default: []].append(stock)
+        }
+        return groups
     }
 
     /// Get stocks for a specific element
@@ -575,20 +179,20 @@ struct MockStockData {
     /// Good for showcasing on home screens or onboarding
     static var featured: [Stock] {
         let featuredSymbols = ["AAPL", "TSLA", "GOOGL", "AMZN", "DIS", "NVDA"]
-        return all.filter { featuredSymbols.contains($0.symbol) }
+        return knownStocks.filter { featuredSymbols.contains($0.symbol) }
     }
 
     // MARK: - Top Movers
 
     /// Stocks with the highest positive change today
     static var topGainers: [Stock] {
-        all.filter { $0.percentageChange > 0 }
+        knownStocks.filter { $0.percentageChange > 0 }
             .sorted { $0.percentageChange > $1.percentageChange }
     }
 
     /// Stocks with the most negative change today
     static var topLosers: [Stock] {
-        all.filter { $0.percentageChange < 0 }
+        knownStocks.filter { $0.percentageChange < 0 }
             .sorted { $0.percentageChange < $1.percentageChange }
     }
 
@@ -596,9 +200,9 @@ struct MockStockData {
 
     /// Search stocks by symbol or name
     static func search(_ query: String) -> [Stock] {
-        guard !query.isEmpty else { return all }
+        guard !query.isEmpty else { return knownStocks }
         let lowercased = query.lowercased()
-        return all.filter {
+        return knownStocks.filter {
             $0.symbol.lowercased().contains(lowercased) ||
             $0.name.lowercased().contains(lowercased)
         }
@@ -608,18 +212,18 @@ struct MockStockData {
 
     /// Get a random stock (useful for demos)
     static var random: Stock {
-        all.randomElement() ?? all[0]
+        knownStocks.randomElement() ?? Stock.sample
     }
 
     /// Get n random stocks
     static func random(_ count: Int) -> [Stock] {
-        Array(all.shuffled().prefix(count))
+        Array(knownStocks.shuffled().prefix(count))
     }
 
     // MARK: - Statistics
 
     /// Total number of stocks
-    static var count: Int { all.count }
+    static var count: Int { knownStocks.count }
 
     /// Number of stocks per zodiac sign
     static var signDistribution: [(sign: ZodiacSign, count: Int)] {
@@ -661,8 +265,8 @@ struct MockStockData {
 
 // MARK: - Usage Examples
 /*
- // Get all stocks
- let allStocks = MockStockData.all
+ // Get all known stocks
+ let allStocks = MockStockData.knownStocks
 
  // Get stocks by zodiac sign
  let leoStocks = MockStockData.bySign[.leo]

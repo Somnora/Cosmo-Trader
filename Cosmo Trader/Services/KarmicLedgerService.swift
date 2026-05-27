@@ -96,6 +96,7 @@ final class KarmicLedgerService {
         guard lossPerShare > 0 else { return } // Not a loss
 
         let totalLoss = lossPerShare * sharesSold
+        guard let stockSign = stock.zodiacSign else { return }
 
         // Get current cosmic conditions
         let moonData = MoonPhaseService.shared.getCurrentLunarData()
@@ -113,7 +114,7 @@ final class KarmicLedgerService {
         let entry = KarmicEntry(
             stockSymbol: stock.symbol,
             stockName: stock.name,
-            stockSign: stock.zodiacSign,
+            stockSign: stockSign,
             lossAmount: totalLoss,
             sharesSold: sharesSold,
             purchasePrice: purchasePrice,
@@ -237,7 +238,10 @@ final class KarmicLedgerService {
         moonSign: ZodiacSign,
         isMercuryRetrograde: Bool
     ) -> String {
-        let stockElement = stock.zodiacSign.element
+        guard let stockSign = stock.zodiacSign else {
+            return "Verified company date unavailable. Log the loss, but skip sign-based timing lessons for this stock."
+        }
+        let stockElement = stockSign.element
         let moonElement = moonSign.element
 
         var lessons: [String] = []
@@ -247,7 +251,7 @@ final class KarmicLedgerService {
             lessons.append(contentsOf: [
                 "\(stockElement.displayName) sign stocks during \(moonElement.displayName) moon cycles require patience.",
                 "The \(stockElement.displayName)-\(moonElement.displayName) tension was working against you.",
-                "\(stock.zodiacSign.displayName) energy clashes with \(moonSign.displayName) moon. Timing matters.",
+                "\(stockSign.displayName) energy clashes with \(moonSign.displayName) moon. Timing matters.",
                 "Selling \(stockElement.displayName) positions under a \(moonElement.displayName) moon rarely ends well."
             ])
         }
@@ -286,7 +290,7 @@ final class KarmicLedgerService {
         }
 
         // Stock sign specific lessons
-        switch stock.zodiacSign {
+        switch stockSign {
         case .aries, .leo, .sagittarius:
             lessons.append("Fire sign stocks burn bright but demand patience through volatility.")
         case .taurus, .virgo, .capricorn:

@@ -17,7 +17,8 @@ final class CosmicRoastGenerator {
 
     static func generate(for user: UserProfile) -> CosmicRoast {
         let elementBreakdown = calculateElementBreakdown(for: user)
-        let worstPerformer = findWorstPerformer(in: user.portfolio)
+        let verifiedHoldings = user.portfolio.filter { $0.sharesOwned > 0 && $0.foundedZodiacSign != nil }
+        let worstPerformer = findWorstPerformer(in: verifiedHoldings)
         let ytdReturn = calculateYTDReturn(for: user)
         let assessment = CosmicAssessmentLevel.from(ytdReturn: ytdReturn)
 
@@ -37,8 +38,10 @@ final class CosmicRoastGenerator {
             )
         }
 
-        let dominantElement = elementBreakdown.max(by: { $0.percentage < $1.percentage })?.element ?? .fire
-        let dominantPercentage = elementBreakdown.max(by: { $0.percentage < $1.percentage })?.percentage ?? 0
+        let dominantBreakdown = elementBreakdown.max(by: { $0.percentage < $1.percentage })
+        let hasVerifiedAstrology = (dominantBreakdown?.value ?? 0) > 0
+        let dominantElement = dominantBreakdown?.element ?? .fire
+        let dominantPercentage = dominantBreakdown?.percentage ?? 0
 
         return CosmicRoast(
             generatedDate: Date(),
@@ -49,32 +52,39 @@ final class CosmicRoastGenerator {
             cosmicAssessment: assessment.rawValue,
             assessmentIcon: assessment.icon,
             sectorBreakdown: sectorAnalysis,
-            sectorDiagnosis: generateSectorDiagnosis(
-                dominant: dominantElement,
-                percentage: dominantPercentage,
-                userSign: user.sunSign
-            ),
+            sectorDiagnosis: hasVerifiedAstrology
+                ? generateSectorDiagnosis(
+                    dominant: dominantElement,
+                    percentage: dominantPercentage,
+                    userSign: user.sunSign
+                )
+                : "Verified company dates are unavailable for these holdings, so element-level portfolio diagnosis is muted.",
             roastTitle: "THE COSMIC VERDICT",
-            roastContent: generateMainRoast(
-                user: user,
-                dominantElement: dominantElement,
-                dominantPercentage: dominantPercentage,
-                ytdReturn: ytdReturn
-            ),
-            weakestLink: worstPerformer.map { stock in
-                WeakestLinkCallout(
+            roastContent: hasVerifiedAstrology
+                ? generateMainRoast(
+                    user: user,
+                    dominantElement: dominantElement,
+                    dominantPercentage: dominantPercentage,
+                    ytdReturn: ytdReturn
+                )
+                : "Your positions are real, but their founding or IPO dates are unknown. The cosmic audit will not invent a sign to judge them.",
+            weakestLink: worstPerformer.flatMap { stock in
+                guard let sign = stock.foundedZodiacSign else { return nil }
+                return WeakestLinkCallout(
                     symbol: stock.symbol,
                     name: stock.name,
                     percentageChange: stock.percentageChange,
-                    zodiacSign: stock.zodiacSign,
+                    zodiacSign: sign,
                     roastNote: generateWeakestLinkNote(for: stock)
                 )
             },
-            recommendation: generateRecommendation(
-                dominantElement: dominantElement,
-                ytdReturn: ytdReturn,
-                userSign: user.sunSign
-            ),
+            recommendation: hasVerifiedAstrology
+                ? generateRecommendation(
+                    dominantElement: dominantElement,
+                    ytdReturn: ytdReturn,
+                    userSign: user.sunSign
+                )
+                : "Add verified company dates before using element-level portfolio recommendations.",
             recommendationSubtext: generateRecommendationSubtext(ytdReturn: ytdReturn),
             disclaimer: generateDisclaimer(ytdReturn: ytdReturn)
         )
@@ -83,7 +93,8 @@ final class CosmicRoastGenerator {
     // MARK: - Element Breakdown
 
     private static func calculateElementBreakdown(for user: UserProfile) -> [ElementBreakdown] {
-        let totalValue = user.totalPortfolioValue
+        let verifiedHoldings = user.portfolio.filter { $0.sharesOwned > 0 && $0.foundedElement != nil }
+        let totalValue = verifiedHoldings.reduce(0) { $0 + $1.totalValue }
         guard totalValue > 0 else {
             return ZodiacSign.Element.allCases.map {
                 ElementBreakdown(element: $0, percentage: 0, value: 0)
@@ -91,8 +102,8 @@ final class CosmicRoastGenerator {
         }
 
         var elementValues: [ZodiacSign.Element: Double] = [:]
-        for stock in user.portfolio where stock.sharesOwned > 0 {
-            let element = stock.zodiacSign.element
+        for stock in verifiedHoldings {
+            guard let element = stock.foundedElement else { continue }
             elementValues[element, default: 0] += stock.totalValue
         }
 
@@ -332,7 +343,10 @@ final class CosmicRoastGenerator {
             .pisces: ["This Pisces stock is living in a dream. A nightmare, specifically.", "Swimming against the current. The current is winning."]
         ]
 
-        return (signNotes[stock.zodiacSign]?.randomElement()) ?? "The stars decline to comment."
+        guard let sign = stock.foundedZodiacSign else {
+            return "Verified company date unavailable. The stars decline to assign blame."
+        }
+        return (signNotes[sign]?.randomElement()) ?? "The stars decline to comment."
     }
 
     // MARK: - Recommendations

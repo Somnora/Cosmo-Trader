@@ -533,11 +533,13 @@ final class DailyBriefService {
 
     private func generateWatchlistHighlights(for user: UserProfile) -> [WatchlistHighlight] {
         // Combine portfolio and watchlist stocks
-        var allStocks: [Stock] = user.portfolio
+        var allStocks = user.portfolio.filter { $0.foundedZodiacSign != nil }
 
-        // Add watchlist stocks from MockStockData
+        // Add watchlist stocks from canonical curated records first, then
+        // mock-only fallback records.
+        let knownStocks = Stock.samples + MockStockData.all
         for symbol in user.watchlist {
-            if let stock = MockStockData.all.first(where: { $0.symbol == symbol }) {
+            if let stock = knownStocks.first(where: { $0.symbol == symbol }) {
                 if !allStocks.contains(where: { $0.symbol == symbol }) {
                     allStocks.append(stock)
                 }
@@ -552,7 +554,7 @@ final class DailyBriefService {
             let reason: HighlightReason
             if abs(stock.percentageChange) > 5 {
                 reason = .biggestMover
-            } else if stock.zodiacSign == user.sunSign {
+            } else if stock.foundedZodiacSign == user.sunSign {
                 reason = .cosmicAlignment
             } else {
                 reason = .priceAlert
@@ -601,6 +603,8 @@ final class DailyBriefService {
         var alerts: [NewsAlert] = []
 
         for stock in user.portfolio where abs(stock.percentageChange) > 5 {
+            guard let stockSign = stock.foundedZodiacSign else { continue }
+
             let isPositive = stock.percentageChange > 0
             let severity: Severity = abs(stock.percentageChange) > 10 ? .critical : .warning
 
@@ -612,7 +616,7 @@ final class DailyBriefService {
             let cosmicContext = SignalFramingService.shared.frameNewsContext(
                 symbol: stock.symbol,
                 change: stock.percentageChange,
-                stockSign: stock.zodiacSign,
+                stockSign: stockSign,
                 level: framingLevel
             )
 

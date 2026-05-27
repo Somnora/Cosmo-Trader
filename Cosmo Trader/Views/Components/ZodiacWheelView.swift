@@ -327,11 +327,19 @@ struct ZodiacWheelView: View {
 
     private func elementStockRow(stock: Stock) -> some View {
         HStack(spacing: 10) {
-            ZodiacSymbolView(
-                sign: stock.zodiacSign,
-                size: 22,
-                color: colorForElement(stock.zodiacSign.element)
-            )
+            if let sign = stock.zodiacSign {
+                ZodiacSymbolView(
+                    sign: sign,
+                    size: 22,
+                    color: colorForElement(sign.element)
+                )
+            } else {
+                Text("?")
+                    .font(TerminalFont.body(18, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .frame(width: 22, height: 22)
+                    .accessibilityLabel("unknown sign")
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(stock.symbol)
@@ -491,13 +499,13 @@ struct PieSegment: Shape {
                     ElementBreakdown(element: .air, percentage: 15, value: 6500)
                 ],
                 stocksByElement: [
-                    .fire: [MockStockData.all.first { $0.symbol == "AAPL" }!],
-                    .earth: [MockStockData.all.first { $0.symbol == "GOOGL" }!],
+                    .fire: [MockStockData.knownStocks.first { $0.symbol == "AAPL" }!],
+                    .earth: [MockStockData.knownStocks.first { $0.symbol == "GOOGL" }!],
                     .water: [
-                        MockStockData.all.first { $0.symbol == "TSLA" }!,
-                        MockStockData.all.first { $0.symbol == "AMZN" }!
+                        MockStockData.knownStocks.first { $0.symbol == "TSLA" }!,
+                        MockStockData.knownStocks.first { $0.symbol == "AMZN" }!
                     ],
-                    .air: [MockStockData.all.first { $0.symbol == "NVDA" }!]
+                    .air: [MockStockData.knownStocks.first { $0.symbol == "NVDA" }!]
                 ],
                 totalValue: "$43,000"
             )
@@ -516,16 +524,16 @@ struct PieSegment: Shape {
                 ElementBreakdown(element: .earth, percentage: 20, value: 8600),
                 ElementBreakdown(element: .air, percentage: 12, value: 5200),
                 ElementBreakdown(element: .water, percentage: 8, value: 3500)
-            ],
-            stocksByElement: [
-                .fire: [
-                    MockStockData.all.first { $0.symbol == "AAPL" }!,
-                    MockStockData.all.first { $0.symbol == "MSFT" }!
                 ],
-                .earth: [MockStockData.all.first { $0.symbol == "GOOGL" }!],
-                .water: [],
-                .air: [MockStockData.all.first { $0.symbol == "NVDA" }!]
-            ],
+                stocksByElement: [
+                    .fire: [
+                        MockStockData.knownStocks.first { $0.symbol == "AAPL" }!,
+                        MockStockData.knownStocks.first { $0.symbol == "MSFT" }!
+                    ],
+                    .earth: [MockStockData.knownStocks.first { $0.symbol == "GOOGL" }!],
+                    .water: [],
+                    .air: [MockStockData.knownStocks.first { $0.symbol == "NVDA" }!]
+                ],
             totalValue: "$43,300"
         )
         .padding()

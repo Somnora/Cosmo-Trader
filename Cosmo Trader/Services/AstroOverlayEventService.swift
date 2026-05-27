@@ -95,10 +95,12 @@ final class AstroOverlayEventService {
         from startDate: Date,
         to endDate: Date
     ) -> [AstroOverlayEvent] {
+        guard stock.supportsCompanyOverlayEvents,
+              let targetSign = stock.foundedZodiacSign else { return [] }
+
         var results: [AstroOverlayEvent] = []
         var date = startDate
         var activeStart: Date?
-        let targetSign = stock.zodiacSign
 
         while date <= endDate {
             let isInTargetSign = moonService.getLunarData(for: date).moonSign == targetSign
@@ -106,7 +108,7 @@ final class AstroOverlayEventService {
             if isInTargetSign && activeStart == nil {
                 activeStart = date
             } else if !isInTargetSign, let start = activeStart {
-                results.append(moonInSignEvent(stock: stock, start: start, end: date))
+                results.append(moonInSignEvent(stock: stock, sign: targetSign, start: start, end: date))
                 activeStart = nil
             }
 
@@ -114,23 +116,23 @@ final class AstroOverlayEventService {
         }
 
         if let start = activeStart {
-            results.append(moonInSignEvent(stock: stock, start: start, end: endDate))
+            results.append(moonInSignEvent(stock: stock, sign: targetSign, start: start, end: endDate))
         }
 
         return results
     }
 
-    private func moonInSignEvent(stock: Stock, start: Date, end: Date) -> AstroOverlayEvent {
-        AstroOverlayEvent(
-            id: "moon-in-\(stock.zodiacSign.rawValue)-\(Self.idDateFormatter.string(from: start))",
+    private func moonInSignEvent(stock: Stock, sign: ZodiacSign, start: Date, end: Date) -> AstroOverlayEvent {
+        return AstroOverlayEvent(
+            id: "moon-in-\(sign.rawValue)-\(Self.idDateFormatter.string(from: start))",
             kind: .moonInSign,
-            title: "Moon In \(stock.zodiacSign.displayName)",
+            title: "Moon In \(sign.displayName)",
             subtitle: "\(stock.symbol) company sign",
             startDate: start,
             endDate: end,
             markerDate: start,
             intensity: .medium,
-            affectedElements: [stock.zodiacSign.element],
+            affectedElements: [sign.element],
             affectedSectors: [marketSector(for: stock.sector)].compactMap { $0 },
             iconSystemName: AstroOverlayEventKind.moonInSign.iconSystemName,
             source: .calculatedMoonSign,
@@ -143,7 +145,11 @@ final class AstroOverlayEventService {
         from startDate: Date,
         to endDate: Date
     ) -> [AstroOverlayEvent] {
-        let foundingComponents = calendar.dateComponents([.month, .year], from: stock.foundedDate)
+        guard stock.supportsCompanyOverlayEvents,
+              let foundedDate = stock.foundedDate,
+              let sign = stock.foundedZodiacSign else { return [] }
+
+        let foundingComponents = calendar.dateComponents([.month, .year], from: foundedDate)
         guard let foundedMonth = foundingComponents.month,
               let foundedYear = foundingComponents.year else { return [] }
 
@@ -167,7 +173,7 @@ final class AstroOverlayEventService {
                 endDate: monthEnd,
                 markerDate: monthStart,
                 intensity: .medium,
-                affectedElements: [stock.zodiacSign.element],
+                affectedElements: [sign.element],
                 affectedSectors: [marketSector(for: stock.sector)].compactMap { $0 },
                 iconSystemName: AstroOverlayEventKind.companyBirthMonth.iconSystemName,
                 source: .companyFoundedDate,
@@ -181,7 +187,11 @@ final class AstroOverlayEventService {
         from startDate: Date,
         to endDate: Date
     ) -> [AstroOverlayEvent] {
-        let foundingComponents = calendar.dateComponents([.month, .day, .year], from: stock.foundedDate)
+        guard stock.supportsCompanyOverlayEvents,
+              let foundedDate = stock.foundedDate,
+              let sign = stock.foundedZodiacSign else { return [] }
+
+        let foundingComponents = calendar.dateComponents([.month, .day, .year], from: foundedDate)
         guard let month = foundingComponents.month,
               let day = foundingComponents.day,
               let foundedYear = foundingComponents.year else { return [] }
@@ -204,7 +214,7 @@ final class AstroOverlayEventService {
                 endDate: nil,
                 markerDate: anniversary,
                 intensity: .high,
-                affectedElements: [stock.zodiacSign.element],
+                affectedElements: [sign.element],
                 affectedSectors: [marketSector(for: stock.sector)].compactMap { $0 },
                 iconSystemName: AstroOverlayEventKind.companyFoundingAnniversary.iconSystemName,
                 source: .companyFoundedDate,

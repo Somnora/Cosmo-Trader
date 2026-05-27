@@ -546,7 +546,7 @@ struct SignStackButton: View {
             stackData: SignStackData(
                 userSign: .sagittarius,
                 displayName: "Cosmic Trader",
-                topHoldings: MockStockData.all.prefix(3).map { SignStackHolding(stock: $0) },
+                topHoldings: MockStockData.knownStocks.prefix(3).compactMap { SignStackHolding(stock: $0) },
                 elementBreakdown: [
                     SignStackElement(element: .fire, percentage: 45, value: 4500),
                     SignStackElement(element: .earth, percentage: 25, value: 2500),

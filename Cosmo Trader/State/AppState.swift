@@ -154,7 +154,7 @@ class AppState {
                 birthDay: 10,
                 birthYear: 2000,
                 portfolio: [],
-                skippedStocks: MockStockData.all.map(\.symbol)
+                skippedStocks: MockStockData.knownStocks.map(\.symbol)
             )
         }
 

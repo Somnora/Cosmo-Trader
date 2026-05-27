@@ -117,7 +117,7 @@ final class SignSeasonService {
     /// Get element-aligned stocks (same element as current season)
     func getElementAlignedStocks(from stocks: [Stock]) -> [Stock] {
         let currentElement = currentSeason.sign.element
-        return stocks.filter { $0.zodiacSign.element == currentElement }
+        return stocks.filter { $0.foundedElement == currentElement }
     }
 
     /// Check if user has holdings in the current season's sign

@@ -43,22 +43,24 @@ struct PortfolioView: View {
     /// Stocks in the user's watchlist (not owned)
     private var watchlistStocks: [Stock] {
         let watchlistSymbols = Set(safeUser.watchlist)
-        return MockStockData.all.filter { watchlistSymbols.contains($0.symbol) }
+        return MockStockData.knownStocks.filter { watchlistSymbols.contains($0.symbol) }
     }
 
     private var elementBreakdown: [(element: ZodiacSign.Element, percentage: Double, value: Double)] {
-        let totalValue = safeUser.totalPortfolioValue
-        guard totalValue > 0 else { return [] }
-
         var elementValues: [ZodiacSign.Element: Double] = [:]
+        var analyzedTotalValue: Double = 0
+
         for stock in holdings {
-            let element = stock.zodiacSign.element
+            guard let element = stock.foundedElement else { continue }
             elementValues[element, default: 0] += stock.totalValue
+            analyzedTotalValue += stock.totalValue
         }
+
+        guard analyzedTotalValue > 0 else { return [] }
 
         return ZodiacSign.Element.allCases.compactMap { element in
             let value = elementValues[element] ?? 0
-            let percentage = (value / totalValue) * 100
+            let percentage = (value / analyzedTotalValue) * 100
             guard percentage > 0 else { return nil }
             return (element: element, percentage: percentage, value: value)
         }.sorted { $0.percentage > $1.percentage }
@@ -281,7 +283,7 @@ struct PortfolioView: View {
         guard let symbol = AppState.screenshotStockDetailSymbol?.uppercased(), !symbol.isEmpty else { return }
 
         selectedStock = holdings.first { $0.symbol.uppercased() == symbol }
-            ?? MockStockData.all.first { $0.symbol.uppercased() == symbol }
+            ?? MockStockData.knownStocks.first { $0.symbol.uppercased() == symbol }
             ?? Stock.sample
     }
 
@@ -754,11 +756,17 @@ struct PortfolioView: View {
             HStack(spacing: 0) {
                 // Symbol with zodiac glyph
                 HStack(spacing: 4) {
-                    ZodiacSymbolView(
-                        sign: stock.zodiacSign,
-                        size: 10,
-                        color: CosmicTheme.gold.opacity(0.7)
-                    )
+                    if let foundedZodiacSign = stock.foundedZodiacSign {
+                        ZodiacSymbolView(
+                            sign: foundedZodiacSign,
+                            size: 10,
+                            color: CosmicTheme.gold.opacity(0.7)
+                        )
+                    } else {
+                        Text("?")
+                            .font(TerminalFont.data(10, weight: .semibold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
                     Text(stock.symbol)
                         .font(TerminalFont.ticker(11))
                         .foregroundColor(CosmicTheme.textPrimary)
@@ -991,11 +999,17 @@ struct PortfolioView: View {
             HStack(spacing: 0) {
                 // Symbol with zodiac glyph
                 HStack(spacing: 4) {
-                    ZodiacSymbolView(
-                        sign: stock.zodiacSign,
-                        size: 10,
-                        color: CosmicTheme.gold.opacity(0.7)
-                    )
+                    if let foundedZodiacSign = stock.foundedZodiacSign {
+                        ZodiacSymbolView(
+                            sign: foundedZodiacSign,
+                            size: 10,
+                            color: CosmicTheme.gold.opacity(0.7)
+                        )
+                    } else {
+                        Text("?")
+                            .font(TerminalFont.data(10, weight: .semibold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
                     Text(stock.symbol)
                         .font(TerminalFont.ticker(11))
                         .foregroundColor(CosmicTheme.textPrimary)

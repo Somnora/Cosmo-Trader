@@ -127,11 +127,18 @@ struct EarningsEventRow: View {
                             .foregroundColor(CosmicTheme.textPrimary)
 
                         if let stock = stock {
-                            ZodiacSymbolView(
-                                sign: stock.zodiacSign,
-                                size: 12,
-                                color: elementColor(for: stock.zodiacSign)
-                            )
+                            if let sign = stock.zodiacSign {
+                                ZodiacSymbolView(
+                                    sign: sign,
+                                    size: 12,
+                                    color: elementColor(for: sign)
+                                )
+                            } else {
+                                Text("?")
+                                    .font(TerminalFont.body(12, weight: .semibold))
+                                    .foregroundColor(CosmicTheme.textMuted)
+                                    .accessibilityLabel("unknown sign")
+                            }
                         }
                     }
 
@@ -393,11 +400,18 @@ struct EarningsHoroscopeSheet: View {
                         .fill(elementColor.opacity(0.2))
                         .frame(width: 70, height: 70)
 
-                    ZodiacSymbolView(
-                        sign: stock.zodiacSign,
-                        size: 36,
-                        color: elementColor
-                    )
+                    if let sign = stock.zodiacSign {
+                        ZodiacSymbolView(
+                            sign: sign,
+                            size: 36,
+                            color: elementColor
+                        )
+                    } else {
+                        Text("?")
+                            .font(TerminalFont.body(30, weight: .semibold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .accessibilityLabel("unknown sign")
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -411,8 +425,15 @@ struct EarningsHoroscopeSheet: View {
                         .foregroundColor(CosmicTheme.textSecondary)
 
                     HStack(spacing: 6) {
-                        ZodiacMark(sign: stock.zodiacSign, size: .small, style: .element)
-                        Text(stock.zodiacSign.displayName)
+                        if let sign = stock.zodiacSign {
+                            ZodiacMark(sign: sign, size: .small, style: .element)
+                        } else {
+                            Text("?")
+                                .font(TerminalFont.body(14, weight: .semibold))
+                                .foregroundColor(CosmicTheme.textMuted)
+                                .accessibilityLabel("unknown sign")
+                        }
+                        Text(stock.zodiacSign?.displayName ?? "Unknown")
                             .font(TerminalFont.data(12))
                             .foregroundColor(elementColor)
                     }
@@ -630,12 +651,7 @@ struct EarningsHoroscopeSheet: View {
     }
 
     private var elementColor: Color {
-        switch stock.zodiacSign.element {
-        case .fire:  return CosmicTheme.fireElement
-        case .earth: return CosmicTheme.earthElement
-        case .air:   return CosmicTheme.airElement
-        case .water: return CosmicTheme.waterElement
-        }
+        stock.foundedElement?.color ?? CosmicTheme.textMuted
     }
 }
 

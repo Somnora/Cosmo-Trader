@@ -57,8 +57,9 @@ class DiscoverViewModel {
     /// Reference to shared app state for persisting user actions.
     private var appState: AppState
 
-    /// All available stocks loaded from mock data.
-    private var allStocks: [Stock] = MockStockData.all
+    /// All available stocks, with sourced curated records first and mock-only
+    /// fallback records appended.
+    private var allStocks: [Stock] = Stock.samples + MockStockData.all
 
     /// The current card deck after applying filters and sorting.
     ///
@@ -126,7 +127,7 @@ class DiscoverViewModel {
 
         // Apply element filter
         if let element = selectedElement {
-            stocks = stocks.filter { $0.zodiacSign.element == element }
+            stocks = stocks.filter { $0.foundedElement == element }
         }
 
         // Apply sector filter
@@ -231,7 +232,7 @@ class DiscoverViewModel {
         AnalyticsService.shared.trackDiscoverySwipe(
             direction: "right",
             symbol: stock.symbol,
-            zodiacSign: stock.zodiacSign.displayName,
+            zodiacSign: stock.zodiacSign?.displayName ?? "Unknown",
             compatibility: user?.compatibility(with: stock).score ?? 0
         )
         AnalyticsService.shared.trackWatchlistAdded(symbol: stock.symbol, source: "discover_swipe")
@@ -246,7 +247,7 @@ class DiscoverViewModel {
         AnalyticsService.shared.trackDiscoverySwipe(
             direction: "left",
             symbol: stock.symbol,
-            zodiacSign: stock.zodiacSign.displayName,
+            zodiacSign: stock.zodiacSign?.displayName ?? "Unknown",
             compatibility: user?.compatibility(with: stock).score ?? 0
         )
     }
@@ -355,17 +356,18 @@ class DiscoverViewModel {
         return filteredStocks.filter { stock in
             // Opposite sign or opposite element
             stock.zodiacSign == userSign.oppositeSign ||
-            stock.zodiacSign.element == userSign.element.oppositeElement
+            stock.foundedElement == userSign.element.oppositeElement
         }
     }
 
     private func whyToday(for stock: Stock, user: UserProfile) -> String {
         let holdings = user.portfolio.filter(\.isOwned)
         let lunarData = MoonPhaseService.shared.getCurrentLunarData()
+        let stockElement = stock.foundedElement
 
         guard !holdings.isEmpty else {
-            if stock.zodiacSign.element == lunarData.activatedElement {
-                return "\(lunarData.phase.rawValue) activates \(stock.zodiacSign.element.displayName.lowercased()) exposure; useful starter candidate for setup."
+            if stockElement == lunarData.activatedElement {
+                return "\(lunarData.phase.rawValue) activates \(lunarData.activatedElement.displayName.lowercased()) exposure; useful starter candidate for setup."
             }
             return "Useful starter candidate. Add holdings so Today can compare real portfolio exposure."
         }
@@ -377,8 +379,8 @@ class DiscoverViewModel {
             return "\(direction); \(role)"
         }
 
-        if stock.zodiacSign.element == lunarData.activatedElement {
-            return "\(lunarData.phase.rawValue) activates \(stock.zodiacSign.element.displayName.lowercased()) exposure; \(role)"
+        if stockElement == lunarData.activatedElement {
+            return "\(lunarData.phase.rawValue) activates \(lunarData.activatedElement.displayName.lowercased()) exposure; \(role)"
         }
 
         let mood = CosmicMoodService.shared.getCurrentMood()
@@ -394,11 +396,14 @@ class DiscoverViewModel {
     }
 
     private func portfolioRole(for stock: Stock, holdings: [Stock]) -> String {
-        let element = stock.zodiacSign.element
+        guard let element = stock.foundedElement else {
+            return "has unknown company-date exposure; verify fundamentals before saving."
+        }
+        let verifiedHoldings = holdings.filter { $0.foundedElement != nil }
         let sameElementWeight = exposureWeight(
-            holdings.filter { $0.zodiacSign.element == element }
+            verifiedHoldings.filter { $0.foundedElement == element }
         )
-        let totalWeight = exposureWeight(holdings)
+        let totalWeight = exposureWeight(verifiedHoldings)
         let elementShare = totalWeight > 0 ? sameElementWeight / totalWeight : 0
         let hasElement = sameElementWeight > 0
         let sectorCount = holdings.filter { $0.sector == stock.sector }.count

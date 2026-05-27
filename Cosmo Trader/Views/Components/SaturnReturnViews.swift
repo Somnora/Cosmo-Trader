@@ -687,7 +687,7 @@ struct SaturnReturnBadge: View {
 // MARK: - Previews
 
 #Preview("Alert Banner") {
-    let stock = MockStockData.all.first!
+    let stock = MockStockData.knownStocks.first!
     let data = SaturnReturnData(
         symbol: "AAPL",
         foundingDate: Calendar.current.date(from: DateComponents(year: 1976, month: 4, day: 1))!,
@@ -713,7 +713,7 @@ struct SaturnReturnBadge: View {
 }
 
 #Preview("Saturn Card") {
-    SaturnReturnCard(stock: MockStockData.all.first!)
+    SaturnReturnCard(stock: MockStockData.knownStocks.first!)
         .padding()
         .background(CosmicTheme.background)
         .preferredColorScheme(.dark)

@@ -119,13 +119,19 @@ struct StockChartView: View {
 
             // Zodiac indicator
             VStack(alignment: .trailing, spacing: 4) {
-                ZodiacSymbolView(
-                    sign: stock.zodiacSign,
-                    size: 20,
-                    color: CosmicTheme.gold
-                )
+                if let foundedZodiacSign = stock.foundedZodiacSign {
+                    ZodiacSymbolView(
+                        sign: foundedZodiacSign,
+                        size: 20,
+                        color: CosmicTheme.gold
+                    )
+                } else {
+                    Image(systemName: "questionmark.circle")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
 
-                Text(stock.zodiacSign.displayName)
+                Text(stock.foundedZodiacSign?.displayName ?? "Unknown")
                     .font(TerminalFont.data(10))
                     .foregroundColor(CosmicTheme.textSecondary)
             }
@@ -292,7 +298,7 @@ struct StockChartView: View {
             formatter.dateFormat = "h:mm a"
         case .week:
             formatter.dateFormat = "E h:mm a"
-        case .month, .threeMonth:
+        case .month, .threeMonth, .sixMonth:
             formatter.dateFormat = "MMM d"
         case .year, .all:
             formatter.dateFormat = "MMM d, yyyy"

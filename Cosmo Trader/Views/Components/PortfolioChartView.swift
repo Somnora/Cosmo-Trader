@@ -319,7 +319,7 @@ struct PortfolioChartView: View {
 
     private var timeframeSelector: some View {
         HStack(spacing: 0) {
-            ForEach([ChartTimeframe.week, .month, .threeMonth, .year, .all], id: \.self) { timeframe in
+            ForEach([ChartTimeframe.week, .month, .threeMonth, .sixMonth, .year, .all], id: \.self) { timeframe in
                 Button(action: {
                     selectedTimeframe = timeframe
                 }) {
@@ -402,6 +402,10 @@ struct PortfolioChartView: View {
             interval = 1
         case .threeMonth:
             pointCount = 90
+            component = .day
+            interval = 1
+        case .sixMonth:
+            pointCount = 180
             component = .day
             interval = 1
         case .year:
@@ -524,7 +528,7 @@ struct PortfolioChartView: View {
             formatter.dateFormat = "h:mm a"
         case .week:
             formatter.dateFormat = "E h:mm a"
-        case .month, .threeMonth:
+        case .month, .threeMonth, .sixMonth:
             formatter.dateFormat = "MMM d"
         case .year, .all:
             formatter.dateFormat = "MMM d, yyyy"

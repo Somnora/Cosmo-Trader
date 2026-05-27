@@ -410,11 +410,12 @@ class CosmicPatternInterpreter {
         let patternService = ChartPatternService.shared
         let ohlcData = patternService.getOHLCData(for: stock)
         let patterns = patternService.detectPatterns(ohlc: ohlcData)
+        guard let stockSign = stock.zodiacSign else { return [] }
 
         return interpretAll(
             patterns: patterns,
             userSign: userSign,
-            stockSign: stock.zodiacSign
+            stockSign: stockSign
         )
     }
 }

@@ -181,13 +181,16 @@ struct UserProfile: Identifiable, Codable, Equatable {
     /// Stocks in portfolio that are compatible with user's sign
     /// WHY: "Cosmically aligned" stocks for fun personalization
     var compatibleStocks: [Stock] {
-        portfolio.filter { $0.isCompatible(with: sunSign) }
+        portfolio.filter { stock in
+            guard let foundedZodiacSign = stock.foundedZodiacSign else { return false }
+            return sunSign.isCompatible(with: foundedZodiacSign)
+        }
     }
 
     /// Stocks in portfolio that share the user's element
     /// WHY: Same element = similar energy
     var sameElementStocks: [Stock] {
-        portfolio.filter { $0.sharesElement(with: sunSign) }
+        portfolio.filter { $0.foundedElement == sunSign.element }
     }
 
     /// The user's age in years
@@ -398,13 +401,23 @@ extension UserProfile {
     /// Get stocks grouped by their zodiac element
     /// WHY: For element-based portfolio views
     var portfolioByElement: [ZodiacSign.Element: [Stock]] {
-        Dictionary(grouping: portfolio) { $0.element }
+        var groups: [ZodiacSign.Element: [Stock]] = [:]
+        for stock in portfolio {
+            guard let foundedElement = stock.foundedElement else { continue }
+            groups[foundedElement, default: []].append(stock)
+        }
+        return groups
     }
 
     /// Get stocks grouped by their zodiac sign
     /// WHY: For sign-based portfolio views
     var portfolioBySign: [ZodiacSign: [Stock]] {
-        Dictionary(grouping: portfolio) { $0.zodiacSign }
+        var groups: [ZodiacSign: [Stock]] = [:]
+        for stock in portfolio {
+            guard let foundedZodiacSign = stock.foundedZodiacSign else { continue }
+            groups[foundedZodiacSign, default: []].append(stock)
+        }
+        return groups
     }
 
     // MARK: - Watchlist Management

@@ -43,6 +43,8 @@ final class MercuryRetrogradeEphemerisProvider {
 
     // MVP dataset. These ranges are curated constants and intentionally marked
     // estimated until a signed ephemeris resource is added to the app bundle.
+    // 2027-2030 source: TransitChart Mercury Retrograde 2010-2038, cross-checked
+    // against Lunarium's Retrograde Mercury station-date table.
     private let allWindows: [MercuryRetrogradeWindow] = [
         .estimated(id: "2021-01", start: "2021-01-30", end: "2021-02-20", sign: "Aquarius"),
         .estimated(id: "2021-05", start: "2021-05-29", end: "2021-06-22", sign: "Gemini"),
@@ -62,7 +64,20 @@ final class MercuryRetrogradeEphemerisProvider {
         .estimated(id: "2025-11", start: "2025-11-09", end: "2025-11-29", sign: "Sagittarius to Scorpio"),
         .estimated(id: "2026-02", start: "2026-02-26", end: "2026-03-20", sign: "Pisces"),
         .estimated(id: "2026-06", start: "2026-06-29", end: "2026-07-23", sign: "Cancer"),
-        .estimated(id: "2026-10", start: "2026-10-24", end: "2026-11-13", sign: "Scorpio")
+        .estimated(id: "2026-10", start: "2026-10-24", end: "2026-11-13", sign: "Scorpio"),
+        .estimated(id: "2027-02", start: "2027-02-09", end: "2027-03-03", sign: "Pisces to Aquarius"),
+        .estimated(id: "2027-06", start: "2027-06-10", end: "2027-07-04", sign: "Cancer to Gemini"),
+        .estimated(id: "2027-10", start: "2027-10-07", end: "2027-10-28", sign: "Scorpio to Libra"),
+        .estimated(id: "2028-01", start: "2028-01-24", end: "2028-02-14", sign: "Aquarius"),
+        .estimated(id: "2028-05", start: "2028-05-21", end: "2028-06-14", sign: "Gemini"),
+        .estimated(id: "2028-09", start: "2028-09-19", end: "2028-10-11", sign: "Libra"),
+        .estimated(id: "2029-01", start: "2029-01-07", end: "2029-01-27", sign: "Aquarius to Capricorn"),
+        .estimated(id: "2029-05", start: "2029-05-01", end: "2029-05-25", sign: "Taurus"),
+        .estimated(id: "2029-09", start: "2029-09-02", end: "2029-09-25", sign: "Libra to Virgo"),
+        .estimated(id: "2029-12", start: "2029-12-22", end: "2030-01-11", sign: "Capricorn"),
+        .estimated(id: "2030-04", start: "2030-04-13", end: "2030-05-06", sign: "Taurus to Aries"),
+        .estimated(id: "2030-08", start: "2030-08-16", end: "2030-09-08", sign: "Virgo"),
+        .estimated(id: "2030-12", start: "2030-12-06", end: "2030-12-25", sign: "Capricorn to Sagittarius")
     ]
 }
 

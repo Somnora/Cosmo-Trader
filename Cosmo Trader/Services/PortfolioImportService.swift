@@ -46,7 +46,7 @@ struct ImportedHolding: Identifiable {
 
     /// Matched stock from our database (if found)
     var matchedStock: Stock? {
-        MockStockData.all.first { $0.symbol.uppercased() == symbol.uppercased() }
+        MockStockData.knownStocks.first { $0.symbol.uppercased() == symbol.uppercased() }
     }
 
     /// Whether we have this stock in our database

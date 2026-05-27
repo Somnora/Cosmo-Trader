@@ -70,6 +70,8 @@ final class HistoricalPriceService {
             return ("D", calendar.date(byAdding: .day, value: -30, to: to) ?? to, to)
         case .threeMonth:
             return ("D", calendar.date(byAdding: .day, value: -90, to: to) ?? to, to)
+        case .sixMonth:
+            return ("D", calendar.date(byAdding: .day, value: -180, to: to) ?? to, to)
         case .year:
             return ("D", calendar.date(byAdding: .day, value: -365, to: to) ?? to, to)
         case .all:

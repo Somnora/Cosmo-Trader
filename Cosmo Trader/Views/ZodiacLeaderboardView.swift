@@ -30,7 +30,7 @@ struct ZodiacLeaderboardView: View {
     }
 
     private var leaderboard: [(rank: Int, performance: ZodiacWeeklyPerformance)] {
-        ZodiacPerformanceService.getLeaderboard(stocks: MockStockData.all)
+        ZodiacPerformanceService.getLeaderboard(stocks: MockStockData.knownStocks)
     }
 
     private var commentary: String {

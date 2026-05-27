@@ -83,6 +83,14 @@ struct StockCardView: View {
         cardOffset.width < -30
     }
 
+    private var companyZodiacSign: ZodiacSign? {
+        card.stock.foundedZodiacSign
+    }
+
+    private var signDisplayName: String {
+        companyZodiacSign?.displayName ?? "Unknown"
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -132,7 +140,11 @@ struct StockCardView: View {
         let direction = card.stock.isPositive ? "up" : "down"
         var value = "\(card.compatibility.score) percent cosmic match. "
         value += "Price \(card.stock.formattedPrice), \(direction) \(card.stock.formattedPercentageChange). "
-        value += "\(card.stock.zodiacSign.displayName) sign, \(card.stock.zodiacSign.element.displayName) element. "
+        if let companyZodiacSign {
+            value += "\(companyZodiacSign.displayName) sign, \(companyZodiacSign.element.displayName) element. "
+        } else {
+            value += "unknown sign, unknown element. "
+        }
         value += card.whyToday
         return value
     }
@@ -185,7 +197,13 @@ struct StockCardView: View {
                 Rectangle()
                     .stroke(elementColor.opacity(0.45), lineWidth: 1)
 
-                ZodiacSymbolView(sign: card.stock.zodiacSign, size: glyphSize, color: elementColor)
+                if let companyZodiacSign {
+                    ZodiacSymbolView(sign: companyZodiacSign, size: glyphSize, color: elementColor)
+                } else {
+                    Text("?")
+                        .font(.system(size: glyphSize, weight: .semibold, design: .monospaced))
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
             }
             .frame(width: glyphBox, height: glyphBox)
         }
@@ -205,7 +223,7 @@ struct StockCardView: View {
                 .minimumScaleFactor(0.8)
 
             HStack(spacing: 6) {
-                Text(card.stock.zodiacSign.displayName.uppercased())
+                Text(signDisplayName.uppercased())
                     .font(TerminalFont.data(isCompact ? 9 : 10, weight: .semibold))
                     .foregroundColor(elementColor)
                     .tracking(1)
@@ -462,7 +480,11 @@ struct StockCardView: View {
     // MARK: - Helpers
 
     private var elementColor: Color {
-        switch card.stock.zodiacSign.element {
+        guard let foundedElement = card.stock.foundedElement else {
+            return CosmicTheme.textMuted
+        }
+
+        switch foundedElement {
         case .fire:  return CosmicTheme.fireElement
         case .earth: return CosmicTheme.earthElement
         case .air:   return CosmicTheme.airElement
@@ -496,7 +518,7 @@ struct StockCardView: View {
 // MARK: - Preview
 
 #Preview("Stock Card - Cosmic Match") {
-    let stock = MockStockData.all.first { $0.symbol == "AAPL" }!
+    let stock = MockStockData.knownStocks.first { $0.symbol == "AAPL" }!
     let user = UserProfile.sampleWithHoldings
     let card = StockCard(
         stock: stock,
@@ -513,7 +535,7 @@ struct StockCardView: View {
 }
 
 #Preview("Stock Card - Challenging") {
-    let stock = MockStockData.all.first { $0.symbol == "JPM" }!
+    let stock = MockStockData.knownStocks.first { $0.symbol == "JPM" }!
     let user = UserProfile.sampleWithHoldings
     let card = StockCard(
         stock: stock,
@@ -530,7 +552,7 @@ struct StockCardView: View {
 }
 
 #Preview("Stock Card - Compact") {
-    let stock = MockStockData.all.first { $0.symbol == "DIS" } ?? MockStockData.all.first!
+    let stock = MockStockData.knownStocks.first { $0.symbol == "DIS" } ?? MockStockData.knownStocks.first!
     let user = UserProfile.sampleWithHoldings
     let card = StockCard(
         stock: stock,

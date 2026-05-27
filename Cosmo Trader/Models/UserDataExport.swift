@@ -129,7 +129,7 @@ struct StatisticsExport: Codable {
     let numberOfHoldings: Int
     let watchlistCount: Int
     let membershipDuration: String
-    let averageCompatibilityScore: Int
+    let averageCompatibilityScore: Int?
 }
 
 // MARK: - Export Builder
@@ -168,14 +168,16 @@ enum UserDataExportBuilder {
 
         // Build portfolio export
         let portfolio = user.portfolio.map { stock in
-            StockExport(
+            let foundedZodiacSign = stock.foundedZodiacSign
+
+            return StockExport(
                 symbol: stock.symbol,
                 companyName: stock.name,
                 sharesOwned: stock.sharesOwned,
                 purchasePrice: stock.purchasePrice,
                 currentPrice: stock.currentPrice,
-                zodiacSign: stock.zodiacSign.displayName,
-                element: stock.element.displayName,
+                zodiacSign: foundedZodiacSign?.displayName ?? "Unknown",
+                element: foundedZodiacSign?.element.displayName ?? "Unknown",
                 dateAdded: nil // Not currently tracked
             )
         }
@@ -268,4 +270,3 @@ enum UserDataExportBuilder {
         return try? encoder.encode(export)
     }
 }
-

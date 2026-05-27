@@ -297,7 +297,8 @@ struct CosmicReportCard: View {
 
     /// Calculate element breakdown from portfolio
     private func calculateElementBreakdown() -> [ElementBreakdown] {
-        let totalValue = user.totalPortfolioValue
+        let verifiedHoldings = user.portfolio.filter { $0.sharesOwned > 0 && $0.foundedElement != nil }
+        let totalValue = verifiedHoldings.reduce(0) { $0 + $1.totalValue }
         guard totalValue > 0 else {
             return ZodiacSign.Element.allCases.map {
                 ElementBreakdown(element: $0, percentage: 0, value: 0)
@@ -305,8 +306,8 @@ struct CosmicReportCard: View {
         }
 
         var elementValues: [ZodiacSign.Element: Double] = [:]
-        for stock in user.portfolio where stock.sharesOwned > 0 {
-            let element = stock.zodiacSign.element
+        for stock in verifiedHoldings {
+            guard let element = stock.foundedElement else { continue }
             elementValues[element, default: 0] += stock.totalValue
         }
 
@@ -418,7 +419,8 @@ struct CosmicDiagnosisGenerator {
     }
 
     private static func calculateBreakdown(for user: UserProfile) -> [ElementBreakdown] {
-        let totalValue = user.totalPortfolioValue
+        let verifiedHoldings = user.portfolio.filter { $0.sharesOwned > 0 && $0.foundedElement != nil }
+        let totalValue = verifiedHoldings.reduce(0) { $0 + $1.totalValue }
         guard totalValue > 0 else {
             return ZodiacSign.Element.allCases.map {
                 ElementBreakdown(element: $0, percentage: 0, value: 0)
@@ -426,8 +428,8 @@ struct CosmicDiagnosisGenerator {
         }
 
         var elementValues: [ZodiacSign.Element: Double] = [:]
-        for stock in user.portfolio where stock.sharesOwned > 0 {
-            let element = stock.zodiacSign.element
+        for stock in verifiedHoldings {
+            guard let element = stock.foundedElement else { continue }
             elementValues[element, default: 0] += stock.totalValue
         }
 
@@ -741,11 +743,11 @@ struct ShareReportCardButton: View {
     )
 
     // Add mostly fire stocks
-    if var apple = MockStockData.all.first(where: { $0.symbol == "AAPL" }) {
+    if var apple = MockStockData.knownStocks.first(where: { $0.symbol == "AAPL" }) {
         apple.sharesOwned = 50
         fireUser.addStock(apple)
     }
-    if var ford = MockStockData.all.first(where: { $0.symbol == "F" }) {
+    if var ford = MockStockData.knownStocks.first(where: { $0.symbol == "F" }) {
         ford.sharesOwned = 100
         fireUser.addStock(ford)
     }

@@ -28,21 +28,23 @@ final class SignStackService {
     /// Generate a Sign Stack card data for a user
     func generateSignStack(for user: UserProfile) -> SignStackData {
         let holdings = user.portfolio.filter { $0.sharesOwned > 0 }
-        let topHoldings = Array(holdings.sorted { $0.totalValue > $1.totalValue }.prefix(3))
+        let verifiedHoldings = holdings.filter { $0.foundedZodiacSign != nil }
+        let totalVerifiedValue = verifiedHoldings.reduce(0) { $0 + $1.totalValue }
+        let topHoldings = Array(verifiedHoldings.sorted { $0.totalValue > $1.totalValue }.prefix(3))
 
-        let elementBreakdown = calculateElementBreakdown(holdings: holdings, totalValue: user.totalPortfolioValue)
+        let elementBreakdown = calculateElementBreakdown(holdings: verifiedHoldings, totalValue: totalVerifiedValue)
         let investingStyle = generateInvestingStyle(userSign: user.sunSign, elementBreakdown: elementBreakdown)
         let cosmicTitle = generateCosmicTitle(userSign: user.sunSign, elementBreakdown: elementBreakdown)
 
         return SignStackData(
             userSign: user.sunSign,
             displayName: user.displayName,
-            topHoldings: topHoldings.map { SignStackHolding(stock: $0) },
+            topHoldings: topHoldings.compactMap { SignStackHolding(stock: $0) },
             elementBreakdown: elementBreakdown,
             investingStyle: investingStyle,
             cosmicTitle: cosmicTitle,
-            totalValue: user.totalPortfolioValue,
-            holdingsCount: holdings.count,
+            totalValue: totalVerifiedValue,
+            holdingsCount: verifiedHoldings.count,
             generatedDate: Date()
         )
     }
@@ -58,7 +60,7 @@ final class SignStackService {
 
         var elementValues: [ZodiacSign.Element: Double] = [:]
         for stock in holdings {
-            let element = stock.zodiacSign.element
+            guard let element = stock.foundedElement else { continue }
             elementValues[element, default: 0] += stock.totalValue
         }
 
@@ -240,10 +242,12 @@ struct SignStackHolding: Identifiable {
     let percentageChange: Double
     let value: Double
 
-    init(stock: Stock) {
+    init?(stock: Stock) {
+        guard let foundedZodiacSign = stock.foundedZodiacSign else { return nil }
+
         self.symbol = stock.symbol
         self.name = stock.name
-        self.sign = stock.zodiacSign
+        self.sign = foundedZodiacSign
         self.percentageChange = stock.percentageChange
         self.value = stock.totalValue
     }
