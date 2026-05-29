@@ -59,15 +59,15 @@ struct CosmicMoodDetailView: View {
     // MARK: - Trading Signal Card
 
     private var tradingSignalCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        return VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Image(systemName: moodData.moodLevel.icon)
+                Image(systemName: moodData.displaySymbol)
                     .font(.title2)
-                    .foregroundColor(moodData.moodLevel.color)
+                    .foregroundColor(moodData.displayColor)
 
-                Text(moodData.moodLevel.tradingSignal)
+                Text(moodData.moodLevel?.tradingSignal ?? moodData.label)
                     .font(TerminalFont.headline(16))
-                    .foregroundColor(moodData.moodLevel.color)
+                    .foregroundColor(moodData.displayColor)
 
                 Spacer()
 
@@ -84,12 +84,12 @@ struct CosmicMoodDetailView: View {
                     .padding(.vertical, 5)
                     .background(
                         Capsule()
-                            .fill(moodData.moodLevel.color)
+                            .fill(moodData.displayColor)
                     )
                 }
             }
 
-            Text(moodData.moodLevel.marketInsight)
+            Text(moodData.moodLevel?.marketInsight ?? "Provider-backed market factors are unavailable. This panel is cosmic context only, not a market sentiment score.")
                 .font(TerminalFont.body(13))
                 .foregroundColor(CosmicTheme.textSecondary)
                 .lineSpacing(4)
@@ -97,16 +97,17 @@ struct CosmicMoodDetailView: View {
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(moodData.moodLevel.color.opacity(0.1))
+                .fill(moodData.displayColor.opacity(0.1))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(moodData.moodLevel.color.opacity(0.3), lineWidth: 1)
+                        .stroke(moodData.displayColor.opacity(0.3), lineWidth: 1)
                 )
         )
     }
 
     private var isContrarianOpportunity: Bool {
-        moodData.moodLevel == .void || moodData.moodLevel == .supernova
+        guard moodData.isMarketBacked, let moodLevel = moodData.moodLevel else { return false }
+        return moodLevel == .void || moodLevel == .supernova
     }
 
     // MARK: - Factors Section
@@ -237,9 +238,9 @@ struct CosmicMoodDetailView: View {
             // Value indicator
             VStack(alignment: .trailing, spacing: 2) {
                 HStack(spacing: 4) {
-                    Image(systemName: factor.value > 0 ? "arrow.up" : (factor.value < 0 ? "arrow.down" : "minus"))
+                    Image(systemName: factorDirectionIcon(factor))
                         .font(.caption2)
-                    Text("\(abs(factor.value))")
+                    Text(factor.value.map { "\(abs($0))" } ?? "N/A")
                         .font(TerminalFont.price(14))
                 }
                 .foregroundColor(factor.color)
@@ -257,10 +258,26 @@ struct CosmicMoodDetailView: View {
         )
     }
 
+    private func factorDirectionIcon(_ factor: MoodFactor) -> String {
+        guard let value = factor.value else { return "exclamationmark.triangle" }
+        if value > 0 { return "arrow.up" }
+        if value < 0 { return "arrow.down" }
+        return "minus"
+    }
+
     // MARK: - Historical Insight Section
 
+    @ViewBuilder
     private var historicalInsightSection: some View {
-        let insight = HistoricalInsight.insight(for: moodData.moodLevel)
+        if moodData.isMarketBacked, let moodLevel = moodData.moodLevel {
+            historicalInsightSection(for: moodLevel)
+        } else {
+            unavailableHistoricalContext
+        }
+    }
+
+    private func historicalInsightSection(for moodLevel: CosmicMoodLevel) -> some View {
+        let insight = HistoricalInsight.insight(for: moodLevel)
 
         return VStack(alignment: .leading, spacing: 16) {
             // Header
@@ -295,7 +312,7 @@ struct CosmicMoodDetailView: View {
                 VStack(spacing: 4) {
                     Text(insight.formattedReturn)
                         .font(TerminalFont.price(24))
-                        .foregroundColor(insight.historicalReturn >= 0 ? CosmicTheme.positive : CosmicTheme.negative)
+                        .foregroundColor(historicalReturnColor(insight.historicalReturn))
 
                     Text(insight.timeframe)
                         .font(TerminalFont.data(10))
@@ -353,27 +370,76 @@ struct CosmicMoodDetailView: View {
     }
 
     private var contrarianQuote: String {
-        if moodData.moodLevel == .void || moodData.moodLevel == .eclipse {
+        if let moodLevel = moodData.moodLevel, moodLevel == .void || moodLevel == .eclipse {
             return "Be greedy when others are fearful."
         } else {
             return "Be fearful when others are greedy."
         }
     }
 
+    private var unavailableHistoricalContext: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "clock.arrow.circlepath")
+                    .foregroundColor(CosmicTheme.textMuted)
+
+                Text("Historical Context")
+                    .font(TerminalFont.headline(16))
+                    .foregroundColor(CosmicTheme.textPrimary)
+            }
+
+            Text("Historical context unavailable")
+                .font(TerminalFont.headline(14))
+                .foregroundColor(CosmicTheme.textPrimary)
+
+            Text("Provider-backed market history is required before Cosmo shows market sentiment scores or historical return context.")
+                .font(TerminalFont.body(12))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineSpacing(3)
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(CosmicTheme.cardBackground)
+        )
+    }
+
+    private func historicalReturnColor(_ value: Double?) -> Color {
+        guard let value else { return CosmicTheme.textMuted }
+        return value >= 0 ? CosmicTheme.positive : CosmicTheme.negative
+    }
+
     // MARK: - Mood History Section
 
     private var moodHistorySection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let entries = CosmicMoodService.shared.getMoodHistory(days: 30)
+
+        return VStack(alignment: .leading, spacing: 12) {
             Text("30-Day Mood History")
                 .font(TerminalFont.headline(14))
                 .foregroundColor(CosmicTheme.textPrimary)
 
-            // Mini chart
-            MoodHistoryChart(
-                entries: CosmicMoodService.shared.getMoodHistory(days: 30),
-                currentValue: moodData.value
-            )
-            .frame(height: 120)
+            if entries.isEmpty || !moodData.isMarketBacked || moodData.value == nil {
+                VStack(spacing: 8) {
+                    Image(systemName: "chart.line.downtrend.xyaxis")
+                        .foregroundColor(CosmicTheme.textMuted)
+                    Text("Mood history unavailable")
+                        .font(TerminalFont.data(12, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textPrimary)
+                    Text("History will appear when provider-backed market data is connected.")
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 120)
+            } else {
+                MoodHistoryChart(
+                    entries: entries,
+                    currentValue: moodData.value ?? 50
+                )
+                .frame(height: 120)
+            }
         }
         .padding(20)
         .background(
@@ -391,7 +457,7 @@ struct CosmicMoodDetailView: View {
                 .font(.caption)
                 .foregroundColor(CosmicTheme.textMuted)
 
-            Text("The Cosmic Mood Index combines market indicators with astrological factors for entertainment purposes. Historical patterns don't guarantee future results. Always do your own research.")
+            Text("The Cosmic Mood Index is an entertainment lens. Market-history factors show unavailable states until provider data is connected. Not financial advice.")
                 .font(TerminalFont.body(10))
                 .foregroundColor(CosmicTheme.textMuted)
                 .lineSpacing(2)
@@ -515,8 +581,8 @@ struct CosmicMoodDetailSheet: View {
 
                     ToolbarItem(placement: .principal) {
                         HStack(spacing: 8) {
-                            Image(systemName: moodData.moodLevel.sfSymbol)
-                                .foregroundColor(moodData.moodLevel.color)
+                            Image(systemName: moodData.displaySymbol)
+                                .foregroundColor(moodData.displayColor)
                             Text("Cosmic Mood")
                                 .font(.headline)
                                 .foregroundColor(CosmicTheme.textPrimary)

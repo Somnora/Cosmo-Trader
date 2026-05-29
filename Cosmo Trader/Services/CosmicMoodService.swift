@@ -5,8 +5,8 @@ import SwiftUI
 // ===========================
 // Calculates the Cosmic Mood Index based on various factors:
 // - Moon phase influence
-// - Simulated market performance
-// - Volatility readings
+// - Provider-backed market performance when connected
+// - Provider-backed volatility readings when connected
 // - Planetary positions (Mercury retrograde, Jupiter transit, etc.)
 
 @Observable
@@ -19,6 +19,7 @@ final class CosmicMoodService {
     // MARK: - Dependencies
 
     private let moonService = MoonPhaseService.shared
+    private let minimumMarketCoverageForScore = 0.50
 
     // MARK: - State
 
@@ -34,9 +35,8 @@ final class CosmicMoodService {
     // MARK: - Init
 
     private init() {
-        // Generate initial data
         currentMoodData = calculateCurrentMood()
-        moodHistory = generateMockHistory()
+        moodHistory = []
     }
 
     // MARK: - Public Methods
@@ -59,9 +59,10 @@ final class CosmicMoodService {
     }
 
     /// Get historical insight for the current mood level
-    func getCurrentHistoricalInsight() -> HistoricalInsight {
+    func getCurrentHistoricalInsight() -> HistoricalInsight? {
         let mood = getCurrentMood()
-        return HistoricalInsight.insight(for: mood.moodLevel)
+        guard mood.isMarketBacked, let moodLevel = mood.moodLevel else { return nil }
+        return HistoricalInsight.insight(for: moodLevel)
     }
 
     /// Get mood history for charting
@@ -81,23 +82,68 @@ final class CosmicMoodService {
     private func calculateCurrentMood() -> CosmicMoodData {
         // Calculate each factor
         let factors = calculateAllFactors()
-
-        // Calculate weighted average
         let totalWeight = factors.reduce(0.0) { $0 + $1.weight }
-        let weightedSum = factors.reduce(0.0) { $0 + $1.weightedContribution }
+        let unavailableFactorWeight = totalWeight > 0
+            ? factors.filter { $0.value == nil }.reduce(0.0) { $0 + $1.weight } / totalWeight
+            : 1
+
+        let marketFactors = factors.filter(\.requiresProviderMarketData)
+        let totalMarketWeight = marketFactors.reduce(0.0) { $0 + $1.weight }
+        let availableMarketWeight = marketFactors
+            .filter { $0.value != nil && $0.provenance.isProviderBacked }
+            .reduce(0.0) { $0 + $1.weight }
+        let marketDataCoverage = totalMarketWeight > 0 ? availableMarketWeight / totalMarketWeight : 0
+
+        guard marketDataCoverage >= minimumMarketCoverageForScore else {
+            let hasCosmicContext = factors.contains { !$0.requiresProviderMarketData && $0.value != nil }
+            return CosmicMoodData(
+                date: Date(),
+                value: nil,
+                factors: factors,
+                change: nil,
+                label: hasCosmicContext ? "Cosmic context only" : "Market data unavailable",
+                provenance: hasCosmicContext
+                    ? .sample(reason: "Provider-backed market factors unavailable")
+                    : .unavailable(reason: "Provider-backed market factors unavailable"),
+                marketDataCoverage: marketDataCoverage,
+                unavailableFactorWeight: unavailableFactorWeight,
+                displayMode: hasCosmicContext ? .cosmicContextOnly : .unavailable
+            )
+        }
+
+        // Calculate weighted average from available inputs only.
+        let availableFactors = factors.filter { $0.value != nil }
+        let availableWeight = availableFactors.reduce(0.0) { $0 + $1.weight }
+        guard availableWeight > 0 else {
+            return CosmicMoodData(
+                date: Date(),
+                value: nil,
+                factors: factors,
+                change: nil,
+                label: "Market data unavailable",
+                provenance: .unavailable(reason: "Provider-backed market factors unavailable"),
+                marketDataCoverage: marketDataCoverage,
+                unavailableFactorWeight: unavailableFactorWeight,
+                displayMode: .unavailable
+            )
+        }
+
+        let weightedSum = availableFactors.reduce(0.0) { $0 + $1.weightedContribution }
 
         // Convert from -100..+100 range to 0..100 range
-        let normalizedValue = (weightedSum / totalWeight + 100) / 2
+        let normalizedValue = (weightedSum / availableWeight + 100) / 2
         let value = Int(max(0, min(100, normalizedValue)))
-
-        // Calculate change from yesterday without re-entering current mood calculation.
-        let change = calculateDailyChange(todayValue: value)
 
         return CosmicMoodData(
             date: Date(),
             value: value,
             factors: factors,
-            change: change
+            change: nil,
+            label: CosmicMoodLevel.from(value: value).sentimentName,
+            provenance: scoreProvenance(from: marketFactors),
+            marketDataCoverage: marketDataCoverage,
+            unavailableFactorWeight: unavailableFactorWeight,
+            displayMode: .marketBackedScore
         )
     }
 
@@ -150,13 +196,13 @@ final class CosmicMoodService {
             description = "New moon energy — fresh beginnings favor optimism"
         case .waxingCrescent, .firstQuarter:
             value = 20
-            description = "Waxing moon builds bullish momentum"
+            description = "Waxing moon builds constructive cosmic context"
         case .waxingGibbous:
             value = 10
             description = "Approaching full moon — energy peaks"
         case .fullMoon:
             value = -15
-            description = "Full moon heightens emotions and volatility"
+            description = "Full moon heightens the emotional backdrop"
         case .waningGibbous:
             value = -10
             description = "Post-peak energy beginning to decline"
@@ -174,7 +220,8 @@ final class CosmicMoodService {
             value: value,
             weight: 0.15,
             description: description,
-            icon: phase.sfSymbol
+            icon: phase.sfSymbol,
+            provenance: .sample(reason: "Cosmic context only")
         )
     }
 
@@ -192,7 +239,7 @@ final class CosmicMoodService {
             description = "Mercury retrograde — communication issues, delays expected"
         } else {
             value = 5
-            description = "Mercury direct — clear communication supports markets"
+            description = "Mercury direct — clearer communication backdrop"
         }
 
         return MoodFactor(
@@ -201,7 +248,8 @@ final class CosmicMoodService {
             value: value,
             weight: 0.10,
             description: description,
-            icon: isRetrograde ? "arrow.uturn.backward.circle.fill" : "arrow.right.circle.fill"
+            icon: isRetrograde ? "arrow.uturn.backward.circle.fill" : "arrow.right.circle.fill",
+            provenance: .sample(reason: "Cosmic context only")
         )
     }
 
@@ -231,133 +279,60 @@ final class CosmicMoodService {
             value: value,
             weight: 0.10,
             description: description,
-            icon: "circle.hexagonpath.fill"
+            icon: "circle.hexagonpath.fill",
+            provenance: .sample(reason: "Cosmic context only")
         )
     }
 
-    /// Recent market performance (simulated)
+    /// Recent market performance from provider-backed data when available
     private func calculateMarketPerformanceFactor() -> MoodFactor {
-        // Simulate recent market returns
-        // In production, this would use real S&P 500 data
-        let weeklyReturn = simulateWeeklyReturn()
-        let monthlyReturn = simulateMonthlyReturn()
-
-        let value = Int((weeklyReturn * 2 + monthlyReturn) * 10)
-        let clampedValue = max(-50, min(50, value))
-
-        let description: String
-        if clampedValue > 20 {
-            description = "Markets trending higher — bullish momentum"
-        } else if clampedValue > 0 {
-            description = "Markets slightly positive — cautious optimism"
-        } else if clampedValue > -20 {
-            description = "Markets slightly negative — mild concern"
-        } else {
-            description = "Markets trending lower — fear increasing"
-        }
-
         return MoodFactor(
             name: "Market Trend",
             category: .market,
-            value: clampedValue,
+            value: nil,
             weight: 0.20,
-            description: description,
-            icon: clampedValue >= 0 ? "chart.line.uptrend.xyaxis" : "chart.line.downtrend.xyaxis"
+            description: "Provider-backed market trend unavailable",
+            icon: "chart.line.uptrend.xyaxis",
+            provenance: .unavailable(reason: "Provider-backed market trend unavailable")
         )
     }
 
-    /// Volatility level (simulated VIX-like indicator)
+    /// Volatility level from provider-backed market data when available
     private func calculateVolatilityFactor() -> MoodFactor {
-        // Simulate VIX-like volatility
-        // Low VIX = complacency (bullish for mood, but contrarian warning)
-        // High VIX = fear (bearish for mood, but contrarian opportunity)
-        let vix = simulateVIX()
-
-        let value: Int
-        let description: String
-
-        if vix < 15 {
-            value = 30
-            description = "Low volatility — calm markets, potential complacency"
-        } else if vix < 20 {
-            value = 15
-            description = "Normal volatility — healthy market conditions"
-        } else if vix < 25 {
-            value = 0
-            description = "Elevated volatility — increased uncertainty"
-        } else if vix < 30 {
-            value = -20
-            description = "High volatility — fear rising in markets"
-        } else {
-            value = -40
-            description = "Extreme volatility — panic selling possible"
-        }
-
         return MoodFactor(
             name: "Volatility",
             category: .volatility,
-            value: value,
+            value: nil,
             weight: 0.20,
-            description: description,
-            icon: "waveform.path.ecg"
+            description: "Provider-backed volatility unavailable",
+            icon: "waveform.path.ecg",
+            provenance: .unavailable(reason: "Provider-backed volatility unavailable")
         )
     }
 
-    /// Market breadth (simulated advance/decline ratio)
+    /// Market breadth from provider-backed market data when available
     private func calculateMarketBreadthFactor() -> MoodFactor {
-        // Simulate advance/decline ratio
-        let advanceDecline = simulateAdvanceDecline()
-
-        let value = Int(advanceDecline * 40)
-        let clampedValue = max(-40, min(40, value))
-
-        let description: String
-        if clampedValue > 20 {
-            description = "Strong breadth — widespread participation in rally"
-        } else if clampedValue > 0 {
-            description = "Positive breadth — more stocks advancing"
-        } else if clampedValue > -20 {
-            description = "Negative breadth — more stocks declining"
-        } else {
-            description = "Weak breadth — broad-based selling"
-        }
-
         return MoodFactor(
             name: "Market Breadth",
             category: .market,
-            value: clampedValue,
+            value: nil,
             weight: 0.15,
-            description: description,
-            icon: "chart.bar.fill"
+            description: "Provider-backed breadth unavailable",
+            icon: "chart.bar.fill",
+            provenance: .unavailable(reason: "Provider-backed breadth unavailable")
         )
     }
 
-    /// Price momentum (simulated)
+    /// Price momentum from provider-backed market data when available
     private func calculateMomentumFactor() -> MoodFactor {
-        // Simulate price momentum
-        let momentum = simulateMomentum()
-
-        let value = Int(momentum * 30)
-        let clampedValue = max(-30, min(30, value))
-
-        let description: String
-        if clampedValue > 15 {
-            description = "Strong bullish momentum — trend following favored"
-        } else if clampedValue > 0 {
-            description = "Mild bullish momentum — gradual uptrend"
-        } else if clampedValue > -15 {
-            description = "Mild bearish momentum — gradual downtrend"
-        } else {
-            description = "Strong bearish momentum — downtrend accelerating"
-        }
-
         return MoodFactor(
             name: "Momentum",
             category: .momentum,
-            value: clampedValue,
+            value: nil,
             weight: 0.10,
-            description: description,
-            icon: clampedValue >= 0 ? "gauge.high" : "gauge.low"
+            description: "Provider-backed momentum unavailable",
+            icon: "gauge.medium",
+            provenance: .unavailable(reason: "Provider-backed momentum unavailable")
         )
     }
 
@@ -395,77 +370,30 @@ final class CosmicMoodService {
         }
     }
 
-    /// Simulate weekly market return
-    private func simulateWeeklyReturn() -> Double {
-        // Generate pseudo-random return based on date for consistency
-        let seed = Calendar.current.ordinality(of: .weekOfYear, in: .year, for: Date()) ?? 1
-        return sin(Double(seed) * 1.5) * 3 + cos(Double(seed) * 0.8) * 2
-    }
-
-    /// Simulate monthly market return
-    private func simulateMonthlyReturn() -> Double {
-        let seed = Calendar.current.component(.month, from: Date())
-        return sin(Double(seed) * 2.1) * 4 + 1
-    }
-
-    /// Simulate VIX-like volatility index
-    private func simulateVIX() -> Double {
-        let dayOfYear = Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 1
-        // Base VIX around 18 with some variation
-        return 18 + sin(Double(dayOfYear) * 0.1) * 8 + cos(Double(dayOfYear) * 0.05) * 5
-    }
-
-    /// Simulate advance/decline ratio (-1 to +1)
-    private func simulateAdvanceDecline() -> Double {
-        let dayOfYear = Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 1
-        return sin(Double(dayOfYear) * 0.15) * 0.8
-    }
-
-    /// Simulate price momentum (-1 to +1)
-    private func simulateMomentum() -> Double {
-        let dayOfYear = Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 1
-        return cos(Double(dayOfYear) * 0.12) * 0.9
-    }
-
-    /// Calculate daily change in mood index
-    private func calculateDailyChange(todayValue: Int) -> Int {
-        // Compare to yesterday's simulated value
-        guard let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date()) else {
-            return 0
+    private func scoreProvenance(from marketFactors: [MoodFactor]) -> FinancialDataProvenance {
+        let available = marketFactors.filter { $0.value != nil && $0.provenance.isProviderBacked }
+        let liveFetches = available.compactMap { factor -> Date? in
+            guard case .live(_, let fetchedAt) = factor.provenance else { return nil }
+            return fetchedAt
+        }
+        let cachedFetches = available.compactMap { factor -> Date? in
+            guard case .cached(_, let fetchedAt, _) = factor.provenance else { return nil }
+            return fetchedAt
         }
 
-        let yesterdaySeed = Calendar.current.ordinality(of: .day, in: .year, for: yesterday) ?? 1
-        let yesterdayValue = 50 + Int(sin(Double(yesterdaySeed) * 0.2) * 30)
-
-        return todayValue - yesterdayValue
-    }
-
-    // MARK: - History Generation
-
-    /// Generate mock historical mood data
-    private func generateMockHistory() -> [MoodHistoryEntry] {
-        var entries: [MoodHistoryEntry] = []
-        let calendar = Calendar.current
-
-        // Generate 90 days of history
-        for daysAgo in (0..<90).reversed() {
-            guard let date = calendar.date(byAdding: .day, value: -daysAgo, to: Date()) else { continue }
-
-            let dayOfYear = calendar.ordinality(of: .day, in: .year, for: date) ?? 1
-
-            // Generate consistent pseudo-random value based on date
-            let baseValue = 50.0
-            let variation1 = sin(Double(dayOfYear) * 0.2) * 25
-            let variation2 = cos(Double(dayOfYear) * 0.08) * 15
-            let variation3 = sin(Double(dayOfYear) * 0.5) * 10
-
-            let value = Int(baseValue + variation1 + variation2 + variation3)
-            let clampedValue = max(0, min(100, value))
-
-            entries.append(MoodHistoryEntry(date: date, value: clampedValue))
+        if !liveFetches.isEmpty && cachedFetches.isEmpty, let newest = liveFetches.max() {
+            return .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: newest)
         }
 
-        return entries
+        if liveFetches.isEmpty && !cachedFetches.isEmpty, let newest = cachedFetches.max() {
+            return .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: newest)
+        }
+
+        if !available.isEmpty {
+            return .mixed(reason: "Market score combines live and cached provider-backed factors")
+        }
+
+        return .unavailable(reason: "Provider-backed market factors unavailable")
     }
 }
 
@@ -474,15 +402,19 @@ final class CosmicMoodService {
 extension CosmicMoodService {
 
     /// Get a brief summary suitable for dashboard display
-    func getDashboardSummary() -> (value: Int, level: CosmicMoodLevel, change: String) {
+    func getDashboardSummary() -> (value: Int?, label: String, level: CosmicMoodLevel?, change: String) {
         let mood = getCurrentMood()
-        return (mood.value, mood.moodLevel, mood.formattedChange)
+        return (mood.value, mood.marketToneText, mood.moodLevel, mood.formattedChange)
     }
 
     /// Check if we're in an extreme mood (contrarian signal)
     func isExtremeReading() -> (isExtreme: Bool, type: String?) {
         let mood = getCurrentMood()
-        switch mood.moodLevel {
+        guard mood.isMarketBacked, let moodLevel = mood.moodLevel else {
+            return (false, nil)
+        }
+
+        switch moodLevel {
         case .void:
             return (true, "Extreme Fear — potential contrarian buy signal")
         case .supernova:
@@ -499,5 +431,11 @@ extension CosmicMoodService {
             .sorted { abs($0.weightedContribution) > abs($1.weightedContribution) }
             .prefix(count)
             .map { $0 }
+    }
+}
+
+private extension MoodFactor {
+    var requiresProviderMarketData: Bool {
+        category != .cosmic
     }
 }

@@ -16,6 +16,8 @@ struct PortfolioView: View {
     @State private var selectedStock: Stock?
     @State private var lastPriceUpdate: Date = Date()
     @State private var isFetchingPrices: Bool = false
+    @State private var quoteProvenanceBySymbol: [String: FinancialDataProvenance] = [:]
+    @State private var watchlistQuoteOverrides: [String: Stock] = [:]
     @ObservedObject private var stockAPI = StockAPIService.shared
     @State private var showRebalancingSuggestions: Bool = false
     @State private var chartTimeframe: ChartTimeframe = .month
@@ -43,7 +45,25 @@ struct PortfolioView: View {
     /// Stocks in the user's watchlist (not owned)
     private var watchlistStocks: [Stock] {
         let watchlistSymbols = Set(safeUser.watchlist)
-        return MockStockData.knownStocks.filter { watchlistSymbols.contains($0.symbol) }
+        return MockStockData.knownStocks
+            .filter { watchlistSymbols.contains($0.symbol) }
+            .map { watchlistQuoteOverrides[$0.symbol] ?? $0 }
+    }
+
+    private var portfolioPriceProvenance: FinancialDataProvenance {
+        aggregateQuoteProvenance(
+            for: holdings + watchlistStocks,
+            storedReason: "Stored portfolio and curated watchlist prices until provider quote refresh succeeds",
+            unavailableReason: "No visible portfolio or watchlist quotes"
+        )
+    }
+
+    private var portfolioDailyPLProvenance: FinancialDataProvenance {
+        aggregateQuoteProvenance(
+            for: holdings,
+            storedReason: "Stored daily P/L and change percent until provider quote refresh succeeds",
+            unavailableReason: "No holdings available for daily P/L"
+        )
     }
 
     private var elementBreakdown: [(element: ZodiacSign.Element, percentage: Double, value: Double)] {
@@ -364,6 +384,8 @@ struct PortfolioView: View {
                 Text(safeUser.formattedPortfolioValue)
                     .font(TerminalFont.price(24))
                     .foregroundColor(CosmicTheme.textPrimary)
+
+                DataSourceIndicator(provenance: portfolioPriceProvenance, size: .compact)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -385,6 +407,8 @@ struct PortfolioView: View {
                         .font(TerminalFont.price(14))
                 }
                 .foregroundColor(safeUser.isPortfolioPositive ? CosmicTheme.positive : CosmicTheme.negative)
+
+                DataSourceIndicator(provenance: portfolioDailyPLProvenance, size: .compact)
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -781,15 +805,11 @@ struct PortfolioView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 // Price
-                Text(stock.formattedPrice)
-                    .font(TerminalFont.price(11))
-                    .foregroundColor(CosmicTheme.textPrimary)
+                priceCell(for: stock, fallbackReason: "Stored portfolio price; provider quote unavailable")
                     .frame(width: 70, alignment: .trailing)
 
                 // Change %
-                Text(stock.formattedPercentageChange)
-                    .font(TerminalFont.price(11))
-                    .foregroundColor(stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
+                changeCell(for: stock, fallbackReason: "Stored portfolio change; provider quote unavailable")
                     .frame(width: 60, alignment: .trailing)
 
                 // Allocation bar
@@ -818,6 +838,82 @@ struct PortfolioView: View {
                     .frame(width: 30 * CGFloat(barWidth), height: 6)
             }
         }
+    }
+
+    private func priceCell(for stock: Stock, fallbackReason: String) -> some View {
+        let provenance = quoteProvenance(for: stock, fallbackReason: fallbackReason)
+
+        return VStack(alignment: .trailing, spacing: 2) {
+            Text(stock.formattedPrice)
+                .font(TerminalFont.price(11))
+                .foregroundColor(CosmicTheme.textPrimary)
+
+            Text(provenance.shortLabel.uppercased())
+                .font(TerminalFont.data(7, weight: .bold))
+                .foregroundColor(provenance.color)
+                .tracking(0.5)
+        }
+    }
+
+    private func quoteProvenance(for stock: Stock, fallbackReason: String) -> FinancialDataProvenance {
+        quoteProvenanceBySymbol[stock.symbol.uppercased()] ?? .sample(reason: fallbackReason)
+    }
+
+    private func changeCell(for stock: Stock, fallbackReason: String) -> some View {
+        let provenance = quoteProvenance(for: stock, fallbackReason: fallbackReason)
+
+        return VStack(alignment: .trailing, spacing: 2) {
+            Text(stock.formattedPercentageChange)
+                .font(TerminalFont.price(11))
+                .foregroundColor(stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
+
+            Text(provenance.shortLabel.uppercased())
+                .font(TerminalFont.data(7, weight: .bold))
+                .foregroundColor(provenance.color)
+                .tracking(0.5)
+        }
+    }
+
+    private func aggregateQuoteProvenance(
+        for stocks: [Stock],
+        storedReason: String,
+        unavailableReason: String
+    ) -> FinancialDataProvenance {
+        let symbols = Array(Set(stocks.map { $0.symbol.uppercased() }))
+        guard !symbols.isEmpty else {
+            return .unavailable(reason: unavailableReason)
+        }
+
+        let provenances = symbols.map { symbol in
+            quoteProvenanceBySymbol[symbol] ?? .sample(reason: storedReason)
+        }
+
+        let liveFetches = provenances.compactMap { provenance -> Date? in
+            guard case .live(_, let fetchedAt) = provenance else { return nil }
+            return fetchedAt
+        }
+        let cachedFetches = provenances.compactMap { provenance -> Date? in
+            guard case .cached(_, let fetchedAt, _) = provenance else { return nil }
+            return fetchedAt
+        }
+
+        if liveFetches.count == provenances.count, let newest = liveFetches.max() {
+            return .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: newest)
+        }
+
+        if cachedFetches.count == provenances.count, let newest = cachedFetches.max() {
+            return .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: newest)
+        }
+
+        if provenances.allSatisfy({ if case .sample = $0 { return true }; return false }) {
+            return .sample(reason: storedReason)
+        }
+
+        if provenances.allSatisfy({ if case .unavailable = $0 { return true }; return false }) {
+            return .unavailable(reason: unavailableReason)
+        }
+
+        return .mixed(reason: "Portfolio values combine live, cached, stored, or unavailable quote fields")
     }
 
     private var emptyState: some View {
@@ -938,6 +1034,17 @@ struct PortfolioView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
 
+            HStack(alignment: .top, spacing: 6) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 10, weight: .semibold))
+                Text("Watchlist prices are labeled live, cached, or sample depending on the latest provider quote refresh.")
+                    .font(TerminalFont.data(9))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .foregroundColor(CosmicTheme.textMuted)
+            .padding(.horizontal, 12)
+            .padding(.bottom, 8)
+
             // Watchlist table header
             watchlistTableHeader
             dividerLine
@@ -1024,15 +1131,11 @@ struct PortfolioView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 // Price
-                Text(stock.formattedPrice)
-                    .font(TerminalFont.price(11))
-                    .foregroundColor(CosmicTheme.textPrimary)
+                priceCell(for: stock, fallbackReason: "Curated sample price; provider quote unavailable")
                     .frame(width: 70, alignment: .trailing)
 
                 // Change %
-                Text(stock.formattedPercentageChange)
-                    .font(TerminalFont.price(11))
-                    .foregroundColor(stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
+                changeCell(for: stock, fallbackReason: "Curated sample change; provider quote unavailable")
                     .frame(width: 60, alignment: .trailing)
 
                 // Compatibility score
@@ -1097,22 +1200,47 @@ struct PortfolioView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
+
+            HStack {
+                Spacer()
+                DataSourceIndicator(provenance: portfolioPriceProvenance, size: .compact)
+            }
+            .padding(.horizontal, 12)
+            .padding(.bottom, 8)
         }
     }
 
     // MARK: - Actions
 
     private func fetchLivePrices() async {
-        guard !holdings.isEmpty else { return }
+        let symbols = Array(Set((holdings + watchlistStocks).map { $0.symbol.uppercased() }))
+        guard !symbols.isEmpty else { return }
         isFetchingPrices = true
 
-        let symbols = holdings.map { $0.symbol }
-        let quotes = await stockAPI.getMultipleQuotes(symbols: symbols)
+        let results = await stockAPI.getMultipleQuoteResults(symbols: symbols)
+        let quotes = results.compactMapValues(\.quote)
 
-        if !quotes.isEmpty {
-            await MainActor.run {
+        await MainActor.run {
+            var nextProvenance = quoteProvenanceBySymbol
+            for symbol in symbols {
+                if let result = results[symbol], result.quote != nil {
+                    nextProvenance[symbol] = result.provenance
+                } else if holdings.contains(where: { $0.symbol.uppercased() == symbol }) {
+                    nextProvenance[symbol] = .sample(reason: "Stored portfolio price; provider quote unavailable")
+                } else {
+                    nextProvenance[symbol] = .sample(reason: "Curated sample price; provider quote unavailable")
+                }
+            }
+            quoteProvenanceBySymbol = nextProvenance
+
+            if !quotes.isEmpty {
                 appState.updatePortfolioPrices(with: quotes)
-                lastPriceUpdate = Date()
+                watchlistQuoteOverrides = watchlistStocks.reduce(into: watchlistQuoteOverrides) { partialResult, stock in
+                    if let quote = quotes[stock.symbol.uppercased()] {
+                        partialResult[stock.symbol] = stock.withQuote(quote)
+                    }
+                }
+                lastPriceUpdate = results.values.compactMap { $0.provenance.fetchedAt }.max() ?? Date()
             }
         }
 

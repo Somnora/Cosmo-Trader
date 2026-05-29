@@ -59,15 +59,15 @@ enum CosmicMoodLevel: String, CaseIterable {
     var marketInsight: String {
         switch self {
         case .void:
-            return "Markets are gripped by fear. Historically, extreme fear has preceded some of the strongest rallies. Contrarian opportunity? Consider: 'Be greedy when others are fearful.'"
+            return "Sentiment is deeply risk-off. Historical return context is unavailable until provider-backed market history is connected. Entertainment lens, not a prediction."
         case .eclipse:
-            return "Pessimism is elevated but not at extremes. Caution is warranted, but panic is often overdone. Look for quality assets trading below fair value."
+            return "Pessimism is elevated. Use this as a market-mood snapshot, not a buy or sell signal."
         case .twilight:
-            return "The market is balanced, neither fearful nor greedy. This is often a period of consolidation before the next major move. Stay alert for directional signals."
+            return "The market mood is balanced. Pattern notes will appear when enough provider-backed market history is available."
         case .radiant:
-            return "Optimism is running high. While momentum can continue, be mindful of valuations. This is often a good time to take some profits off the table."
+            return "Optimism is elevated. Treat this as sentiment context, not an instruction to change positions."
         case .supernova:
-            return "Euphoria has taken hold. Historically, extreme greed has preceded corrections. Consider: 'Be fearful when others are greedy.' Protect your gains."
+            return "Sentiment is extremely hot. Historical return context is unavailable; this is an entertainment framing layer, not financial advice."
         }
     }
 
@@ -117,18 +117,18 @@ enum CosmicMoodLevel: String, CaseIterable {
     /// Trading recommendation based on mood
     var tradingSignal: String {
         switch self {
-        case .void:      return "Potential buying opportunity"
-        case .eclipse:   return "Watch for value plays"
-        case .twilight:  return "Hold current positions"
-        case .radiant:   return "Consider taking profits"
-        case .supernova: return "High caution advised"
+        case .void:      return "Risk-off mood"
+        case .eclipse:   return "Pessimism elevated"
+        case .twilight:  return "Neutral mood"
+        case .radiant:   return "Optimism elevated"
+        case .supernova: return "Hot sentiment"
         }
     }
 
     // MARK: - Static Methods
 
     /// Get mood level from a value (0-100)
-    static func from(value: Int) -> CosmicMoodLevel {
+    nonisolated static func from(value: Int) -> CosmicMoodLevel {
         let clampedValue = max(0, min(100, value))
         switch clampedValue {
         case 0...20:  return .void
@@ -142,25 +142,119 @@ enum CosmicMoodLevel: String, CaseIterable {
 
 // MARK: - Cosmic Mood Data
 
+enum CosmicMoodDisplayMode: Equatable {
+    case marketBackedScore
+    case cosmicContextOnly
+    case unavailable
+}
+
 /// Complete mood index data at a point in time
 struct CosmicMoodData: Identifiable {
     let id = UUID()
     let date: Date
-    let value: Int  // 0-100
+    /// Provider-backed market sentiment score. Nil means no market score should be shown.
+    let value: Int?
     let factors: [MoodFactor]
+    let label: String
+    let provenance: FinancialDataProvenance
+    let marketDataCoverage: Double
+    let unavailableFactorWeight: Double
+    let displayMode: CosmicMoodDisplayMode
+    var change: Int?
+
+    init(
+        date: Date,
+        value: Int?,
+        factors: [MoodFactor],
+        change: Int? = nil,
+        label: String? = nil,
+        provenance: FinancialDataProvenance? = nil,
+        marketDataCoverage: Double = 0,
+        unavailableFactorWeight: Double = 0,
+        displayMode: CosmicMoodDisplayMode? = nil
+    ) {
+        self.date = date
+        self.value = value
+        self.factors = factors
+        self.change = change
+        self.marketDataCoverage = marketDataCoverage
+        self.unavailableFactorWeight = unavailableFactorWeight
+
+        if let value {
+            let level = CosmicMoodLevel.from(value: value)
+            self.label = label ?? level.sentimentName
+            self.displayMode = displayMode ?? .marketBackedScore
+            self.provenance = provenance ?? .sample(reason: "Preview mood score")
+        } else {
+            self.label = label ?? "Market data unavailable"
+            self.displayMode = displayMode ?? .unavailable
+            self.provenance = provenance ?? .unavailable(reason: "Provider-backed market factors unavailable")
+        }
+    }
 
     /// Current mood level based on value
-    var moodLevel: CosmicMoodLevel {
-        CosmicMoodLevel.from(value: value)
+    var moodLevel: CosmicMoodLevel? {
+        value.map(CosmicMoodLevel.from)
+    }
+
+    var isMarketBacked: Bool {
+        guard displayMode == .marketBackedScore, value != nil else { return false }
+        if provenance.isProviderBacked { return true }
+        if case .mixed = provenance { return true }
+        return false
     }
 
     /// Formatted value with percentage
     var formattedValue: String {
-        "\(value)"
+        value.map { String($0) } ?? "N/A"
     }
 
-    /// Change from previous reading
-    var change: Int?
+    var marketToneText: String {
+        switch displayMode {
+        case .marketBackedScore:
+            if let moodLevel, let value {
+                return "\(moodLevel.sentimentName) \(value)/100"
+            }
+            return "Market data unavailable"
+        case .cosmicContextOnly:
+            return "Cosmic context only"
+        case .unavailable:
+            return "Market data unavailable"
+        }
+    }
+
+    var displayColor: Color {
+        switch displayMode {
+        case .marketBackedScore:
+            return moodLevel?.color ?? CosmicTheme.textMuted
+        case .cosmicContextOnly:
+            return CosmicTheme.gold
+        case .unavailable:
+            return CosmicTheme.textMuted
+        }
+    }
+
+    var displaySymbol: String {
+        switch displayMode {
+        case .marketBackedScore:
+            return moodLevel?.sfSymbol ?? "chart.line.uptrend.xyaxis"
+        case .cosmicContextOnly:
+            return "sparkles"
+        case .unavailable:
+            return "exclamationmark.triangle"
+        }
+    }
+
+    var displayDescription: String {
+        switch displayMode {
+        case .marketBackedScore:
+            return moodLevel?.cosmicDescription ?? "Provider-backed market context"
+        case .cosmicContextOnly:
+            return "Provider-backed market factors unavailable"
+        case .unavailable:
+            return "Market tone will appear when provider data is available"
+        }
+    }
 
     /// Whether the mood is improving (moving toward greed)
     var isImproving: Bool {
@@ -191,18 +285,48 @@ struct MoodFactor: Identifiable {
     let id = UUID()
     let name: String
     let category: MoodFactorCategory
-    let value: Int           // -100 to +100 (contribution to mood)
+    /// -100 to +100 contribution. Nil means the factor input is unavailable.
+    let value: Int?
     let weight: Double       // How much this factor matters (0-1)
     let description: String
     let icon: String
+    let provenance: FinancialDataProvenance
+
+    init(
+        name: String,
+        category: MoodFactorCategory,
+        value: Int?,
+        weight: Double,
+        description: String,
+        icon: String,
+        provenance: FinancialDataProvenance? = nil
+    ) {
+        self.name = name
+        self.category = category
+        self.value = value
+        self.weight = weight
+        self.description = description
+        self.icon = icon
+        self.provenance = provenance ?? {
+            if value == nil {
+                return .unavailable(reason: description)
+            }
+            if category == .cosmic {
+                return .sample(reason: "Cosmic context only")
+            }
+            return .sample(reason: "Preview fixture")
+        }()
+    }
 
     /// Weighted contribution to overall mood
     var weightedContribution: Double {
-        Double(value) * weight
+        guard let value else { return 0 }
+        return Double(value) * weight
     }
 
     /// Is this factor bullish (positive) or bearish (negative)?
     var sentiment: FactorSentiment {
+        guard let value else { return .unavailable }
         if value > 10 { return .bullish }
         if value < -10 { return .bearish }
         return .neutral
@@ -214,11 +338,12 @@ struct MoodFactor: Identifiable {
         case .bullish: return CosmicTheme.positive
         case .bearish: return CosmicTheme.negative
         case .neutral: return CosmicTheme.textSecondary
+        case .unavailable: return CosmicTheme.textMuted
         }
     }
 
     enum FactorSentiment {
-        case bullish, bearish, neutral
+        case bullish, bearish, neutral, unavailable
     }
 }
 
@@ -272,18 +397,20 @@ struct HistoricalInsight {
     let moodLevel: CosmicMoodLevel
     let title: String
     let description: String
-    let historicalReturn: Double  // e.g., +12% over following month
+    let historicalReturn: Double?
     let timeframe: String         // e.g., "1 month"
     let sampleSize: String        // e.g., "Based on 15 similar periods"
 
     /// Formatted return string
     var formattedReturn: String {
+        guard let historicalReturn else { return "N/A" }
         let sign = historicalReturn >= 0 ? "+" : ""
         return String(format: "%@%.1f%%", sign, historicalReturn)
     }
 
     /// Is this a contrarian signal?
     var isContrarianSignal: Bool {
+        guard let historicalReturn else { return false }
         // Extreme fear with positive return = contrarian buy
         // Extreme greed with negative return = contrarian sell
         switch moodLevel {
@@ -303,47 +430,47 @@ extension HistoricalInsight {
 
     static let voidInsight = HistoricalInsight(
         moodLevel: .void,
-        title: "Contrarian Opportunity",
-        description: "The last time we were in Void territory, the market rallied significantly over the following month.",
-        historicalReturn: 12.3,
-        timeframe: "1 month",
-        sampleSize: "Based on 8 similar periods since 2010"
+        title: "Historical Context Unavailable",
+        description: "Provider-backed market history is not connected yet, so Cosmo Trader is not showing return claims for Void readings.",
+        historicalReturn: nil,
+        timeframe: "N/A",
+        sampleSize: "Provider-backed history unavailable"
     )
 
     static let eclipseInsight = HistoricalInsight(
         moodLevel: .eclipse,
-        title: "Fear Often Overdone",
-        description: "Eclipse periods have historically been followed by modest recovery as fear subsides.",
-        historicalReturn: 5.7,
-        timeframe: "1 month",
-        sampleSize: "Based on 24 similar periods since 2010"
+        title: "Historical Context Unavailable",
+        description: "Pessimism notes are mood framing only until provider-backed market history can calculate comparable periods.",
+        historicalReturn: nil,
+        timeframe: "N/A",
+        sampleSize: "Provider-backed history unavailable"
     )
 
     static let twilightInsight = HistoricalInsight(
         moodLevel: .twilight,
-        title: "Balanced Markets",
-        description: "Twilight periods tend to precede continuation of the prior trend. Watch for breakout signals.",
-        historicalReturn: 2.1,
-        timeframe: "1 month",
-        sampleSize: "Based on 45 similar periods since 2010"
+        title: "Historical Context Unavailable",
+        description: "Balanced mood context is available, but statistical return history is not yet calculated from provider data.",
+        historicalReturn: nil,
+        timeframe: "N/A",
+        sampleSize: "Provider-backed history unavailable"
     )
 
     static let radiantInsight = HistoricalInsight(
         moodLevel: .radiant,
-        title: "Momentum Can Continue",
-        description: "While optimism is high, radiant markets often continue higher before correcting.",
-        historicalReturn: 3.4,
-        timeframe: "1 month",
-        sampleSize: "Based on 30 similar periods since 2010"
+        title: "Historical Context Unavailable",
+        description: "Optimism notes are sentiment framing only until comparable periods are calculated from real market history.",
+        historicalReturn: nil,
+        timeframe: "N/A",
+        sampleSize: "Provider-backed history unavailable"
     )
 
     static let supernovaInsight = HistoricalInsight(
         moodLevel: .supernova,
-        title: "Caution Warranted",
-        description: "Supernova euphoria has historically preceded pullbacks. Consider defensive positioning.",
-        historicalReturn: -4.2,
-        timeframe: "1 month",
-        sampleSize: "Based on 12 similar periods since 2010"
+        title: "Historical Context Unavailable",
+        description: "Hot sentiment can be useful context, but Cosmo Trader is not showing uncalculated return claims.",
+        historicalReturn: nil,
+        timeframe: "N/A",
+        sampleSize: "Provider-backed history unavailable"
     )
 
     /// Get insight for a given mood level

@@ -82,7 +82,7 @@ final class DailyFinancialReadingService {
             ),
             watchItems: watchItems,
             bestMove: bestMove,
-            grounding: groundingText(user: user, activeEvents: events, backendBrief: backendBrief),
+            grounding: groundingText(user: user, activeEvents: events, backendBrief: backendBrief, mood: mood),
             framingLevel: user.signalFramingLevel,
             portfolioValue: user.formattedPortfolioValue,
             portfolioReturn: "\(user.formattedDailyChange) (\(user.formattedDailyChangePercent))",
@@ -95,9 +95,11 @@ final class DailyFinancialReadingService {
             },
             lunarPhase: "\(lunarData.phase.rawValue) / \(lunarData.moonSign.displayName)",
             mercuryStatus: mercury.statusMessage,
-            marketTone: "\(mood.moodLevel.sentimentName) \(mood.formattedValue)",
+            marketTone: mood.marketToneText,
+            marketToneProvenance: mood.provenance,
             activeEvents: events.prefix(3).map { $0.title },
-            needsPortfolioSetup: false
+            needsPortfolioSetup: false,
+            financialProvenance: portfolioFinancialProvenance(for: holdings)
         )
     }
 
@@ -122,17 +124,31 @@ final class DailyFinancialReadingService {
             portfolioImpact: impact,
             watchItems: [],
             bestMove: .review,
-            grounding: "Based on current market tone, lunar phase, active events, and available profile settings. Portfolio confidence stays low until holdings are added.",
+            grounding: groundingText(user: nil, activeEvents: events, backendBrief: nil, mood: mood),
             framingLevel: framingLevel,
             portfolioValue: nil,
             portfolioReturn: nil,
             dominantExposure: nil,
             lunarPhase: "\(lunarData.phase.rawValue) / \(lunarData.moonSign.displayName)",
             mercuryStatus: mercury.statusMessage,
-            marketTone: "\(mood.moodLevel.sentimentName) \(mood.formattedValue)",
+            marketTone: mood.marketToneText,
+            marketToneProvenance: mood.provenance,
             activeEvents: events.prefix(3).map { $0.title },
-            needsPortfolioSetup: true
+            needsPortfolioSetup: true,
+            financialProvenance: .unavailable(reason: "Portfolio holdings unavailable")
         )
+    }
+
+    private func portfolioFinancialProvenance(for holdings: [Stock]) -> FinancialDataProvenance {
+        let symbols = Set(holdings.map { $0.symbol.uppercased() })
+        let cachedQuotes = StockAPIService.shared.getAllCachedQuotes()
+        let matchingQuotes = symbols.compactMap { cachedQuotes[$0] }
+
+        if let newestFetch = matchingQuotes.map(\.timestamp).max() {
+            return .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: newestFetch)
+        }
+
+        return .sample(reason: "Stored portfolio prices; refresh quotes for provider data")
     }
 
     private func signalHeadline(
@@ -153,12 +169,14 @@ final class DailyFinancialReadingService {
             return "\(direction) day for \(dominantSector ?? "portfolio") exposure"
         }
 
-        if mood.value <= 40 {
-            return "Low-conviction tape; worth reviewing"
-        }
+        if let score = marketBackedScore(from: mood) {
+            if score.value <= 40 {
+                return "Low-conviction tape; worth reviewing"
+            }
 
-        if mood.value >= 75 {
-            return "Risk appetite is elevated; keep the reading in perspective"
+            if score.value >= 75 {
+                return "Risk appetite is elevated; keep the reading in perspective"
+            }
         }
 
         if let dominantElement {
@@ -180,15 +198,28 @@ final class DailyFinancialReadingService {
             ? "no major active event override"
             : "\(activeEvents.prefix(2).map(\.title).joined(separator: ", ")) active"
 
+        guard let score = marketBackedScore(from: mood) else {
+            switch framingLevel {
+            case .rational:
+                return "Provider-backed market tone is unavailable; today's reading uses cosmic context and portfolio data only. Treat this as context, not advice."
+            case .leanRational:
+                return "Provider-backed market factors are unavailable while the lunar cycle points to \(lunarData.phase.rawValue.lowercased()) conditions. \(mercury.statusMessage) keeps execution discipline in focus."
+            case .balanced:
+                return "Market data is unavailable, so this is cosmic context only: the \(lunarData.phase.rawValue.lowercased()) moon in \(lunarData.moonSign.displayName) puts \(lunarData.activatedElement.displayName.lowercased()) names in focus. \(mercury.statusMessage) argues for patience."
+            case .leanMystical, .mystical:
+                return "The \(lunarData.phase.rawValue.lowercased()) moon in \(lunarData.moonSign.displayName) activates \(lunarData.activatedElement.displayName.lowercased()) exposure. Provider-backed market mood is unavailable, so this stays cosmic context only. \(mercury.tradingAdvice)"
+            }
+        }
+
         switch framingLevel {
         case .rational:
-            return "Market tone is \(mood.moodLevel.sentimentName.lowercased()) at \(mood.value)/100, with \(eventClause). Treat this as context, not advice."
+            return "Market tone is \(score.level.sentimentName.lowercased()) at \(score.value)/100, with \(eventClause). Treat this as context, not advice."
         case .leanRational:
-            return "Market tone is \(mood.moodLevel.sentimentName.lowercased()) at \(mood.value)/100 while the lunar cycle points to \(lunarData.phase.rawValue.lowercased()) conditions. \(mercury.statusMessage) keeps execution discipline in focus."
+            return "Market tone is \(score.level.sentimentName.lowercased()) at \(score.value)/100 while the lunar cycle points to \(lunarData.phase.rawValue.lowercased()) conditions. \(mercury.statusMessage) keeps execution discipline in focus."
         case .balanced:
-            return "The tape is \(mood.moodLevel.sentimentName.lowercased()) and the \(lunarData.phase.rawValue.lowercased()) moon in \(lunarData.moonSign.displayName) puts \(lunarData.activatedElement.displayName.lowercased()) names in focus. \(mercury.statusMessage) argues for quiet positioning and no theatrics."
+            return "The tape is \(score.level.sentimentName.lowercased()) and the \(lunarData.phase.rawValue.lowercased()) moon in \(lunarData.moonSign.displayName) puts \(lunarData.activatedElement.displayName.lowercased()) names in focus. \(mercury.statusMessage) argues for quiet positioning and no theatrics."
         case .leanMystical, .mystical:
-            return "The \(lunarData.phase.rawValue.lowercased()) moon in \(lunarData.moonSign.displayName) activates \(lunarData.activatedElement.displayName.lowercased()) exposure while the market mood reads \(mood.moodLevel.sentimentName.lowercased()). \(mercury.tradingAdvice)"
+            return "The \(lunarData.phase.rawValue.lowercased()) moon in \(lunarData.moonSign.displayName) activates \(lunarData.activatedElement.displayName.lowercased()) exposure while the market mood reads \(score.level.sentimentName.lowercased()). \(mercury.tradingAdvice)"
         }
     }
 
@@ -304,12 +335,14 @@ final class DailyFinancialReadingService {
             return .reduceRisk
         }
 
-        if mood.value >= 75 && user.totalDailyChangePercent > 1 {
-            return .avoidChasing
-        }
+        if let score = marketBackedScore(from: mood) {
+            if score.value >= 75 && user.totalDailyChangePercent > 1 {
+                return .avoidChasing
+            }
 
-        if mood.value <= 40 {
-            return .waitForConfirmation
+            if score.value <= 40 {
+                return .waitForConfirmation
+            }
         }
 
         if holdings.contains(where: { abs($0.percentageChange) >= 5 }) {
@@ -319,16 +352,28 @@ final class DailyFinancialReadingService {
         return .hold
     }
 
-    private func groundingText(user: UserProfile, activeEvents: [CosmicEvent], backendBrief: DailyBriefResponse?) -> String {
-        var basis = ["portfolio balance", "daily P/L", "lunar phase", "Mercury status", "current market mood"]
+    private func groundingText(user: UserProfile?, activeEvents: [CosmicEvent], backendBrief: DailyBriefResponse?, mood: CosmicMoodData) -> String {
+        var basis = ["portfolio balance", "daily P/L", "lunar phase", "Mercury status"]
+        basis.append(mood.isMarketBacked ? "provider-backed market tone" : "cosmic context only")
         if !activeEvents.isEmpty {
             basis.append("active events")
         }
         if backendBrief != nil {
             basis.append("saved Daily Brief")
         }
-        basis.append("\(user.signalFramingLevel.displayName.lowercased()) framing")
+        if let user {
+            basis.append("\(user.signalFramingLevel.displayName.lowercased()) framing")
+        } else {
+            basis.append("balanced framing")
+        }
         return "Based on \(basis.joined(separator: ", ")). This is posture guidance, not certainty."
+    }
+
+    private func marketBackedScore(from mood: CosmicMoodData) -> (level: CosmicMoodLevel, value: Int)? {
+        guard mood.isMarketBacked, let level = mood.moodLevel, let value = mood.value else {
+            return nil
+        }
+        return (level, value)
     }
 
     private func dominantElementExposure(in holdings: [Stock]) -> (element: ZodiacSign.Element, weight: Double)? {

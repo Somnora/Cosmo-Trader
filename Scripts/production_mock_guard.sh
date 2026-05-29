@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+failures=0
+
+require_absent() {
+  local file="$1"
+  local needle="$2"
+  if grep -Fq "$needle" "$ROOT/$file"; then
+    echo "FAIL: '$needle' is still present in $file"
+    failures=$((failures + 1))
+  fi
+}
+
+require_present() {
+  local file="$1"
+  local needle="$2"
+  if ! grep -Fq "$needle" "$ROOT/$file"; then
+    echo "FAIL: '$needle' is missing from $file"
+    failures=$((failures + 1))
+  fi
+}
+
+require_absent "Cosmo Trader/Views/Components/StockChartView.swift" "stock.chartData(for:"
+require_present "Cosmo Trader/Views/Components/StockChartView.swift" "Historical price data unavailable"
+require_present "Cosmo Trader/Views/Components/StockChartView.swift" "Key statistics unavailable"
+
+require_absent "Cosmo Trader/Views/StockDetailView.swift" "generateMockChartData"
+require_absent "Cosmo Trader/Views/StockDetailView.swift" "MiniChartView.sampleData"
+require_absent "Cosmo Trader/Views/StockDetailView.swift" "formatted52Week"
+require_absent "Cosmo Trader/Views/StockDetailView.swift" "stock.formattedMarketCap"
+require_present "Cosmo Trader/Views/StockDetailView.swift" "DataSourceIndicator(provenance: priceProvenance"
+require_present "Cosmo Trader/Views/StockDetailView.swift" "Fundamentals such as market cap"
+
+require_absent "Cosmo Trader/Services/ChartPatternService.swift" "MockOHLCGenerator.generate"
+require_present "Cosmo Trader/Services/ChartPatternService.swift" "pattern analysis unavailable"
+
+require_absent "Cosmo Trader/Services/IPOService.swift" "MockIPOData"
+require_absent "Cosmo Trader/Services/IPOService.swift" "loadMockData"
+require_present "Cosmo Trader/Services/IPOService.swift" "dataProvenance"
+require_present "Cosmo Trader/Views/IPO/IPOListView.swift" "DataSourceIndicator(provenance: ipoService.dataProvenance"
+
+require_absent "Cosmo Trader/Services/EarningsService.swift" "generateMockEarningsData"
+require_absent "Cosmo Trader/Services/EarningsService.swift" "Double.random"
+require_present "Cosmo Trader/Services/EarningsService.swift" "dataProvenance"
+require_present "Cosmo Trader/Views/Components/EarningsViews.swift" "DataSourceIndicator(provenance: earningsService.dataProvenance"
+
+require_absent "Cosmo Trader/Views/Components/PortfolioChartView.swift" "generatePortfolioData"
+require_absent "Cosmo Trader/Views/Components/PortfolioChartView.swift" "generateBenchmarkData"
+require_present "Cosmo Trader/Views/Components/PortfolioChartView.swift" "Portfolio performance history unavailable"
+
+require_absent "Cosmo Trader/Services/CosmicMoodService.swift" "simulateWeeklyReturn"
+require_absent "Cosmo Trader/Services/CosmicMoodService.swift" "generateMockHistory"
+require_present "Cosmo Trader/Services/CosmicMoodService.swift" "Provider-backed market trend unavailable"
+require_present "Cosmo Trader/Services/CosmicMoodService.swift" "minimumMarketCoverageForScore"
+# CosmicMoodData must publish enough metadata for consumers to refuse to
+# quote a cosmic-only score as a market measurement.
+require_present "Cosmo Trader/Models/CosmicMoodIndex.swift" "enum CosmicMoodDisplayMode"
+require_present "Cosmo Trader/Models/CosmicMoodIndex.swift" "marketDataCoverage"
+require_present "Cosmo Trader/Models/CosmicMoodIndex.swift" "var isMarketBacked"
+require_present "Cosmo Trader/Models/CosmicMoodIndex.swift" "Cosmic context only"
+# Daily Brief must not leak the partial-astro score as a market reading.
+require_present "Cosmo Trader/Services/DailyFinancialReadingService.swift" "cosmic context only"
+require_present "Cosmo Trader/Services/DailyFinancialReadingService.swift" "marketBackedScore(from:"
+require_present "Cosmo Trader/Services/DailyFinancialReadingService.swift" "marketToneProvenance: mood.provenance"
+require_present "Cosmo Trader/Models/DailyFinancialReading.swift" "marketToneProvenance"
+require_present "Cosmo Trader/Views/Components/DailyFinancialReadingCockpitView.swift" "marketToneCell"
+require_present "Cosmo Trader/Views/Components/DailyFinancialReadingCockpitView.swift" "MARKET TONE (COSMIC)"
+# Discover must not quote a cosmic-only mood as a market claim.
+require_present "Cosmo Trader/ViewModels/DiscoverViewModel.swift" "mood.isMarketBacked, let value = mood.value"
+# Gauge surfaces honest unavailable / cosmic-only states.
+require_present "Cosmo Trader/Views/Components/CosmicMoodGauge.swift" "N/A"
+require_present "Cosmo Trader/Views/Components/CosmicMoodGauge.swift" "COSMIC ONLY"
+
+require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "portfolioDailyPLProvenance"
+require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "changeCell(for:"
+require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" ".mixed(reason:"
+require_present "Cosmo Trader/Views/Components/DataSourceIndicator.swift" "Mixed data"
+
+require_absent "Cosmo Trader/Services/CosmicTickerService.swift" "stocks ?? MockStockData"
+require_absent "Cosmo Trader/Services/CosmicTickerService.swift" "FULL MOON: VOLATILITY ELEVATED"
+require_absent "Cosmo Trader/Services/CosmicTickerService.swift" "WANING MOON: DE-RISKING WINDOW"
+require_absent "Cosmo Trader/Services/CosmicTickerService.swift" "SIGNAL CONFIRMED"
+require_present "Cosmo Trader/Services/CosmicTickerService.swift" "MARKET DATA UNAVAILABLE"
+
+require_absent "Cosmo Trader/Views/Components/VolumeLeadersView.swift" "from: MockStockData.knownStocks"
+require_present "Cosmo Trader/Views/Components/VolumeLeadersView.swift" "Volume leaders unavailable"
+
+require_absent "Cosmo Trader/Services/DailyBriefService.swift" "let knownStocks = Stock.samples + MockStockData.all"
+require_absent "Cosmo Trader/Services/DailyBriefService.swift" "for stock in user.portfolio where abs"
+require_present "Cosmo Trader/Services/DailyBriefService.swift" "daily highlights must stay empty"
+
+require_present "Cosmo Trader/Models/FinancialDataProvenance.swift" "enum FinancialDataProvenance"
+require_present "Cosmo Trader/Services/StockAPIService.swift" "getQuoteWithProvenance"
+require_present "Cosmo Trader/Services/StockAPIService.swift" "fetchKeyStatsResult"
+require_present "Cosmo Trader/Views/Components/DataSourceIndicator.swift" "var provenance: FinancialDataProvenance?"
+
+if [[ "$failures" -gt 0 ]]; then
+  echo "production_mock_guard: failed with $failures issue(s)"
+  exit 1
+fi
+
+echo "production_mock_guard: passed"

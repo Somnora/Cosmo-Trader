@@ -40,16 +40,20 @@ struct DailyFinancialReadingCockpitView: View {
 
             Spacer(minLength: 12)
 
-            Text(reading.framingLevel.shortName)
-                .font(TerminalFont.caption(10, weight: .semibold))
-                .foregroundColor(CosmicTheme.textPrimary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(CosmicTheme.terminalNavy.opacity(0.9))
-                .overlay(
-                    Rectangle()
-                        .stroke(CosmicTheme.accentBlue.opacity(0.45), lineWidth: 1)
-                )
+            VStack(alignment: .trailing, spacing: 6) {
+                Text(reading.framingLevel.shortName)
+                    .font(TerminalFont.caption(10, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textPrimary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(CosmicTheme.terminalNavy.opacity(0.9))
+                    .overlay(
+                        Rectangle()
+                            .stroke(CosmicTheme.accentBlue.opacity(0.45), lineWidth: 1)
+                    )
+
+                DataSourceIndicator(provenance: reading.financialProvenance, size: .compact)
+            }
         }
     }
 
@@ -82,7 +86,7 @@ struct DailyFinancialReadingCockpitView: View {
             metricCell(label: "TODAY", value: reading.portfolioReturn ?? "NO HOLDINGS", color: returnColor)
             metricCell(label: "LUNAR", value: reading.lunarPhase, color: CosmicTheme.gold)
             metricCell(label: "MERCURY", value: reading.mercuryStatus, color: CosmicTheme.textPrimary)
-            metricCell(label: "MARKET TONE", value: reading.marketTone, color: CosmicTheme.textPrimary)
+            marketToneCell
 
             if let dominantExposure = reading.dominantExposure {
                 metricCell(label: dominantExposure.label.uppercased(), value: dominantExposure.detail, color: dominantExposure.color)
@@ -90,6 +94,42 @@ struct DailyFinancialReadingCockpitView: View {
                 metricCell(label: "EXPOSURE", value: "PENDING", color: CosmicTheme.textMuted)
             }
         }
+    }
+
+    /// MARKET TONE cell carries its own per-cell provenance pip whenever the
+    /// score is not provider-backed, so the visible value cannot be misread
+    /// as a market measurement even at a glance.
+    private var marketToneCell: some View {
+        let isProviderBacked = reading.marketToneProvenance.isProviderBacked
+        let label = isProviderBacked ? "MARKET TONE" : "MARKET TONE (COSMIC)"
+        let color: Color = isProviderBacked ? CosmicTheme.textPrimary : CosmicTheme.textMuted
+
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(TerminalFont.caption(9, weight: .semibold))
+                .foregroundColor(CosmicTheme.textMuted)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+
+            Text(reading.marketTone)
+                .font(TerminalFont.data(12, weight: .medium))
+                .foregroundColor(color)
+                .lineLimit(2)
+                .minimumScaleFactor(0.74)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if !isProviderBacked {
+                DataSourceIndicator(provenance: reading.marketToneProvenance, size: .compact)
+                    .padding(.top, 2)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
+        .padding(10)
+        .background(CosmicTheme.panelElevated)
+        .overlay(
+            Rectangle()
+                .stroke(CosmicTheme.borderStrong, lineWidth: 1)
+        )
     }
 
     private var portfolioImpactBlock: some View {

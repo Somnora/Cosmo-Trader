@@ -57,9 +57,12 @@ class DiscoverViewModel {
     /// Reference to shared app state for persisting user actions.
     private var appState: AppState
 
-    /// All available stocks, with sourced curated records first and mock-only
-    /// fallback records appended.
+    /// Curated sample discovery universe. Discover cards must visibly label the
+    /// price/change fields as sample until live provider enrichment exists.
     private var allStocks: [Stock] = Stock.samples + MockStockData.all
+
+    /// Field-level source state for the price/change fields on discovery cards.
+    private var quoteProvenanceBySymbol: [String: FinancialDataProvenance] = [:]
 
     /// The current card deck after applying filters and sorting.
     ///
@@ -208,10 +211,12 @@ class DiscoverViewModel {
         // Create stock cards with compatibility and portfolio-aware context
         let previousCount = cardDeck.count
         cardDeck = stocks.map { stock in
-            StockCard(
+            let priceProvenance = priceProvenance(for: stock)
+            return StockCard(
                 stock: stock,
                 compatibility: user.compatibility(with: stock),
-                whyToday: whyToday(for: stock, user: user)
+                whyToday: whyToday(for: stock, user: user, priceProvenance: priceProvenance),
+                priceProvenance: priceProvenance
             )
         }
 
@@ -219,6 +224,30 @@ class DiscoverViewModel {
         if previousCount == 0 && !cardDeck.isEmpty {
             AnalyticsService.shared.trackDiscoverDeckRefreshed(cardCount: cardDeck.count)
         }
+    }
+
+    /// Enrich the visible discovery universe with provider-backed quotes where available.
+    @MainActor
+    func refreshProviderQuotesForDeck(limit: Int = 8) async {
+        let symbols = Array(Set(filteredStocks.prefix(limit).map { $0.symbol.uppercased() }))
+        guard !symbols.isEmpty else { return }
+
+        let results = await StockAPIService.shared.getMultipleQuoteResults(symbols: symbols)
+
+        for symbol in symbols {
+            guard let result = results[symbol] else { continue }
+
+            if let quote = result.quote {
+                if let index = allStocks.firstIndex(where: { $0.symbol.uppercased() == symbol }) {
+                    allStocks[index] = allStocks[index].withQuote(quote)
+                }
+                quoteProvenanceBySymbol[symbol] = result.provenance
+            } else {
+                quoteProvenanceBySymbol[symbol] = .sample(reason: "Curated sample price; provider quote unavailable")
+            }
+        }
+
+        rebuildDeck()
     }
 
     // MARK: - Swipe Actions
@@ -360,7 +389,11 @@ class DiscoverViewModel {
         }
     }
 
-    private func whyToday(for stock: Stock, user: UserProfile) -> String {
+    private func whyToday(
+        for stock: Stock,
+        user: UserProfile,
+        priceProvenance: FinancialDataProvenance
+    ) -> String {
         let holdings = user.portfolio.filter(\.isOwned)
         let lunarData = MoonPhaseService.shared.getCurrentLunarData()
         let stockElement = stock.foundedElement
@@ -374,7 +407,7 @@ class DiscoverViewModel {
 
         let role = portfolioRole(for: stock, holdings: holdings)
 
-        if abs(stock.percentageChange) >= 3 {
+        if priceProvenance.isProviderBacked && abs(stock.percentageChange) >= 3 {
             let direction = stock.percentageChange >= 0 ? "Momentum is elevated" : "Volatility is elevated"
             return "\(direction); \(role)"
         }
@@ -384,15 +417,21 @@ class DiscoverViewModel {
         }
 
         let mood = CosmicMoodService.shared.getCurrentMood()
-        if mood.value >= 75 {
-            return "Risk appetite is elevated; \(role)"
-        }
+        if mood.isMarketBacked, let value = mood.value {
+            if value >= 75 {
+                return "Risk appetite is elevated; \(role)"
+            }
 
-        if mood.value <= 40 {
-            return "Low-conviction tape; \(role)"
+            if value <= 40 {
+                return "Low-conviction tape; \(role)"
+            }
         }
 
         return role
+    }
+
+    private func priceProvenance(for stock: Stock) -> FinancialDataProvenance {
+        quoteProvenanceBySymbol[stock.symbol.uppercased()] ?? .sample(reason: "Curated sample price")
     }
 
     private func portfolioRole(for stock: Stock, holdings: [Stock]) -> String {
@@ -425,7 +464,7 @@ class DiscoverViewModel {
 
     private func exposureWeight(_ holdings: [Stock]) -> Double {
         holdings.reduce(0) { total, stock in
-            total + max(stock.totalValue, stock.sharesOwned)
+            total + stock.marketValue
         }
     }
 }
@@ -471,6 +510,7 @@ struct StockCard: Identifiable {
     let stock: Stock
     let compatibility: CompatibilityResult
     var whyToday: String = "Review alongside today's portfolio posture before saving."
+    var priceProvenance: FinancialDataProvenance = .sample(reason: "Curated sample price")
 
     /// Is this a high cosmic fit (85%+ compatibility)?
     var isCosmicMatch: Bool {

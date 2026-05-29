@@ -51,19 +51,20 @@ struct CosmicMoodGauge: View {
             if animated {
                 animateNeedle()
             } else {
-                animatedValue = Double(moodData.value)
-                needleRotation = valueToRotation(moodData.value)
+                animatedValue = Double(gaugeValue)
+                needleRotation = valueToRotation(gaugeValue)
             }
         }
         .onChange(of: moodData.value) { _, newValue in
+            let value = newValue ?? 50
             if animated {
                 withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
-                    animatedValue = Double(newValue)
-                    needleRotation = valueToRotation(newValue)
+                    animatedValue = Double(value)
+                    needleRotation = valueToRotation(value)
                 }
             } else {
-                animatedValue = Double(newValue)
-                needleRotation = valueToRotation(newValue)
+                animatedValue = Double(value)
+                needleRotation = valueToRotation(value)
             }
         }
     }
@@ -184,19 +185,25 @@ struct CosmicMoodGauge: View {
             Spacer()
 
             // Large value
-            Text("\(Int(animatedValue))")
+            Text(moodData.value == nil ? "N/A" : "\(Int(animatedValue))")
                 .font(TerminalFont.price(size.valueFontSize))
-                .foregroundColor(moodData.moodLevel.color)
+                .foregroundColor(moodData.displayColor)
                 .contentTransition(.numericText())
 
             // Change indicator
-            HStack(spacing: 4) {
-                Image(systemName: moodData.directionIcon)
-                    .font(.system(size: size.changeFontSize))
-                Text(moodData.formattedChange)
-                    .font(TerminalFont.data(size.changeFontSize))
+            if moodData.value == nil {
+                Text(moodData.displayMode == .cosmicContextOnly ? "COSMIC ONLY" : "UNAVAILABLE")
+                    .font(TerminalFont.data(size.changeFontSize, weight: .semibold))
+                    .foregroundColor(moodData.displayColor)
+            } else {
+                HStack(spacing: 4) {
+                    Image(systemName: moodData.directionIcon)
+                        .font(.system(size: size.changeFontSize))
+                    Text(moodData.formattedChange)
+                        .font(TerminalFont.data(size.changeFontSize))
+                }
+                .foregroundColor(moodData.isImproving ? CosmicTheme.positive : CosmicTheme.negative)
             }
-            .foregroundColor(moodData.isImproving ? CosmicTheme.positive : CosmicTheme.negative)
         }
         .frame(height: size.arcDiameter / 2)
         .offset(y: size.arcDiameter / 6)
@@ -208,22 +215,22 @@ struct CosmicMoodGauge: View {
         VStack(spacing: 8) {
             // Cosmic mood name
             HStack(spacing: 8) {
-                Image(systemName: moodData.moodLevel.sfSymbol)
+                Image(systemName: moodData.displaySymbol)
                     .font(.title2)
-                    .foregroundColor(moodData.moodLevel.color)
+                    .foregroundColor(moodData.displayColor)
 
-                Text(moodData.moodLevel.rawValue)
+                Text(moodData.moodLevel?.rawValue ?? moodData.label)
                     .font(TerminalFont.headline(size.moodNameFontSize))
-                    .foregroundColor(moodData.moodLevel.color)
+                    .foregroundColor(moodData.displayColor)
             }
 
             // Traditional sentiment name
-            Text(moodData.moodLevel.sentimentName)
+            Text(moodData.isMarketBacked ? (moodData.moodLevel?.sentimentName ?? moodData.label) : moodData.marketToneText)
                 .font(TerminalFont.data(size.sentimentFontSize))
                 .foregroundColor(CosmicTheme.textSecondary)
 
             // Cosmic description
-            Text(moodData.moodLevel.cosmicDescription)
+            Text(moodData.displayDescription)
                 .font(TerminalFont.body(size.descriptionFontSize))
                 .foregroundColor(CosmicTheme.textMuted)
                 .multilineTextAlignment(.center)
@@ -238,14 +245,18 @@ struct CosmicMoodGauge: View {
         return Double(value) * 1.8 - 90
     }
 
+    private var gaugeValue: Int {
+        moodData.value ?? 50
+    }
+
     /// Animate needle from 0 to current value
     private func animateNeedle() {
         animatedValue = 0
         needleRotation = -90
 
         withAnimation(.spring(response: 1.0, dampingFraction: 0.6).delay(0.3)) {
-            animatedValue = Double(moodData.value)
-            needleRotation = valueToRotation(moodData.value)
+            animatedValue = Double(gaugeValue)
+            needleRotation = valueToRotation(gaugeValue)
         }
     }
 }
@@ -438,8 +449,8 @@ struct CosmicMoodWidget: View {
                         .fill(
                             RadialGradient(
                                 colors: [
-                                    moodData.moodLevel.color.opacity(0.3),
-                                    moodData.moodLevel.color.opacity(0.1),
+                                    moodData.displayColor.opacity(0.3),
+                                    moodData.displayColor.opacity(0.1),
                                     Color.clear
                                 ],
                                 center: .center,
@@ -451,18 +462,24 @@ struct CosmicMoodWidget: View {
 
                     // Value
                     VStack(spacing: 2) {
-                        Text("\(moodData.value)")
+                        Text(moodData.value.map { String($0) } ?? "N/A")
                             .font(TerminalFont.price(22))
-                            .foregroundColor(moodData.moodLevel.color)
+                            .foregroundColor(moodData.displayColor)
 
                         // Mini direction indicator
-                        HStack(spacing: 2) {
-                            Image(systemName: moodData.directionIcon)
-                                .font(.system(size: 8))
-                            Text(moodData.formattedChange)
-                                .font(TerminalFont.data(8))
+                        if moodData.value == nil {
+                            Text(moodData.displayMode == .cosmicContextOnly ? "COSMIC" : "N/A")
+                                .font(TerminalFont.data(8, weight: .semibold))
+                                .foregroundColor(moodData.displayColor)
+                        } else {
+                            HStack(spacing: 2) {
+                                Image(systemName: moodData.directionIcon)
+                                    .font(.system(size: 8))
+                                Text(moodData.formattedChange)
+                                    .font(TerminalFont.data(8))
+                            }
+                            .foregroundColor(moodData.isImproving ? CosmicTheme.positive : CosmicTheme.negative)
                         }
-                        .foregroundColor(moodData.isImproving ? CosmicTheme.positive : CosmicTheme.negative)
                     }
                 }
 
@@ -473,15 +490,15 @@ struct CosmicMoodWidget: View {
                         .foregroundColor(CosmicTheme.textMuted)
 
                     HStack(spacing: 6) {
-                        Image(systemName: moodData.moodLevel.sfSymbol)
+                        Image(systemName: moodData.displaySymbol)
                             .font(.system(size: 14))
-                            .foregroundColor(moodData.moodLevel.color)
-                        Text(moodData.moodLevel.rawValue)
+                            .foregroundColor(moodData.displayColor)
+                        Text(moodData.moodLevel?.rawValue ?? moodData.label)
                             .font(TerminalFont.headline(15))
-                            .foregroundColor(moodData.moodLevel.color)
+                            .foregroundColor(moodData.displayColor)
                     }
 
-                    Text(moodData.moodLevel.sentimentName)
+                    Text(moodData.marketToneText)
                         .font(TerminalFont.data(11))
                         .foregroundColor(CosmicTheme.textSecondary)
                 }
@@ -498,7 +515,7 @@ struct CosmicMoodWidget: View {
                     .fill(CosmicTheme.cardBackground)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(moodData.moodLevel.color.opacity(0.2), lineWidth: 1)
+                            .stroke(moodData.displayColor.opacity(0.2), lineWidth: 1)
                     )
             )
         }

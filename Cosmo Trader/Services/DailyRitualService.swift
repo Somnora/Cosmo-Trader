@@ -285,13 +285,13 @@ final class DailyRitualService {
 
     private func determineOverallEnergy(mood: CosmicMoodData?, alerts: [String]) -> EnergyLevel {
         let alertCount = alerts.count
-        let moodScore = mood?.value ?? 50
+        let moodScore = (mood?.isMarketBacked == true) ? mood?.value : nil
 
-        if alertCount >= 2 || moodScore < 30 {
+        if alertCount >= 2 || (moodScore ?? 100) < 30 {
             return .challenging
-        } else if alertCount == 1 || moodScore < 50 {
+        } else if alertCount == 1 || (moodScore ?? 100) < 50 {
             return .cautious
-        } else if moodScore > 70 {
+        } else if (moodScore ?? 0) > 70 {
             return .favorable
         } else {
             return .neutral

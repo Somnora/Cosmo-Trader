@@ -16,8 +16,13 @@ struct DailyFinancialReading {
     let lunarPhase: String
     let mercuryStatus: String
     let marketTone: String
+    /// Provenance of the `marketTone` value. When this is not provider-backed,
+    /// the cockpit UI must render the cell with an explicit non-market tag
+    /// (e.g. "Cosmic context only" / "Market data unavailable").
+    let marketToneProvenance: FinancialDataProvenance
     let activeEvents: [String]
     let needsPortfolioSetup: Bool
+    let financialProvenance: FinancialDataProvenance
 }
 
 struct DailyReadingWatchItem: Identifiable {
