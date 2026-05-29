@@ -353,9 +353,9 @@ final class DailyRitualService {
 
 /// Daily intention options
 enum DailyIntention: String, CaseIterable, Codable {
-    case hold = "Hold"
-    case buy = "Buy"
-    case sell = "Sell"
+    case hold = "Steady"
+    case buy = "Research"
+    case sell = "Release"
     case observe = "Observe"
 
     var icon: String {
@@ -378,18 +378,18 @@ enum DailyIntention: String, CaseIterable, Codable {
 
     var description: String {
         switch self {
-        case .hold: return "Maintain current positions"
-        case .buy: return "Look for opportunities to add"
-        case .sell: return "Consider taking profits"
+        case .hold: return "Review the current thesis"
+        case .buy: return "Explore ideas without forcing action"
+        case .sell: return "Reflect on what no longer fits"
         case .observe: return "Watch and learn today"
         }
     }
 
     var affirmation: String {
         switch self {
-        case .hold: return "Patience is a cosmic virtue. Your positions need time to align."
-        case .buy: return "The stars favor acquisition. Trust your research."
-        case .sell: return "Knowing when to release is wisdom. Take what the market offers."
+        case .hold: return "Patience is a cosmic virtue. Give the thesis room to prove itself."
+        case .buy: return "The stars favor curiosity. Let research lead before action."
+        case .sell: return "Knowing what no longer fits is its own form of wisdom."
         case .observe: return "Not every day requires action. Wisdom comes from watching."
         }
     }

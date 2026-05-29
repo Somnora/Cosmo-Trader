@@ -222,7 +222,7 @@ class CosmicPatternInterpreter {
             return "After testing lower prices, demand stepped in forcefully. This classic reversal pattern suggests the downtrend may be exhausting itself. The market found support."
 
         case .shootingStar:
-            return "Prices spiked but couldn't hold their gains. Supply overwhelmed demand at higher levels. Upward momentum may be fading, so read the setup carefully."
+            return "Prices spiked but could not keep their gains. Supply overwhelmed demand at higher levels. Upward momentum may be fading, so read the setup carefully."
 
         case .engulfingBullish:
             return "A powerful green candle has completely engulfed the prior day's losses. Bulls have seized control. This pattern often marks the start of upward momentum."
@@ -272,10 +272,10 @@ class CosmicPatternInterpreter {
 
         switch pattern.sentiment {
         case .bullish:
-            return "\(baseWarning): Exercise extra caution with fresh narratives. Constructive patterns may read noisier during retrograde. Consider waiting for retrograde to end."
+            return "\(baseWarning): Fresh narratives need extra verification. Constructive patterns may read noisier during retrograde. A slower read may be cleaner after retrograde."
 
         case .bearish:
-            return "\(baseWarning): Cooling patterns can be amplified during retrograde. Avoid panic reactions - communication breakdowns create temporary chaos."
+            return "\(baseWarning): Cooling patterns can be amplified during retrograde. Panic reactions can misread the noise - communication breakdowns create temporary chaos."
 
         case .neutral:
             return "\(baseWarning): Indecision patterns during retrograde often resolve unexpectedly. Patience is your ally. Double-check all information."
@@ -343,17 +343,17 @@ class CosmicPatternInterpreter {
         case .bearish:
             advice = "Use this as context alongside your own notes."
         case .neutral:
-            advice = "Wait for clearer context before leaning on it."
+            advice = "Context is not clear enough to lean on confidently."
         }
 
         // Modify for retrograde
         if isRetrograde {
-            advice += " However, during Mercury Retrograde, consider delaying major decisions."
+            advice += " Mercury Retrograde adds review-and-recheck context, not a recommendation."
         }
 
         // Modify for moon phase
         if moonPhase == .fullMoon {
-            advice += " Full moon volatility suggests using smaller position sizes."
+            advice += " Full moon volatility adds a high-variance context note, not an instruction."
         }
 
         return advice

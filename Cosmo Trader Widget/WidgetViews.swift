@@ -33,11 +33,11 @@ enum WidgetTheme {
 
     static func signalColor(_ type: String) -> Color {
         switch type {
-        case "Accumulate", "Build Position":
+        case "Fresh Cycle", "Building Context":
             return positive
         case "Caution":
             return .orange
-        case "Take Profit", "Reduce":
+        case "Distribution", "Reflection":
             return gold
         default:
             return textSecondary
@@ -80,7 +80,7 @@ struct SmallMoonWidget: View {
                     countdownPill(emoji: "🌑", days: data.daysUntilNewMoon)
                 }
 
-                // Trading signal
+                // Cosmic context
                 HStack(spacing: 4) {
                     Circle()
                         .fill(WidgetTheme.signalColor(data.tradingSignalType))
@@ -158,9 +158,9 @@ struct MediumMoonWidget: View {
                     .frame(width: 1)
                     .padding(.vertical, 8)
 
-                // Right side: Trading info
+                // Right side: cosmic context
                 VStack(alignment: .leading, spacing: 10) {
-                    // Trading signal headline
+                    // Cosmic context headline
                     VStack(alignment: .leading, spacing: 4) {
                         Text("SIGNAL")
                             .font(.system(size: 8, weight: .medium, design: .monospaced))
@@ -275,8 +275,8 @@ struct MediumMoonWidget: View {
         daysUntilNewMoon: 0,
         moonSignName: "Capricorn",
         moonSignElement: "Earth",
-        tradingSignalHeadline: "Accumulation Phase",
-        tradingSignalType: "Accumulate",
+        tradingSignalHeadline: "Fresh Cycle",
+        tradingSignalType: "Fresh Cycle",
         tradingSignalSentiment: "Bullish"
     ))
     .previewContext(WidgetPreviewContext(family: .systemMedium))

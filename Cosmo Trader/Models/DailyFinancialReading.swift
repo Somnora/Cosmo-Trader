@@ -47,12 +47,12 @@ struct DailyReadingExposure {
 }
 
 enum DailyReadingMove: String {
-    case watch = "Watch"
-    case hold = "Hold"
+    case watch = "Watchlist context"
+    case hold = "Steady context"
     case review = "Review"
-    case reduceRisk = "Reduce risk"
-    case avoidChasing = "Avoid chasing"
-    case waitForConfirmation = "Wait for confirmation"
+    case reduceRisk = "Risk review"
+    case avoidChasing = "Hype check"
+    case waitForConfirmation = "Confirmation check"
 
     var systemImage: String {
         switch self {

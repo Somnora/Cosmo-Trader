@@ -330,22 +330,22 @@ struct WidgetLunarData: Codable {
 
     var shortTradingInsight: String {
         switch tradingSignalType {
-        case "Accumulate":
-            return "Good for new positions"
-        case "Build Position":
-            return "Momentum building"
-        case "Hold":
-            return "Evaluate positions"
+        case "Fresh Cycle":
+            return "Research window"
+        case "Building Context":
+            return "Momentum context"
+        case "Review":
+            return "Context checkpoint"
         case "Caution":
-            return "Expect volatility"
-        case "Take Profit":
-            return "Secure your gains"
-        case "Reduce":
-            return "Trim underperformers"
+            return "Volatility context"
+        case "Distribution":
+            return "Reflection window"
+        case "Reflection":
+            return "Exposure review"
         case "Wait":
-            return "Wait for new cycle"
+            return "Low-energy context"
         default:
-            return "Monitor markets"
+            return "Market context"
         }
     }
 
@@ -361,7 +361,7 @@ struct WidgetLunarData: Codable {
         moonSignName: "Scorpio",
         moonSignElement: "Water",
         tradingSignalHeadline: "Pre-Peak Energy",
-        tradingSignalType: "Build Position",
+        tradingSignalType: "Building Context",
         tradingSignalSentiment: "Bullish"
     )
 }

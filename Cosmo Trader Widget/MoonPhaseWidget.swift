@@ -2,7 +2,7 @@
 //  MoonPhaseWidget.swift
 //  Cosmo Trader Widget
 //
-//  Home screen widget showing current moon phase and trading signal.
+//  Home screen widget showing current moon phase and cosmic context.
 //  Supports small (2x2) and medium (4x2) sizes.
 //
 
@@ -137,19 +137,19 @@ struct MoonPhaseTimelineProvider: TimelineProvider {
 
         switch age {
         case 0..<1.85:
-            return ("New Moon", "🌑", "Accumulation Phase", "Accumulate", "Bullish")
+            return ("New Moon", "🌑", "Fresh Cycle", "Fresh Cycle", "Bullish")
         case 1.85..<7.38:
-            return ("Waxing Crescent", "🌒", "Building Momentum", "Build Position", "Bullish")
+            return ("Waxing Crescent", "🌒", "Building Context", "Building Context", "Bullish")
         case 7.38..<9.23:
-            return ("First Quarter", "🌓", "Decision Point", "Hold", "Neutral")
+            return ("First Quarter", "🌓", "Decision Point", "Review", "Neutral")
         case 9.23..<14.76:
-            return ("Waxing Gibbous", "🌔", "Pre-Peak Energy", "Build Position", "Bullish")
+            return ("Waxing Gibbous", "🌔", "Pre-Peak Energy", "Building Context", "Bullish")
         case 14.76..<16.61:
             return ("Full Moon", "🌕", "Peak Volatility", "Caution", "Volatile")
         case 16.61..<22.14:
-            return ("Waning Gibbous", "🌖", "Distribution Phase", "Take Profit", "Bearish")
+            return ("Waning Gibbous", "🌖", "Reflection Window", "Distribution", "Bearish")
         case 22.14..<24.00:
-            return ("Last Quarter", "🌗", "Review & Reduce", "Reduce", "Bearish")
+            return ("Last Quarter", "🌗", "Review & Reflect", "Reflection", "Bearish")
         default:
             return ("Waning Crescent", "🌘", "Rest Period", "Wait", "Neutral")
         }
@@ -167,7 +167,7 @@ struct MoonPhaseWidget: Widget {
                 .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Moon Phase")
-        .description("Track lunar cycles and market timing signals.")
+        .description("Track lunar cycles and cosmic market context.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }

@@ -407,7 +407,7 @@ extension CosmicMoodService {
         return (mood.value, mood.marketToneText, mood.moodLevel, mood.formattedChange)
     }
 
-    /// Check if we're in an extreme mood (contrarian signal)
+    /// Check if we're in an extreme mood (contrarian context)
     func isExtremeReading() -> (isExtreme: Bool, type: String?) {
         let mood = getCurrentMood()
         guard mood.isMarketBacked, let moodLevel = mood.moodLevel else {
@@ -416,9 +416,9 @@ extension CosmicMoodService {
 
         switch moodLevel {
         case .void:
-            return (true, "Extreme Fear — potential contrarian buy signal")
+            return (true, "Extreme Fear - potential contrarian context")
         case .supernova:
-            return (true, "Extreme Greed — potential contrarian sell signal")
+            return (true, "Extreme Greed - extreme sentiment context")
         default:
             return (false, nil)
         }
