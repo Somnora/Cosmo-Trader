@@ -27,6 +27,9 @@ final class IPOService {
     /// Last successful fetch time
     private(set) var lastFetchTime: Date?
 
+    /// Source state for the currently displayed IPO calendar.
+    private(set) var dataProvenance: FinancialDataProvenance = .unavailable(reason: "IPO calendar unavailable")
+
     /// Cache duration (5 minutes)
     private let cacheDuration: TimeInterval = 300
 
@@ -36,14 +39,16 @@ final class IPOService {
 
     // MARK: - Init
 
-    private init() {
-        // Load cached data first, then attempt API fetch
-        loadCachedIPOs()
-
-        // If no cached data, use mock data as initial fallback
-        if ipos.isEmpty {
-            loadMockData()
+    private init(loadCache: Bool = true) {
+        if loadCache {
+            loadCachedIPOs()
         }
+        // No production mock fallback: an empty IPO calendar is an unavailable
+        // state until Finnhub or cached provider data exists.
+    }
+
+    static func testingInstance(loadCache: Bool = false) -> IPOService {
+        IPOService(loadCache: loadCache)
     }
 
     // MARK: - Public Methods
@@ -70,6 +75,10 @@ final class IPOService {
     func getIPOsBySector(_ sector: String) -> [IPO] {
         ipos.filter { $0.sector == sector && !$0.hasLaunched }
             .sorted { $0.expectedDate < $1.expectedDate }
+    }
+
+    var availableSectors: [String] {
+        Array(Set(ipos.map(\.sector).filter { !$0.isEmpty })).sorted()
     }
 
     /// Get IPOs by zodiac sign
@@ -164,8 +173,10 @@ final class IPOService {
             let convertedIPOs = finnhubIPOs.compactMap { convertToIPO($0) }
 
             if !convertedIPOs.isEmpty {
+                let fetchedAt = Date()
                 self.ipos = convertedIPOs
-                self.lastFetchTime = Date()
+                self.lastFetchTime = fetchedAt
+                self.dataProvenance = .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
 
                 // Cache results for offline use
                 cacheIPOs(convertedIPOs)
@@ -174,6 +185,9 @@ final class IPOService {
             } else {
                 // API returned empty - keep existing data
                 log("⚠️ API returned no IPOs, keeping existing data")
+                if ipos.isEmpty {
+                    dataProvenance = .unavailable(reason: "IPO calendar unavailable")
+                }
             }
 
             lastError = nil
@@ -182,11 +196,11 @@ final class IPOService {
             log("❌ IPO fetch error: \(error)")
             lastError = error
 
-            // Fall back to cache or mock data if we have nothing
+            // Fall back to cache if we have nothing. Do not show fictional IPOs.
             if ipos.isEmpty {
                 loadCachedIPOs()
                 if ipos.isEmpty {
-                    loadMockData()
+                    dataProvenance = .unavailable(reason: "IPO calendar unavailable")
                 }
             }
         }
@@ -202,11 +216,6 @@ final class IPOService {
     }
 
     // MARK: - Private Methods
-
-    private func loadMockData() {
-        ipos = MockIPOData.all
-        log("📦 Loaded mock IPO data")
-    }
 
     /// Convert Finnhub IPO to app IPO model
     private func convertToIPO(_ finnhub: FinnhubIPO) -> IPO? {
@@ -306,6 +315,9 @@ final class IPOService {
             let cached = try JSONDecoder().decode([CachedIPO].self, from: data)
             ipos = cached.map { $0.toIPO() }
             lastFetchTime = UserDefaults.standard.object(forKey: cacheTimestampKey) as? Date
+            if let lastFetchTime {
+                dataProvenance = .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: lastFetchTime)
+            }
             log("📦 Loaded \(ipos.count) IPOs from cache")
         } catch {
             log("⚠️ Failed to load cached IPOs: \(error)")

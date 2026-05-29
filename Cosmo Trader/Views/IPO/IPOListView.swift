@@ -292,6 +292,8 @@ struct IPOListView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
 
+            DataSourceIndicator(provenance: ipoService.dataProvenance, size: .compact)
+
             // Quick stats
             HStack(spacing: 20) {
                 statBadge(
@@ -385,7 +387,7 @@ struct IPOListView: View {
 
                     Divider()
 
-                    ForEach(MockIPOData.sectors, id: \.self) { sector in
+                    ForEach(ipoService.availableSectors, id: \.self) { sector in
                         Button(action: { selectedSector = sector }) {
                             HStack {
                                 Text(sector)
@@ -507,6 +509,8 @@ struct IPOListView: View {
                     .font(TerminalFont.headline(16))
                     .foregroundColor(CosmicTheme.textSecondary)
 
+                DataSourceIndicator(provenance: ipoService.dataProvenance, size: .compact)
+
                 Text(error.localizedDescription)
                     .font(TerminalFont.data(12))
                     .foregroundColor(CosmicTheme.textMuted)
@@ -545,6 +549,8 @@ struct IPOListView: View {
                     Text("No upcoming IPOs in this date range")
                         .font(TerminalFont.data(12))
                         .foregroundColor(CosmicTheme.textMuted)
+
+                    DataSourceIndicator(provenance: ipoService.dataProvenance, size: .compact)
 
                     Button(action: {
                         Task {

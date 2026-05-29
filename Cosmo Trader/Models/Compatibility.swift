@@ -493,15 +493,21 @@ extension UserProfile {
             .sorted { $0.score > $1.score }
     }
 
-    /// Average compatibility score across verified-date portfolio holdings.
+    /// Market-value-weighted compatibility score across verified-date portfolio holdings.
     var averagePortfolioCompatibility: Int? {
-        let verifiedResults = portfolio.compactMap { verifiedCompatibility(with: $0) }
-        guard !verifiedResults.isEmpty else { return nil }
-
-        let total = verifiedResults.reduce(0) { sum, result in
-            sum + result.score
+        let weightedResults = portfolio.compactMap { stock -> (score: Int, weight: Double)? in
+            guard let result = verifiedCompatibility(with: stock) else { return nil }
+            let weight = stock.marketValue
+            guard weight > 0 else { return nil }
+            return (result.score, weight)
         }
-        return total / verifiedResults.count
+        let totalMarketValue = weightedResults.reduce(0) { $0 + $1.weight }
+        guard totalMarketValue > 0 else { return nil }
+
+        let weightedTotal = weightedResults.reduce(0) { total, result in
+            total + (Double(result.score) * result.weight)
+        }
+        return Int(weightedTotal / totalMarketValue)
     }
 
     /// Get verified-date stocks grouped by compatibility rating.

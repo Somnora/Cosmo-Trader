@@ -62,7 +62,7 @@ final class PortfolioAscendantService {
     /// Analyze the true elemental/sign composition of the portfolio
     private func analyzeSunNature(holdings: [Stock]) -> PortfolioSunAnalysis {
         let verifiedHoldings = holdings.filter { $0.foundedZodiacSign != nil }
-        let totalValue = verifiedHoldings.reduce(0) { $0 + $1.totalValue }
+        let totalValue = verifiedHoldings.reduce(0) { $0 + $1.marketValue }
         guard totalValue > 0 else {
             return PortfolioSunAnalysis(
                 dominantElement: .earth,
@@ -81,8 +81,10 @@ final class PortfolioAscendantService {
         for stock in verifiedHoldings {
             guard let sign = stock.foundedZodiacSign else { continue }
             let element = sign.element
-            elementValues[element, default: 0] += stock.totalValue
-            signValues[sign, default: 0] += stock.totalValue
+            let marketValue = stock.marketValue
+            guard marketValue > 0 else { continue }
+            elementValues[element, default: 0] += marketValue
+            signValues[sign, default: 0] += marketValue
         }
 
         // Convert to percentages
@@ -190,7 +192,17 @@ final class PortfolioAscendantService {
             )
         }
 
-        let totalValue = holdings.reduce(0) { $0 + $1.totalValue }
+        let totalValue = holdings.reduce(0) { $0 + $1.marketValue }
+        guard totalValue > 0 else {
+            return PortfolioAscendantAnalysis(
+                perceivedAs: "Ghost Investor",
+                standoutStock: nil,
+                standoutReason: "No initialized position value to judge",
+                socialLabel: "The Invisible One",
+                description: "Your positions need a current price or cost basis before the portfolio can be read.",
+                roast: "Your portfolio has holdings, but their dollar weights are missing."
+            )
+        }
 
         // Find the most notable position (largest, most volatile, or most recognizable)
         let standout = findStandoutPosition(holdings: holdings, totalValue: totalValue)
@@ -202,11 +214,11 @@ final class PortfolioAscendantService {
     }
 
     private func findStandoutPosition(holdings: [Stock], totalValue: Double) -> StandoutPosition? {
-        guard let largest = holdings.max(by: { $0.totalValue < $1.totalValue }) else {
+        guard let largest = holdings.max(by: { $0.marketValue < $1.marketValue }) else {
             return nil
         }
 
-        let largestPercent = (largest.totalValue / totalValue) * 100
+        let largestPercent = (largest.marketValue / totalValue) * 100
 
         // Check for meme-worthy stocks
         let memeStocks = ["GME", "AMC", "BBBY", "DOGE", "SHIB"]
@@ -214,18 +226,18 @@ final class PortfolioAscendantService {
             return StandoutPosition(
                 stock: meme,
                 reason: .memeStock,
-                percentOfPortfolio: (meme.totalValue / totalValue) * 100
+                percentOfPortfolio: (meme.marketValue / totalValue) * 100
             )
         }
 
         // Check for tech giants that define perception
         let techGiants = ["NVDA", "TSLA", "AAPL", "GOOGL", "META", "AMZN", "MSFT"]
         if let tech = holdings.first(where: { techGiants.contains($0.symbol) }),
-           (tech.totalValue / totalValue) * 100 > 15 {
+           (tech.marketValue / totalValue) * 100 > 15 {
             return StandoutPosition(
                 stock: tech,
                 reason: .techGiant,
-                percentOfPortfolio: (tech.totalValue / totalValue) * 100
+                percentOfPortfolio: (tech.marketValue / totalValue) * 100
             )
         }
 
@@ -234,7 +246,7 @@ final class PortfolioAscendantService {
             return StandoutPosition(
                 stock: volatile,
                 reason: .highVolatility,
-                percentOfPortfolio: (volatile.totalValue / totalValue) * 100
+                percentOfPortfolio: (volatile.marketValue / totalValue) * 100
             )
         }
 

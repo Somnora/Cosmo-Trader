@@ -110,10 +110,19 @@ struct TableRowView: View {
     }
 
     private var sparklineSection: some View {
-        MiniSparkline(
-            data: stock.priceHistory,
-            size: CGSize(width: 40, height: 18)
-        )
+        Group {
+            if stock.priceHistory.count >= 2 {
+                MiniSparkline(
+                    data: stock.priceHistory,
+                    size: CGSize(width: 40, height: 18)
+                )
+            } else {
+                Text("N/A")
+                    .font(TerminalFont.data(9, weight: .bold))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .frame(width: 40, height: 18)
+            }
+        }
         .padding(.horizontal, 8)
     }
 

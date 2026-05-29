@@ -14,6 +14,35 @@ enum HistoricalPriceError: LocalizedError, Equatable {
     }
 }
 
+enum HistoricalPriceSource: Equatable {
+    case provider
+    case cache
+
+    var displayName: String {
+        switch self {
+        case .provider:
+            return "Provider data"
+        case .cache:
+            return "Cached provider data"
+        }
+    }
+}
+
+struct HistoricalPriceResult: Equatable {
+    let data: [OHLCData]
+    let source: HistoricalPriceSource
+    let fetchedAt: Date
+
+    var provenance: FinancialDataProvenance {
+        switch source {
+        case .provider:
+            return .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+        case .cache:
+            return .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class HistoricalPriceService {
@@ -28,12 +57,19 @@ final class HistoricalPriceService {
         symbol: String,
         timeframe: ChartTimeframe
     ) async throws -> [OHLCData] {
+        try await fetchHistoricalPriceResult(symbol: symbol, timeframe: timeframe).data
+    }
+
+    func fetchHistoricalPriceResult(
+        symbol: String,
+        timeframe: ChartTimeframe
+    ) async throws -> HistoricalPriceResult {
         let request = requestParameters(for: timeframe)
         let key = "\(symbol.uppercased())-\(timeframe.rawValue)-\(request.resolution)"
 
         if let cached = cache[key],
            Date().timeIntervalSince(cached.fetchedAt) < cacheDuration {
-            return cached.data
+            return HistoricalPriceResult(data: cached.data, source: .cache, fetchedAt: cached.fetchedAt)
         }
 
         let response = try await StockAPIService.shared.fetchCandles(
@@ -53,8 +89,9 @@ final class HistoricalPriceService {
             throw HistoricalPriceError.noHistoricalData
         }
 
-        cache[key] = (data, Date())
-        return data
+        let fetchedAt = Date()
+        cache[key] = (data, fetchedAt)
+        return HistoricalPriceResult(data: data, source: .provider, fetchedAt: fetchedAt)
     }
 
     func requestParameters(for timeframe: ChartTimeframe) -> (resolution: String, from: Date, to: Date) {

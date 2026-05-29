@@ -418,6 +418,27 @@ class CosmicPatternInterpreter {
             stockSign: stockSign
         )
     }
+
+    /// Get cosmic pattern insights from provider-backed or cached candles.
+    ///
+    /// If candles are unavailable, this returns an empty array. It must not use
+    /// generated OHLC data because the resulting technical/cosmic copy would read
+    /// as real analysis.
+    func getProviderBackedInsights(
+        for stock: Stock,
+        userSign: ZodiacSign
+    ) async -> [CosmicPatternInsight] {
+        guard let stockSign = stock.zodiacSign else { return [] }
+
+        let patterns = await ChartPatternService.shared.analyzePatterns(for: stock, days: 365)
+        guard !patterns.isEmpty else { return [] }
+
+        return interpretAll(
+            patterns: patterns,
+            userSign: userSign,
+            stockSign: stockSign
+        )
+    }
 }
 
 // MARK: - Extension for Moon Phase

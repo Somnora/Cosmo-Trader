@@ -183,7 +183,7 @@ final class DailyFinancialReadingService {
             return "\(dominantElement.displayName) exposure is loud; discipline matters"
         }
 
-        return "\(bestMove.rawValue) posture for a mixed market"
+        return "\(bestMove.rawValue) for a mixed market"
     }
 
     private func postureText(

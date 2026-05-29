@@ -17,7 +17,7 @@ final class CosmicRoastGenerator {
 
     static func generate(for user: UserProfile) -> CosmicRoast {
         let elementBreakdown = calculateElementBreakdown(for: user)
-        let verifiedHoldings = user.portfolio.filter { $0.sharesOwned > 0 && $0.foundedZodiacSign != nil }
+        let verifiedHoldings = user.portfolio.filter { $0.isOwned && $0.foundedZodiacSign != nil }
         let worstPerformer = findWorstPerformer(in: verifiedHoldings)
         let ytdReturn = calculateYTDReturn(for: user)
         let assessment = CosmicAssessmentLevel.from(ytdReturn: ytdReturn)
@@ -93,8 +93,8 @@ final class CosmicRoastGenerator {
     // MARK: - Element Breakdown
 
     private static func calculateElementBreakdown(for user: UserProfile) -> [ElementBreakdown] {
-        let verifiedHoldings = user.portfolio.filter { $0.sharesOwned > 0 && $0.foundedElement != nil }
-        let totalValue = verifiedHoldings.reduce(0) { $0 + $1.totalValue }
+        let verifiedHoldings = user.portfolio.filter { $0.isOwned && $0.foundedElement != nil }
+        let totalValue = verifiedHoldings.reduce(0) { $0 + $1.marketValue }
         guard totalValue > 0 else {
             return ZodiacSign.Element.allCases.map {
                 ElementBreakdown(element: $0, percentage: 0, value: 0)
@@ -104,7 +104,7 @@ final class CosmicRoastGenerator {
         var elementValues: [ZodiacSign.Element: Double] = [:]
         for stock in verifiedHoldings {
             guard let element = stock.foundedElement else { continue }
-            elementValues[element, default: 0] += stock.totalValue
+            elementValues[element, default: 0] += stock.marketValue
         }
 
         return ZodiacSign.Element.allCases.map { element in
@@ -139,7 +139,7 @@ final class CosmicRoastGenerator {
 
     private static func findWorstPerformer(in portfolio: [Stock]) -> Stock? {
         portfolio
-            .filter { $0.sharesOwned > 0 }
+            .filter(\.isOwned)
             .min(by: { $0.percentageChange < $1.percentageChange })
     }
 

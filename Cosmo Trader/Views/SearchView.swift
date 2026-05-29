@@ -142,6 +142,8 @@ struct SearchView: View {
                     .foregroundColor(CosmicTheme.textMuted.opacity(0.6))
 
                 Spacer()
+
+                DataSourceIndicator(provenance: searchService.dataProvenance, size: .compact)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -159,6 +161,13 @@ struct SearchView: View {
 
     private var emptyStateContent: some View {
         VStack(spacing: 24) {
+            DataSourceIndicator(
+                provenance: .sample(reason: "Static popular ticker shortcuts; search results use Finnhub"),
+                size: .compact
+            )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+
             if searchService.recentSearches.isEmpty {
                 setupPrimer
             }
@@ -292,6 +301,8 @@ struct SearchView: View {
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .foregroundColor(CosmicTheme.textSecondary)
                 .multilineTextAlignment(.center)
+
+            DataSourceIndicator(provenance: searchService.dataProvenance, size: .compact)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
@@ -300,6 +311,8 @@ struct SearchView: View {
 
     private var noResultsView: some View {
         VStack(spacing: 12) {
+            DataSourceIndicator(provenance: searchService.dataProvenance, size: .compact)
+
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 24))
                 .foregroundColor(CosmicTheme.textMuted)

@@ -114,7 +114,7 @@ enum CosmicMoodLevel: String, CaseIterable {
         }
     }
 
-    /// Trading recommendation based on mood
+    /// Legacy display label for mood context. This is not trading advice.
     var tradingSignal: String {
         switch self {
         case .void:      return "Risk-off mood"
@@ -408,11 +408,11 @@ struct HistoricalInsight {
         return String(format: "%@%.1f%%", sign, historicalReturn)
     }
 
-    /// Is this a contrarian signal?
+    /// Is this an extreme-mood context flag?
     var isContrarianSignal: Bool {
         guard let historicalReturn else { return false }
-        // Extreme fear with positive return = contrarian buy
-        // Extreme greed with negative return = contrarian sell
+        // Extreme fear with positive return = positive contrarian context.
+        // Extreme greed with negative return = negative contrarian context.
         switch moodLevel {
         case .void, .eclipse:
             return historicalReturn > 0

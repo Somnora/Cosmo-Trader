@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import UniformTypeIdentifiers
 
 // MARK: - PortfolioImportService
@@ -139,6 +140,8 @@ enum PortfolioImportError: Error, LocalizedError {
     case noValidHoldings
     case parseError(String)
     case accessDenied
+    case unrecognizedBroker
+    case unrecognizedFormat
 
     var errorDescription: String? {
         switch self {
@@ -154,6 +157,10 @@ enum PortfolioImportError: Error, LocalizedError {
             return "Parse error: \(details)"
         case .accessDenied:
             return "Permission denied to read file"
+        case .unrecognizedBroker:
+            return "Could not recognize a supported broker screenshot"
+        case .unrecognizedFormat:
+            return "Could not recognize a supported portfolio CSV format"
         }
     }
 }
@@ -161,6 +168,15 @@ enum PortfolioImportError: Error, LocalizedError {
 // MARK: - Service
 
 enum PortfolioImportService {
+
+    private static let screenshotParsers: [BrokerScreenshotParser] = [
+        SchwabMobileParser()
+    ]
+
+    private static let csvParsers: [BrokerCSVParser] = [
+        ThinkOrSwimPositionStatementParser(),
+        SchwabWebPositionsParser()
+    ]
 
     // MARK: - Main Import
 
@@ -189,7 +205,7 @@ enum PortfolioImportService {
             throw PortfolioImportError.emptyFile
         }
 
-        return try parseCSV(contents)
+        return try parseLegacyCSV(contents)
     }
 
     /// Import from CSV string content directly
@@ -197,12 +213,64 @@ enum PortfolioImportService {
         guard !contents.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw PortfolioImportError.emptyFile
         }
-        return try parseCSV(contents)
+        return try parseLegacyCSV(contents)
+    }
+
+    /// Parse a brokerage screenshot into structured holdings using registered broker parsers.
+    static func parseScreenshot(_ image: UIImage) async throws -> ParsedPortfolio {
+        let ocrPortfolio = try await VisionOCRService.shared.extractPortfolio(from: image)
+        let rawLines = ocrPortfolio.rawText.components(separatedBy: .newlines)
+
+        guard let bestParser = screenshotParsers
+            .map({ parser in (parser: parser, confidence: parser.canParse(rawLines)) })
+            .max(by: { $0.confidence < $1.confidence }),
+              bestParser.confidence >= 0.4 else {
+            throw PortfolioImportError.unrecognizedBroker
+        }
+
+        return try bestParser.parser.parse(rawLines)
+    }
+
+    /// Parse a broker CSV into structured holdings for review before committing.
+    static func parseCSV(_ csvText: String) async throws -> ParsedPortfolio {
+        guard !csvText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw PortfolioImportError.emptyFile
+        }
+
+        guard let bestParser = csvParsers
+            .map({ parser in (parser: parser, confidence: parser.canParse(csvText)) })
+            .max(by: { $0.confidence < $1.confidence }),
+              bestParser.confidence >= 0.4 else {
+            throw PortfolioImportError.unrecognizedFormat
+        }
+
+        return try bestParser.parser.parse(csvText)
+    }
+
+    /// Read and parse a broker CSV file for review before committing.
+    static func parseCSVFile(_ url: URL) async throws -> ParsedPortfolio {
+        guard url.startAccessingSecurityScopedResource() else {
+            throw PortfolioImportError.accessDenied
+        }
+        defer { url.stopAccessingSecurityScopedResource() }
+
+        let contents: String
+        do {
+            contents = try String(contentsOf: url, encoding: .utf8)
+        } catch {
+            do {
+                contents = try String(contentsOf: url, encoding: .ascii)
+            } catch {
+                throw PortfolioImportError.parseError("Could not read file contents")
+            }
+        }
+
+        return try await parseCSV(contents)
     }
 
     // MARK: - CSV Parsing
 
-    private static func parseCSV(_ contents: String) throws -> PortfolioImportResult {
+    private static func parseLegacyCSV(_ contents: String) throws -> PortfolioImportResult {
         // Split into rows
         let rows = contents.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -460,6 +528,64 @@ enum PortfolioImportService {
     }
 
     // MARK: - Apply Import
+
+    static func stocks(
+        from parsedHoldings: [ParsedHolding],
+        livePrices: [String: Double] = [:]
+    ) -> [Stock] {
+        parsedHoldings.compactMap { stock(from: $0, livePrices: livePrices) }
+    }
+
+    static func replacePortfolio(
+        with parsedHoldings: [ParsedHolding],
+        in appState: AppState,
+        livePrices: [String: Double] = [:]
+    ) {
+        guard var user = appState.currentUser else { return }
+        user.portfolio = stocks(from: parsedHoldings, livePrices: livePrices)
+        appState.currentUser = user
+        appState.saveUserToStorage()
+    }
+
+    private static func stock(
+        from parsedHolding: ParsedHolding,
+        livePrices: [String: Double]
+    ) -> Stock? {
+        let symbol = cleanSymbol(parsedHolding.symbol).uppercased()
+        guard !symbol.isEmpty, parsedHolding.shares > 0 else { return nil }
+
+        let unitValueFromCSV: Double? = {
+            guard let marketValue = parsedHolding.marketValue,
+                  parsedHolding.shares != 0 else { return nil }
+            let unitValue = abs(marketValue / parsedHolding.shares)
+            return unitValue.isFinite && unitValue > 0 ? unitValue : nil
+        }()
+
+        let livePrice = livePrices[symbol].flatMap { $0 > 0 ? $0 : nil }
+
+        if let knownStock = MockStockData.knownStocks.first(where: { $0.symbol.uppercased() == symbol }) {
+            var stock = knownStock
+            stock.sharesOwned = parsedHolding.shares
+            stock.currentPrice = livePrice ?? unitValueFromCSV ?? knownStock.currentPrice
+            stock.purchasePrice = unitValueFromCSV
+            stock.purchaseDate = Date()
+            return stock
+        }
+
+        let price = livePrice ?? unitValueFromCSV ?? 0
+        return Stock(
+            symbol: symbol,
+            name: symbol,
+            currentPrice: price,
+            priceChange: 0,
+            percentageChange: 0,
+            sharesOwned: parsedHolding.shares,
+            purchasePrice: unitValueFromCSV,
+            purchaseDate: Date(),
+            foundedDate: nil,
+            sector: "Unknown"
+        )
+    }
 
     /// Apply imported holdings to the app state
     static func applyImport(

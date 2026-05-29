@@ -74,6 +74,9 @@ final class SearchService {
     /// Cleared when a new search starts.
     var errorMessage: String?
 
+    /// Source state for the current symbol-search result set.
+    var dataProvenance: FinancialDataProvenance = .unavailable(reason: "Enter a symbol or company name to search Finnhub")
+
     /// The current search query text.
     ///
     /// Setting this property triggers a debounced search. The search executes
@@ -127,6 +130,7 @@ final class SearchService {
         searchQuery = ""
         results = []
         errorMessage = nil
+        dataProvenance = .unavailable(reason: "Enter a symbol or company name to search Finnhub")
         isSearching = false
     }
 
@@ -193,6 +197,7 @@ final class SearchService {
         if query.isEmpty {
             results = []
             errorMessage = nil
+            dataProvenance = .unavailable(reason: "Enter a symbol or company name to search Finnhub")
             isSearching = false
             return
         }
@@ -231,16 +236,19 @@ final class SearchService {
             // Check if still relevant (query hasn't changed)
             if searchQuery.trimmingCharacters(in: .whitespacesAndNewlines) == query {
                 results = searchResults
+                dataProvenance = .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: Date())
             }
         } catch let error as NetworkError {
             // Check if still relevant
             if searchQuery.trimmingCharacters(in: .whitespacesAndNewlines) == query {
                 errorMessage = error.cosmicMessage
+                dataProvenance = .unavailable(reason: error.cosmicMessage)
                 results = []
             }
         } catch {
             if !Task.isCancelled {
                 errorMessage = "Search failed. Please try again."
+                dataProvenance = .unavailable(reason: "Search failed. Please try again.")
                 results = []
             }
         }

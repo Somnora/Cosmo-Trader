@@ -1,84 +1,182 @@
 import SwiftUI
 
 struct AstroCorrelationSummaryView: View {
-    let summaries: [AstroCorrelationSummary]
+    let summaries: [StockCosmicCorrelationSummary]
+    let provenance: FinancialDataProvenance
+    let checkedEventKinds: [AstroOverlayEventKind]
+    let eventCount: Int
+    let windowLabel: String
+    let hasHistoricalPrices: Bool
 
     var body: some View {
-        if !summaries.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                sectionHeader
+        VStack(alignment: .leading, spacing: 11) {
+            header
+            contextRows
 
+            if !hasHistoricalPrices {
+                unavailableState("Historical price data unavailable. Correlation context will appear when provider-backed history is available.")
+            } else if eventCount == 0 {
+                unavailableState("No enabled cosmic events were found in this price range. Try a longer timeframe or enable more event types.")
+            } else if summaries.isEmpty {
+                unavailableState("Not enough historical observations for this event. No return claim is shown.")
+            } else {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                     ForEach(summaries.prefix(4)) { summary in
                         summaryCard(summary)
                     }
                 }
             }
+
+            Text("Historical context only. Correlation does not imply causation and this is not financial advice.")
+                .font(TerminalFont.data(9))
+                .foregroundColor(CosmicTheme.textMuted)
+                .lineSpacing(3)
         }
+        .padding(12)
+        .background(CosmicTheme.terminalBlack)
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+        )
     }
 
-    private var sectionHeader: some View {
+    private var header: some View {
         HStack(spacing: 8) {
-            Rectangle()
-                .fill(CosmicTheme.border)
-                .frame(width: 18, height: 1)
+            Image(systemName: "waveform.path.ecg.rectangle")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(CosmicTheme.gold)
 
-            Text("HISTORICAL COMPARISON")
-                .font(TerminalFont.data(10, weight: .bold))
-                .foregroundColor(CosmicTheme.textMuted)
+            Text("HISTORICAL COSMIC CORRELATION")
+                .font(TerminalFont.data(11, weight: .bold))
+                .foregroundColor(CosmicTheme.textPrimary)
                 .tracking(1)
 
-            Rectangle()
-                .fill(CosmicTheme.border)
-                .frame(height: 1)
+            Spacer()
+
+            DataSourceIndicator(provenance: provenance, size: .compact)
         }
     }
 
-    private func summaryCard(_ summary: AstroCorrelationSummary) -> some View {
+    private var contextRows: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            contextRow(label: "CHECKED", value: checkedEventLabel)
+            contextRow(label: "WINDOW", value: windowLabel)
+            contextRow(label: "SOURCE", value: provenance.detailText)
+        }
+    }
+
+    private func contextRow(label: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label)
+                .font(TerminalFont.data(8, weight: .bold))
+                .foregroundColor(CosmicTheme.textMuted)
+                .tracking(0.5)
+                .frame(width: 54, alignment: .leading)
+
+            Text(value)
+                .font(TerminalFont.data(10))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+        }
+    }
+
+    private func unavailableState(_ message: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "info.circle")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(CosmicTheme.textMuted)
+                .padding(.top, 1)
+
+            Text(message)
+                .font(TerminalFont.data(10))
+                .foregroundColor(CosmicTheme.textMuted)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CosmicTheme.cardBackground.opacity(0.55))
+    }
+
+    private func summaryCard(_ summary: StockCosmicCorrelationSummary) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Image(systemName: summary.kind.iconSystemName)
+                Image(systemName: summary.eventType.iconSystemName)
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(summary.kind.overlayColor)
-                Text(summary.kind.displayName.uppercased())
+                    .foregroundColor(summary.eventType.overlayColor)
+
+                Text(summary.eventName.uppercased())
                     .font(TerminalFont.data(9, weight: .bold))
                     .foregroundColor(CosmicTheme.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
+
                 Spacer()
-                Text("×\(summary.occurrenceCount)")
-                    .font(TerminalFont.data(9, weight: .bold))
-                    .foregroundColor(CosmicTheme.textMuted)
+
+                confidenceBadge(summary.confidence)
             }
 
+            HStack(spacing: 8) {
+                smallStat(label: "EVENTS", value: "\(summary.eventCount)")
+                smallStat(label: "SAMPLE", value: "\(summary.sampleSize)")
+            }
+
+            if summary.displayMode == .marketBackedResult {
+                marketBackedMetrics(summary)
+            } else {
+                Text(summary.disclaimer)
+                    .font(TerminalFont.data(9))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CosmicTheme.cardBackground.opacity(0.5))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel(for: summary))
+    }
+
+    private func marketBackedMetrics(_ summary: StockCosmicCorrelationSummary) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 metricColumn(
-                    label: "AVG MOVE",
+                    label: "AVG",
                     value: percent(summary.averageReturn),
                     color: color(for: summary.averageReturn),
                     alignment: .leading
                 )
                 Spacer(minLength: 4)
                 metricColumn(
-                    label: "WIN RATE",
-                    value: "\(Int(round(summary.winRate * 100)))%",
+                    label: "WIN",
+                    value: percentRate(summary.winRate),
                     color: CosmicTheme.textPrimary,
                     alignment: .trailing
                 )
             }
+
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                smallStat(label: "MEDIAN", value: percent(summary.medianReturn))
+                smallStat(label: "BASE", value: percent(summary.baselineReturn))
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                smallStat(label: "VOL", value: ratio(summary.volatilityRatio))
+                smallStat(label: "MAX DD", value: percent(summary.maxDrawdown.map { -abs($0) }))
+            }
+
+            Text(summary.disclaimer)
+                .font(TerminalFont.data(9))
+                .foregroundColor(CosmicTheme.textMuted)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 4)
-                .fill(CosmicTheme.terminalBlack)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
-        )
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(summary.kind.displayName), \(summary.occurrenceCount) occurrences, average move \(percent(summary.averageReturn)), win rate \(Int(round(summary.winRate * 100))) percent")
     }
 
     private func metricColumn(label: String, value: String, color: Color, alignment: HorizontalAlignment) -> some View {
@@ -89,18 +187,86 @@ struct AstroCorrelationSummaryView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(label)
-                .font(TerminalFont.data(7, weight: .bold))
+                .font(TerminalFont.data(8, weight: .bold))
                 .foregroundColor(CosmicTheme.textMuted)
                 .tracking(0.5)
         }
     }
 
-    private func percent(_ value: Double) -> String {
+    private func smallStat(label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value)
+                .font(TerminalFont.data(10, weight: .bold))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+            Text(label)
+                .font(TerminalFont.data(8, weight: .bold))
+                .foregroundColor(CosmicTheme.textMuted)
+                .tracking(0.5)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func confidenceBadge(_ confidence: CorrelationConfidence) -> some View {
+        Text(confidence.displayName.uppercased())
+            .font(TerminalFont.data(8, weight: .bold))
+            .foregroundColor(confidenceColor(confidence))
+            .lineLimit(1)
+            .minimumScaleFactor(0.65)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(confidenceColor(confidence).opacity(0.12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(confidenceColor(confidence).opacity(0.35), lineWidth: 0.5)
+            )
+    }
+
+    private var checkedEventLabel: String {
+        let names = checkedEventKinds.map(\.displayName)
+        guard !names.isEmpty else { return "No cosmic events enabled" }
+        return names.joined(separator: ", ")
+    }
+
+    private func percent(_ value: Double?) -> String {
+        guard let value, value.isFinite else { return "N/A" }
         let sign = value >= 0 ? "+" : ""
         return String(format: "%@%.1f%%", sign, value)
     }
 
-    private func color(for value: Double) -> Color {
-        value >= 0 ? CosmicTheme.positive : CosmicTheme.negative
+    private func percentRate(_ value: Double?) -> String {
+        guard let value, value.isFinite else { return "N/A" }
+        return String(format: "%.0f%%", value * 100)
+    }
+
+    private func ratio(_ value: Double?) -> String {
+        guard let value, value.isFinite else { return "N/A" }
+        return String(format: "%.1fx", value)
+    }
+
+    private func color(for value: Double?) -> Color {
+        guard let value else { return CosmicTheme.textMuted }
+        return value >= 0 ? CosmicTheme.positive : CosmicTheme.negative
+    }
+
+    private func confidenceColor(_ confidence: CorrelationConfidence) -> Color {
+        switch confidence {
+        case .strong:
+            return CosmicTheme.positive
+        case .moderate:
+            return CosmicTheme.gold
+        case .thin:
+            return CosmicTheme.accentBlue
+        case .insufficient, .unavailable:
+            return CosmicTheme.textMuted
+        }
+    }
+
+    private func accessibilityLabel(for summary: StockCosmicCorrelationSummary) -> String {
+        if summary.displayMode == .marketBackedResult {
+            return "\(summary.eventName), \(summary.sampleSize) historical observations, average return \(percent(summary.averageReturn)), win rate \(percentRate(summary.winRate)). Historical context only, not financial advice."
+        }
+        return "\(summary.eventName), \(summary.sampleSize) historical observations. \(summary.disclaimer)"
     }
 }

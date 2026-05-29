@@ -361,9 +361,9 @@ struct LunarMarketOutlook: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text(stat.formattedChange)
                     .font(TerminalFont.price(14))
-                    .foregroundColor(stat.averageVolatilityChange > 0 ? .orange : CosmicTheme.textSecondary)
+                    .foregroundColor((stat.averageVolatilityChange ?? 0) > 0 ? .orange : CosmicTheme.textSecondary)
 
-                Text("volatility")
+                Text("market history")
                     .font(TerminalFont.data(9))
                     .foregroundColor(CosmicTheme.textMuted)
             }

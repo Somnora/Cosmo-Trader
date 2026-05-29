@@ -52,6 +52,8 @@ struct EarningsCalendarCard: View {
 
                     Spacer()
 
+                    DataSourceIndicator(provenance: earningsService.dataProvenance, size: .compact)
+
                     Button(action: { showFullCalendar = true }) {
                         Text("View All")
                             .font(TerminalFont.data(11))
@@ -310,6 +312,8 @@ struct EarningsCalendarSheet: View {
                 Text("\(allEarnings.count) upcoming reports in your portfolio")
                     .font(.subheadline)
                     .foregroundColor(CosmicTheme.textSecondary)
+
+                DataSourceIndicator(provenance: earningsService.dataProvenance, size: .compact)
             }
         }
         .padding(.vertical, 16)
@@ -711,6 +715,8 @@ struct StockEarningsSection: View {
                         .foregroundColor(CosmicTheme.textPrimary)
 
                     Spacer()
+
+                    DataSourceIndicator(provenance: earningsService.dataProvenance, size: .compact)
 
                     if earnings.isToday {
                         Text("TODAY")

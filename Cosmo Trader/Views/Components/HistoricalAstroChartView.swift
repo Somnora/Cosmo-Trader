@@ -33,7 +33,14 @@ struct HistoricalAstroChartView: View {
                 eventStrip
             }
             selectedEventPanel
-            AstroCorrelationSummaryView(summaries: viewModel.summaries)
+            AstroCorrelationSummaryView(
+                summaries: viewModel.summaries,
+                provenance: viewModel.historicalPriceProvenance,
+                checkedEventKinds: viewModel.checkedEventKinds,
+                eventCount: viewModel.overlayEvents.count,
+                windowLabel: viewModel.windowLabel,
+                hasHistoricalPrices: !viewModel.ohlcData.isEmpty
+            )
 
             Text("Historical overlay only. Correlation view, not financial advice.")
                 .font(TerminalFont.data(9))
@@ -59,17 +66,18 @@ struct HistoricalAstroChartView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(CosmicTheme.gold)
 
-                Text("COSMIC OVERLAY")
+                Text("COSMIC CORRELATION LAB")
                     .font(TerminalFont.data(12, weight: .bold))
                     .foregroundColor(CosmicTheme.textPrimary)
                     .tracking(1)
 
                 Spacer()
 
+                DataSourceIndicator(provenance: viewModel.historicalPriceProvenance, size: .compact)
                 oracleBadge
             }
 
-            Text("Historical price action with astrological context.")
+            Text("Provider-backed historical price action aligned with cosmic event windows.")
                 .font(TerminalFont.data(10))
                 .foregroundColor(CosmicTheme.textSecondary)
         }
@@ -162,7 +170,7 @@ struct HistoricalAstroChartView: View {
         } else if let errorMessage = viewModel.errorMessage {
             messageState(icon: "exclamationmark.triangle", title: errorMessage)
         } else if viewModel.ohlcData.isEmpty {
-            messageState(icon: "chart.line.downtrend.xyaxis", title: "Historical data unavailable. Try again later.")
+            messageState(icon: "chart.line.downtrend.xyaxis", title: "Historical price data unavailable. Correlation context will appear when provider-backed history is available.")
         } else if viewModel.overlayEvents.isEmpty {
             VStack(spacing: 12) {
                 chart
@@ -411,7 +419,7 @@ struct HistoricalAstroChartView: View {
                         .foregroundColor(CosmicTheme.textSecondary)
                 }
 
-                if let reaction = viewModel.selectedReaction {
+                if viewModel.canShowCorrelationMetrics, let reaction = viewModel.selectedReaction {
                     HStack(alignment: .top, spacing: 12) {
                         eventMetric(
                             "Window move",
@@ -430,7 +438,7 @@ struct HistoricalAstroChartView: View {
                         )
                     }
                 } else {
-                    Text("Price action unavailable for the selected window.")
+                    Text(selectedEventMetricUnavailableText)
                         .font(TerminalFont.data(10))
                         .foregroundColor(CosmicTheme.textMuted)
                 }
@@ -539,6 +547,19 @@ struct HistoricalAstroChartView: View {
 
     private var chartColor: Color {
         viewModel.chartColor == .positive ? CosmicTheme.positive : CosmicTheme.negative
+    }
+
+    private var selectedEventMetricUnavailableText: String {
+        switch viewModel.historicalPriceProvenance {
+        case .sample:
+            return "Sample chart mode is labeled for preview only; event-window metrics are hidden."
+        case .mixed:
+            return "Mixed data freshness. Metric unavailable for this event."
+        case .unavailable:
+            return "Provider-backed history is required before event-window metrics are shown."
+        default:
+            return "Not enough provider-backed price action for the selected window."
+        }
     }
 
     private func axisPrice(_ price: Double) -> String {
@@ -650,7 +671,7 @@ struct HistoricalAstroOverlayLockedCard: View {
                         .foregroundColor(CosmicTheme.gold)
                 }
 
-                Text("Overlay moon phases, Mercury retrograde, and company birth cycles against historical price action. See the pattern, or the lack of one.")
+                Text("Overlay moon phases, Mercury retrograde, and company birth cycles against historical price action. Explore historical context, including when no pattern appears.")
                     .font(TerminalFont.data(11))
                     .foregroundColor(CosmicTheme.textSecondary)
                     .lineSpacing(3)

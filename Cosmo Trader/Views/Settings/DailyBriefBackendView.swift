@@ -12,6 +12,7 @@ struct DailyBriefBackendView: View {
     @State private var isOffline = false
     @State private var isShowingLocalFallback = false
     @State private var lastUpdatedAt: Date?
+    @State private var briefProvenance: FinancialDataProvenance = .unavailable(reason: "Daily Brief not loaded")
     @State private var diagnosticsURL: String?
     @State private var diagnosticsStatusCode: Int?
 
@@ -224,18 +225,7 @@ struct DailyBriefBackendView: View {
 
             Spacer(minLength: 8)
 
-            if isOffline {
-                Text("SAVED")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(CosmicTheme.gold)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(CosmicTheme.gold.opacity(0.12))
-                    )
-            }
+            DataSourceIndicator(provenance: briefProvenance, size: .compact)
         }
     }
 
@@ -262,6 +252,7 @@ struct DailyBriefBackendView: View {
     private func loadCachedBrief() {
         if let cachedPayload = DailyBriefBackendCache.load() {
             brief = cachedPayload.brief
+            briefProvenance = .cached(provider: "Cosmo Backend", fetchedAt: cachedPayload.fetchedAt)
             lastUpdatedAt = lastUpdatedForDisplay(
                 createdAt: cachedPayload.brief.createdAt,
                 fallback: cachedPayload.fetchedAt
@@ -284,6 +275,7 @@ struct DailyBriefBackendView: View {
             isShowingLocalFallback = false
             let fetchedAt = Date()
             lastUpdatedAt = lastUpdatedForDisplay(createdAt: latest.createdAt, fallback: fetchedAt)
+            briefProvenance = .live(provider: "Cosmo Backend", fetchedAt: fetchedAt)
             DailyBriefBackendCache.save(brief: latest, fetchedAt: fetchedAt)
         } catch let error as DailyBriefRequestError {
             switch error {
@@ -349,6 +341,7 @@ struct DailyBriefBackendView: View {
             signals: localBriefSignals(localBrief)
         )
         lastUpdatedAt = localBrief.date
+        briefProvenance = .sample(reason: "Local fallback reading; backend unavailable")
         isOffline = true
         isShowingLocalFallback = true
         errorMessage = nil

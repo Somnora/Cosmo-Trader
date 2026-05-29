@@ -43,6 +43,9 @@ final class EarningsService {
     /// Last refresh time
     private var lastRefresh: Date?
 
+    /// Source state for the currently displayed earnings calendar.
+    private(set) var dataProvenance: FinancialDataProvenance = .unavailable(reason: "Earnings calendar unavailable")
+
     /// Cache duration (5 minutes)
     private let cacheDuration: TimeInterval = 300
 
@@ -52,14 +55,16 @@ final class EarningsService {
 
     // MARK: - Initialization
 
-    private init() {
-        // Load cached data first
-        loadCachedEarnings()
-
-        // If no cached data, use mock data as fallback
-        if allEarningsEvents.isEmpty {
-            generateMockEarningsData()
+    private init(loadCache: Bool = true) {
+        if loadCache {
+            loadCachedEarnings()
         }
+        // No production mock fallback: an empty earnings calendar is an
+        // unavailable state until Finnhub or cached provider data exists.
+    }
+
+    static func testingInstance(loadCache: Bool = false) -> EarningsService {
+        EarningsService(loadCache: loadCache)
     }
 
     // MARK: - Public Methods
@@ -141,8 +146,10 @@ final class EarningsService {
             let convertedEvents = finnhubEarnings.compactMap { convertToEarningsEvent($0) }
 
             if !convertedEvents.isEmpty {
+                let fetchedAt = Date()
                 self.allEarningsEvents = convertedEvents
-                self.lastRefresh = Date()
+                self.lastRefresh = fetchedAt
+                self.dataProvenance = .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
 
                 // Cache results for offline use
                 cacheEarnings(convertedEvents)
@@ -151,6 +158,9 @@ final class EarningsService {
             } else {
                 // API returned empty - keep existing data
                 log("⚠️ API returned no earnings, keeping existing data")
+                if allEarningsEvents.isEmpty {
+                    dataProvenance = .unavailable(reason: "Earnings calendar unavailable")
+                }
             }
 
             lastError = nil
@@ -159,11 +169,11 @@ final class EarningsService {
             log("❌ Earnings fetch error: \(error)")
             lastError = error
 
-            // Fall back to cache or mock data if we have nothing
+            // Fall back to cache if we have nothing. Do not show fake earnings.
             if allEarningsEvents.isEmpty {
                 loadCachedEarnings()
                 if allEarningsEvents.isEmpty {
-                    generateMockEarningsData()
+                    dataProvenance = .unavailable(reason: "Earnings calendar unavailable")
                 }
             }
         }
@@ -258,6 +268,9 @@ final class EarningsService {
             let cached = try JSONDecoder().decode([CachedEarningsEvent].self, from: data)
             allEarningsEvents = cached.map { $0.toEarningsEvent() }
             lastRefresh = UserDefaults.standard.object(forKey: cacheTimestampKey) as? Date
+            if let lastRefresh {
+                dataProvenance = .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: lastRefresh)
+            }
             log("📦 Loaded \(allEarningsEvents.count) earnings from cache")
         } catch {
             log("⚠️ Failed to load cached earnings: \(error)")
@@ -270,58 +283,6 @@ final class EarningsService {
         #if DEBUG
         print("[EarningsService] \(message)")
         #endif
-    }
-
-    // MARK: - Mock Data Generation (Fallback)
-
-    /// Generate mock earnings data as fallback when API is unavailable
-    private func generateMockEarningsData() {
-        let calendar = Calendar.current
-        let now = Date()
-
-        var events: [EarningsEvent] = []
-
-        // Major tech companies reporting schedule (mock data)
-        let earningsSchedule: [(symbol: String, name: String, daysFromNow: Int, timing: EarningsEvent.ReportTiming, consensus: Double?)] = [
-            ("AAPL", "Apple Inc.", 2, .afterMarket, 1.43),
-            ("MSFT", "Microsoft Corp.", 3, .afterMarket, 2.82),
-            ("GOOGL", "Alphabet Inc.", 4, .afterMarket, 1.85),
-            ("AMZN", "Amazon.com Inc.", 8, .afterMarket, 1.14),
-            ("META", "Meta Platforms Inc.", 9, .afterMarket, 4.71),
-            ("TSLA", "Tesla Inc.", 10, .afterMarket, 0.73),
-            ("NVDA", "NVIDIA Corp.", 11, .afterMarket, 5.59),
-            ("NFLX", "Netflix Inc.", 15, .afterMarket, 4.52),
-            ("AMD", "Advanced Micro Devices", 16, .beforeMarket, 0.68),
-            ("CRM", "Salesforce Inc.", 17, .afterMarket, 2.36),
-        ]
-
-        for schedule in earningsSchedule {
-            guard let reportDate = calendar.date(byAdding: .day, value: schedule.daysFromNow, to: now) else {
-                continue
-            }
-
-            var components = calendar.dateComponents([.year, .month, .day], from: reportDate)
-            components.hour = schedule.timing == .beforeMarket ? 7 : 16
-            components.minute = 30
-
-            guard let finalDate = calendar.date(from: components) else { continue }
-
-            let event = EarningsEvent(
-                symbol: schedule.symbol,
-                companyName: schedule.name,
-                reportDate: finalDate,
-                timing: schedule.timing,
-                consensusEPS: schedule.consensus,
-                previousEPS: schedule.consensus.map { $0 * Double.random(in: 0.85...1.15) },
-                fiscalQuarter: getCurrentFiscalQuarter(),
-                fiscalYear: calendar.component(.year, from: now)
-            )
-
-            events.append(event)
-        }
-
-        allEarningsEvents = events
-        log("📦 Loaded mock earnings data")
     }
 
     /// Get current fiscal quarter

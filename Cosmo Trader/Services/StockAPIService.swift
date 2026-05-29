@@ -141,6 +141,30 @@ struct CachedQuote {
     }
 }
 
+struct StockQuoteResult {
+    let quote: StockQuote?
+    let provenance: FinancialDataProvenance
+    let error: NetworkError?
+
+    var isCached: Bool {
+        provenance.isCached
+    }
+}
+
+struct BasicFinancialsResult {
+    let metrics: [String: Double]
+    let provenance: FinancialDataProvenance
+}
+
+private struct CachedBasicFinancials {
+    let metrics: [String: Double]
+    let timestamp: Date
+
+    var age: TimeInterval {
+        Date().timeIntervalSince(timestamp)
+    }
+}
+
 // MARK: - StockAPIService
 
 /// A service that manages real-time stock data fetching from the Finnhub API.
@@ -221,6 +245,12 @@ final class StockAPIService: ObservableObject {
 
     /// In-memory cache for quotes
     private var quoteCache: [String: CachedQuote] = [:]
+
+    /// In-memory cache for provider-backed basic financial metrics.
+    private var basicFinancialsCache: [String: CachedBasicFinancials] = [:]
+
+    /// Basic financials change slowly; keep provider snapshots for one day.
+    private let basicFinancialsCacheDuration: TimeInterval = 86_400
 
     /// Timestamps of recent requests for throttling
     private var requestTimestamps: [Date] = []
@@ -411,26 +441,113 @@ final class StockAPIService: ObservableObject {
         return quoteCache[symbol.uppercased()]
     }
 
-    /// Get quote with fallback to cache/mock data
-    func getQuoteWithFallback(symbol: String) async -> (quote: StockQuote?, isCached: Bool, error: NetworkError?) {
-        do {
-            let quote = try await getQuote(symbol: symbol)
-            return (quote, false, nil)
-        } catch let error as NetworkError {
-            // Try to return cached data even if expired
-            if let cached = getCachedQuote(for: symbol) {
-                log("📦 Using stale cache for \(symbol) (age: \(cached.formattedAge))")
-                isOfflineMode = true
-                return (cached.quote, true, error)
-            }
-            return (nil, false, error)
-        } catch {
-            if let cached = getCachedQuote(for: symbol) {
-                isOfflineMode = true
-                return (cached.quote, true, mapError(error))
-            }
-            return (nil, false, mapError(error))
+    /// Get quote with explicit field-level provenance.
+    func getQuoteWithProvenance(symbol: String) async -> StockQuoteResult {
+        let upperSymbol = symbol.uppercased()
+
+        if let cached = getCachedQuote(for: upperSymbol), !cached.isExpired {
+            return StockQuoteResult(
+                quote: cached.quote,
+                provenance: .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: cached.timestamp),
+                error: nil
+            )
         }
+
+        guard NetworkMonitor.shared.isConnected else {
+            if let cached = getCachedQuote(for: upperSymbol) {
+                return StockQuoteResult(
+                    quote: cached.quote,
+                    provenance: .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: cached.timestamp),
+                    error: .noConnection
+                )
+            }
+
+            return StockQuoteResult(
+                quote: nil,
+                provenance: .unavailable(reason: NetworkError.noConnection.cosmicMessage),
+                error: .noConnection
+            )
+        }
+
+        guard APIConfig.isFinnhubConfigured else {
+            let error = NetworkError.apiKeyMissing
+            lastError = error
+            ConfigWarnings.warnOnce(
+                key: "FINNHUB_API_KEY_MISSING",
+                message: "Finnhub API key missing. Stock requests will use cached or unavailable states."
+            )
+
+            if let cached = getCachedQuote(for: upperSymbol) {
+                return StockQuoteResult(
+                    quote: cached.quote,
+                    provenance: .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: cached.timestamp),
+                    error: error
+                )
+            }
+
+            return StockQuoteResult(
+                quote: nil,
+                provenance: .unavailable(reason: error.cosmicMessage),
+                error: error
+            )
+        }
+
+        do {
+            let quote = try await getQuote(symbol: upperSymbol)
+            let fetchedAt = getCachedQuote(for: upperSymbol)?.timestamp ?? Date()
+            return StockQuoteResult(
+                quote: quote,
+                provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt),
+                error: nil
+            )
+        } catch let error as NetworkError {
+            if let cached = getCachedQuote(for: upperSymbol) {
+                return StockQuoteResult(
+                    quote: cached.quote,
+                    provenance: .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: cached.timestamp),
+                    error: error
+                )
+            }
+
+            return StockQuoteResult(
+                quote: nil,
+                provenance: .unavailable(reason: error.cosmicMessage),
+                error: error
+            )
+        } catch {
+            let networkError = mapError(error)
+            if let cached = getCachedQuote(for: upperSymbol) {
+                return StockQuoteResult(
+                    quote: cached.quote,
+                    provenance: .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: cached.timestamp),
+                    error: networkError
+                )
+            }
+
+            return StockQuoteResult(
+                quote: nil,
+                provenance: .unavailable(reason: networkError.cosmicMessage),
+                error: networkError
+            )
+        }
+    }
+
+    /// Fetch quote results sequentially so each returned field carries provenance.
+    func getMultipleQuoteResults(symbols: [String]) async -> [String: StockQuoteResult] {
+        var results: [String: StockQuoteResult] = [:]
+
+        for symbol in symbols {
+            let upperSymbol = symbol.uppercased()
+            results[upperSymbol] = await getQuoteWithProvenance(symbol: upperSymbol)
+        }
+
+        return results
+    }
+
+    /// Get quote with fallback to cache/provider data
+    func getQuoteWithFallback(symbol: String) async -> (quote: StockQuote?, isCached: Bool, error: NetworkError?) {
+        let result = await getQuoteWithProvenance(symbol: symbol)
+        return (result.quote, result.isCached, result.error)
     }
 
     /// Get all cached quotes (for offline mode)
@@ -627,6 +744,55 @@ struct SymbolMatch: Codable, Identifiable, Hashable {
     }
 }
 
+// MARK: - Finnhub Basic Financials Models
+// =======================================
+
+struct FinnhubBasicFinancialsResponse: Decodable {
+    let metric: [String: Double]
+
+    private enum CodingKeys: String, CodingKey {
+        case metric
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        guard let metricContainer = try? container.nestedContainer(keyedBy: DynamicCodingKey.self, forKey: .metric) else {
+            metric = [:]
+            return
+        }
+
+        var parsed: [String: Double] = [:]
+        for key in metricContainer.allKeys {
+            if let value = try? metricContainer.decode(Double.self, forKey: key), value.isFinite {
+                parsed[key.stringValue] = value
+            } else if let intValue = try? metricContainer.decode(Int.self, forKey: key) {
+                parsed[key.stringValue] = Double(intValue)
+            } else if let stringValue = try? metricContainer.decode(String.self, forKey: key),
+                      let value = Double(stringValue),
+                      value.isFinite {
+                parsed[key.stringValue] = value
+            }
+        }
+
+        metric = parsed
+    }
+}
+
+private struct DynamicCodingKey: CodingKey {
+    let stringValue: String
+    let intValue: Int?
+
+    init?(stringValue: String) {
+        self.stringValue = stringValue
+        self.intValue = nil
+    }
+
+    init?(intValue: Int) {
+        self.stringValue = "\(intValue)"
+        self.intValue = intValue
+    }
+}
+
 // MARK: - Search Methods
 // ======================
 // Symbol search functionality
@@ -694,6 +860,219 @@ extension StockAPIService {
             logNetworkErrorIfNeeded(networkError, context: "Search Error")
             throw networkError
         }
+    }
+}
+
+// MARK: - Basic Financials Methods
+// ================================
+
+extension StockAPIService {
+
+    func fetchBasicFinancialsResult(symbol: String) async throws -> BasicFinancialsResult {
+        let upperSymbol = symbol.uppercased()
+
+        if let cached = basicFinancialsCache[upperSymbol],
+           cached.age < basicFinancialsCacheDuration {
+            return BasicFinancialsResult(
+                metrics: cached.metrics,
+                provenance: .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: cached.timestamp)
+            )
+        }
+
+        guard NetworkMonitor.shared.isConnected else {
+            if let cached = basicFinancialsCache[upperSymbol] {
+                return BasicFinancialsResult(
+                    metrics: cached.metrics,
+                    provenance: .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: cached.timestamp)
+                )
+            }
+            throw NetworkError.noConnection
+        }
+
+        try requireFinnhubConfiguration()
+        try await throttleIfNeeded()
+
+        guard let url = APIConfig.finnhubURL(
+            endpoint: "stock/metric",
+            params: [
+                "symbol": upperSymbol,
+                "metric": "all"
+            ]
+        ) else {
+            throw NetworkError.invalidResponse
+        }
+
+        do {
+            let (data, response) = try await session.data(from: url)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NetworkError.invalidResponse
+            }
+
+            recordRequest()
+
+            switch httpResponse.statusCode {
+            case 200:
+                break
+            case 401:
+                throw NetworkError.apiKeyMissing
+            case 429:
+                throw NetworkError.rateLimited
+            case 400...499:
+                throw NetworkError.invalidSymbol(upperSymbol)
+            case 500...599:
+                throw NetworkError.serverError(statusCode: httpResponse.statusCode)
+            default:
+                throw NetworkError.unknown("HTTP \(httpResponse.statusCode)")
+            }
+
+            let decoded = try JSONDecoder().decode(FinnhubBasicFinancialsResponse.self, from: data)
+            guard !decoded.metric.isEmpty else {
+                throw NetworkError.invalidResponse
+            }
+
+            let fetchedAt = Date()
+            basicFinancialsCache[upperSymbol] = CachedBasicFinancials(
+                metrics: decoded.metric,
+                timestamp: fetchedAt
+            )
+
+            lastUpdateTime = fetchedAt
+            lastError = nil
+            isOfflineMode = false
+
+            return BasicFinancialsResult(
+                metrics: decoded.metric,
+                provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+            )
+        } catch let error as NetworkError {
+            lastError = error
+            if let cached = basicFinancialsCache[upperSymbol] {
+                return BasicFinancialsResult(
+                    metrics: cached.metrics,
+                    provenance: .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: cached.timestamp)
+                )
+            }
+            throw error
+        } catch let error as DecodingError {
+            log("❌ Basic Financials Decoding Error: \(error)")
+            if let cached = basicFinancialsCache[upperSymbol] {
+                return BasicFinancialsResult(
+                    metrics: cached.metrics,
+                    provenance: .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: cached.timestamp)
+                )
+            }
+            throw NetworkError.decodingError
+        } catch {
+            let networkError = mapError(error)
+            lastError = networkError
+            if let cached = basicFinancialsCache[upperSymbol] {
+                return BasicFinancialsResult(
+                    metrics: cached.metrics,
+                    provenance: .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: cached.timestamp)
+                )
+            }
+            throw networkError
+        }
+    }
+
+    func fetchKeyStatsResult(symbol: String) async -> ProvenancedValue<StockKeyStats> {
+        let quoteResult = await getQuoteWithProvenance(symbol: symbol)
+
+        var fieldProvenance: [StockKeyStats.Field: FinancialDataProvenance] = [
+            .open: quoteResult.provenance,
+            .dayRange: quoteResult.provenance
+        ]
+
+        var open: Double?
+        var dayHigh: Double?
+        var dayLow: Double?
+        if let quote = quoteResult.quote {
+            open = quote.o > 0 ? quote.o : nil
+            dayHigh = quote.h > 0 ? quote.h : nil
+            dayLow = quote.l > 0 ? quote.l : nil
+        }
+
+        var marketCap: Double?
+        var peRatio: Double?
+        var weekHigh52: Double?
+        var weekLow52: Double?
+        var dividendYield: Double?
+        let metricUnavailable = FinancialDataProvenance.unavailable(reason: "Provider fundamentals unavailable")
+
+        do {
+            let basic = try await fetchBasicFinancialsResult(symbol: symbol)
+            let metrics = basic.metrics
+            fieldProvenance[.marketCap] = basic.provenance
+            fieldProvenance[.peRatio] = basic.provenance
+            fieldProvenance[.week52Range] = basic.provenance
+            fieldProvenance[.dividendYield] = basic.provenance
+
+            if let rawMarketCap = metrics["marketCapitalization"], rawMarketCap > 0 {
+                // Finnhub reports marketCapitalization in millions for this endpoint.
+                marketCap = rawMarketCap < 100_000_000 ? rawMarketCap * 1_000_000 : rawMarketCap
+            }
+            peRatio = metrics["peBasicExclExtraTTM"] ?? metrics["peNormalizedAnnual"]
+            weekHigh52 = metrics["52WeekHigh"]
+            weekLow52 = metrics["52WeekLow"]
+            dividendYield = metrics["dividendYieldIndicatedAnnual"] ?? metrics["dividendYield5Y"]
+        } catch {
+            fieldProvenance[.marketCap] = metricUnavailable
+            fieldProvenance[.peRatio] = metricUnavailable
+            fieldProvenance[.week52Range] = metricUnavailable
+            fieldProvenance[.dividendYield] = metricUnavailable
+        }
+
+        var volume: Int?
+        var avgVolume: Int?
+        let volumeUnavailable = FinancialDataProvenance.unavailable(reason: "Provider volume history unavailable")
+
+        do {
+            let history = try await HistoricalPriceService.shared.fetchHistoricalPriceResult(
+                symbol: symbol,
+                timeframe: .month
+            )
+            let volumes = history.data.map(\.volume).filter { $0 > 0 }
+            volume = volumes.last
+            if !volumes.isEmpty {
+                avgVolume = Int(Double(volumes.reduce(0, +)) / Double(volumes.count))
+            }
+            fieldProvenance[.volume] = history.provenance
+            fieldProvenance[.avgVolume] = history.provenance
+        } catch {
+            fieldProvenance[.volume] = volumeUnavailable
+            fieldProvenance[.avgVolume] = volumeUnavailable
+        }
+
+        let stats = StockKeyStats(
+            open: open,
+            dayHigh: dayHigh,
+            dayLow: dayLow,
+            volume: volume,
+            avgVolume: avgVolume,
+            marketCap: marketCap,
+            peRatio: peRatio,
+            weekHigh52: weekHigh52,
+            weekLow52: weekLow52,
+            dividendYield: dividendYield,
+            fieldProvenance: fieldProvenance
+        )
+
+        let providerProvenances = fieldProvenance.values.filter(\.isProviderBacked)
+        let overall: FinancialDataProvenance
+        if providerProvenances.contains(where: { if case .live = $0 { return true }; return false }) {
+            overall = providerProvenances.first { if case .live = $0 { return true }; return false }
+                ?? .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: Date())
+        } else if let cached = providerProvenances.first {
+            overall = cached
+        } else {
+            overall = .unavailable(reason: "Provider fundamentals unavailable")
+        }
+
+        return ProvenancedValue(
+            value: stats.hasAnyAvailableField ? stats : nil,
+            provenance: overall
+        )
     }
 }
 

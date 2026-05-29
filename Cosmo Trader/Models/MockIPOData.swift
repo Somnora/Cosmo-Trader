@@ -2,7 +2,8 @@ import Foundation
 
 // MARK: - Mock IPO Data
 // =====================
-// Fictional upcoming IPOs for demonstration.
+// Fictional upcoming IPOs for SwiftUI previews and tests only.
+// Production IPOService must use provider/cache data or an unavailable state.
 // Each IPO date is carefully chosen to span different zodiac signs.
 
 struct MockIPOData {

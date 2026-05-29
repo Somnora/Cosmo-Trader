@@ -65,8 +65,10 @@ final class CosmicTickerService {
     func generateTickerItems(for stocks: [Stock]? = nil) -> [TickerItem] {
         var items: [TickerItem] = []
 
-        // Get stocks to display
-        let stocksToShow = stocks ?? MockStockData.knownStocks.shuffled().prefix(12).map { $0 }
+        // Only render stock ticker items when a caller supplies provider-backed
+        // or explicitly labeled data. Falling back to MockStockData here made
+        // sample price movement look live in production.
+        let stocksToShow = stocks ?? []
 
         // Build ticker with interspersed cosmic items
         var cosmicItemsAdded = 0
@@ -194,7 +196,7 @@ final class CosmicTickerService {
         case .fullMoon:
             quips.append(TickerItem(
                 type: .cosmic(.quip),
-                text: "FULL MOON: VOLATILITY ELEVATED",
+                text: "FULL MOON: COSMIC CONTEXT",
                 color: .white
             ))
         case .newMoon:
@@ -206,13 +208,13 @@ final class CosmicTickerService {
         case .waxingCrescent, .waxingGibbous, .firstQuarter:
             quips.append(TickerItem(
                 type: .cosmic(.quip),
-                text: "WAXING MOON: MOMENTUM BUILDING",
+                text: "WAXING MOON: ENERGY BUILDING",
                 color: CosmicTheme.positive
             ))
         case .waningCrescent, .waningGibbous, .lastQuarter:
             quips.append(TickerItem(
                 type: .cosmic(.quip),
-                text: "WANING MOON: DE-RISKING WINDOW",
+                text: "WANING MOON: REVIEW WINDOW",
                 color: CosmicTheme.textSecondary
             ))
         }
@@ -255,9 +257,9 @@ final class CosmicTickerService {
 
         // General cosmic wisdom
         quips.append(contentsOf: [
-            TickerItem(type: .cosmic(.quip), text: "SIGNAL CONFIRMED", color: CosmicTheme.gold),
-            TickerItem(type: .cosmic(.quip), text: "WAIT FOR CONFIRMATION", color: CosmicTheme.accentBlue),
-            TickerItem(type: .cosmic(.quip), text: "MARKET REGIME SHIFT", color: .cyan),
+            TickerItem(type: .cosmic(.quip), text: "COSMIC CONTEXT ONLY", color: CosmicTheme.gold),
+            TickerItem(type: .cosmic(.quip), text: "WAIT FOR REAL DATA", color: CosmicTheme.accentBlue),
+            TickerItem(type: .cosmic(.quip), text: "MARKET DATA UNAVAILABLE", color: .cyan),
         ])
 
         return quips

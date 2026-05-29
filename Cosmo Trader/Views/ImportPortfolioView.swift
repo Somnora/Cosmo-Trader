@@ -24,6 +24,8 @@ struct ImportPortfolioView: View {
     @State private var showSuccess = false
     @State private var expandedFormat: CSVFormat?
     @State private var isShowingScreenshotImport = false
+    @State private var parsedPortfolio: ParsedPortfolio?
+    @State private var isShowingImportReview = false
 
     // MARK: - Body
 
@@ -90,6 +92,20 @@ struct ImportPortfolioView: View {
             }
             .sheet(isPresented: $isShowingScreenshotImport) {
                 ScreenshotImportView()
+            }
+            .navigationDestination(isPresented: $isShowingImportReview) {
+                if let parsedPortfolio {
+                    ImportReviewView(
+                        parsedPortfolio: parsedPortfolio,
+                        onComplete: {
+                            dismiss()
+                        },
+                        onCancel: {
+                            self.parsedPortfolio = nil
+                            isShowingImportReview = false
+                        }
+                    )
+                }
             }
         }
     }
@@ -355,11 +371,11 @@ struct ImportPortfolioView: View {
                         .font(.title3)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("CSV FILE IMPORT")
+                        Text("IMPORT CSV FROM THINKORSWIM OR SCHWAB")
                             .font(TerminalFont.data(12, weight: .semibold))
                             .tracking(1)
 
-                        Text("Cleaner import from exported positions")
+                        Text("Review and correct positions before replacing")
                             .font(TerminalFont.data(10))
                             .opacity(0.7)
                     }
@@ -720,20 +736,28 @@ struct ImportPortfolioView: View {
     private func importCSVFile(_ url: URL) {
         isImporting = true
 
-        do {
-            let result = try PortfolioImportService.importFromCSV(fileURL: url)
-            withAnimation {
-                importResult = result
+        Task {
+            do {
+                let parsed = try await PortfolioImportService.parseCSVFile(url)
+                await MainActor.run {
+                    parsedPortfolio = parsed
+                    isShowingImportReview = true
+                    isImporting = false
+                }
+            } catch let error as PortfolioImportError {
+                await MainActor.run {
+                    errorMessage = error.errorDescription ?? "Unknown error"
+                    isShowingError = true
+                    isImporting = false
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = error.localizedDescription
+                    isShowingError = true
+                    isImporting = false
+                }
             }
-        } catch let error as PortfolioImportError {
-            errorMessage = error.errorDescription ?? "Unknown error"
-            isShowingError = true
-        } catch {
-            errorMessage = error.localizedDescription
-            isShowingError = true
         }
-
-        isImporting = false
     }
 
     private func loadSampleData() {

@@ -125,6 +125,9 @@ struct FinnhubCandleResponse: Codable {
 
 // MARK: - Mock OHLC Data Generator
 
+#if DEBUG
+/// Debug/test-only OHLC fixture generator. Production pattern analysis must use
+/// provider-backed candles or return an insufficient-data state.
 enum MockOHLCGenerator {
 
     /// Generate realistic OHLC data for a stock
@@ -325,3 +328,4 @@ enum MockOHLCGenerator {
         return modifiedData
     }
 }
+#endif

@@ -140,6 +140,7 @@ struct StockCardView: View {
         let direction = card.stock.isPositive ? "up" : "down"
         var value = "\(card.compatibility.score) percent cosmic match. "
         value += "Price \(card.stock.formattedPrice), \(direction) \(card.stock.formattedPercentageChange). "
+        value += "Price source \(card.priceProvenance.shortLabel). "
         if let companyZodiacSign {
             value += "\(companyZodiacSign.displayName) sign, \(companyZodiacSign.element.displayName) element. "
         } else {
@@ -261,34 +262,49 @@ struct StockCardView: View {
         let priceSize: CGFloat = isCompact ? 22 : 28
         let changeSize: CGFloat = isCompact ? 13 : 15
 
-        return HStack(alignment: .firstTextBaseline) {
-            Text(card.stock.formattedPrice)
-                .font(TerminalFont.price(priceSize, weight: .semibold))
-                .foregroundColor(CosmicTheme.textPrimary)
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(card.stock.formattedPrice)
+                    .font(TerminalFont.price(priceSize, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textPrimary)
 
-            Spacer()
+                Spacer()
 
-            HStack(spacing: 5) {
-                Image(systemName: card.stock.isPositive ? "arrow.up.right" : "arrow.down.right")
-                    .font(.system(size: changeSize - 2, weight: .bold))
+                HStack(spacing: 5) {
+                    Image(systemName: card.stock.isPositive ? "arrow.up.right" : "arrow.down.right")
+                        .font(.system(size: changeSize - 2, weight: .bold))
 
-                Text(card.stock.formattedPercentageChange)
-                    .font(TerminalFont.data(changeSize, weight: .semibold))
+                    Text(card.stock.formattedPercentageChange)
+                        .font(TerminalFont.data(changeSize, weight: .semibold))
+                }
+                .foregroundColor(card.stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    Capsule()
+                        .fill(card.stock.isPositive ? CosmicTheme.positive.opacity(0.10) : CosmicTheme.negative.opacity(0.10))
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(
+                            (card.stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative).opacity(0.32),
+                            lineWidth: 0.75
+                        )
+                )
             }
-            .foregroundColor(card.stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(
-                Capsule()
-                    .fill(card.stock.isPositive ? CosmicTheme.positive.opacity(0.10) : CosmicTheme.negative.opacity(0.10))
-            )
-            .overlay(
-                Capsule()
-                    .stroke(
-                        (card.stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative).opacity(0.32),
-                        lineWidth: 0.75
-                    )
-            )
+
+            HStack(spacing: 6) {
+                Text(card.priceProvenance.shortLabel.uppercased())
+                    .font(TerminalFont.data(8, weight: .bold))
+                    .foregroundColor(card.priceProvenance.color)
+                    .tracking(0.8)
+
+                Text(card.priceProvenance.detailText.uppercased())
+                    .font(TerminalFont.data(8))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
         }
     }
 

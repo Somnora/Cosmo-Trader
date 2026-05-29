@@ -2,8 +2,8 @@ import SwiftUI
 
 // MARK: - ZodiacLeaderboardView
 // ==============================
-// Terminal-style leaderboard showing weekly zodiac performance.
-// Ranks all 12 signs by average weekly return.
+// Terminal-style leaderboard for weekly zodiac performance.
+// Rankings stay unavailable until provider-backed weekly returns exist.
 // Bloomberg aesthetic with cosmic flair.
 
 struct ZodiacLeaderboardView: View {
@@ -30,32 +30,23 @@ struct ZodiacLeaderboardView: View {
     }
 
     private var leaderboard: [(rank: Int, performance: ZodiacWeeklyPerformance)] {
-        ZodiacPerformanceService.getLeaderboard(stocks: MockStockData.knownStocks)
+        []
     }
 
     private var commentary: String {
-        let performances = leaderboard.map { $0.performance }
-        return ZodiacPerformanceService.generateWeeklyCommentary(
-            performances: performances,
-            userSign: safeUserSign
-        )
+        "Weekly zodiac performance will appear when provider-backed stock returns are connected."
     }
 
     private var userSignContext: (rank: Int, insight: String, isOutperforming: Bool) {
-        let performances = leaderboard.map { $0.performance }
-        return ZodiacPerformanceService.getUserSignContext(
-            userSign: safeUserSign,
-            performances: performances
-        )
+        (rank: 0, insight: "No provider-backed weekly return data yet.", isOutperforming: false)
     }
 
     private var elementPerformance: [(element: ZodiacSign.Element, avgReturn: Double)] {
-        let performances = leaderboard.map { $0.performance }
-        return ZodiacPerformanceService.calculateElementPerformance(from: performances)
+        []
     }
 
     private var streaks: [ZodiacStreak] {
-        ZodiacPerformanceService.detectStreaks()
+        []
     }
 
     // MARK: - Body
@@ -199,7 +190,7 @@ struct ZodiacLeaderboardView: View {
                         .foregroundColor(CosmicTheme.textMuted)
                         .tracking(1)
 
-                    Text("#\(userSignContext.rank)")
+                    Text(userSignContext.rank > 0 ? "#\(userSignContext.rank)" : "N/A")
                         .font(TerminalFont.data(12, weight: .bold))
                         .foregroundColor(userSignContext.isOutperforming ? CosmicTheme.positive : CosmicTheme.textSecondary)
                 }
@@ -222,15 +213,19 @@ struct ZodiacLeaderboardView: View {
             // Section header
             sectionHeader("ZODIAC RANKINGS")
 
-            // Table header
-            tableHeader
+            if leaderboard.isEmpty {
+                unavailableState("Provider-backed weekly returns are unavailable. Rankings are hidden until real performance data exists.")
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
+            } else {
+                tableHeader
 
-            dividerLine
-
-            // Leaderboard rows
-            ForEach(leaderboard, id: \.performance.id) { item in
-                leaderboardRow(rank: item.rank, performance: item.performance)
                 dividerLine
+
+                ForEach(leaderboard, id: \.performance.id) { item in
+                    leaderboardRow(rank: item.rank, performance: item.performance)
+                    dividerLine
+                }
             }
         }
     }
@@ -329,14 +324,39 @@ struct ZodiacLeaderboardView: View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("ELEMENT PERFORMANCE")
 
-            HStack(spacing: 0) {
-                ForEach(elementPerformance, id: \.element) { item in
-                    elementCard(element: item.element, avgReturn: item.avgReturn)
+            if elementPerformance.isEmpty {
+                unavailableState("Element performance needs provider-backed weekly returns.")
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
+            } else {
+                HStack(spacing: 0) {
+                    ForEach(elementPerformance, id: \.element) { item in
+                        elementCard(element: item.element, avgReturn: item.avgReturn)
+                    }
                 }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
             }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 12)
         }
+    }
+
+    private func unavailableState(_ message: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "chart.line.downtrend.xyaxis")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(CosmicTheme.textMuted)
+            Text(message)
+                .font(TerminalFont.data(11))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CosmicTheme.cardBackground.opacity(0.6))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+        )
     }
 
     private func elementCard(element: ZodiacSign.Element, avgReturn: Double) -> some View {

@@ -99,7 +99,7 @@ class PortfolioViewModel {
 
     /// All stocks in the portfolio (only owned ones)
     var holdings: [Stock] {
-        user.portfolio.filter { $0.sharesOwned > 0 }
+        user.portfolio.filter(\.isOwned)
     }
 
     /// Number of different holdings
@@ -122,7 +122,7 @@ class PortfolioViewModel {
     /// Calculate the percentage breakdown by element
     var elementBreakdown: [ElementBreakdown] {
         let verifiedHoldings = holdings.filter { $0.foundedElement != nil }
-        let totalValue = verifiedHoldings.reduce(0) { $0 + $1.totalValue }
+        let totalValue = verifiedHoldings.reduce(0) { $0 + $1.marketValue }
         guard totalValue > 0 else {
             return ZodiacSign.Element.allCases.map {
                 ElementBreakdown(element: $0, percentage: 0, value: 0)
@@ -133,7 +133,7 @@ class PortfolioViewModel {
         var elementValues: [ZodiacSign.Element: Double] = [:]
         for stock in verifiedHoldings {
             guard let foundedElement = stock.foundedElement else { continue }
-            elementValues[foundedElement, default: 0] += stock.totalValue
+            elementValues[foundedElement, default: 0] += stock.marketValue
         }
 
         // Convert to breakdown structs
@@ -214,7 +214,7 @@ class PortfolioViewModel {
         defer { isLoading = false }
 
         // Get unique symbols from portfolio
-        let symbols = Array(Set(user.portfolio.filter { $0.sharesOwned > 0 }.map { $0.symbol }))
+        let symbols = Array(Set(user.portfolio.filter(\.isOwned).map { $0.symbol }))
 
         guard !symbols.isEmpty else { return }
 

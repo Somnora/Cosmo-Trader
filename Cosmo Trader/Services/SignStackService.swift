@@ -27,10 +27,10 @@ final class SignStackService {
 
     /// Generate a Sign Stack card data for a user
     func generateSignStack(for user: UserProfile) -> SignStackData {
-        let holdings = user.portfolio.filter { $0.sharesOwned > 0 }
+        let holdings = user.portfolio.filter(\.isOwned)
         let verifiedHoldings = holdings.filter { $0.foundedZodiacSign != nil }
-        let totalVerifiedValue = verifiedHoldings.reduce(0) { $0 + $1.totalValue }
-        let topHoldings = Array(verifiedHoldings.sorted { $0.totalValue > $1.totalValue }.prefix(3))
+        let totalVerifiedValue = verifiedHoldings.reduce(0) { $0 + $1.marketValue }
+        let topHoldings = Array(verifiedHoldings.sorted { $0.marketValue > $1.marketValue }.prefix(3))
 
         let elementBreakdown = calculateElementBreakdown(holdings: verifiedHoldings, totalValue: totalVerifiedValue)
         let investingStyle = generateInvestingStyle(userSign: user.sunSign, elementBreakdown: elementBreakdown)
@@ -61,7 +61,7 @@ final class SignStackService {
         var elementValues: [ZodiacSign.Element: Double] = [:]
         for stock in holdings {
             guard let element = stock.foundedElement else { continue }
-            elementValues[element, default: 0] += stock.totalValue
+            elementValues[element, default: 0] += stock.marketValue
         }
 
         return ZodiacSign.Element.allCases.map { element in
@@ -249,7 +249,7 @@ struct SignStackHolding: Identifiable {
         self.name = stock.name
         self.sign = foundedZodiacSign
         self.percentageChange = stock.percentageChange
-        self.value = stock.totalValue
+        self.value = stock.marketValue
     }
 
     var formattedChange: String {

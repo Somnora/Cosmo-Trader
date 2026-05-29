@@ -615,26 +615,23 @@ class ChartPatternService {
         return ohlcCache[cacheKey]?.data
     }
 
-    /// Get OHLC data for a stock (synchronous - uses cache or generates mock fallback)
+    /// Get cached OHLC data for a stock.
+    ///
+    /// This synchronous compatibility path must never synthesize candles. If no
+    /// provider-backed cache exists, callers get an empty array and should render
+    /// an insufficient-data state.
     /// This method is for backwards compatibility with synchronous code paths.
     /// For new code, prefer using fetchOHLCData(for:days:) async method.
     func getOHLCData(for stock: Stock, days: Int = 365) -> [OHLCData] {
-        // Try cache first
         if let cached = getCachedOHLCData(for: stock.symbol, days: days) {
             return cached
         }
 
-        // Generate mock data as fallback for synchronous contexts
-        // This ensures pattern detection can still work when cache is empty
-        return MockOHLCGenerator.generate(
-            for: stock.symbol,
-            days: days,
-            basePrice: stock.currentPrice * 0.8,
-            volatility: stock.volatility ?? 0.02
-        )
+        log("📦 No cached OHLC data for \(stock.symbol); pattern analysis unavailable")
+        return []
     }
 
-    /// Get cached data or generate fallback
+    /// Get cached data or an empty unavailable state.
     private func getCachedOrFallback(for symbol: String, days: Int) -> [OHLCData] {
         let cacheKey = "\(symbol)-\(days)"
 

@@ -65,13 +65,13 @@ struct CosmicConditions {
     var summary: String {
         switch overallEnergy {
         case .high:
-            return "Cosmic energy is elevated. Markets may see increased activity."
+            return "Cosmic energy is elevated. Treat this as entertainment context."
         case .moderate:
-            return "Balanced cosmic conditions. Steady approach recommended."
+            return "Balanced cosmic conditions. Market context is unavailable."
         case .low:
-            return "Low cosmic energy. Focus on preservation over growth."
+            return "Low cosmic energy. A quiet read for observation."
         case .cautious:
-            return "Mixed signals in the cosmos. Exercise extra caution today."
+            return "Mixed cosmic signals. Use real market data for decisions."
         }
     }
 }
@@ -177,7 +177,7 @@ enum VolatilityTolerance: String, CaseIterable {
 
     var advice: String {
         switch self {
-        case .embrace: return "Volatility may be worth reviewing"
+        case .embrace: return "Volatility context unavailable"
         case .neutral: return "Normal market conditions expected"
         case .avoid: return "Review volatile exposure through your own plan"
         }
@@ -532,41 +532,12 @@ final class DailyBriefService {
     // MARK: - Watchlist Highlights
 
     private func generateWatchlistHighlights(for user: UserProfile) -> [WatchlistHighlight] {
-        // Combine portfolio and watchlist stocks
-        var allStocks = user.portfolio.filter { $0.foundedZodiacSign != nil }
+        _ = user
 
-        // Add watchlist stocks from canonical curated records first, then
-        // mock-only fallback records.
-        let knownStocks = Stock.samples + MockStockData.all
-        for symbol in user.watchlist {
-            if let stock = knownStocks.first(where: { $0.symbol == symbol }) {
-                if !allStocks.contains(where: { $0.symbol == symbol }) {
-                    allStocks.append(stock)
-                }
-            }
-        }
-
-        // Sort by absolute percentage change
-        let sorted = allStocks.sorted { abs($0.percentageChange) > abs($1.percentageChange) }
-
-        // Take top 3 movers
-        return sorted.prefix(3).map { stock in
-            let reason: HighlightReason
-            if abs(stock.percentageChange) > 5 {
-                reason = .biggestMover
-            } else if stock.foundedZodiacSign == user.sunSign {
-                reason = .cosmicAlignment
-            } else {
-                reason = .priceAlert
-            }
-
-            return WatchlistHighlight(
-                stock: stock,
-                reason: reason,
-                priceChange: stock.priceChange,
-                percentChange: stock.percentageChange
-            )
-        }
+        // No production mock fallback: curated stock records do not carry data
+        // provenance, so daily highlights must stay empty until quote freshness
+        // is available for portfolio/watchlist symbols.
+        return []
     }
 
     // MARK: - Posture Note
@@ -599,38 +570,12 @@ final class DailyBriefService {
     // MARK: - News Alerts
 
     private func generateNewsAlerts(for user: UserProfile, framingLevel: SignalFramingLevel) -> [NewsAlert] {
-        // Generate alerts for significant movers (>5% change)
-        var alerts: [NewsAlert] = []
+        _ = user
+        _ = framingLevel
 
-        for stock in user.portfolio where abs(stock.percentageChange) > 5 {
-            guard let stockSign = stock.foundedZodiacSign else { continue }
-
-            let isPositive = stock.percentageChange > 0
-            let severity: Severity = abs(stock.percentageChange) > 10 ? .critical : .warning
-
-            let headline = isPositive
-                ? "\(stock.symbol) surges \(String(format: "%.1f", stock.percentageChange))%"
-                : "\(stock.symbol) drops \(String(format: "%.1f", abs(stock.percentageChange)))%"
-
-            // Use SignalFramingService to frame the cosmic context
-            let cosmicContext = SignalFramingService.shared.frameNewsContext(
-                symbol: stock.symbol,
-                change: stock.percentageChange,
-                stockSign: stockSign,
-                level: framingLevel
-            )
-
-            alerts.append(NewsAlert(
-                symbol: stock.symbol,
-                headline: headline,
-                source: "Cosmic Tracker",
-                timestamp: Date(),
-                severity: severity,
-                cosmicContext: cosmicContext
-            ))
-        }
-
-        return alerts
+        // No production mock fallback: without provider-backed quote freshness,
+        // price-move alerts could summarize stale or curated sample changes.
+        return []
     }
 
     // MARK: - Streak Management

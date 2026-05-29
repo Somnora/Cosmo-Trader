@@ -6,9 +6,10 @@ final class HistoricalAstroChartViewModel {
     var ohlcData: [OHLCData] = []
     var overlayEvents: [AstroOverlayEvent] = []
     var reactions: [AstroEventPriceReaction] = []
-    var summaries: [AstroCorrelationSummary] = []
+    var summaries: [StockCosmicCorrelationSummary] = []
     var selectedEvent: AstroOverlayEvent?
     var filterState = AstroOverlayFilterState()
+    var historicalPriceProvenance: FinancialDataProvenance = .unavailable(reason: "Historical price data unavailable")
     var isLoading = false
     var errorMessage: String?
 
@@ -34,6 +35,19 @@ final class HistoricalAstroChartViewModel {
         return reactions.first { $0.event.id == selectedEvent.id }
     }
 
+    var canShowCorrelationMetrics: Bool {
+        historicalPriceProvenance.isProviderBacked
+    }
+
+    var checkedEventKinds: [AstroOverlayEventKind] {
+        let orderedKinds = AstroOverlayFilterState.defaultKinds + AstroOverlayFilterState.optionalKinds
+        return orderedKinds.filter { filterState.enabledKinds.contains($0) }
+    }
+
+    var windowLabel: String {
+        CorrelationWindow(daysBefore: 1, daysAfter: max(1, filterState.eventWindowDays)).displayName
+    }
+
     func load(stock: Stock, timeframe: ChartTimeframe) async {
         loadedStock = stock
         loadedTimeframe = timeframe
@@ -43,25 +57,28 @@ final class HistoricalAstroChartViewModel {
         #if DEBUG
         if AppState.isScreenshotMode {
             let prices = Self.demoPrices(for: stock, timeframe: timeframe)
-            apply(prices: prices, stock: stock)
+            historicalPriceProvenance = .sample(reason: "DEBUG screenshot fixture")
+            apply(prices: prices, stock: stock, provenance: historicalPriceProvenance)
             isLoading = false
             return
         }
         #endif
 
         do {
-            let prices = try await HistoricalPriceService.shared.fetchHistoricalPrices(
+            let result = try await HistoricalPriceService.shared.fetchHistoricalPriceResult(
                 symbol: stock.symbol,
                 timeframe: timeframe
             )
-            apply(prices: prices, stock: stock)
+            historicalPriceProvenance = result.provenance
+            apply(prices: result.data, stock: stock, provenance: result.provenance)
         } catch {
             ohlcData = []
             overlayEvents = []
             reactions = []
             summaries = []
             selectedEvent = nil
-            errorMessage = "Historical data unavailable. Try again later."
+            historicalPriceProvenance = .unavailable(reason: "Historical price data unavailable")
+            errorMessage = "Historical price data unavailable. Correlation context will appear when provider-backed history is available."
         }
 
         isLoading = false
@@ -83,7 +100,7 @@ final class HistoricalAstroChartViewModel {
 
     func recalculate() {
         guard let stock = loadedStock else { return }
-        apply(prices: ohlcData, stock: stock)
+        apply(prices: ohlcData, stock: stock, provenance: historicalPriceProvenance)
     }
 
     // MARK: - Lookups for chart scrub
@@ -123,8 +140,9 @@ final class HistoricalAstroChartViewModel {
 
     // MARK: - Internal apply
 
-    private func apply(prices: [OHLCData], stock: Stock) {
+    private func apply(prices: [OHLCData], stock: Stock, provenance: FinancialDataProvenance) {
         ohlcData = prices.sorted { $0.date < $1.date }
+        historicalPriceProvenance = provenance
 
         guard let firstDate = ohlcData.first?.date,
               let lastDate = ohlcData.last?.date else {
@@ -148,10 +166,12 @@ final class HistoricalAstroChartViewModel {
             events: events,
             filterState: filterState
         )
-        summaries = AstroCorrelationService.shared.summaries(
+        summaries = AstroCorrelationService.shared.stockSummaries(
+            symbol: stock.symbol,
             prices: ohlcData,
             events: events,
-            filterState: filterState
+            filterState: filterState,
+            provenance: provenance
         )
 
         if let selectedEvent, events.contains(where: { $0.id == selectedEvent.id }) {

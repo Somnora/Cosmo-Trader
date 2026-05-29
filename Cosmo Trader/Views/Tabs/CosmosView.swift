@@ -848,13 +848,7 @@ struct CosmosView: View {
     // MARK: - Weekly Zodiac Performance Section
 
     private var weeklyZodiacPerformanceSection: some View {
-        let leaderboard = ZodiacPerformanceService.getLeaderboard(stocks: MockStockData.knownStocks)
-        let topThree = leaderboard.prefix(3)
-        let userSign = viewModel.user?.sunSign ?? .aries
-        let performances = leaderboard.map { $0.performance }
-        let commentary = ZodiacPerformanceService.generateWeeklyCommentary(performances: performances, userSign: userSign)
-
-        return Button(action: { showZodiacLeaderboard = true }) {
+        Button(action: { showZodiacLeaderboard = true }) {
             VStack(alignment: .leading, spacing: 16) {
                 // Header
                 HStack {
@@ -877,15 +871,7 @@ struct CosmosView: View {
                     .foregroundColor(CosmicTheme.gold)
                 }
 
-                // Top 3 mini leaderboard
-                VStack(spacing: 8) {
-                    ForEach(topThree, id: \.performance.id) { item in
-                        weeklyPerformanceRow(rank: item.rank, performance: item.performance, userSign: userSign)
-                    }
-                }
-
-                // Commentary
-                Text(commentary)
+                Text("Weekly zodiac performance needs provider-backed returns. Rankings are hidden until real performance data is available.")
                     .font(.caption)
                     .foregroundColor(CosmicTheme.textSecondary)
                     .italic()

@@ -179,9 +179,14 @@ struct VolumeLeadersView: View {
                     .foregroundColor(CosmicTheme.textMuted)
                     .italic()
             } else {
-                Text("No volume data available")
+                Text("Volume leaders unavailable")
                     .font(TerminalFont.data(12))
                     .foregroundColor(CosmicTheme.textMuted)
+
+                Text("Rankings will appear when provider-backed volume data is connected")
+                    .font(TerminalFont.data(11))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .italic()
             }
         }
         .frame(maxWidth: .infinity)
@@ -366,14 +371,12 @@ struct VolumeLeadersSection: View {
     private func loadLeaders() async {
         isLoading = true
 
-        let userSign = appState.currentUser?.sunSign ?? .aries
-        let volumeService = VolumeService.shared
+        _ = appState.currentUser?.sunSign
 
-        leaders = await volumeService.getVolumeLeaders(
-            from: MockStockData.knownStocks,
-            userSign: userSign,
-            limit: 10
-        )
+        // No production mock fallback: sample stocks plus synthetic volume
+        // ratios create fake rankings. Leave the section unavailable until a
+        // provider-backed market movers endpoint is connected.
+        leaders = []
 
         isLoading = false
     }

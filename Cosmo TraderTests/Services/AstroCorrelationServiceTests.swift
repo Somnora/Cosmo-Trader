@@ -96,6 +96,90 @@ struct AstroCorrelationServiceTests {
         #expect(summaries.isEmpty)
     }
 
+    @Test("Stock summaries produce metrics only for provider-backed sufficient samples")
+    func stockSummariesProduceMetricsOnlyForProviderBackedSufficientSamples() {
+        let summaries = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: prices([100, 104, 102, 108, 106, 112, 110, 116, 114, 120]),
+            events: [
+                pointEvent(on: "2025-01-02"),
+                pointEvent(on: "2025-01-04"),
+                pointEvent(on: "2025-01-06")
+            ],
+            filterState: AstroOverlayFilterState(eventWindowDays: 1),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10"))
+        )
+
+        let summary = summaries.first
+        #expect(isMarketBacked(summary))
+        #expect(summary?.confidence.rawValue == CorrelationConfidence.thin.rawValue)
+        #expect(summary?.sampleSize == 3)
+        #expect(summary?.averageReturn != nil)
+        #expect(summary?.medianReturn != nil)
+        #expect(summary?.winRate != nil)
+        #expect(summary?.baselineReturn != nil)
+        #expect(summary?.provenance.isProviderBacked == true)
+    }
+
+    @Test("Stock summaries with thin event coverage withhold numeric claims")
+    func stockSummariesWithThinEventCoverageWithholdNumericClaims() {
+        let summaries = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: prices([100, 104, 102, 108, 106, 112]),
+            events: [pointEvent(on: "2025-01-02")],
+            filterState: AstroOverlayFilterState(eventWindowDays: 1),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10"))
+        )
+
+        let summary = summaries.first
+        #expect(isInsufficientSample(summary))
+        #expect(summary?.confidence.rawValue == CorrelationConfidence.insufficient.rawValue)
+        #expect(summary?.sampleSize == 1)
+        #expect(summary?.averageReturn == nil)
+        #expect(summary?.medianReturn == nil)
+        #expect(summary?.winRate == nil)
+        #expect(summary?.baselineReturn == nil)
+        #expect(summary?.disclaimer.contains("No return claim") == true)
+    }
+
+    @Test("Stock summaries with unavailable provenance do not expose numeric claims")
+    func stockSummariesWithUnavailableProvenanceDoNotExposeNumericClaims() {
+        let summaries = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: prices([100, 104, 102, 108, 106, 112]),
+            events: [pointEvent(on: "2025-01-02")],
+            filterState: AstroOverlayFilterState(eventWindowDays: 1),
+            provenance: .unavailable(reason: "Provider-backed history unavailable")
+        )
+
+        let summary = summaries.first
+        #expect(isUnavailable(summary))
+        #expect(summary?.confidence.rawValue == CorrelationConfidence.unavailable.rawValue)
+        #expect(summary?.sampleSize == 0)
+        #expect(summary?.averageReturn == nil)
+        #expect(summary?.winRate == nil)
+        #expect(summary?.provenance.isProviderBacked == false)
+    }
+
+    @Test("Stock summaries with sample provenance do not expose numeric claims")
+    func stockSummariesWithSampleProvenanceDoNotExposeNumericClaims() {
+        let summaries = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: prices([100, 104, 102, 108, 106, 112]),
+            events: [pointEvent(on: "2025-01-02")],
+            filterState: AstroOverlayFilterState(eventWindowDays: 1),
+            provenance: .sample(reason: "DEBUG screenshot fixture")
+        )
+
+        let summary = summaries.first
+        #expect(isSampleOnly(summary))
+        #expect(summary?.confidence.rawValue == CorrelationConfidence.unavailable.rawValue)
+        #expect(summary?.sampleSize == 0)
+        #expect(summary?.averageReturn == nil)
+        #expect(summary?.winRate == nil)
+        #expect(summary?.disclaimer.contains("Sample chart data") == true)
+    }
+
     private func pointEvent(on value: String) -> AstroOverlayEvent {
         let eventDate = date(value)
         return AstroOverlayEvent(
@@ -153,5 +237,29 @@ struct AstroCorrelationServiceTests {
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.date(from: value) ?? Date(timeIntervalSince1970: 0)
+    }
+
+    private func isMarketBacked(_ summary: StockCosmicCorrelationSummary?) -> Bool {
+        guard let summary else { return false }
+        if case .marketBackedResult = summary.displayMode { return true }
+        return false
+    }
+
+    private func isInsufficientSample(_ summary: StockCosmicCorrelationSummary?) -> Bool {
+        guard let summary else { return false }
+        if case .insufficientSample = summary.displayMode { return true }
+        return false
+    }
+
+    private func isUnavailable(_ summary: StockCosmicCorrelationSummary?) -> Bool {
+        guard let summary else { return false }
+        if case .unavailable = summary.displayMode { return true }
+        return false
+    }
+
+    private func isSampleOnly(_ summary: StockCosmicCorrelationSummary?) -> Bool {
+        guard let summary else { return false }
+        if case .sampleOnly = summary.displayMode { return true }
+        return false
     }
 }

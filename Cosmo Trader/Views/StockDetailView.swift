@@ -91,6 +91,9 @@ struct StockDetailView: View {
     @State private var isLoadingPrice: Bool = false
     @State private var lastPriceUpdate: Date?
     @State private var priceError: NetworkError?
+    @State private var priceProvenance: FinancialDataProvenance = .sample(reason: "Stored local price until provider quote loads")
+    @State private var keyStats: StockKeyStats?
+    @State private var keyStatsProvenance: FinancialDataProvenance = .unavailable(reason: "Provider fundamentals unavailable")
 
     /// Chart state
     @State private var selectedTimeframe: ChartTimeframe = .month
@@ -266,6 +269,7 @@ struct StockDetailView: View {
                     isLoadingPatterns = false
                 } else {
                     await fetchLivePrice()
+                    await fetchKeyStats()
                     await loadCosmicPatterns()
                 }
 
@@ -289,17 +293,29 @@ struct StockDetailView: View {
         isLoadingPrice = true
         priceError = nil
 
-        let result = await StockAPIService.shared.getQuoteWithFallback(symbol: stock.symbol)
+        let result = await StockAPIService.shared.getQuoteWithProvenance(symbol: stock.symbol)
 
         await MainActor.run {
             if let quote = result.quote {
                 liveStock = stock.withQuote(quote)
-                lastPriceUpdate = Date()
+                lastPriceUpdate = result.provenance.fetchedAt ?? Date()
+                priceProvenance = result.provenance
+            } else {
+                priceProvenance = .sample(reason: "Stored local price; provider quote unavailable")
             }
             if let error = result.error {
                 priceError = error
             }
             isLoadingPrice = false
+        }
+    }
+
+    private func fetchKeyStats() async {
+        let result = await StockAPIService.shared.fetchKeyStatsResult(symbol: stock.symbol)
+
+        await MainActor.run {
+            keyStats = result.value
+            keyStatsProvenance = result.provenance
         }
     }
 
@@ -435,38 +451,51 @@ struct StockDetailView: View {
 
             // Main price display using new component
             HStack(alignment: .top) {
-                if isLoadingPrice && lastPriceUpdate == nil {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("$----.--")
-                            .font(TerminalFont.price(36))
-                            .foregroundColor(CosmicTheme.textMuted)
-                        Text("---.-- (--.--%)")
-                            .font(TerminalFont.data(14))
-                            .foregroundColor(CosmicTheme.textMuted)
+                HStack(alignment: .top, spacing: 8) {
+                    if isLoadingPrice && lastPriceUpdate == nil {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("$----.--")
+                                .font(TerminalFont.price(36))
+                                .foregroundColor(CosmicTheme.textMuted)
+                            Text("---.-- (--.--%)")
+                                .font(TerminalFont.data(14))
+                                .foregroundColor(CosmicTheme.textMuted)
+                        }
+                    } else {
+                        PriceDisplayView(
+                            price: liveStock.currentPrice,
+                            change: liveStock.priceChange,
+                            changePercent: liveStock.percentageChange,
+                            size: .hero
+                        )
                     }
-                } else {
-                    PriceDisplayView(
-                        price: liveStock.currentPrice,
-                        change: liveStock.priceChange,
-                        changePercent: liveStock.percentageChange,
-                        size: .hero
-                    )
+
+                    DataSourceIndicator(provenance: priceProvenance, size: .compact)
+                        .padding(.top, 4)
                 }
 
                 Spacer()
 
-                // Mini chart placeholder
+                // Mini chart state. No provider-backed 7D sparkline exists here yet,
+                // so avoid rendering generated samples as market history.
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("7D")
                         .font(TerminalFont.data(9))
                         .foregroundColor(CosmicTheme.textMuted)
 
-                    SmoothMiniChartView(
-                        data: generateMockChartData(),
-                        width: 80,
-                        height: 40,
-                        showFill: true,
-                        overrideColor: liveStock.isPositive ? CosmicTheme.positive : CosmicTheme.negative
+                    VStack(spacing: 3) {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                        Text("N/A")
+                            .font(TerminalFont.data(9, weight: .bold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                    }
+                    .frame(width: 80, height: 40)
+                    .background(CosmicTheme.cardBackground.opacity(0.55))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(CosmicTheme.borderDim, lineWidth: 0.5)
                     )
                 }
             }
@@ -510,13 +539,6 @@ struct StockDetailView: View {
         }
     }
 
-    /// Generate mock chart data based on stock performance
-    private func generateMockChartData() -> [Double] {
-        let basePrice = liveStock.currentPrice
-        let trend = liveStock.isPositive ? 0.005 : -0.005
-        return MiniChartView.sampleData(days: 7, trend: trend, volatility: 0.015, startPrice: basePrice * 0.98)
-    }
-
     // MARK: - Chart Section
 
     private var chartSection: some View {
@@ -544,7 +566,7 @@ struct StockDetailView: View {
     // MARK: - Key Stats Section
 
     private var keyStatsSection: some View {
-        StockKeyStatsView(stats: stock.keyStats)
+        StockKeyStatsView(stats: keyStats)
             .padding(16)
             .background(cardBackground)
             .opacity(appearAnimation ? 1 : 0)
@@ -575,15 +597,14 @@ struct StockDetailView: View {
 
         isLoadingPatterns = true
 
-        // Small delay to simulate analysis
-        try? await Task.sleep(nanoseconds: 500_000_000)
+        let interpreter = CosmicPatternInterpreter.shared
+        let insights = await interpreter.getProviderBackedInsights(
+            for: liveStock,
+            userSign: user?.sunSign ?? .aries
+        )
 
         await MainActor.run {
-            let interpreter = CosmicPatternInterpreter.shared
-            cosmicInsights = interpreter.getInsights(
-                for: stock,
-                userSign: user?.sunSign ?? .aries
-            )
+            cosmicInsights = insights
             isLoadingPatterns = false
         }
     }
@@ -1405,14 +1426,9 @@ struct StockDetailView: View {
                     .foregroundColor(CosmicTheme.textPrimary)
 
                 Spacer()
-            }
 
-            // Day range visualization
-            DayRangeDisplayView(
-                low: stock.currentPrice * 0.98,
-                high: stock.currentPrice * 1.02,
-                current: liveStock.currentPrice
-            )
+                DataSourceIndicator(provenance: priceProvenance, size: .compact)
+            }
 
             // Bloomberg-style stats grid
             StatsGridView(stats: [
@@ -1420,21 +1436,26 @@ struct StockDetailView: View {
                 .change("Today", liveStock.percentageChange),
                 matchStat,
                 .text("Sector", stock.sector),
-                .price("Mkt Cap", stock.formattedMarketCap),
-                .text("Industry", stock.industry)
+                .text("Volume", keyStats?.formattedVolume ?? "Unavailable"),
+                .text("Avg Volume", keyStats?.formattedAvgVolume ?? "Unavailable")
             ], columns: 3)
 
-            // 52-week high/low
-            HighLowDisplayView(
-                high: stock.currentPrice * 1.25,
-                low: stock.currentPrice * 0.75
-            )
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(CosmicTheme.cardBackground)
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textMuted)
+
+                Text(financialStatsSourceNote)
+                    .font(TerminalFont.data(10))
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .lineSpacing(3)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(CosmicTheme.cardBackground.opacity(0.6))
             .overlay(
-                Rectangle()
-                    .stroke(CosmicTheme.border, lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
             )
         }
         .padding(20)
@@ -1442,6 +1463,36 @@ struct StockDetailView: View {
         .opacity(appearAnimation ? 1 : 0)
         .offset(y: appearAnimation ? 0 : 20)
         .animation(.easeOut(duration: 0.5).delay(0.3), value: appearAnimation)
+    }
+
+    private var financialStatsSourceNote: String {
+        let fundamentalsText: String
+        switch keyStatsProvenance {
+        case .live, .cached:
+            fundamentalsText = "Provider-backed fundamentals and volume are labeled in Key Statistics above."
+        case .mixed:
+            fundamentalsText = "Key Statistics combine multiple financial data states; each field keeps its own source label above."
+        case .unavailable:
+            fundamentalsText = "Fundamentals such as market cap, 52-week range, P/E, beta, EPS, and earnings dates stay unavailable until provider data is available."
+        case .sample:
+            fundamentalsText = "Fundamentals are not using provider data on this surface."
+        }
+
+        return "\(fundamentalsText) Sector uses the curated company profile until provider profile data is connected."
+    }
+
+    private func formattedVolume(_ volume: Int?) -> String {
+        guard let volume, volume > 0 else { return "Unavailable" }
+        let value = Double(volume)
+        if value >= 1_000_000_000 {
+            return String(format: "%.1fB", value / 1_000_000_000)
+        } else if value >= 1_000_000 {
+            return String(format: "%.1fM", value / 1_000_000)
+        } else if value >= 1_000 {
+            return String(format: "%.1fK", value / 1_000)
+        } else {
+            return "\(volume)"
+        }
     }
 
     // MARK: - Action Buttons
@@ -1795,34 +1846,6 @@ extension Stock {
         return formatter.string(from: foundedDate)
     }
 
-    var formattedMarketCap: String {
-        // Mock market cap based on price
-        let cap = currentPrice * 1_000_000_000 * Double.random(in: 0.5...2.0)
-        if cap >= 1_000_000_000_000 {
-            return String(format: "$%.1fT", cap / 1_000_000_000_000)
-        } else if cap >= 1_000_000_000 {
-            return String(format: "$%.1fB", cap / 1_000_000_000)
-        } else {
-            return String(format: "$%.1fM", cap / 1_000_000)
-        }
-    }
-
-    var formatted52WeekHigh: String {
-        // Mock 52-week high (10-30% above current)
-        let high = currentPrice * Double.random(in: 1.1...1.3)
-        return String(format: "$%.2f", high)
-    }
-
-    var formatted52WeekLow: String {
-        // Mock 52-week low (10-30% below current)
-        let low = currentPrice * Double.random(in: 0.7...0.9)
-        return String(format: "$%.2f", low)
-    }
-
-    var industry: String {
-        // Return sector as industry for now
-        sector
-    }
 }
 
 // MARK: - Preview

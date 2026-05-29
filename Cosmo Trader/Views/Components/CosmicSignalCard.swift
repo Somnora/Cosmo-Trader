@@ -116,7 +116,7 @@ struct CosmicSignalCard: View {
         case .aligned: return "GOOD"
         case .neutral: return "NEUTRAL"
         case .conflicted: return "CAUTION"
-        case .stronglyConflicted: return "AVOID"
+        case .stronglyConflicted: return "CLASH"
         }
     }
 
@@ -428,13 +428,14 @@ struct CosmicSignalsSection: View {
                 .font(.title2)
                 .foregroundColor(CosmicTheme.textMuted)
 
-            Text("No significant patterns detected")
+            Text("Insufficient provider data")
                 .font(TerminalFont.data(12))
                 .foregroundColor(CosmicTheme.textMuted)
 
-            Text("The cosmos await the right moment")
+            Text("Cosmic notes will appear when enough real price history is available.")
                 .font(TerminalFont.data(11))
                 .foregroundColor(CosmicTheme.textMuted)
+                .multilineTextAlignment(.center)
                 .italic()
         }
         .frame(maxWidth: .infinity)

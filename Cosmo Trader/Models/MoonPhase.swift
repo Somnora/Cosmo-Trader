@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - Moon Phase
 // ===================
-// Represents the current lunar phase with trading signals.
+// Represents the current lunar phase with cosmic market context.
 // Based on actual astronomical calculations and real trader folklore.
 
 // MARK: - Moon Phase Enum
@@ -130,9 +130,9 @@ enum MoonPhase: String, CaseIterable, Identifiable {
         }
     }
 
-    // MARK: - Trading Signal
+    // MARK: - Cosmic Context
 
-    /// Trading signal associated with this phase
+    /// Entertainment-only context associated with this phase.
     var tradingSignal: TradingSignal {
         switch self {
         case .newMoon:
@@ -148,7 +148,7 @@ enum MoonPhase: String, CaseIterable, Identifiable {
                 type: .buildPosition,
                 headline: "Building Context",
                 summary: "Energy increasing - constructive undertone",
-                description: "The waxing crescent represents growing energy and optimism. Historically associated with building momentum in both nature and market narratives.",
+                description: "The waxing crescent represents growing energy and optimism. Treat this as narrative context, not a market-performance claim.",
                 sentiment: .bullish
             )
         case .firstQuarter:
@@ -164,7 +164,7 @@ enum MoonPhase: String, CaseIterable, Identifiable {
                 type: .buildPosition,
                 headline: "Pre-Peak Energy",
                 summary: "Approaching full moon - heightened activity",
-                description: "Energy builds toward the full moon. Markets may see increased activity and volume as the peak approaches.",
+                description: "Energy builds toward the full moon. Provider-backed market history is unavailable, so this is cosmic context only.",
                 sentiment: .bullish
             )
         case .fullMoon:
@@ -172,7 +172,7 @@ enum MoonPhase: String, CaseIterable, Identifiable {
                 type: .caution,
                 headline: "Peak Volatility",
                 summary: "Emotions run high - expect noise",
-                description: "The full moon has been associated with heightened emotions and increased volatility. Some studies suggest markets show greater price swings around this time. Stay alert.",
+                description: "The full moon is framed as a high-emotion period. Cosmo Trader is not showing volatility claims until they are calculated from provider data.",
                 sentiment: .volatile
             )
         case .waningGibbous:
@@ -180,7 +180,7 @@ enum MoonPhase: String, CaseIterable, Identifiable {
                 type: .takeProfit,
                 headline: "Distribution Phase",
                 summary: "Review what has worked",
-                description: "As the moon wanes, some market-watchers treat it as a time to review what has worked. The energy begins to recede from its peak.",
+                description: "As the moon wanes, some market-watchers treat it as a time to review what has worked. This is reflective context, not financial advice.",
                 sentiment: .bearish
             )
         case .lastQuarter:
@@ -248,7 +248,7 @@ enum MoonPhase: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Trading Signal
+// MARK: - Cosmic Context
 
 struct TradingSignal {
     let type: SignalType
@@ -414,40 +414,39 @@ struct MoonPhaseCalendarEntry: Identifiable {
 struct LunarMarketStats {
 
     /// Disclaimer for all lunar trading data
-    static let disclaimer = "These patterns are based on historical analysis and trader folklore. Past patterns don't guarantee future results. Make your own informed decisions."
+    static let disclaimer = "Cosmic context only. Provider-backed market correlation has not been calculated in this build, and this is not financial advice."
 
     /// Full moon volatility statistics
     static let fullMoonVolatility = LunarVolatilityStat(
         phase: .fullMoon,
-        averageVolatilityChange: 0.08, // 8% higher
-        sampleSize: "50 years of S&P 500 data",
-        description: "Studies have found approximately 8% higher volatility in the days surrounding full moons compared to other lunar phases."
+        averageVolatilityChange: nil,
+        sampleSize: "Provider-backed market history unavailable",
+        description: "Volatility context will appear when Cosmo Trader can calculate it from real index history."
     )
 
     /// New moon statistics
     static let newMoonStats = LunarVolatilityStat(
         phase: .newMoon,
-        averageVolatilityChange: -0.03, // 3% lower
-        sampleSize: "50 years of S&P 500 data",
-        description: "New moon periods have historically shown slightly below-average volatility, though the effect is modest."
+        averageVolatilityChange: nil,
+        sampleSize: "Provider-backed market history unavailable",
+        description: "New moon market context is unavailable until real index history is connected."
     )
 
     /// Historical insight
     static let historicalInsight = """
-    Some academic studies have found correlations between lunar cycles and market behavior. \
-    A 2001 study in the Journal of Banking & Finance found that stock returns were higher during \
-    the 15 days around new moons than during full moons. However, transaction costs may eliminate \
-    any trading advantage. Many traders watch lunar cycles as one of many market indicators.
+    Historical market correlation is unavailable until provider-backed index history is connected. \
+    Moon phase notes are an entertainment lens, not a prediction and not a trading signal.
     """
 }
 
 struct LunarVolatilityStat {
     let phase: MoonPhase
-    let averageVolatilityChange: Double
+    let averageVolatilityChange: Double?
     let sampleSize: String
     let description: String
 
     var formattedChange: String {
+        guard let averageVolatilityChange else { return "N/A" }
         let sign = averageVolatilityChange >= 0 ? "+" : ""
         return String(format: "%@%.0f%%", sign, averageVolatilityChange * 100)
     }

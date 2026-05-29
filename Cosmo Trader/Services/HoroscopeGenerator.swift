@@ -453,7 +453,7 @@ struct HoroscopeGenerator {
     // MARK: - Analysis Helpers
 
     private static func analyzePerformance(user: UserProfile) -> PortfolioPerformance {
-        let holdings = user.portfolio.filter { $0.sharesOwned > 0 }
+        let holdings = user.portfolio.filter(\.isOwned)
 
         guard !holdings.isEmpty else {
             return PortfolioPerformance(
@@ -498,13 +498,15 @@ struct HoroscopeGenerator {
     }
 
     private static func findDominantElement(in user: UserProfile) -> ZodiacSign.Element? {
-        let holdings = user.portfolio.filter { $0.sharesOwned > 0 && $0.foundedElement != nil }
+        let holdings = user.portfolio.filter { $0.isOwned && $0.foundedElement != nil }
         guard !holdings.isEmpty else { return nil }
 
         var elementValues: [ZodiacSign.Element: Double] = [:]
         for stock in holdings {
             guard let element = stock.foundedElement else { continue }
-            elementValues[element, default: 0] += stock.totalValue
+            let marketValue = stock.marketValue
+            guard marketValue > 0 else { continue }
+            elementValues[element, default: 0] += marketValue
         }
 
         return elementValues.max(by: { $0.value < $1.value })?.key
@@ -520,9 +522,9 @@ struct HoroscopeGenerator {
     }
 
     private static func analyzePortfolioComposition(user: UserProfile) -> PortfolioAnalysis {
-        let holdings = user.portfolio.filter { $0.sharesOwned > 0 }
+        let holdings = user.portfolio.filter(\.isOwned)
         let verifiedHoldings = holdings.filter { $0.foundedElement != nil }
-        let totalValue = verifiedHoldings.reduce(0.0) { $0 + $1.totalValue }
+        let totalValue = verifiedHoldings.reduce(0.0) { $0 + $1.marketValue }
 
         guard totalValue > 0 else {
             return PortfolioAnalysis(
@@ -537,7 +539,7 @@ struct HoroscopeGenerator {
         // Calculate tech percentage (Fire + Air signs are typically tech/growth)
         let techValue = verifiedHoldings
             .filter { $0.foundedElement == .fire || $0.foundedElement == .air }
-            .reduce(0.0) { $0 + $1.totalValue }
+            .reduce(0.0) { $0 + $1.marketValue }
         let techPercentage = (techValue / totalValue) * 100
 
         // Check balance across elements
@@ -545,14 +547,14 @@ struct HoroscopeGenerator {
         for element in ZodiacSign.Element.allCases {
             let elementValue = holdings
                 .filter { $0.foundedElement == element }
-                .reduce(0.0) { $0 + $1.totalValue }
+                .reduce(0.0) { $0 + $1.marketValue }
             elementPercentages[element] = (elementValue / totalValue) * 100
         }
         let maxElementPct = elementPercentages.values.max() ?? 0
         let isWellBalanced = maxElementPct < 40
 
-        let largestPosition = holdings.max(by: { $0.totalValue < $1.totalValue })
-        let smallestPosition = holdings.min(by: { $0.totalValue < $1.totalValue })
+        let largestPosition = holdings.max(by: { $0.marketValue < $1.marketValue })
+        let smallestPosition = holdings.min(by: { $0.marketValue < $1.marketValue })
 
         return PortfolioAnalysis(
             holdingsCount: holdings.count,

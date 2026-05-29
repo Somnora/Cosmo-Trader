@@ -3,8 +3,8 @@ import SwiftUI
 
 // MARK: - PortfolioCompatibilityService
 // =====================================
-// Calculates portfolio-wide cosmic compatibility weighted by share count.
-// 1 share = 1 data point. More shares = more influence on overall score.
+// Calculates portfolio-wide cosmic compatibility weighted by position value.
+// Larger dollar exposure = more influence on overall score.
 //
 // This creates a comprehensive view of portfolio "cosmic health" that
 // accounts for position sizing, not just presence of holdings.
@@ -19,17 +19,17 @@ struct PortfolioCompatibilityResult {
     /// Element breakdown as percentages of verified-date holdings.
     let elementBreakdown: [ZodiacSign.Element: Double]
 
-    /// Sign breakdown by share count, excluding unknown-founded holdings.
+    /// Sign breakdown by market value, excluding unknown-founded holdings.
     let signBreakdown: [ZodiacSign: Double]
 
-    /// The dominant zodiac sign in portfolio (by shares)
+    /// The dominant zodiac sign in portfolio (by market value)
     let dominantSign: ZodiacSign
 
-    /// The dominant element (by shares)
+    /// The dominant element (by market value)
     let dominantElement: ZodiacSign.Element
 
-    /// Total shares analyzed, excluding unknown-founded holdings.
-    let totalShares: Double
+    /// Total market value analyzed, excluding unknown-founded holdings.
+    let totalMarketValue: Double
 
     /// Cosmic insight about portfolio health
     let cosmicInsight: String
@@ -108,40 +108,41 @@ enum PortfolioCompatibilityService {
     ) -> PortfolioCompatibilityResult {
 
         // Filter to only owned stocks
-        let holdings = portfolio.filter { $0.sharesOwned > 0 }
+        let holdings = portfolio.filter(\.isOwned)
 
         // Handle empty portfolio
         guard !holdings.isEmpty else {
             return emptyPortfolioResult(userSign: userSign)
         }
 
-        var totalShares: Double = 0
+        var totalMarketValue: Double = 0
         var weightedCompatibilitySum: Double = 0
-        var elementCounts: [ZodiacSign.Element: Double] = [:]
-        var signCounts: [ZodiacSign: Double] = [:]
+        var elementValues: [ZodiacSign.Element: Double] = [:]
+        var signValues: [ZodiacSign: Double] = [:]
 
         for stock in holdings {
             guard let stockSign = stock.foundedZodiacSign else { continue }
 
-            let shares = stock.sharesOwned
-            totalShares += shares
+            let marketValue = stock.marketValue
+            guard marketValue > 0 else { continue }
+            totalMarketValue += marketValue
 
-            // Weight compatibility by shares
+            // Weight compatibility by market value.
             let compatibility = CompatibilityCalculator.calculate(
                 userSign: userSign,
                 stockSign: stockSign
             )
-            weightedCompatibilitySum += Double(compatibility.score) * shares
+            weightedCompatibilitySum += Double(compatibility.score) * marketValue
 
-            // Track element exposure by shares
+            // Track element exposure by market value.
             let element = stockSign.element
-            elementCounts[element, default: 0] += shares
+            elementValues[element, default: 0] += marketValue
 
-            // Track sign exposure by shares
-            signCounts[stockSign, default: 0] += shares
+            // Track sign exposure by market value.
+            signValues[stockSign, default: 0] += marketValue
         }
 
-        guard totalShares > 0 else {
+        guard totalMarketValue > 0 else {
             return emptyPortfolioResult(
                 userSign: userSign,
                 cosmicInsight: "Add holdings with verified founding dates to generate a portfolio-specific market astrology read."
@@ -149,16 +150,16 @@ enum PortfolioCompatibilityService {
         }
 
         // Calculate overall weighted score
-        let overallScore = weightedCompatibilitySum / totalShares
+        let overallScore = weightedCompatibilitySum / totalMarketValue
 
-        // Convert counts to percentages. Unknown-founded holdings are excluded
-        // from totalShares, so the denominator is only verified company dates.
-        let elementBreakdown = elementCounts.mapValues { ($0 / totalShares) * 100 }
-        let signBreakdown = signCounts.mapValues { ($0 / totalShares) * 100 }
+        // Convert values to percentages. Unknown-founded holdings are excluded
+        // from totalMarketValue, so the denominator is only verified company dates.
+        let elementBreakdown = elementValues.mapValues { ($0 / totalMarketValue) * 100 }
+        let signBreakdown = signValues.mapValues { ($0 / totalMarketValue) * 100 }
 
         // Find dominant sign and element
-        let dominantSign = signCounts.max(by: { $0.value < $1.value })?.key ?? .aries
-        let dominantElement = elementCounts.max(by: { $0.value < $1.value })?.key ?? .fire
+        let dominantSign = signValues.max(by: { $0.value < $1.value })?.key ?? .aries
+        let dominantElement = elementValues.max(by: { $0.value < $1.value })?.key ?? .fire
 
         // Generate cosmic insight
         let insight = generatePortfolioInsight(
@@ -175,7 +176,7 @@ enum PortfolioCompatibilityService {
             signBreakdown: signBreakdown,
             dominantSign: dominantSign,
             dominantElement: dominantElement,
-            totalShares: totalShares,
+            totalMarketValue: totalMarketValue,
             cosmicInsight: insight
         )
     }
@@ -262,7 +263,7 @@ enum PortfolioCompatibilityService {
             signBreakdown: [:],
             dominantSign: userSign, // Default to user's sign
             dominantElement: userSign.element,
-            totalShares: 0,
+            totalMarketValue: 0,
             cosmicInsight: cosmicInsight
         )
     }

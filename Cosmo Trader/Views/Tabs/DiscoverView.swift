@@ -74,26 +74,33 @@ struct DiscoverView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text("DISCOVER")
-                        .font(TerminalFont.data(13, weight: .semibold))
-                        .tracking(1.8)
-                        .foregroundColor(CosmicTheme.textPrimary)
+                    HStack(spacing: 8) {
+                        Text("DISCOVER")
+                            .font(TerminalFont.data(13, weight: .semibold))
+                            .tracking(1.8)
+                            .foregroundColor(CosmicTheme.textPrimary)
+
+                        DataSourceIndicator(
+                            provenance: viewModel?.topCard?.priceProvenance,
+                            size: .compact
+                        )
+                    }
                 }
 
-	                ToolbarItem(placement: .topBarTrailing) {
-	                    Button(action: {
-	                        appState.selectedTab = .portfolio
-	                    }) {
-	                        HStack(spacing: 4) {
-	                            Image(systemName: "eye.fill")
-	                                .font(.caption)
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: {
+                        appState.selectedTab = .portfolio
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "eye.fill")
+                                .font(.caption)
 
-	                            if let count = viewModel?.watchlistCount, count > 0 {
-	                                Text("\(count)")
-	                                    .font(.caption)
-	                                    .fontWeight(.semibold)
-	                            }
-	                        }
+                            if let count = viewModel?.watchlistCount, count > 0 {
+                                Text("\(count)")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                            }
+                        }
                         .foregroundColor(CosmicTheme.gold)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
@@ -116,6 +123,7 @@ struct DiscoverView: View {
                 if viewModel == nil {
                     viewModel = DiscoverViewModel(appState: appState)
                 }
+                await viewModel?.refreshProviderQuotesForDeck()
                 showProfileHintIfNeeded()
             }
             .onChange(of: viewModel?.isDeckEmpty ?? true) { isEmpty in

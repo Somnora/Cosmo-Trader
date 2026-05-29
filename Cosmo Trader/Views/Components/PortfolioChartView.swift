@@ -26,6 +26,10 @@ struct PortfolioChartView: View {
         portfolio.reduce(0) { $0 + $1.totalValue }
     }
 
+    private var hasProviderBackedHistory: Bool {
+        portfolioData.count >= 2 && benchmarkData.count >= 2
+    }
+
     private var portfolioReturn: Double {
         guard let first = portfolioData.first, first.value > 0 else { return 0 }
         return ((portfolioData.last?.value ?? 0) - first.value) / first.value * 100
@@ -117,12 +121,21 @@ struct PortfolioChartView: View {
                         .font(TerminalFont.data(11))
                         .foregroundColor(CosmicTheme.textMuted)
                 } else {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(formatPercent(portfolioReturn))
-                            .font(TerminalFont.price(24, weight: .semibold))
-                            .foregroundColor(chartColor)
+                    if hasProviderBackedHistory {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(formatPercent(portfolioReturn))
+                                .font(TerminalFont.price(24, weight: .semibold))
+                                .foregroundColor(chartColor)
 
-                        Text(selectedTimeframe.description)
+                            Text(selectedTimeframe.description)
+                                .font(TerminalFont.data(11))
+                                .foregroundColor(CosmicTheme.textMuted)
+                        }
+                    } else {
+                        Text(formatCurrency(currentValue))
+                            .font(TerminalFont.price(24, weight: .semibold))
+                            .foregroundColor(CosmicTheme.textPrimary)
+                        Text("Portfolio history unavailable")
                             .font(TerminalFont.data(11))
                             .foregroundColor(CosmicTheme.textMuted)
                     }
@@ -164,20 +177,20 @@ struct PortfolioChartView: View {
             // Portfolio
             performanceCard(
                 label: "YOUR COSMIC PORTFOLIO",
-                value: portfolioReturn,
+                value: hasProviderBackedHistory ? portfolioReturn : nil,
                 icon: "sparkles"
             )
 
             // Benchmark
             performanceCard(
                 label: "S&P 500",
-                value: benchmarkReturn,
+                value: hasProviderBackedHistory ? benchmarkReturn : nil,
                 icon: "chart.line.uptrend.xyaxis"
             )
         }
     }
 
-    private func performanceCard(label: String, value: Double, icon: String) -> some View {
+    private func performanceCard(label: String, value: Double?, icon: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
@@ -191,9 +204,9 @@ struct PortfolioChartView: View {
                     .lineLimit(1)
             }
 
-            Text(formatPercent(value))
+            Text(value.map(formatPercent) ?? "Unavailable")
                 .font(TerminalFont.price(16))
-                .foregroundColor(value >= 0 ? CosmicTheme.positive : CosmicTheme.negative)
+                .foregroundColor(value.map { $0 >= 0 ? CosmicTheme.positive : CosmicTheme.negative } ?? CosmicTheme.textMuted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
@@ -207,7 +220,16 @@ struct PortfolioChartView: View {
 
     // MARK: - Chart Body
 
+    @ViewBuilder
     private var chartBody: some View {
+        if hasProviderBackedHistory {
+            portfolioChart
+        } else {
+            unavailableChartState
+        }
+    }
+
+    private var portfolioChart: some View {
         Chart {
             // Benchmark line (subtle)
             ForEach(benchmarkData) { point in
@@ -315,6 +337,30 @@ struct PortfolioChartView: View {
         .frame(height: 200)
     }
 
+    private var unavailableChartState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "chart.line.downtrend.xyaxis")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(CosmicTheme.gold)
+            Text("Portfolio performance history unavailable")
+                .font(TerminalFont.data(12, weight: .semibold))
+                .foregroundColor(CosmicTheme.textPrimary)
+            Text("Chart and benchmark comparison will appear when provider-backed historical holdings data is available.")
+                .font(TerminalFont.data(10))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineSpacing(3)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 200)
+        .padding(12)
+        .background(CosmicTheme.cardBackground.opacity(0.6))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+        )
+    }
+
     // MARK: - Timeframe Selector
 
     private var timeframeSelector: some View {
@@ -349,9 +395,9 @@ struct PortfolioChartView: View {
         HStack(spacing: 10) {
             Image(systemName: isOutperforming ? "star.fill" : "moon.fill")
                 .font(.caption)
-                .foregroundColor(isOutperforming ? CosmicTheme.gold : CosmicTheme.textMuted)
+                .foregroundColor(hasProviderBackedHistory && isOutperforming ? CosmicTheme.gold : CosmicTheme.textMuted)
 
-            Text(generateInsight())
+            Text(hasProviderBackedHistory ? generateInsight() : "Portfolio-vs-benchmark insight will appear when real historical holdings data is available.")
                 .font(TerminalFont.data(11))
                 .foregroundColor(CosmicTheme.textSecondary)
                 .italic()
@@ -362,117 +408,20 @@ struct PortfolioChartView: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(isOutperforming ? CosmicTheme.gold.opacity(0.08) : CosmicTheme.cardBackground)
+                .fill(hasProviderBackedHistory && isOutperforming ? CosmicTheme.gold.opacity(0.08) : CosmicTheme.cardBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(isOutperforming ? CosmicTheme.gold.opacity(0.2) : CosmicTheme.border, lineWidth: 1)
+                .stroke(hasProviderBackedHistory && isOutperforming ? CosmicTheme.gold.opacity(0.2) : CosmicTheme.border, lineWidth: 1)
         )
     }
 
     // MARK: - Helpers
 
     private func loadData() {
-        portfolioData = generatePortfolioData()
-        benchmarkData = generateBenchmarkData()
-    }
-
-    private func generatePortfolioData() -> [PortfolioPoint] {
-        let calendar = Calendar.current
-        let now = Date()
-        let seed = portfolio.map { $0.symbol.hashValue }.reduce(selectedTimeframe.hashValue) { $0 &+ $1 }
-        var generator = SeededRandomGenerator(seed: seedValue(from: seed))
-
-        let pointCount: Int
-        let component: Calendar.Component
-        let interval: Int
-
-        switch selectedTimeframe {
-        case .day:
-            pointCount = 78
-            component = .minute
-            interval = 5
-        case .week:
-            pointCount = 35
-            component = .hour
-            interval = 4
-        case .month:
-            pointCount = 30
-            component = .day
-            interval = 1
-        case .threeMonth:
-            pointCount = 90
-            component = .day
-            interval = 1
-        case .sixMonth:
-            pointCount = 180
-            component = .day
-            interval = 1
-        case .year:
-            pointCount = 52
-            component = .weekOfYear
-            interval = 1
-        case .all:
-            pointCount = 60
-            component = .month
-            interval = 1
-        }
-
-        var points: [PortfolioPoint] = []
-        let currentVal = currentValue
-
-        // Simulate portfolio growth
-        let avgReturn = portfolio.isEmpty ? 0 : portfolio.map { $0.percentageChange }.reduce(0, +) / Double(portfolio.count)
-        let totalReturn = avgReturn * Double(selectedTimeframe.tradingDays) / 252 * 8 // Annualized extrapolation
-
-        let startValue = currentVal / (1 + totalReturn / 100)
-        var value = startValue
-
-        for i in 0..<pointCount {
-            let pointsFromEnd = pointCount - 1 - i
-            let date = calendar.date(byAdding: component, value: -pointsFromEnd * interval, to: now) ?? now
-
-            let progress = Double(i) / Double(pointCount - 1)
-            let drift = (currentVal - value) * (0.02 + progress * 0.08)
-            let noise = Double.random(in: -1...1, using: &generator) * value * 0.01
-
-            value += drift + noise
-            value = max(value, currentVal * 0.5)
-
-            points.append(PortfolioPoint(date: date, value: value))
-        }
-
-        if !points.isEmpty {
-            points[points.count - 1] = PortfolioPoint(date: now, value: currentVal)
-        }
-
-        return points
-    }
-
-    private func generateBenchmarkData() -> [PortfolioPoint] {
-        guard let startValue = portfolioData.first?.value else { return [] }
-
-        // S&P 500 average annual return ~10%
-        let seed = selectedTimeframe.hashValue &+ 12345
-        var generator = SeededRandomGenerator(seed: seedValue(from: seed))
-
-        let dailyReturn = 0.10 / 252 // 10% annual / 252 trading days
-        let periodReturn = dailyReturn * Double(selectedTimeframe.tradingDays)
-
-        var points: [PortfolioPoint] = []
-        var value = startValue
-
-        for portfolioPoint in portfolioData {
-            let progress = Double(points.count) / Double(portfolioData.count - 1)
-            let drift = (startValue * (1 + periodReturn) - value) * (0.02 + progress * 0.08)
-            let noise = Double.random(in: -1...1, using: &generator) * value * 0.005
-
-            value += drift + noise
-
-            points.append(PortfolioPoint(date: portfolioPoint.date, value: value))
-        }
-
-        return points
+        selectedPoint = nil
+        portfolioData = []
+        benchmarkData = []
     }
 
     private func selectPoint(nearestTo date: Date) {
@@ -502,10 +451,6 @@ struct PortfolioChartView: View {
                 return "Tracking close to the benchmark. Exposure is roughly balanced."
             }
         }
-    }
-
-    private func seedValue(from value: Int) -> UInt64 {
-        UInt64(bitPattern: Int64(value))
     }
 
     private func formatCurrency(_ value: Double) -> String {

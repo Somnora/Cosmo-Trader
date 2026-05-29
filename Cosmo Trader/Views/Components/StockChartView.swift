@@ -17,6 +17,14 @@ struct StockChartView: View {
 
     @State private var selectedPoint: PricePoint?
     @State private var chartData: [PricePoint] = []
+    @State private var chartLoadState: ChartLoadState = .idle
+
+    private enum ChartLoadState: Equatable {
+        case idle
+        case loading
+        case loaded(provenance: FinancialDataProvenance)
+        case unavailable(String)
+    }
 
     // MARK: - Computed
 
@@ -60,6 +68,28 @@ struct StockChartView: View {
         return String(format: "%@$%.2f (%@%.2f%%)", sign, abs(change), sign, percentChange)
     }
 
+    private var sourceText: String? {
+        switch chartLoadState {
+        case .loaded(let provenance):
+            return provenance.detailText
+        case .unavailable:
+            return "Historical data unavailable"
+        case .idle, .loading:
+            return nil
+        }
+    }
+
+    private var chartProvenance: FinancialDataProvenance? {
+        switch chartLoadState {
+        case .loaded(let provenance):
+            return provenance
+        case .unavailable(let message):
+            return .unavailable(reason: message)
+        case .idle, .loading:
+            return nil
+        }
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -73,13 +103,8 @@ struct StockChartView: View {
             // Timeframe selector
             timeframeSelector
         }
-        .onAppear {
-            loadChartData()
-        }
-        .onChange(of: selectedTimeframe) { _, _ in
-            withAnimation(.easeInOut(duration: 0.3)) {
-                loadChartData()
-            }
+        .task(id: "\(stock.symbol)-\(selectedTimeframe.rawValue)") {
+            await loadChartData()
         }
     }
 
@@ -103,14 +128,29 @@ struct StockChartView: View {
                         .font(TerminalFont.price(24))
                         .foregroundColor(CosmicTheme.textPrimary)
 
-                    HStack(spacing: 6) {
-                        Text(performanceText)
-                            .font(TerminalFont.data(12, weight: .medium))
-                            .foregroundColor(chartColor)
+                    if !performanceText.isEmpty {
+                        HStack(spacing: 6) {
+                            Text(performanceText)
+                                .font(TerminalFont.data(12, weight: .medium))
+                                .foregroundColor(chartColor)
 
-                        Text(selectedTimeframe.description)
-                            .font(TerminalFont.data(10))
-                            .foregroundColor(CosmicTheme.textMuted)
+                            Text(selectedTimeframe.description)
+                                .font(TerminalFont.data(10))
+                                .foregroundColor(CosmicTheme.textMuted)
+                        }
+                    }
+
+                    if let chartProvenance {
+                        HStack(spacing: 6) {
+                            DataSourceIndicator(provenance: chartProvenance, size: .compact)
+
+                            if let sourceText {
+                                Text(sourceText)
+                                    .font(TerminalFont.data(9))
+                                    .foregroundColor(CosmicTheme.textMuted)
+                                    .lineLimit(1)
+                            }
+                        }
                     }
                 }
             }
@@ -141,7 +181,35 @@ struct StockChartView: View {
 
     // MARK: - Chart Body
 
+    @ViewBuilder
     private var chartBody: some View {
+        switch chartLoadState {
+        case .idle, .loading:
+            unavailableChartState(
+                icon: "chart.line.uptrend.xyaxis",
+                title: "Loading provider chart data",
+                message: "Historical price data will appear when provider data is available."
+            )
+        case .unavailable(let message):
+            unavailableChartState(
+                icon: "chart.line.downtrend.xyaxis",
+                title: "Historical price data unavailable",
+                message: message
+            )
+        case .loaded:
+            if chartData.count >= 2 {
+                priceChart
+            } else {
+                unavailableChartState(
+                    icon: "chart.line.downtrend.xyaxis",
+                    title: "Historical price data unavailable",
+                    message: "Chart will appear when provider data is available."
+                )
+            }
+        }
+    }
+
+    private var priceChart: some View {
         Chart(chartData) { point in
             // Area fill
             AreaMark(
@@ -225,6 +293,32 @@ struct StockChartView: View {
         .frame(height: 200)
     }
 
+    private func unavailableChartState(icon: String, title: String, message: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(CosmicTheme.gold)
+
+            Text(title)
+                .font(TerminalFont.data(12, weight: .semibold))
+                .foregroundColor(CosmicTheme.textPrimary)
+
+            Text(message)
+                .font(TerminalFont.data(10))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineSpacing(3)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 200)
+        .padding(12)
+        .background(CosmicTheme.cardBackground.opacity(0.6))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+        )
+    }
+
     // MARK: - Timeframe Selector
 
     private var timeframeSelector: some View {
@@ -255,19 +349,35 @@ struct StockChartView: View {
 
     // MARK: - Helpers
 
-    private func loadChartData() {
-        let points = stock.chartData(for: selectedTimeframe).filter { $0.price.isFinite }
-        if points.count >= 2 {
-            chartData = points
-            return
-        }
+    @MainActor
+    private func loadChartData() async {
+        selectedPoint = nil
+        chartData = []
+        chartLoadState = .loading
 
-        let fallbackPrice = stock.currentPrice.isFinite ? stock.currentPrice : 0
-        let now = Date()
-        chartData = [
-            PricePoint(date: now.addingTimeInterval(-60), price: fallbackPrice),
-            PricePoint(date: now, price: fallbackPrice)
-        ]
+        do {
+            let result = try await HistoricalPriceService.shared.fetchHistoricalPriceResult(
+                symbol: stock.symbol,
+                timeframe: selectedTimeframe
+            )
+            let points = result.data
+                .map { PricePoint(date: $0.date, price: $0.close) }
+                .filter { $0.price.isFinite && $0.price > 0 }
+
+            guard points.count >= 2 else {
+                chartData = []
+                chartLoadState = .unavailable("Chart will appear when provider data is available.")
+                return
+            }
+
+            withAnimation(.easeInOut(duration: 0.25)) {
+                chartData = points
+                chartLoadState = .loaded(provenance: result.provenance)
+            }
+        } catch {
+            chartData = []
+            chartLoadState = .unavailable("Chart will appear when provider data is available.")
+        }
     }
 
     private func selectPoint(nearestTo date: Date) {
@@ -305,6 +415,7 @@ struct StockChartView: View {
         }
         return formatter.string(from: date)
     }
+
 }
 
 // MARK: - Key Stats View
@@ -313,7 +424,7 @@ struct StockChartView: View {
 
 struct StockKeyStatsView: View {
 
-    let stats: StockKeyStats
+    let stats: StockKeyStats?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -333,25 +444,50 @@ struct StockKeyStatsView: View {
                     .frame(height: 1)
             }
 
-            // Stats grid
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 12) {
-                statRow(label: "Open", value: stats.formattedOpen)
-                statRow(label: "Market Cap", value: stats.formattedMarketCap)
-                statRow(label: "Day Range", value: stats.formattedDayRange)
-                statRow(label: "52W Range", value: stats.formattedWeek52Range)
-                statRow(label: "Volume", value: stats.formattedVolume)
-                statRow(label: "Avg Volume", value: stats.formattedAvgVolume)
-                statRow(label: "P/E Ratio", value: stats.formattedPERatio)
-                statRow(label: "Dividend", value: stats.formattedDividendYield)
+            if let stats {
+                // Stats grid
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: 12) {
+                    statRow(label: "Open", value: stats.formattedOpen, provenance: stats.provenance(for: .open))
+                    statRow(label: "Market Cap", value: stats.formattedMarketCap, provenance: stats.provenance(for: .marketCap))
+                    statRow(label: "Day Range", value: stats.formattedDayRange, provenance: stats.provenance(for: .dayRange))
+                    statRow(label: "52W Range", value: stats.formattedWeek52Range, provenance: stats.provenance(for: .week52Range))
+                    statRow(label: "Volume", value: stats.formattedVolume, provenance: stats.provenance(for: .volume))
+                    statRow(label: "Avg Volume", value: stats.formattedAvgVolume, provenance: stats.provenance(for: .avgVolume))
+                    statRow(label: "P/E Ratio", value: stats.formattedPERatio, provenance: stats.provenance(for: .peRatio))
+                    statRow(label: "Dividend", value: stats.formattedDividendYield, provenance: stats.provenance(for: .dividendYield))
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Key statistics unavailable")
+                        .font(TerminalFont.data(12, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textPrimary)
+
+                    Text("Fundamentals will appear when provider data is available.")
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                        .lineSpacing(3)
+
+                    DataSourceIndicator(
+                        provenance: .unavailable(reason: "Provider fundamentals unavailable"),
+                        size: .compact
+                    )
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(CosmicTheme.cardBackground.opacity(0.6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+                )
             }
         }
     }
 
-    private func statRow(label: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+    private func statRow(label: String, value: String, provenance: FinancialDataProvenance) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
             Text(label.uppercased())
                 .font(TerminalFont.data(9))
                 .foregroundColor(CosmicTheme.textMuted)
@@ -359,9 +495,14 @@ struct StockKeyStatsView: View {
 
             Text(value)
                 .font(TerminalFont.price(13))
-                .foregroundColor(CosmicTheme.textPrimary)
+                .foregroundColor(value == "Unavailable" ? CosmicTheme.textMuted : CosmicTheme.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
+
+            Text(provenance.shortLabel.uppercased())
+                .font(TerminalFont.data(7, weight: .bold))
+                .foregroundColor(provenance.color)
+                .tracking(0.6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(8)
@@ -384,7 +525,7 @@ struct StockKeyStatsView: View {
 
             Divider()
 
-            StockKeyStatsView(stats: Stock.sample.keyStats)
+            StockKeyStatsView(stats: StockKeyStats.previewSample)
                 .padding()
         }
     }
