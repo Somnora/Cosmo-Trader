@@ -25,6 +25,11 @@ final class NetworkMonitor {
     /// Whether the device currently has network connectivity
     private(set) var isConnected: Bool = true
 
+    /// Alias used by data-source status surfaces.
+    var isOnline: Bool {
+        isConnected
+    }
+
     /// The type of current connection
     private(set) var connectionType: ConnectionType = .unknown
 

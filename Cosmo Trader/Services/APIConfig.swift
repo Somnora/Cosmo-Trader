@@ -58,6 +58,11 @@ enum APIConfig {
         !finnhubKey.isEmpty
     }
 
+    /// Whether the resolved Finnhub key passed local placeholder filtering.
+    static var hasValidFinnhubKey: Bool {
+        isFinnhubConfigured
+    }
+
     // MARK: - Validation
 
     /// Validate all required API keys are present
