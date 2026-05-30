@@ -48,7 +48,8 @@ final class PortfolioCosmicCorrelationService {
     ]
 
     private let calendar = Calendar.current
-    private let minimumPortfolioWeightCoverage = 0.5
+    private let minimumPortfolioCoverageForAnyContext = 0.5
+    private let minimumPortfolioCoverageForNumericClaims = 0.7
     private let minimumEventWeightCoverage = 0.5
 
     private init() {}
@@ -134,8 +135,8 @@ final class PortfolioCosmicCorrelationService {
                 )
             }
 
-            guard includedPortfolioWeight >= minimumPortfolioWeightCoverage else {
-                return lowPortfolioCoverageSummary(
+            guard includedPortfolioWeight >= minimumPortfolioCoverageForAnyContext else {
+                return portfolioCoverageSummary(
                     kind: kind,
                     eventCount: kindEvents.count,
                     window: window,
@@ -144,7 +145,27 @@ final class PortfolioCosmicCorrelationService {
                     includedPortfolioWeight: includedPortfolioWeight,
                     excludedPortfolioWeight: excludedPortfolioWeight,
                     totalPortfolioValue: totalPortfolioValue,
-                    includedValue: includedValue
+                    includedValue: includedValue,
+                    requiredCoverage: minimumPortfolioCoverageForAnyContext,
+                    displayMode: .insufficientSample,
+                    reasonSuffix: "coverage is required for portfolio context"
+                )
+            }
+
+            guard includedPortfolioWeight >= minimumPortfolioCoverageForNumericClaims else {
+                return portfolioCoverageSummary(
+                    kind: kind,
+                    eventCount: kindEvents.count,
+                    window: window,
+                    eligibleHoldings: eligibleHoldings,
+                    unavailableHoldings: unavailableSymbols,
+                    includedPortfolioWeight: includedPortfolioWeight,
+                    excludedPortfolioWeight: excludedPortfolioWeight,
+                    totalPortfolioValue: totalPortfolioValue,
+                    includedValue: includedValue,
+                    requiredCoverage: minimumPortfolioCoverageForNumericClaims,
+                    displayMode: .partialCoverage,
+                    reasonSuffix: "coverage is required for headline portfolio metrics. Partial context only"
                 )
             }
 
@@ -254,7 +275,7 @@ final class PortfolioCosmicCorrelationService {
         }
     }
 
-    private func lowPortfolioCoverageSummary(
+    private func portfolioCoverageSummary(
         kind: AstroOverlayEventKind,
         eventCount: Int,
         window: CorrelationWindow,
@@ -263,11 +284,14 @@ final class PortfolioCosmicCorrelationService {
         includedPortfolioWeight: Double,
         excludedPortfolioWeight: Double,
         totalPortfolioValue: Double,
-        includedValue: Double
+        includedValue: Double,
+        requiredCoverage: Double,
+        displayMode: CorrelationDisplayMode,
+        reasonSuffix: String
     ) -> PortfolioCosmicCorrelationSummary {
-        let requiredCoverage = String(format: "%.0f%%", minimumPortfolioWeightCoverage * 100)
+        let requiredCoverage = String(format: "%.0f%%", requiredCoverage * 100)
         let actualCoverage = String(format: "%.0f%%", includedPortfolioWeight * 100)
-        let reason = "Only \(actualCoverage) of portfolio value has provider-backed historical prices; \(requiredCoverage) coverage is required"
+        let reason = "Only \(actualCoverage) of portfolio value has provider-backed historical prices; \(requiredCoverage) \(reasonSuffix)"
 
         return PortfolioCosmicCorrelationSummary(
             id: kind.rawValue,
@@ -303,7 +327,7 @@ final class PortfolioCosmicCorrelationService {
             excludedPortfolioWeight: excludedPortfolioWeight,
             provenance: .mixed(reason: reason),
             confidence: .insufficient,
-            displayMode: .insufficientSample,
+            displayMode: displayMode,
             disclaimer: "\(reason). No portfolio-level return claim is shown."
         )
     }

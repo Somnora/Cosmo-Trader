@@ -23,7 +23,7 @@ struct PortfolioCosmicCorrelationServiceTests {
         )
 
         let summary = summaries.first { $0.eventType == .fullMoon }
-        #expect(summary?.displayMode == .marketBackedResult)
+        #expect(isMarketBacked(summary))
         #expect(summary?.sampleSize == 3)
         #expect(isClose(summary?.includedPortfolioWeight ?? 0, 1))
         #expect(isClose(summary?.averagePortfolioReturn ?? 99, 0))
@@ -51,17 +51,12 @@ struct PortfolioCosmicCorrelationServiceTests {
         )
 
         let summary = summaries.first { $0.eventType == .fullMoon }
-        #expect(summary?.displayMode == .insufficientSample)
+        #expect(isInsufficientSample(summary))
         #expect(isClose(summary?.includedPortfolioWeight ?? 0, 0.1))
         #expect(isClose(summary?.excludedPortfolioWeight ?? 0, 0.9))
         #expect(summary?.unavailableHoldings == ["SAMPLE"])
-        #expect(summary?.averagePortfolioReturn == nil)
-        #expect(summary?.medianPortfolioReturn == nil)
-        #expect(summary?.winRate == nil)
-        #expect(summary?.baselinePortfolioReturn == nil)
-        #expect(summary?.volatilityRatio == nil)
-        #expect(summary?.maxDrawdown == nil)
-        #expect(summary?.disclaimer.contains("50% coverage is required") == true)
+        expectNoAggregateMetrics(summary)
+        #expect(summary?.disclaimer.contains("50% coverage is required for portfolio context") == true)
         if case .mixed(let reason)? = summary?.provenance {
             #expect(reason.contains("10% of portfolio value") == true)
         } else {
@@ -69,8 +64,8 @@ struct PortfolioCosmicCorrelationServiceTests {
         }
     }
 
-    @Test("Provider-backed coverage above threshold can return portfolio metrics")
-    func providerBackedCoverageAboveThresholdCanReturnMetrics() {
+    @Test("Partial portfolio coverage withholds headline numeric metrics")
+    func partialPortfolioCoverageWithholdsHeadlineNumericMetrics() {
         let verified = stock(symbol: "LIVE", currentPrice: 60, sharesOwned: 10)
         let sample = stock(symbol: "SAMPLE", currentPrice: 40, sharesOwned: 10)
 
@@ -90,9 +85,71 @@ struct PortfolioCosmicCorrelationServiceTests {
         )
 
         let summary = summaries.first { $0.eventType == .fullMoon }
-        #expect(summary?.displayMode == .marketBackedResult)
+        #expect(isPartialCoverage(summary))
         #expect(isClose(summary?.includedPortfolioWeight ?? 0, 0.6))
         #expect(isClose(summary?.excludedPortfolioWeight ?? 0, 0.4))
+        #expect(summary?.unavailableHoldings == ["SAMPLE"])
+        expectNoAggregateMetrics(summary)
+        #expect(summary?.disclaimer.contains("70% coverage is required for headline portfolio metrics") == true)
+        #expect(summary?.disclaimer.contains("Partial context only") == true)
+        if case .mixed(let reason)? = summary?.provenance {
+            #expect(reason.contains("60% of portfolio value") == true)
+        } else {
+            Issue.record("Partial coverage summary should expose mixed provenance")
+        }
+    }
+
+    @Test("Exactly fifty percent coverage is partial context only")
+    func exactlyFiftyPercentCoverageIsPartialContextOnly() {
+        let verified = stock(symbol: "LIVE", currentPrice: 50, sharesOwned: 10)
+        let sample = stock(symbol: "SAMPLE", currentPrice: 50, sharesOwned: 10)
+
+        let summaries = PortfolioCosmicCorrelationService.shared.summaries(
+            holdings: [verified, sample],
+            priceHistoryBySymbol: [
+                "LIVE": prices([100, 105, 110, 100, 105, 110, 100, 105, 110]),
+                "SAMPLE": prices([100, 150, 200, 100, 150, 200, 100, 150, 200])
+            ],
+            provenanceBySymbol: [
+                "LIVE": .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10")),
+                "SAMPLE": .sample(reason: "Preview fixture")
+            ],
+            events: fullMoonEvents(),
+            filterState: AstroOverlayFilterState(enabledKinds: [.fullMoon], showEstimatedEvents: true, eventWindowDays: 1),
+            minimumSampleSize: 3
+        )
+
+        let summary = summaries.first { $0.eventType == .fullMoon }
+        #expect(isPartialCoverage(summary))
+        #expect(isClose(summary?.includedPortfolioWeight ?? 0, 0.5))
+        expectNoAggregateMetrics(summary)
+        #expect(summary?.disclaimer.contains("70% coverage is required") == true)
+    }
+
+    @Test("Seventy percent provider-backed coverage can return portfolio metrics")
+    func seventyPercentProviderBackedCoverageCanReturnPortfolioMetrics() {
+        let verified = stock(symbol: "LIVE", currentPrice: 70, sharesOwned: 10)
+        let sample = stock(symbol: "SAMPLE", currentPrice: 30, sharesOwned: 10)
+
+        let summaries = PortfolioCosmicCorrelationService.shared.summaries(
+            holdings: [verified, sample],
+            priceHistoryBySymbol: [
+                "LIVE": prices([100, 105, 110, 100, 105, 110, 100, 105, 110]),
+                "SAMPLE": prices([100, 150, 200, 100, 150, 200, 100, 150, 200])
+            ],
+            provenanceBySymbol: [
+                "LIVE": .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10")),
+                "SAMPLE": .sample(reason: "Preview fixture")
+            ],
+            events: fullMoonEvents(),
+            filterState: AstroOverlayFilterState(enabledKinds: [.fullMoon], showEstimatedEvents: true, eventWindowDays: 1),
+            minimumSampleSize: 3
+        )
+
+        let summary = summaries.first { $0.eventType == .fullMoon }
+        #expect(isMarketBacked(summary))
+        #expect(isClose(summary?.includedPortfolioWeight ?? 0, 0.7))
+        #expect(isClose(summary?.excludedPortfolioWeight ?? 0, 0.3))
         #expect(summary?.unavailableHoldings == ["SAMPLE"])
         #expect(isClose(summary?.averagePortfolioReturn ?? 0, 10))
     }
@@ -111,7 +168,7 @@ struct PortfolioCosmicCorrelationServiceTests {
         )
 
         let summary = summaries.first { $0.eventType == .fullMoon }
-        #expect(summary?.displayMode == .sampleOnly)
+        #expect(isSampleOnly(summary))
         #expect(summary?.confidence == .unavailable)
         #expect(summary?.averagePortfolioReturn == nil)
         #expect(summary?.winRate == nil)
@@ -133,7 +190,7 @@ struct PortfolioCosmicCorrelationServiceTests {
         )
 
         let summary = summaries.first { $0.eventType == .fullMoon }
-        #expect(summary?.displayMode == .unavailable)
+        #expect(isUnavailable(summary))
         #expect(summary?.averagePortfolioReturn == nil)
         #expect(summary?.winRate == nil)
         #expect(summary?.includedPortfolioWeight == 0)
@@ -158,7 +215,7 @@ struct PortfolioCosmicCorrelationServiceTests {
         )
 
         let summary = summaries.first { $0.eventType == .newMoon }
-        #expect(summary?.displayMode == .insufficientSample)
+        #expect(isInsufficientSample(summary))
         #expect(summary?.sampleSize == 2)
         #expect(summary?.averagePortfolioReturn == nil)
         #expect(summary?.disclaimer.contains("No return claim") == true)
@@ -210,6 +267,45 @@ struct PortfolioCosmicCorrelationServiceTests {
         for fragment in bannedFragments {
             #expect(!copy.contains(fragment), "Unsafe copy fragment found: \(fragment)")
         }
+    }
+
+    private func isMarketBacked(_ summary: PortfolioCosmicCorrelationSummary?) -> Bool {
+        guard let summary else { return false }
+        if case .marketBackedResult = summary.displayMode { return true }
+        return false
+    }
+
+    private func isPartialCoverage(_ summary: PortfolioCosmicCorrelationSummary?) -> Bool {
+        guard let summary else { return false }
+        if case .partialCoverage = summary.displayMode { return true }
+        return false
+    }
+
+    private func isInsufficientSample(_ summary: PortfolioCosmicCorrelationSummary?) -> Bool {
+        guard let summary else { return false }
+        if case .insufficientSample = summary.displayMode { return true }
+        return false
+    }
+
+    private func isUnavailable(_ summary: PortfolioCosmicCorrelationSummary?) -> Bool {
+        guard let summary else { return false }
+        if case .unavailable = summary.displayMode { return true }
+        return false
+    }
+
+    private func isSampleOnly(_ summary: PortfolioCosmicCorrelationSummary?) -> Bool {
+        guard let summary else { return false }
+        if case .sampleOnly = summary.displayMode { return true }
+        return false
+    }
+
+    private func expectNoAggregateMetrics(_ summary: PortfolioCosmicCorrelationSummary?) {
+        #expect(summary?.averagePortfolioReturn == nil)
+        #expect(summary?.medianPortfolioReturn == nil)
+        #expect(summary?.winRate == nil)
+        #expect(summary?.baselinePortfolioReturn == nil)
+        #expect(summary?.volatilityRatio == nil)
+        #expect(summary?.maxDrawdown == nil)
     }
 
     private func stock(

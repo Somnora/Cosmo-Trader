@@ -43,6 +43,7 @@ enum CorrelationConfidence: String, Equatable {
 
 enum CorrelationDisplayMode: Equatable {
     case marketBackedResult
+    case partialCoverage
     case insufficientSample
     case unavailable
     case sampleOnly
