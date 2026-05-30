@@ -65,12 +65,12 @@ final class HistoricalAstroChartViewModel {
         #endif
 
         do {
-            let result = try await HistoricalPriceService.shared.fetchHistoricalPriceResult(
+            let dataset = try await CorrelationDatasetStore.shared.dataset(
                 symbol: stock.symbol,
                 timeframe: timeframe
             )
-            historicalPriceProvenance = result.provenance
-            apply(prices: result.data, stock: stock, provenance: result.provenance)
+            historicalPriceProvenance = dataset.provenance
+            apply(prices: dataset.ohlcData, stock: stock, provenance: dataset.provenance)
         } catch {
             ohlcData = []
             overlayEvents = []

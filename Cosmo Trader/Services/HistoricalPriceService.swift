@@ -29,18 +29,15 @@ enum HistoricalPriceSource: Equatable {
 }
 
 struct HistoricalPriceResult: Equatable {
-    let data: [OHLCData]
+    let dataset: HistoricalPriceDataset
     let source: HistoricalPriceSource
-    let fetchedAt: Date
 
-    var provenance: FinancialDataProvenance {
-        switch source {
-        case .provider:
-            return .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
-        case .cache:
-            return .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
-        }
-    }
+    var data: [OHLCData] { dataset.ohlcData }
+    var fetchedAt: Date { dataset.fetchedAt }
+    var provenance: FinancialDataProvenance { dataset.provenance }
+    var requestedRange: DateInterval { dataset.requestedRange }
+    var actualRange: DateInterval? { dataset.actualRange }
+    var completeness: HistoricalDatasetCompleteness { dataset.completeness }
 }
 
 @MainActor
@@ -48,10 +45,46 @@ struct HistoricalPriceResult: Equatable {
 final class HistoricalPriceService {
     static let shared = HistoricalPriceService()
 
-    private var cache: [String: (data: [OHLCData], fetchedAt: Date)] = [:]
-    private let cacheDuration: TimeInterval = 3600
+    typealias CandleFetcher = (String, String, Date, Date) async throws -> FinnhubCandleResponse
 
-    private init() {}
+    private var memoryCache: [String: HistoricalPriceDataset] = [:]
+    private let cacheDuration: TimeInterval
+    private let historicalPriceCache: HistoricalPriceCache
+    private let nowProvider: () -> Date
+    private let candleFetcher: CandleFetcher
+
+    private init(
+        historicalPriceCache: HistoricalPriceCache = .shared,
+        cacheDuration: TimeInterval = 3600,
+        nowProvider: @escaping () -> Date = Date.init,
+        candleFetcher: @escaping CandleFetcher = { symbol, resolution, from, to in
+            try await StockAPIService.shared.fetchCandles(
+                symbol: symbol,
+                resolution: resolution,
+                from: from,
+                to: to
+            )
+        }
+    ) {
+        self.historicalPriceCache = historicalPriceCache
+        self.cacheDuration = cacheDuration
+        self.nowProvider = nowProvider
+        self.candleFetcher = candleFetcher
+    }
+
+    static func testingInstance(
+        historicalPriceCache: HistoricalPriceCache,
+        cacheDuration: TimeInterval = 3600,
+        nowProvider: @escaping () -> Date = Date.init,
+        candleFetcher: @escaping CandleFetcher
+    ) -> HistoricalPriceService {
+        HistoricalPriceService(
+            historicalPriceCache: historicalPriceCache,
+            cacheDuration: cacheDuration,
+            nowProvider: nowProvider,
+            candleFetcher: candleFetcher
+        )
+    }
 
     func fetchHistoricalPrices(
         symbol: String,
@@ -65,38 +98,102 @@ final class HistoricalPriceService {
         timeframe: ChartTimeframe
     ) async throws -> HistoricalPriceResult {
         let request = requestParameters(for: timeframe)
-        let key = "\(symbol.uppercased())-\(timeframe.rawValue)-\(request.resolution)"
+        let normalizedSymbol = symbol.uppercased()
+        let requestedRange = DateInterval(start: min(request.from, request.to), end: max(request.from, request.to))
+        let key = cacheKey(symbol: normalizedSymbol, timeframe: timeframe, resolution: request.resolution)
+        let now = nowProvider()
 
-        if let cached = cache[key],
-           Date().timeIntervalSince(cached.fetchedAt) < cacheDuration {
-            return HistoricalPriceResult(data: cached.data, source: .cache, fetchedAt: cached.fetchedAt)
+        if let memoryDataset = memoryCache[key],
+           now.timeIntervalSince(memoryDataset.fetchedAt) < cacheDuration {
+            return HistoricalPriceResult(
+                dataset: memoryDataset.withProvenance(
+                    .cached(provider: memoryDataset.provider, fetchedAt: memoryDataset.fetchedAt, now: now)
+                ),
+                source: .cache
+            )
         }
 
-        let response = try await StockAPIService.shared.fetchCandles(
-            symbol: symbol,
+        let durableDataset = historicalPriceCache.dataset(
+            symbol: normalizedSymbol,
+            timeframe: timeframe,
             resolution: request.resolution,
-            from: request.from,
-            to: request.to
+            now: now
         )
-
-        let data = response.toOHLCData()
-            .filter { candle in
-                candle.close.isFinite && candle.close > 0
-            }
-            .sorted { $0.date < $1.date }
-
-        guard !data.isEmpty else {
-            throw HistoricalPriceError.noHistoricalData
+        if let durableDataset,
+           now.timeIntervalSince(durableDataset.fetchedAt) < cacheDuration {
+            memoryCache[key] = durableDataset
+            return HistoricalPriceResult(dataset: durableDataset, source: .cache)
         }
 
-        let fetchedAt = Date()
-        cache[key] = (data, fetchedAt)
-        return HistoricalPriceResult(data: data, source: .provider, fetchedAt: fetchedAt)
+        do {
+            let response = try await candleFetcher(
+                normalizedSymbol,
+                request.resolution,
+                request.from,
+                request.to
+            )
+
+            let data = response.toOHLCData()
+                .filter { candle in
+                    candle.open.isFinite
+                        && candle.high.isFinite
+                        && candle.low.isFinite
+                        && candle.close.isFinite
+                        && candle.close > 0
+                }
+                .sorted { $0.date < $1.date }
+
+            guard !data.isEmpty else {
+                if let durableDataset {
+                    memoryCache[key] = durableDataset
+                    return HistoricalPriceResult(dataset: durableDataset, source: .cache)
+                }
+                throw HistoricalPriceError.noHistoricalData
+            }
+
+            let fetchedAt = nowProvider()
+            let dataset = HistoricalPriceDataset.providerBacked(
+                symbol: normalizedSymbol,
+                candles: data,
+                provider: FinancialDataProvenance.finnhubProvider,
+                fetchedAt: fetchedAt,
+                requestedRange: requestedRange,
+                provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+            )
+
+            memoryCache[key] = dataset
+            try? historicalPriceCache.store(
+                dataset: dataset,
+                timeframe: timeframe,
+                resolution: request.resolution
+            )
+
+            return HistoricalPriceResult(dataset: dataset, source: .provider)
+        } catch {
+            if let durableDataset {
+                memoryCache[key] = durableDataset
+                return HistoricalPriceResult(dataset: durableDataset, source: .cache)
+            }
+            if let memoryDataset = memoryCache[key] {
+                let cachedDataset = memoryDataset.withProvenance(
+                    .cached(provider: memoryDataset.provider, fetchedAt: memoryDataset.fetchedAt, now: now)
+                )
+                return HistoricalPriceResult(dataset: cachedDataset, source: .cache)
+            }
+            throw error
+        }
+    }
+
+    func fetchHistoricalDataset(
+        symbol: String,
+        timeframe: ChartTimeframe
+    ) async throws -> HistoricalPriceDataset {
+        try await fetchHistoricalPriceResult(symbol: symbol, timeframe: timeframe).dataset
     }
 
     func requestParameters(for timeframe: ChartTimeframe) -> (resolution: String, from: Date, to: Date) {
         let calendar = Calendar.current
-        let to = Date()
+        let to = nowProvider()
 
         switch timeframe {
         case .day:
@@ -114,5 +211,9 @@ final class HistoricalPriceService {
         case .all:
             return ("W", calendar.date(byAdding: .year, value: -5, to: to) ?? to, to)
         }
+    }
+
+    private func cacheKey(symbol: String, timeframe: ChartTimeframe, resolution: String) -> String {
+        "\(symbol.uppercased())-\(timeframe.rawValue)-\(resolution)"
     }
 }

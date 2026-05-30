@@ -5,7 +5,7 @@ import Foundation
 // Open-High-Low-Close candlestick data for technical analysis.
 // Used by ChartPatternService to detect chart patterns.
 
-struct OHLCData: Codable, Identifiable, Equatable {
+nonisolated struct OHLCData: Codable, Identifiable, Equatable {
     let id: UUID
     let date: Date
     let open: Double
@@ -84,7 +84,7 @@ struct OHLCData: Codable, Identifiable, Equatable {
 // MARK: - Finnhub Response
 
 /// Response structure from Finnhub candle API
-struct FinnhubCandleResponse: Codable {
+nonisolated struct FinnhubCandleResponse: Codable {
     let s: String       // Status: "ok" or "no_data"
     let t: [Int]?       // Timestamps
     let o: [Double]?    // Opens

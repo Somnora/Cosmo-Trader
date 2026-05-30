@@ -67,23 +67,12 @@ final class PortfolioCorrelationViewModel {
         isLoading = true
         errorMessage = nil
 
-        var priceHistoryBySymbol: [String: [OHLCData]] = [:]
-        var provenanceBySymbol: [String: FinancialDataProvenance] = [:]
-
-        for holding in ownedHoldings {
-            let symbol = holding.symbol.uppercased()
-            do {
-                let result = try await HistoricalPriceService.shared.fetchHistoricalPriceResult(
-                    symbol: symbol,
-                    timeframe: timeframe
-                )
-                priceHistoryBySymbol[symbol] = result.data
-                provenanceBySymbol[symbol] = result.provenance
-            } catch {
-                priceHistoryBySymbol[symbol] = []
-                provenanceBySymbol[symbol] = .unavailable(reason: "Provider-backed historical prices unavailable")
-            }
-        }
+        let datasetSnapshot = await CorrelationDatasetStore.shared.datasets(
+            symbols: ownedHoldings.map(\.symbol),
+            timeframe: timeframe
+        )
+        let priceHistoryBySymbol = datasetSnapshot.priceHistoryBySymbol
+        let provenanceBySymbol = datasetSnapshot.provenanceBySymbol
 
         let allDates = priceHistoryBySymbol.values.flatMap { $0.map(\.date) }
         let events: [AstroOverlayEvent]
