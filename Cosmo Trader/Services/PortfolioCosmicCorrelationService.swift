@@ -48,6 +48,7 @@ final class PortfolioCosmicCorrelationService {
     ]
 
     private let calendar = Calendar.current
+    private let minimumPortfolioWeightCoverage = 0.5
     private let minimumEventWeightCoverage = 0.5
 
     private init() {}
@@ -130,6 +131,20 @@ final class PortfolioCosmicCorrelationService {
                     disclaimer: sampleOnly
                         ? "Sample portfolio data is labeled for preview only. No historical correlation claim is shown."
                         : "Provider-backed historical prices are required before portfolio correlation context is shown."
+                )
+            }
+
+            guard includedPortfolioWeight >= minimumPortfolioWeightCoverage else {
+                return lowPortfolioCoverageSummary(
+                    kind: kind,
+                    eventCount: kindEvents.count,
+                    window: window,
+                    eligibleHoldings: eligibleHoldings,
+                    unavailableHoldings: unavailableSymbols,
+                    includedPortfolioWeight: includedPortfolioWeight,
+                    excludedPortfolioWeight: excludedPortfolioWeight,
+                    totalPortfolioValue: totalPortfolioValue,
+                    includedValue: includedValue
                 )
             }
 
@@ -237,6 +252,60 @@ final class PortfolioCosmicCorrelationService {
                 disclaimer: "Historical portfolio context only. Correlation does not imply causation and this is not financial advice."
             )
         }
+    }
+
+    private func lowPortfolioCoverageSummary(
+        kind: AstroOverlayEventKind,
+        eventCount: Int,
+        window: CorrelationWindow,
+        eligibleHoldings: [EligibleHolding],
+        unavailableHoldings: [String],
+        includedPortfolioWeight: Double,
+        excludedPortfolioWeight: Double,
+        totalPortfolioValue: Double,
+        includedValue: Double
+    ) -> PortfolioCosmicCorrelationSummary {
+        let requiredCoverage = String(format: "%.0f%%", minimumPortfolioWeightCoverage * 100)
+        let actualCoverage = String(format: "%.0f%%", includedPortfolioWeight * 100)
+        let reason = "Only \(actualCoverage) of portfolio value has provider-backed historical prices; \(requiredCoverage) coverage is required"
+
+        return PortfolioCosmicCorrelationSummary(
+            id: kind.rawValue,
+            eventName: kind.displayName,
+            eventType: kind,
+            eventCount: eventCount,
+            sampleSize: 0,
+            window: window,
+            averagePortfolioReturn: nil,
+            medianPortfolioReturn: nil,
+            winRate: nil,
+            baselinePortfolioReturn: nil,
+            volatilityRatio: nil,
+            maxDrawdown: nil,
+            affectedHoldings: eligibleHoldings.map { holding in
+                PortfolioCorrelationHoldingImpact(
+                    id: holding.symbol,
+                    symbol: holding.symbol,
+                    portfolioWeight: totalPortfolioValue > 0 ? holding.marketValue / totalPortfolioValue : 0,
+                    includedWeight: includedValue > 0 ? holding.marketValue / includedValue : 0,
+                    marketValue: holding.marketValue,
+                    sampleSize: 0,
+                    averageReturn: nil,
+                    medianReturn: nil,
+                    winRate: nil,
+                    provenance: holding.provenance,
+                    confidence: .insufficient,
+                    displayMode: .insufficientSample
+                )
+            },
+            unavailableHoldings: unavailableHoldings,
+            includedPortfolioWeight: includedPortfolioWeight,
+            excludedPortfolioWeight: excludedPortfolioWeight,
+            provenance: .mixed(reason: reason),
+            confidence: .insufficient,
+            displayMode: .insufficientSample,
+            disclaimer: "\(reason). No portfolio-level return claim is shown."
+        )
     }
 
     private func holdingEligibility(

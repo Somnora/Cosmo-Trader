@@ -30,8 +30,8 @@ struct PortfolioCosmicCorrelationServiceTests {
         #expect(!isClose(summary?.averagePortfolioReturn ?? 0, 9.8, tolerance: 0.2))
     }
 
-    @Test("Unavailable or sample holdings are excluded with visible portfolio coverage")
-    func sampleAndUnavailableHoldingsAreExcludedFromNumericClaims() {
+    @Test("Low total portfolio coverage withholds numeric portfolio claims")
+    func lowTotalPortfolioCoverageWithholdsNumericClaims() {
         let verified = stock(symbol: "LIVE", currentPrice: 10, sharesOwned: 10)
         let sample = stock(symbol: "SAMPLE", currentPrice: 90, sharesOwned: 10)
 
@@ -51,9 +51,48 @@ struct PortfolioCosmicCorrelationServiceTests {
         )
 
         let summary = summaries.first { $0.eventType == .fullMoon }
-        #expect(summary?.displayMode == .marketBackedResult)
+        #expect(summary?.displayMode == .insufficientSample)
         #expect(isClose(summary?.includedPortfolioWeight ?? 0, 0.1))
         #expect(isClose(summary?.excludedPortfolioWeight ?? 0, 0.9))
+        #expect(summary?.unavailableHoldings == ["SAMPLE"])
+        #expect(summary?.averagePortfolioReturn == nil)
+        #expect(summary?.medianPortfolioReturn == nil)
+        #expect(summary?.winRate == nil)
+        #expect(summary?.baselinePortfolioReturn == nil)
+        #expect(summary?.volatilityRatio == nil)
+        #expect(summary?.maxDrawdown == nil)
+        #expect(summary?.disclaimer.contains("50% coverage is required") == true)
+        if case .mixed(let reason)? = summary?.provenance {
+            #expect(reason.contains("10% of portfolio value") == true)
+        } else {
+            Issue.record("Low coverage summary should expose mixed provenance")
+        }
+    }
+
+    @Test("Provider-backed coverage above threshold can return portfolio metrics")
+    func providerBackedCoverageAboveThresholdCanReturnMetrics() {
+        let verified = stock(symbol: "LIVE", currentPrice: 60, sharesOwned: 10)
+        let sample = stock(symbol: "SAMPLE", currentPrice: 40, sharesOwned: 10)
+
+        let summaries = PortfolioCosmicCorrelationService.shared.summaries(
+            holdings: [verified, sample],
+            priceHistoryBySymbol: [
+                "LIVE": prices([100, 105, 110, 100, 105, 110, 100, 105, 110]),
+                "SAMPLE": prices([100, 150, 200, 100, 150, 200, 100, 150, 200])
+            ],
+            provenanceBySymbol: [
+                "LIVE": .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10")),
+                "SAMPLE": .sample(reason: "Preview fixture")
+            ],
+            events: fullMoonEvents(),
+            filterState: AstroOverlayFilterState(enabledKinds: [.fullMoon], showEstimatedEvents: true, eventWindowDays: 1),
+            minimumSampleSize: 3
+        )
+
+        let summary = summaries.first { $0.eventType == .fullMoon }
+        #expect(summary?.displayMode == .marketBackedResult)
+        #expect(isClose(summary?.includedPortfolioWeight ?? 0, 0.6))
+        #expect(isClose(summary?.excludedPortfolioWeight ?? 0, 0.4))
         #expect(summary?.unavailableHoldings == ["SAMPLE"])
         #expect(isClose(summary?.averagePortfolioReturn ?? 0, 10))
     }
@@ -74,6 +113,27 @@ struct PortfolioCosmicCorrelationServiceTests {
         let summary = summaries.first { $0.eventType == .fullMoon }
         #expect(summary?.displayMode == .sampleOnly)
         #expect(summary?.confidence == .unavailable)
+        #expect(summary?.averagePortfolioReturn == nil)
+        #expect(summary?.winRate == nil)
+        #expect(summary?.includedPortfolioWeight == 0)
+        #expect(summary?.excludedPortfolioWeight == 1)
+    }
+
+    @Test("Mixed provenance holdings do not count toward portfolio coverage")
+    func mixedProvenanceHoldingsDoNotCountTowardCoverage() {
+        let mixed = stock(symbol: "MIXED", currentPrice: 100, sharesOwned: 1)
+
+        let summaries = PortfolioCosmicCorrelationService.shared.summaries(
+            holdings: [mixed],
+            priceHistoryBySymbol: ["MIXED": prices([100, 105, 110, 100, 105, 110, 100, 105, 110])],
+            provenanceBySymbol: ["MIXED": .mixed(reason: "Mixed freshness is unsafe for numeric correlation claims")],
+            events: fullMoonEvents(),
+            filterState: AstroOverlayFilterState(enabledKinds: [.fullMoon], showEstimatedEvents: true, eventWindowDays: 1),
+            minimumSampleSize: 3
+        )
+
+        let summary = summaries.first { $0.eventType == .fullMoon }
+        #expect(summary?.displayMode == .unavailable)
         #expect(summary?.averagePortfolioReturn == nil)
         #expect(summary?.winRate == nil)
         #expect(summary?.includedPortfolioWeight == 0)

@@ -120,12 +120,15 @@ final class PortfolioCorrelationViewModel {
     }
 
     private func aggregateProvenance(from summaries: [PortfolioCosmicCorrelationSummary]) -> FinancialDataProvenance {
-        let marketBacked = summaries.filter { $0.displayMode == .marketBackedResult || $0.displayMode == .insufficientSample }
-        guard !marketBacked.isEmpty else {
+        let eligible = summaries.filter {
+            ($0.displayMode == .marketBackedResult || $0.displayMode == .insufficientSample)
+                && $0.provenance.isProviderBacked
+        }
+        guard !eligible.isEmpty else {
             return summaries.first?.provenance ?? .unavailable(reason: "Portfolio historical data unavailable")
         }
 
-        let provenances = marketBacked.map(\.provenance)
+        let provenances = eligible.map(\.provenance)
         let fetchedDates = provenances.compactMap(\.fetchedAt)
         let conservativeFetchedAt = fetchedDates.min() ?? Date()
 
