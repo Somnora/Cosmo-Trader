@@ -22,6 +22,7 @@ struct PortfolioView: View {
     @State private var showRebalancingSuggestions: Bool = false
     @State private var chartTimeframe: ChartTimeframe = .month
     @State private var showPerformanceChart: Bool = true
+    @State private var portfolioCorrelationViewModel = PortfolioCorrelationViewModel()
 
     // MARK: - Computed Properties
 
@@ -64,6 +65,13 @@ struct PortfolioView: View {
             storedReason: "Stored daily P/L and change percent until provider quote refresh succeeds",
             unavailableReason: "No holdings available for daily P/L"
         )
+    }
+
+    private var portfolioCorrelationSignature: String {
+        holdings
+            .map { "\($0.symbol.uppercased()):\($0.sharesOwned):\($0.marketValue)" }
+            .sorted()
+            .joined(separator: "|")
     }
 
     private var elementBreakdown: [(element: ZodiacSign.Element, percentage: Double, value: Double)] {
@@ -205,6 +213,12 @@ struct PortfolioView: View {
                         // Performance chart section (collapsible)
                         if !holdings.isEmpty && showPerformanceChart {
                             performanceChartSection
+                            dividerLine
+                        }
+
+                        // Portfolio-level historical cosmic correlation
+                        if !holdings.isEmpty {
+                            portfolioCorrelationSection
                             dividerLine
                         }
 
@@ -451,6 +465,21 @@ struct PortfolioView: View {
     }
 
     // MARK: - Cosmic Health Section
+
+    private var portfolioCorrelationSection: some View {
+        Group {
+            if SubscriptionManager.shared.canAccess(.historicalAstroOverlay) || AppState.isScreenshotMode {
+                PortfolioCosmicCorrelationView(viewModel: portfolioCorrelationViewModel)
+                    .task(id: portfolioCorrelationSignature) {
+                        await portfolioCorrelationViewModel.load(holdings: holdings)
+                    }
+            } else {
+                PortfolioCorrelationLockedCard()
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 14)
+    }
 
     private var cosmicHealthSection: some View {
         VStack(alignment: .leading, spacing: 12) {

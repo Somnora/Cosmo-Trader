@@ -1,0 +1,249 @@
+import Foundation
+import Testing
+@testable import Cosmo_Trader
+
+struct PortfolioCosmicCorrelationServiceTests {
+
+    @Test("Portfolio correlation is weighted by market value, not share count")
+    func portfolioCorrelationUsesMarketValueWeights() {
+        let shareHeavy = stock(symbol: "SHARE", currentPrice: 2, sharesOwned: 100)
+        let valueHeavy = stock(symbol: "VALUE", currentPrice: 200, sharesOwned: 1)
+        let events = fullMoonEvents()
+
+        let summaries = PortfolioCosmicCorrelationService.shared.summaries(
+            holdings: [shareHeavy, valueHeavy],
+            priceHistoryBySymbol: [
+                "SHARE": prices([100, 105, 110, 100, 105, 110, 100, 105, 110]),
+                "VALUE": prices([100, 95, 90, 100, 95, 90, 100, 95, 90])
+            ],
+            provenanceBySymbol: providerProvenance(["SHARE", "VALUE"]),
+            events: events,
+            filterState: AstroOverlayFilterState(enabledKinds: [.fullMoon], showEstimatedEvents: true, eventWindowDays: 1),
+            minimumSampleSize: 3
+        )
+
+        let summary = summaries.first { $0.eventType == .fullMoon }
+        #expect(summary?.displayMode == .marketBackedResult)
+        #expect(summary?.sampleSize == 3)
+        #expect(isClose(summary?.includedPortfolioWeight ?? 0, 1))
+        #expect(isClose(summary?.averagePortfolioReturn ?? 99, 0))
+        #expect(!isClose(summary?.averagePortfolioReturn ?? 0, 9.8, tolerance: 0.2))
+    }
+
+    @Test("Unavailable or sample holdings are excluded with visible portfolio coverage")
+    func sampleAndUnavailableHoldingsAreExcludedFromNumericClaims() {
+        let verified = stock(symbol: "LIVE", currentPrice: 10, sharesOwned: 10)
+        let sample = stock(symbol: "SAMPLE", currentPrice: 90, sharesOwned: 10)
+
+        let summaries = PortfolioCosmicCorrelationService.shared.summaries(
+            holdings: [verified, sample],
+            priceHistoryBySymbol: [
+                "LIVE": prices([100, 105, 110, 100, 105, 110, 100, 105, 110]),
+                "SAMPLE": prices([100, 150, 200, 100, 150, 200, 100, 150, 200])
+            ],
+            provenanceBySymbol: [
+                "LIVE": .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10")),
+                "SAMPLE": .sample(reason: "Preview fixture")
+            ],
+            events: fullMoonEvents(),
+            filterState: AstroOverlayFilterState(enabledKinds: [.fullMoon], showEstimatedEvents: true, eventWindowDays: 1),
+            minimumSampleSize: 3
+        )
+
+        let summary = summaries.first { $0.eventType == .fullMoon }
+        #expect(summary?.displayMode == .marketBackedResult)
+        #expect(isClose(summary?.includedPortfolioWeight ?? 0, 0.1))
+        #expect(isClose(summary?.excludedPortfolioWeight ?? 0, 0.9))
+        #expect(summary?.unavailableHoldings == ["SAMPLE"])
+        #expect(isClose(summary?.averagePortfolioReturn ?? 0, 10))
+    }
+
+    @Test("All non-provider-backed holdings do not expose numeric portfolio claims")
+    func allNonProviderBackedHoldingsWithholdMetrics() {
+        let sample = stock(symbol: "SAMPLE", currentPrice: 50, sharesOwned: 2)
+
+        let summaries = PortfolioCosmicCorrelationService.shared.summaries(
+            holdings: [sample],
+            priceHistoryBySymbol: ["SAMPLE": prices([100, 110, 120, 130])],
+            provenanceBySymbol: ["SAMPLE": .sample(reason: "Preview fixture")],
+            events: fullMoonEvents(),
+            filterState: AstroOverlayFilterState(enabledKinds: [.fullMoon], showEstimatedEvents: true, eventWindowDays: 1),
+            minimumSampleSize: 3
+        )
+
+        let summary = summaries.first { $0.eventType == .fullMoon }
+        #expect(summary?.displayMode == .sampleOnly)
+        #expect(summary?.confidence == .unavailable)
+        #expect(summary?.averagePortfolioReturn == nil)
+        #expect(summary?.winRate == nil)
+        #expect(summary?.includedPortfolioWeight == 0)
+        #expect(summary?.excludedPortfolioWeight == 1)
+    }
+
+    @Test("Minimum sample size gates portfolio correlation metrics")
+    func minimumSampleSizeGatesPortfolioMetrics() {
+        let holding = stock(symbol: "AAPL", currentPrice: 100, sharesOwned: 1)
+        let events = [
+            pointEvent(kind: .newMoon, on: "2025-01-02"),
+            pointEvent(kind: .newMoon, on: "2025-01-05")
+        ]
+
+        let summaries = PortfolioCosmicCorrelationService.shared.summaries(
+            holdings: [holding],
+            priceHistoryBySymbol: ["AAPL": prices([100, 105, 110, 100, 105, 110])],
+            provenanceBySymbol: providerProvenance(["AAPL"]),
+            events: events,
+            filterState: AstroOverlayFilterState(enabledKinds: [.newMoon], showEstimatedEvents: true, eventWindowDays: 1),
+            minimumSampleSize: 3
+        )
+
+        let summary = summaries.first { $0.eventType == .newMoon }
+        #expect(summary?.displayMode == .insufficientSample)
+        #expect(summary?.sampleSize == 2)
+        #expect(summary?.averagePortfolioReturn == nil)
+        #expect(summary?.disclaimer.contains("No return claim") == true)
+    }
+
+    @Test("Portfolio correlation V1 only reports full moon, new moon, and Mercury retrograde")
+    func portfolioCorrelationReportsOnlyLockedV1Events() {
+        let holding = stock(symbol: "AAPL", currentPrice: 100, sharesOwned: 1)
+        let events = fullMoonEvents()
+            + [pointEvent(kind: .firstQuarter, on: "2025-01-03")]
+            + [rangeEvent(start: "2025-01-01", end: "2025-01-03")]
+
+        let summaries = PortfolioCosmicCorrelationService.shared.summaries(
+            holdings: [holding],
+            priceHistoryBySymbol: ["AAPL": prices([100, 105, 110, 100, 105, 110, 100, 105, 110])],
+            provenanceBySymbol: providerProvenance(["AAPL"]),
+            events: events,
+            filterState: AstroOverlayFilterState(enabledKinds: [.fullMoon, .newMoon, .mercuryRetrograde, .firstQuarter], showEstimatedEvents: true, eventWindowDays: 1),
+            minimumSampleSize: 3
+        )
+
+        #expect(summaries.map(\.eventType) == [.fullMoon, .newMoon, .mercuryRetrograde])
+        #expect(summaries.first { $0.eventType == .firstQuarter } == nil)
+    }
+
+    @Test("Portfolio correlation copy remains compliance safe")
+    func portfolioCorrelationCopyIsComplianceSafe() {
+        let holding = stock(symbol: "AAPL", currentPrice: 100, sharesOwned: 1)
+        let summaries = PortfolioCosmicCorrelationService.shared.summaries(
+            holdings: [holding],
+            priceHistoryBySymbol: ["AAPL": prices([100, 105, 110, 100, 105, 110, 100, 105, 110])],
+            provenanceBySymbol: providerProvenance(["AAPL"]),
+            events: fullMoonEvents(),
+            filterState: AstroOverlayFilterState(enabledKinds: [.fullMoon], showEstimatedEvents: true, eventWindowDays: 1),
+            minimumSampleSize: 3
+        )
+
+        let bannedFragments = [
+            "buy signal",
+            "sell signal",
+            "take profits",
+            "reduce exposure",
+            "position size",
+            "avoid",
+            "guaranteed"
+        ]
+        let copy = summaries.map(\.disclaimer).joined(separator: " ").lowercased()
+
+        for fragment in bannedFragments {
+            #expect(!copy.contains(fragment), "Unsafe copy fragment found: \(fragment)")
+        }
+    }
+
+    private func stock(
+        symbol: String,
+        currentPrice: Double,
+        sharesOwned: Double
+    ) -> Stock {
+        Stock(
+            symbol: symbol,
+            name: "\(symbol) Corp.",
+            currentPrice: currentPrice,
+            priceChange: 0,
+            percentageChange: 0,
+            sharesOwned: sharesOwned,
+            purchasePrice: currentPrice,
+            foundedDate: date("2000-04-01"),
+            sector: "Technology"
+        )
+    }
+
+    private func fullMoonEvents() -> [AstroOverlayEvent] {
+        [
+            pointEvent(kind: .fullMoon, on: "2025-01-02"),
+            pointEvent(kind: .fullMoon, on: "2025-01-05"),
+            pointEvent(kind: .fullMoon, on: "2025-01-08")
+        ]
+    }
+
+    private func pointEvent(kind: AstroOverlayEventKind, on value: String) -> AstroOverlayEvent {
+        let eventDate = date(value)
+        return AstroOverlayEvent(
+            id: "\(kind.rawValue)-\(value)",
+            kind: kind,
+            title: kind.displayName,
+            subtitle: nil,
+            startDate: eventDate,
+            endDate: nil,
+            markerDate: eventDate,
+            intensity: .high,
+            affectedElements: [],
+            affectedSectors: [],
+            iconSystemName: kind.iconSystemName,
+            source: .calculatedMoonPhase,
+            isEstimated: false
+        )
+    }
+
+    private func rangeEvent(start: String, end: String) -> AstroOverlayEvent {
+        AstroOverlayEvent(
+            id: "mercury-\(start)",
+            kind: .mercuryRetrograde,
+            title: "Mercury Retrograde",
+            subtitle: nil,
+            startDate: date(start),
+            endDate: date(end),
+            markerDate: date(start),
+            intensity: .high,
+            affectedElements: [],
+            affectedSectors: [],
+            iconSystemName: AstroOverlayEventKind.mercuryRetrograde.iconSystemName,
+            source: .curatedDataset,
+            isEstimated: true
+        )
+    }
+
+    private func prices(_ closes: [Double]) -> [OHLCData] {
+        closes.enumerated().map { index, close in
+            OHLCData(
+                date: Calendar.current.date(byAdding: .day, value: index, to: date("2025-01-01")) ?? date("2025-01-01"),
+                open: close,
+                high: close + 1,
+                low: max(0.01, close - 1),
+                close: close,
+                volume: 1_000
+            )
+        }
+    }
+
+    private func providerProvenance(_ symbols: [String]) -> [String: FinancialDataProvenance] {
+        symbols.reduce(into: [:]) { partialResult, symbol in
+            partialResult[symbol] = .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10"))
+        }
+    }
+
+    private func date(_ value: String) -> Date {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: value) ?? Date(timeIntervalSince1970: 0)
+    }
+
+    private func isClose(_ actual: Double, _ expected: Double, tolerance: Double = 0.0001) -> Bool {
+        abs(actual - expected) <= tolerance
+    }
+}
