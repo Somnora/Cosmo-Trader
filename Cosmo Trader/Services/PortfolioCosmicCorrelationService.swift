@@ -58,6 +58,7 @@ final class PortfolioCosmicCorrelationService {
         holdings: [Stock],
         priceHistoryBySymbol: [String: [OHLCData]],
         provenanceBySymbol: [String: FinancialDataProvenance],
+        completenessBySymbol: [String: HistoricalDatasetCompleteness] = [:],
         events: [AstroOverlayEvent],
         filterState: AstroOverlayFilterState,
         minimumSampleSize: Int = 3
@@ -98,7 +99,8 @@ final class PortfolioCosmicCorrelationService {
                 holding: holding,
                 totalPortfolioValue: totalPortfolioValue,
                 priceHistoryBySymbol: priceHistoryBySymbol,
-                provenanceBySymbol: provenanceBySymbol
+                provenanceBySymbol: provenanceBySymbol,
+                completenessBySymbol: completenessBySymbol
             )
         }
 
@@ -336,11 +338,21 @@ final class PortfolioCosmicCorrelationService {
         holding: WeightedHolding,
         totalPortfolioValue: Double,
         priceHistoryBySymbol: [String: [OHLCData]],
-        provenanceBySymbol: [String: FinancialDataProvenance]
+        provenanceBySymbol: [String: FinancialDataProvenance],
+        completenessBySymbol: [String: HistoricalDatasetCompleteness]
     ) -> HoldingEligibility {
         let provenance = provenanceBySymbol[holding.symbol] ?? .unavailable(reason: "Provider-backed historical prices unavailable")
         guard provenance.isProviderBacked else {
             return HoldingEligibility(symbol: holding.symbol, provenance: provenance, eligibleHolding: nil)
+        }
+
+        let completeness = completenessBySymbol[holding.symbol] ?? .complete
+        guard completeness.allowsNumericCorrelationClaims else {
+            return HoldingEligibility(
+                symbol: holding.symbol,
+                provenance: qualityProvenance(for: provenance, completeness: completeness),
+                eligibleHolding: nil
+            )
         }
 
         let prices = (priceHistoryBySymbol[holding.symbol] ?? [])
@@ -365,6 +377,22 @@ final class PortfolioCosmicCorrelationService {
                 provenance: provenance
             )
         )
+    }
+
+    private func qualityProvenance(
+        for provenance: FinancialDataProvenance,
+        completeness: HistoricalDatasetCompleteness
+    ) -> FinancialDataProvenance {
+        guard provenance.isProviderBacked else { return provenance }
+
+        switch completeness {
+        case .complete:
+            return provenance
+        case .partial(let reason):
+            return .mixed(reason: "Partial historical dataset. \(reason)")
+        case .insufficient(let reason):
+            return .unavailable(reason: "Insufficient historical dataset. \(reason)")
+        }
     }
 
     private func portfolioReactions(

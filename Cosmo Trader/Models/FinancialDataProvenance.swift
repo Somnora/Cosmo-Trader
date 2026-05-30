@@ -8,6 +8,7 @@ nonisolated enum FinancialDataProvenance: Equatable, Codable {
     case sample(reason: String)
 
     static let finnhubProvider = "Finnhub"
+    static let defaultCachedStaleInterval: TimeInterval = 60 * 60 * 24
 
     var fetchedAt: Date? {
         switch self {
@@ -39,6 +40,11 @@ nonisolated enum FinancialDataProvenance: Equatable, Codable {
     var isCached: Bool {
         if case .cached = self { return true }
         return false
+    }
+
+    func isCachedStale(staleAfter staleInterval: TimeInterval = Self.defaultCachedStaleInterval) -> Bool {
+        guard case .cached(_, _, let age) = self else { return false }
+        return age >= staleInterval
     }
 
     static func cached(provider: String, fetchedAt: Date, now: Date = Date()) -> FinancialDataProvenance {

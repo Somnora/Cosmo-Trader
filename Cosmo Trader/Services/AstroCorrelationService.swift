@@ -44,6 +44,8 @@ enum CorrelationConfidence: String, Equatable {
 enum CorrelationDisplayMode: Equatable {
     case marketBackedResult
     case partialCoverage
+    case partialDataset
+    case insufficientDataset
     case insufficientSample
     case unavailable
     case sampleOnly
@@ -144,11 +146,46 @@ final class AstroCorrelationService {
         events: [AstroOverlayEvent],
         filterState: AstroOverlayFilterState,
         provenance: FinancialDataProvenance,
+        completeness: HistoricalDatasetCompleteness = .complete,
         minimumSampleSize: Int = 3
     ) -> [StockCosmicCorrelationSummary] {
         let groupedEvents = Dictionary(grouping: events) { $0.kind }
         let sortedKinds = groupedEvents.keys.sorted { $0.displayName < $1.displayName }
         let window = CorrelationWindow(daysBefore: 1, daysAfter: max(1, filterState.eventWindowDays))
+
+        guard completeness.allowsNumericCorrelationClaims else {
+            let mode: CorrelationDisplayMode
+            let qualityProvenance: FinancialDataProvenance
+            let disclaimer: String
+
+            switch completeness {
+            case .complete:
+                mode = .unavailable
+                qualityProvenance = provenance
+                disclaimer = "Historical price data unavailable. Correlation context will appear when provider-backed history is available."
+            case .partial(let reason):
+                mode = .partialDataset
+                qualityProvenance = .mixed(reason: "Partial historical dataset. \(reason)")
+                disclaimer = "Partial historical dataset. \(reason). No return claim is shown."
+            case .insufficient(let reason):
+                mode = .insufficientDataset
+                qualityProvenance = .unavailable(reason: "Insufficient historical dataset. \(reason)")
+                disclaimer = "Insufficient historical dataset. \(reason). No return claim is shown."
+            }
+
+            return sortedKinds.map { kind in
+                unavailableStockSummary(
+                    symbol: symbol,
+                    kind: kind,
+                    eventCount: groupedEvents[kind]?.count ?? 0,
+                    window: window,
+                    provenance: qualityProvenance,
+                    confidence: .insufficient,
+                    displayMode: mode,
+                    disclaimer: disclaimer
+                )
+            }
+        }
 
         guard provenance.isProviderBacked else {
             let mode: CorrelationDisplayMode

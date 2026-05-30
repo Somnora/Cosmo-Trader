@@ -10,6 +10,7 @@ final class HistoricalAstroChartViewModel {
     var selectedEvent: AstroOverlayEvent?
     var filterState = AstroOverlayFilterState()
     var historicalPriceProvenance: FinancialDataProvenance = .unavailable(reason: "Historical price data unavailable")
+    var historicalDatasetCompleteness: HistoricalDatasetCompleteness = .insufficient(reason: "Historical price data unavailable")
     var isLoading = false
     var errorMessage: String?
 
@@ -37,6 +38,7 @@ final class HistoricalAstroChartViewModel {
 
     var canShowCorrelationMetrics: Bool {
         historicalPriceProvenance.isProviderBacked
+            && historicalDatasetCompleteness.allowsNumericCorrelationClaims
     }
 
     var checkedEventKinds: [AstroOverlayEventKind] {
@@ -57,6 +59,7 @@ final class HistoricalAstroChartViewModel {
         #if DEBUG
         if AppState.isScreenshotMode {
             let prices = Self.demoPrices(for: stock, timeframe: timeframe)
+            historicalDatasetCompleteness = .complete
             historicalPriceProvenance = .sample(reason: "DEBUG screenshot fixture")
             apply(prices: prices, stock: stock, provenance: historicalPriceProvenance)
             isLoading = false
@@ -69,8 +72,14 @@ final class HistoricalAstroChartViewModel {
                 symbol: stock.symbol,
                 timeframe: timeframe
             )
-            historicalPriceProvenance = dataset.provenance
-            apply(prices: dataset.ohlcData, stock: stock, provenance: dataset.provenance)
+            historicalDatasetCompleteness = dataset.completeness
+            historicalPriceProvenance = dataset.correlationDisplayProvenance
+            apply(
+                prices: dataset.ohlcData,
+                stock: stock,
+                provenance: historicalPriceProvenance,
+                completeness: dataset.completeness
+            )
         } catch {
             ohlcData = []
             overlayEvents = []
@@ -78,6 +87,7 @@ final class HistoricalAstroChartViewModel {
             summaries = []
             selectedEvent = nil
             historicalPriceProvenance = .unavailable(reason: "Historical price data unavailable")
+            historicalDatasetCompleteness = .insufficient(reason: "Historical price data unavailable")
             errorMessage = "Historical price data unavailable. Correlation context will appear when provider-backed history is available."
         }
 
@@ -141,8 +151,18 @@ final class HistoricalAstroChartViewModel {
     // MARK: - Internal apply
 
     private func apply(prices: [OHLCData], stock: Stock, provenance: FinancialDataProvenance) {
+        apply(prices: prices, stock: stock, provenance: provenance, completeness: historicalDatasetCompleteness)
+    }
+
+    private func apply(
+        prices: [OHLCData],
+        stock: Stock,
+        provenance: FinancialDataProvenance,
+        completeness: HistoricalDatasetCompleteness
+    ) {
         ohlcData = prices.sorted { $0.date < $1.date }
         historicalPriceProvenance = provenance
+        historicalDatasetCompleteness = completeness
 
         guard let firstDate = ohlcData.first?.date,
               let lastDate = ohlcData.last?.date else {
@@ -171,7 +191,8 @@ final class HistoricalAstroChartViewModel {
             prices: ohlcData,
             events: events,
             filterState: filterState,
-            provenance: provenance
+            provenance: provenance,
+            completeness: completeness
         )
 
         if let selectedEvent, events.contains(where: { $0.id == selectedEvent.id }) {

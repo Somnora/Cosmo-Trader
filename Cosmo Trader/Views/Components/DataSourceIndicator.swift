@@ -148,8 +148,14 @@ extension FinancialDataProvenance {
         case .live(let provider, _):
             return "\(provider) live"
         case .cached(let provider, _, _):
-            return "\(provider) cached"
-        case .mixed:
+            return isCachedStale() ? "\(provider) stale" : "\(provider) cached"
+        case .mixed(let reason):
+            if reason.localizedCaseInsensitiveContains("partial historical dataset") {
+                return "Partial history"
+            }
+            if reason.localizedCaseInsensitiveContains("insufficient historical dataset") {
+                return "Insufficient history"
+            }
             return "Mixed data"
         case .unavailable:
             return "Unavailable"
@@ -166,8 +172,14 @@ extension FinancialDataProvenance {
         case .live:
             return "Live"
         case .cached:
-            return "Cached"
-        case .mixed:
+            return isCachedStale() ? "Stale" : "Cached"
+        case .mixed(let reason):
+            if reason.localizedCaseInsensitiveContains("partial historical dataset") {
+                return "Partial"
+            }
+            if reason.localizedCaseInsensitiveContains("insufficient historical dataset") {
+                return "Insufficient"
+            }
             return "Mixed"
         case .unavailable:
             return "N/A"
@@ -184,7 +196,8 @@ extension FinancialDataProvenance {
         case .live(let provider, let fetchedAt):
             return "Live \(provider) data from \(Self.ageDescription(since: fetchedAt))"
         case .cached(let provider, let fetchedAt, _):
-            return "Cached \(provider) data from \(Self.ageDescription(since: fetchedAt))"
+            let prefix = isCachedStale() ? "Stale cached" : "Cached"
+            return "\(prefix) \(provider) data from \(Self.ageDescription(since: fetchedAt))"
         case .mixed(let reason):
             return "Mixed financial data. \(reason)"
         case .unavailable(let reason):
@@ -199,8 +212,12 @@ extension FinancialDataProvenance {
         case .live:
             return CosmicTheme.positive
         case .cached:
-            return CosmicTheme.gold
-        case .mixed:
+            return isCachedStale() ? CosmicTheme.negative : CosmicTheme.gold
+        case .mixed(let reason):
+            if reason.localizedCaseInsensitiveContains("partial historical dataset")
+                || reason.localizedCaseInsensitiveContains("insufficient historical dataset") {
+                return CosmicTheme.textMuted
+            }
             return CosmicTheme.gold
         case .unavailable:
             return CosmicTheme.textMuted
@@ -214,7 +231,8 @@ extension FinancialDataProvenance {
         case .live(let provider, let fetchedAt):
             return "\(provider) live • \(Self.compactAgeDescription(since: fetchedAt))"
         case .cached(let provider, let fetchedAt, _):
-            return "\(provider) cached • \(Self.compactAgeDescription(since: fetchedAt))"
+            let label = isCachedStale() ? "stale cache" : "cached"
+            return "\(provider) \(label) • \(Self.compactAgeDescription(since: fetchedAt))"
         case .mixed(let reason):
             return reason
         case .unavailable(let reason):

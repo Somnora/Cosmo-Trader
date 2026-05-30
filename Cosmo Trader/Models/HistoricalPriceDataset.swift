@@ -10,6 +10,20 @@ nonisolated enum HistoricalDatasetCompleteness: Equatable, Codable {
         return true
     }
 
+    var allowsNumericCorrelationClaims: Bool {
+        if case .complete = self { return true }
+        return false
+    }
+
+    var reason: String? {
+        switch self {
+        case .complete:
+            return nil
+        case .partial(let reason), .insufficient(let reason):
+            return reason
+        }
+    }
+
     var label: String {
         switch self {
         case .complete:
@@ -18,6 +32,22 @@ nonisolated enum HistoricalDatasetCompleteness: Equatable, Codable {
             return "Partial"
         case .insufficient:
             return "Insufficient"
+        }
+    }
+}
+
+nonisolated enum HistoricalDatasetFreshness: Equatable {
+    case live
+    case cachedFresh(age: TimeInterval)
+    case cachedStale(age: TimeInterval)
+    case unavailable
+
+    var isProviderBacked: Bool {
+        switch self {
+        case .live, .cachedFresh, .cachedStale:
+            return true
+        case .unavailable:
+            return false
         }
     }
 }
@@ -56,6 +86,8 @@ nonisolated struct HistoricalPricePoint: Codable, Equatable {
 }
 
 nonisolated struct HistoricalPriceDataset: Codable, Equatable {
+    static let defaultStaleInterval: TimeInterval = FinancialDataProvenance.defaultCachedStaleInterval
+
     let symbol: String
     let candles: [HistoricalPricePoint]
     let provider: String
@@ -71,8 +103,32 @@ nonisolated struct HistoricalPriceDataset: Codable, Equatable {
 
     var isUsableForCorrelation: Bool {
         provenance.isProviderBacked
-            && completeness.isUsableForCorrelation
+            && completeness.allowsNumericCorrelationClaims
             && candles.count >= 2
+    }
+
+    func freshness(staleAfter staleInterval: TimeInterval = Self.defaultStaleInterval) -> HistoricalDatasetFreshness {
+        switch provenance {
+        case .live:
+            return .live
+        case .cached(_, _, let age):
+            return age >= staleInterval ? .cachedStale(age: age) : .cachedFresh(age: age)
+        case .mixed, .unavailable, .sample:
+            return .unavailable
+        }
+    }
+
+    var correlationDisplayProvenance: FinancialDataProvenance {
+        guard provenance.isProviderBacked else { return provenance }
+
+        switch completeness {
+        case .complete:
+            return provenance
+        case .partial(let reason):
+            return .mixed(reason: "Partial historical dataset. \(reason)")
+        case .insufficient(let reason):
+            return .unavailable(reason: "Insufficient historical dataset. \(reason)")
+        }
     }
 
     static func providerBacked(

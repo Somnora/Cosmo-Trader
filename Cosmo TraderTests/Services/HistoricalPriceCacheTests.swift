@@ -76,10 +76,48 @@ struct HistoricalPriceCacheTests {
         #expect(fetchCount == 1)
         #expect(result.source == .provider)
         #expect(result.provenance == .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: now))
-        #expect(result.dataset.isUsableForCorrelation)
+        #expect(result.dataset.completeness.isUsableForCorrelation)
 
         let cached = try #require(cache.dataset(symbol: "AAPL", timeframe: .month, resolution: "D", now: now))
         #expect(cached.ohlcData.map(\.close) == [100, 105, 110])
+    }
+
+    @Test("Historical datasets expose partial quality as non-numeric correlation input")
+    func historicalDatasetsExposePartialQualityAsNonNumericCorrelationInput() {
+        let dataset = HistoricalPriceDataset.providerBacked(
+            symbol: "AAPL",
+            candles: prices([100, 105, 110]),
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: date("2025-01-10"),
+            requestedRange: DateInterval(start: date("2025-01-01"), end: date("2025-01-10")),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10"))
+        )
+
+        #expect(dataset.completeness.label == "Partial")
+        #expect(dataset.completeness.isUsableForCorrelation)
+        #expect(!dataset.completeness.allowsNumericCorrelationClaims)
+        #expect(!dataset.isUsableForCorrelation)
+        #expect(dataset.correlationDisplayProvenance.indicatorLabel == "Partial history")
+    }
+
+    @Test("Historical datasets expose cache freshness")
+    func historicalDatasetsExposeCacheFreshness() {
+        let fetchedAt = date("2025-01-01")
+        let fresh = providerDataset(symbol: "AAPL", fetchedAt: fetchedAt)
+            .withProvenance(.cached(
+                provider: FinancialDataProvenance.finnhubProvider,
+                fetchedAt: fetchedAt,
+                age: 60
+            ))
+        let stale = providerDataset(symbol: "AAPL", fetchedAt: fetchedAt)
+            .withProvenance(.cached(
+                provider: FinancialDataProvenance.finnhubProvider,
+                fetchedAt: fetchedAt,
+                age: HistoricalPriceDataset.defaultStaleInterval + 1
+            ))
+
+        #expect(fresh.freshness() == .cachedFresh(age: 60))
+        #expect(stale.freshness() == .cachedStale(age: HistoricalPriceDataset.defaultStaleInterval + 1))
     }
 
     @MainActor

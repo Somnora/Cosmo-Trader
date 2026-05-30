@@ -26,6 +26,28 @@ struct FinancialDataProvenanceTests {
         }
     }
 
+    @Test("Cached provenance distinguishes fresh and stale cache")
+    func cachedProvenanceDistinguishesFreshAndStaleCache() {
+        let fetchedAt = Date(timeIntervalSince1970: 1_000)
+        let fresh = FinancialDataProvenance.cached(
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: fetchedAt,
+            now: fetchedAt.addingTimeInterval(60 * 30)
+        )
+        let stale = FinancialDataProvenance.cached(
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: fetchedAt,
+            now: fetchedAt.addingTimeInterval(FinancialDataProvenance.defaultCachedStaleInterval + 1)
+        )
+
+        #expect(!fresh.isCachedStale())
+        #expect(stale.isCachedStale())
+        #expect(fresh.indicatorLabel == "Finnhub cached")
+        #expect(stale.indicatorLabel == "Finnhub stale")
+        #expect(fresh.shortLabel == "Cached")
+        #expect(stale.shortLabel == "Stale")
+    }
+
     @Test("Mixed provenance is not treated as pure provider-backed data")
     func mixedProvenanceLabelsDerivedFields() {
         let provenance = FinancialDataProvenance.mixed(reason: "Portfolio values combine live and stored quote fields")

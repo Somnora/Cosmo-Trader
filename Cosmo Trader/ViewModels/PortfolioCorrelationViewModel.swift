@@ -73,6 +73,7 @@ final class PortfolioCorrelationViewModel {
         )
         let priceHistoryBySymbol = datasetSnapshot.priceHistoryBySymbol
         let provenanceBySymbol = datasetSnapshot.provenanceBySymbol
+        let completenessBySymbol = datasetSnapshot.completenessBySymbol
 
         let allDates = priceHistoryBySymbol.values.flatMap { $0.map(\.date) }
         let events: [AstroOverlayEvent]
@@ -94,6 +95,7 @@ final class PortfolioCorrelationViewModel {
             holdings: ownedHoldings,
             priceHistoryBySymbol: priceHistoryBySymbol,
             provenanceBySymbol: provenanceBySymbol,
+            completenessBySymbol: completenessBySymbol,
             events: events,
             filterState: filterState
         )

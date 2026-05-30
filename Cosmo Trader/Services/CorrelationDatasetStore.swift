@@ -12,6 +12,10 @@ nonisolated struct CorrelationHistoricalDatasetSnapshot: Equatable {
         datasetsBySymbol.mapValues(\.provenance)
             .merging(unavailableProvenanceBySymbol) { current, _ in current }
     }
+
+    var completenessBySymbol: [String: HistoricalDatasetCompleteness] {
+        datasetsBySymbol.mapValues(\.completeness)
+    }
 }
 
 @MainActor

@@ -180,6 +180,51 @@ struct AstroCorrelationServiceTests {
         #expect(summary?.disclaimer.contains("Sample chart data") == true)
     }
 
+    @Test("Stock summaries with partial dataset completeness do not expose numeric claims")
+    func stockSummariesWithPartialDatasetCompletenessDoNotExposeNumericClaims() {
+        let summaries = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: prices([100, 104, 102, 108, 106, 112, 110, 116, 114, 120]),
+            events: [
+                pointEvent(on: "2025-01-02"),
+                pointEvent(on: "2025-01-04"),
+                pointEvent(on: "2025-01-06")
+            ],
+            filterState: AstroOverlayFilterState(eventWindowDays: 1),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10")),
+            completeness: .partial(reason: "Provider returned a limited portion of the requested range")
+        )
+
+        let summary = summaries.first
+        #expect(isPartialDataset(summary))
+        #expect(summary?.averageReturn == nil)
+        #expect(summary?.winRate == nil)
+        #expect(summary?.disclaimer.contains("Partial historical dataset") == true)
+        #expect(summary?.provenance.indicatorLabel == "Partial history")
+    }
+
+    @Test("Stock summaries with insufficient dataset completeness do not expose numeric claims")
+    func stockSummariesWithInsufficientDatasetCompletenessDoNotExposeNumericClaims() {
+        let summaries = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: prices([100, 104, 102, 108, 106, 112]),
+            events: [
+                pointEvent(on: "2025-01-02"),
+                pointEvent(on: "2025-01-04"),
+                pointEvent(on: "2025-01-06")
+            ],
+            filterState: AstroOverlayFilterState(eventWindowDays: 1),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10")),
+            completeness: .insufficient(reason: "Provider returned fewer than two historical candles")
+        )
+
+        let summary = summaries.first
+        #expect(isInsufficientDataset(summary))
+        #expect(summary?.averageReturn == nil)
+        #expect(summary?.winRate == nil)
+        #expect(summary?.disclaimer.contains("Insufficient historical dataset") == true)
+    }
+
     private func pointEvent(on value: String) -> AstroOverlayEvent {
         let eventDate = date(value)
         return AstroOverlayEvent(
@@ -254,6 +299,18 @@ struct AstroCorrelationServiceTests {
     private func isUnavailable(_ summary: StockCosmicCorrelationSummary?) -> Bool {
         guard let summary else { return false }
         if case .unavailable = summary.displayMode { return true }
+        return false
+    }
+
+    private func isPartialDataset(_ summary: StockCosmicCorrelationSummary?) -> Bool {
+        guard let summary else { return false }
+        if case .partialDataset = summary.displayMode { return true }
+        return false
+    }
+
+    private func isInsufficientDataset(_ summary: StockCosmicCorrelationSummary?) -> Bool {
+        guard let summary else { return false }
+        if case .insufficientDataset = summary.displayMode { return true }
         return false
     }
 

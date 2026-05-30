@@ -197,6 +197,58 @@ struct PortfolioCosmicCorrelationServiceTests {
         #expect(summary?.excludedPortfolioWeight == 1)
     }
 
+    @Test("Partial historical datasets do not count toward portfolio numeric coverage")
+    func partialHistoricalDatasetsDoNotCountTowardPortfolioNumericCoverage() {
+        let complete = stock(symbol: "COMP", currentPrice: 60, sharesOwned: 10)
+        let partial = stock(symbol: "PART", currentPrice: 40, sharesOwned: 10)
+
+        let summaries = PortfolioCosmicCorrelationService.shared.summaries(
+            holdings: [complete, partial],
+            priceHistoryBySymbol: [
+                "COMP": prices([100, 105, 110, 100, 105, 110, 100, 105, 110]),
+                "PART": prices([100, 150, 200, 100, 150, 200, 100, 150, 200])
+            ],
+            provenanceBySymbol: providerProvenance(["COMP", "PART"]),
+            completenessBySymbol: [
+                "COMP": .complete,
+                "PART": .partial(reason: "Provider returned a limited portion of the requested range")
+            ],
+            events: fullMoonEvents(),
+            filterState: AstroOverlayFilterState(enabledKinds: [.fullMoon], showEstimatedEvents: true, eventWindowDays: 1),
+            minimumSampleSize: 3
+        )
+
+        let summary = summaries.first { $0.eventType == .fullMoon }
+        #expect(isPartialCoverage(summary))
+        #expect(isClose(summary?.includedPortfolioWeight ?? 0, 0.6))
+        #expect(summary?.unavailableHoldings == ["PART"])
+        expectNoAggregateMetrics(summary)
+        #expect(summary?.disclaimer.contains("70% coverage is required") == true)
+    }
+
+    @Test("Insufficient historical datasets do not count toward portfolio coverage")
+    func insufficientHistoricalDatasetsDoNotCountTowardPortfolioCoverage() {
+        let insufficient = stock(symbol: "THIN", currentPrice: 100, sharesOwned: 1)
+
+        let summaries = PortfolioCosmicCorrelationService.shared.summaries(
+            holdings: [insufficient],
+            priceHistoryBySymbol: ["THIN": prices([100, 105, 110])],
+            provenanceBySymbol: providerProvenance(["THIN"]),
+            completenessBySymbol: [
+                "THIN": .insufficient(reason: "Provider returned fewer than two historical candles")
+            ],
+            events: fullMoonEvents(),
+            filterState: AstroOverlayFilterState(enabledKinds: [.fullMoon], showEstimatedEvents: true, eventWindowDays: 1),
+            minimumSampleSize: 3
+        )
+
+        let summary = summaries.first { $0.eventType == .fullMoon }
+        #expect(isUnavailable(summary))
+        #expect(summary?.includedPortfolioWeight == 0)
+        #expect(summary?.excludedPortfolioWeight == 1)
+        expectNoAggregateMetrics(summary)
+    }
+
     @Test("Minimum sample size gates portfolio correlation metrics")
     func minimumSampleSizeGatesPortfolioMetrics() {
         let holding = stock(symbol: "AAPL", currentPrice: 100, sharesOwned: 1)
