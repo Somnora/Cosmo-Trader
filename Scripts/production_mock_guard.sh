@@ -23,6 +23,14 @@ require_present() {
   fi
 }
 
+require_file_absent() {
+  local file="$1"
+  if [[ -e "$ROOT/$file" ]]; then
+    echo "FAIL: legacy file should not exist: $file"
+    failures=$((failures + 1))
+  fi
+}
+
 require_absent "Cosmo Trader/Views/Components/StockChartView.swift" "stock.chartData(for:"
 require_present "Cosmo Trader/Views/Components/StockChartView.swift" "Historical price data unavailable"
 require_present "Cosmo Trader/Views/Components/StockChartView.swift" "Key statistics unavailable"
@@ -91,6 +99,25 @@ require_present "Cosmo Trader/Views/Components/VolumeLeadersView.swift" "Volume 
 require_absent "Cosmo Trader/Services/DailyBriefService.swift" "let knownStocks = Stock.samples + MockStockData.all"
 require_absent "Cosmo Trader/Services/DailyBriefService.swift" "for stock in user.portfolio where abs"
 require_present "Cosmo Trader/Services/DailyBriefService.swift" "daily highlights must stay empty"
+
+require_file_absent "Cosmo Trader/Views/Tabs/DailyBriefView.swift"
+require_present "Cosmo Trader/Views/ContentView.swift" "DailyBriefBackendView()"
+require_present "Cosmo Trader/Views/Settings/DailyBriefBackendView.swift" "TodayMarketHoroscopeView(viewModel:"
+require_present "Cosmo Trader/Views/Settings/DailyBriefBackendView.swift" "await todayViewModel.load(user: appState.currentUser)"
+require_present "Cosmo Trader/Views/Settings/DailyBriefBackendView.swift" "await todayViewModel.reload(user: appState.currentUser)"
+require_present "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" "accessibilityIdentifier(\"today.marketHoroscope\")"
+require_present "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" "DataSourceIndicator(provenance: summary.provenance"
+require_present "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" "DATA COVERAGE"
+require_present "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" "if !context.metrics.isEmpty"
+require_present "Cosmo Trader/Services/TodayMarketHoroscopeComposer.swift" "numericPortfolioCoverageThreshold = 0.70"
+require_present "Cosmo Trader/Services/TodayMarketHoroscopeComposer.swift" "displayMode == .marketBacked ? portfolioMetrics(for: summary) : []"
+require_present "Cosmo Trader/Services/TodayMarketHoroscopeComposer.swift" "displayMode == .marketBacked ? stockMetrics(for: summary) : []"
+require_present "Cosmo Trader/Services/TodayMarketHoroscopeComposer.swift" "Coverage must reach 70% before headline return metrics appear."
+require_present "Cosmo Trader/Services/TodayMarketHoroscopeComposer.swift" "Today stays in cosmic or unavailable mode until provider-backed history clears"
+require_present "Cosmo Trader/Services/TodayMarketHoroscopeComposer.swift" "Correlation does not imply causation"
+require_present "Cosmo TraderTests/Services/TodayMarketHoroscopeComposerTests.swift" "Partial portfolio coverage stays context-only below seventy percent"
+require_present "Cosmo TraderTests/Services/TodayMarketHoroscopeComposerTests.swift" "Sample and unavailable stock context cannot produce numeric metrics"
+require_absent "Cosmo Trader/Services/TodayMarketHoroscopeComposer.swift" "Double.random"
 
 require_present "Cosmo Trader/Models/FinancialDataProvenance.swift" "enum FinancialDataProvenance"
 require_present "Cosmo Trader/Services/StockAPIService.swift" "getQuoteWithProvenance"
