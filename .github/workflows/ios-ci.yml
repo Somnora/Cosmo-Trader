@@ -9,11 +9,14 @@ on:
 jobs:
   ios:
     name: iOS checks
-    runs-on: macos-latest
+    runs-on: macos-26
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - name: Xcode version
+        run: xcodebuild -version
 
       - name: List Xcode project
         run: xcodebuild -list -project "Cosmo Trader.xcodeproj"
