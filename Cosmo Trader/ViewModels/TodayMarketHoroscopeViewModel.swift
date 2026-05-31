@@ -11,6 +11,7 @@ final class TodayMarketHoroscopeViewModel {
     private let datasetStore: CorrelationDatasetStore
     private let portfolioCorrelationService: PortfolioCosmicCorrelationService
     private let astroCorrelationService: AstroCorrelationService
+    private let marketWeatherService: MarketWeatherService
     private let overlayEventService: AstroOverlayEventService
     private let filterState = AstroOverlayFilterState(
         enabledKinds: [.fullMoon, .newMoon, .mercuryRetrograde],
@@ -25,12 +26,14 @@ final class TodayMarketHoroscopeViewModel {
         datasetStore: CorrelationDatasetStore? = nil,
         portfolioCorrelationService: PortfolioCosmicCorrelationService? = nil,
         astroCorrelationService: AstroCorrelationService? = nil,
+        marketWeatherService: MarketWeatherService? = nil,
         overlayEventService: AstroOverlayEventService? = nil
     ) {
         self.composer = composer ?? TodayMarketHoroscopeComposer.shared
         self.datasetStore = datasetStore ?? CorrelationDatasetStore.shared
         self.portfolioCorrelationService = portfolioCorrelationService ?? PortfolioCosmicCorrelationService.shared
         self.astroCorrelationService = astroCorrelationService ?? AstroCorrelationService.shared
+        self.marketWeatherService = marketWeatherService ?? MarketWeatherService.shared
         self.overlayEventService = overlayEventService ?? AstroOverlayEventService.shared
     }
 
@@ -52,14 +55,17 @@ final class TodayMarketHoroscopeViewModel {
 
         let portfolioSummaries: [PortfolioCosmicCorrelationSummary]
         let stockCandidate: TodayStockCandidate?
+        let marketWeather: MarketWeatherSummary?
 
         if AppState.isScreenshotMode {
             portfolioSummaries = []
             stockCandidate = nil
+            marketWeather = nil
         } else {
             let holdings = user?.portfolio.filter(\.isOwned) ?? []
             portfolioSummaries = await loadPortfolioSummaries(holdings: holdings)
             stockCandidate = await loadStockCandidate(for: user)
+            marketWeather = await marketWeatherService.loadSummary(filterState: filterState)
         }
 
         summary = composer.compose(
@@ -69,7 +75,8 @@ final class TodayMarketHoroscopeViewModel {
             mercuryStatus: mercury.statusMessage,
             activeEventTitles: activeEvents,
             portfolioSummaries: portfolioSummaries,
-            stockCandidate: stockCandidate
+            stockCandidate: stockCandidate,
+            marketWeather: marketWeather
         )
 
         isLoading = false

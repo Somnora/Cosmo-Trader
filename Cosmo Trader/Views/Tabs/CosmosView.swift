@@ -29,6 +29,7 @@ struct CosmosView: View {
     @State private var viewModel = HoroscopeViewModel()
     @State private var astroService = AstroAlertService.shared
     @State private var moonService = MoonPhaseService.shared
+    @State private var marketWeatherSummary: MarketWeatherSummary?
 
     // MARK: - Framing
 
@@ -156,6 +157,8 @@ struct CosmosView: View {
 
                             cosmosEngineStrip
 
+                            marketWeatherCosmosSection
+
                             // 2. Moon Phase Widget (Prominent - for swing traders)
                             moonPhaseWidget
 
@@ -250,6 +253,7 @@ struct CosmosView: View {
 
             // Animate appearance
             animateAppearance()
+            await loadMarketWeatherIfNeeded()
 
             // Track horoscope viewed
             if let user = appState.currentUser {
@@ -373,6 +377,79 @@ struct CosmosView: View {
                 .font(TerminalFont.data(11))
                 .foregroundColor(CosmicTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .terminalPanel(.navy)
+    }
+
+    private var marketWeatherCosmosSection: some View {
+        let event = preferredMarketWeatherEvent(from: marketWeatherSummary?.eventSummaries ?? [])
+        let summaryProvenance = event?.provenance
+            ?? marketWeatherSummary?.provenance
+            ?? .unavailable(reason: "Provider-backed market ETF history unavailable")
+        let coverage = marketWeatherSummary?.coverage ?? 0
+        let included = marketWeatherSummary?.includedSymbols ?? []
+        let excluded = marketWeatherSummary?.excludedSymbols ?? MarketWeatherService.v1Symbols.map(\.symbol)
+        let stale = marketWeatherSummary?.staleSymbols ?? []
+        let canShowMetrics = canShowMarketWeatherMetrics(event, summary: marketWeatherSummary)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: "cloud.sun.fill")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold)
+
+                Text("MARKET WEATHER")
+                    .font(TerminalFont.data(10, weight: .semibold))
+                    .foregroundColor(CosmicTheme.gold)
+                    .tracking(1.1)
+
+                Spacer(minLength: 8)
+
+                DataSourceIndicator(provenance: summaryProvenance, size: .compact)
+            }
+
+            Text(marketWeatherHeadline(for: event))
+                .font(TerminalFont.data(13, weight: .semibold))
+                .foregroundColor(CosmicTheme.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(marketWeatherDetail(for: event, coverage: coverage, staleSymbols: stale))
+                .font(TerminalFont.data(11))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 8) {
+                marketWeatherPill(label: "COVERAGE", value: percentRate(coverage))
+                marketWeatherPill(label: "EVENT", value: event?.eventName ?? "Pending")
+                marketWeatherPill(label: "SAMPLE", value: "\(event?.sampleSize ?? 0)")
+            }
+
+            if canShowMetrics, let event {
+                HStack(spacing: 8) {
+                    marketWeatherPill(label: "AVG MKT", value: percent(event.averageMarketReturn))
+                    marketWeatherPill(label: "WIN", value: percentRate(event.winRate))
+                    marketWeatherPill(label: "WINDOW", value: event.window.displayName)
+                }
+            }
+
+            if !included.isEmpty || !excluded.isEmpty || !stale.isEmpty {
+                VStack(alignment: .leading, spacing: 5) {
+                    if !included.isEmpty {
+                        compactMarketWeatherSymbols(label: "Fresh", symbols: included, color: CosmicTheme.positive)
+                    }
+
+                    if !stale.isEmpty {
+                        compactMarketWeatherSymbols(label: "Stale", symbols: stale, color: CosmicTheme.gold)
+                    }
+
+                    if !excluded.isEmpty {
+                        compactMarketWeatherSymbols(label: "Unavailable", symbols: excluded, color: CosmicTheme.textMuted)
+                    }
+                }
+            }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1005,6 +1082,152 @@ struct CosmosView: View {
     }
 
     // MARK: - Helpers
+
+    private func loadMarketWeatherIfNeeded() async {
+        guard marketWeatherSummary == nil, !AppState.isScreenshotMode else { return }
+
+        let filterState = AstroOverlayFilterState(
+            enabledKinds: [.fullMoon, .newMoon, .mercuryRetrograde],
+            showEstimatedEvents: true,
+            eventWindowDays: 3
+        )
+        marketWeatherSummary = await MarketWeatherService.shared.loadSummary(filterState: filterState)
+    }
+
+    private func preferredMarketWeatherEvent(from summaries: [MarketWeatherEventSummary]) -> MarketWeatherEventSummary? {
+        summaries.sorted { lhs, rhs in
+            let lhsRank = marketWeatherModeRank(lhs.displayMode)
+            let rhsRank = marketWeatherModeRank(rhs.displayMode)
+            if lhsRank != rhsRank { return lhsRank < rhsRank }
+            if lhs.sampleSize != rhs.sampleSize { return lhs.sampleSize > rhs.sampleSize }
+            return lhs.eventName < rhs.eventName
+        }
+        .first
+    }
+
+    private func marketWeatherModeRank(_ mode: CorrelationDisplayMode) -> Int {
+        switch mode {
+        case .marketBackedResult:
+            return 0
+        case .partialCoverage:
+            return 1
+        case .insufficientSample:
+            return 2
+        case .partialDataset:
+            return 3
+        case .insufficientDataset:
+            return 4
+        case .unavailable:
+            return 5
+        case .sampleOnly:
+            return 6
+        }
+    }
+
+    private func canShowMarketWeatherMetrics(
+        _ event: MarketWeatherEventSummary?,
+        summary: MarketWeatherSummary?
+    ) -> Bool {
+        guard let event, let summary, summary.coverage >= 1 else { return false }
+        if case .marketBackedResult = event.displayMode {
+            return event.provenance.isProviderBacked && !event.provenance.isCachedStale()
+        }
+        return false
+    }
+
+    private func marketWeatherHeadline(for event: MarketWeatherEventSummary?) -> String {
+        guard let event else { return "Broad market lens pending" }
+
+        switch event.displayMode {
+        case .marketBackedResult:
+            return "\(event.eventName) market context is ready"
+        case .partialCoverage, .partialDataset:
+            return "Market Weather is partial context only"
+        case .insufficientSample:
+            return "Market Weather needs more observations"
+        case .insufficientDataset:
+            return "Market Weather history is insufficient"
+        case .sampleOnly:
+            return "Sample market history is labeled"
+        case .unavailable:
+            return "Market Weather unavailable"
+        }
+    }
+
+    private func marketWeatherDetail(
+        for event: MarketWeatherEventSummary?,
+        coverage: Double,
+        staleSymbols: [String]
+    ) -> String {
+        guard let event else {
+            return "SPY, QQQ, DIA, and IWM provider-backed history is required before broad market context appears."
+        }
+
+        if !staleSymbols.isEmpty {
+            return "Cached market history is stale for \(staleSymbols.joined(separator: ", ")). Market Weather stays context-only until fresh provider-backed history is available."
+        }
+
+        switch event.displayMode {
+        case .marketBackedResult:
+            return "The broad market lens uses SPY, QQQ, DIA, and IWM with the \(event.window.displayName) event window. Historical context only, not a prediction."
+        case .partialCoverage, .partialDataset:
+            return "Fresh provider-backed market coverage is \(percentRate(coverage)). Full fresh coverage is required before headline market metrics appear."
+        case .insufficientSample:
+            return "Provider-backed market history exists, but this event does not have enough observations for a headline metric."
+        case .insufficientDataset, .unavailable, .sampleOnly:
+            return event.disclaimer
+        }
+    }
+
+    private func marketWeatherPill(label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(TerminalFont.data(8, weight: .bold))
+                .foregroundColor(CosmicTheme.textMuted)
+                .tracking(0.4)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+
+            Text(value)
+                .font(TerminalFont.data(10, weight: .semibold))
+                .foregroundColor(CosmicTheme.textPrimary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(8)
+        .background(CosmicTheme.panelElevated.opacity(0.8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+        )
+    }
+
+    private func compactMarketWeatherSymbols(label: String, symbols: [String], color: Color) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label.uppercased())
+                .font(TerminalFont.data(8, weight: .bold))
+                .foregroundColor(color)
+                .tracking(0.4)
+
+            Text(symbols.joined(separator: " / "))
+                .font(TerminalFont.data(9))
+                .foregroundColor(CosmicTheme.textMuted)
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+        }
+    }
+
+    private func percent(_ value: Double?) -> String {
+        guard let value, value.isFinite else { return "N/A" }
+        let sign = value >= 0 ? "+" : ""
+        return String(format: "%@%.1f%%", sign, value)
+    }
+
+    private func percentRate(_ value: Double?) -> String {
+        guard let value, value.isFinite else { return "N/A" }
+        return String(format: "%.0f%%", value * 100)
+    }
 
     private func eventTypeColor(_ type: PlanetaryEventType) -> Color {
         switch type {

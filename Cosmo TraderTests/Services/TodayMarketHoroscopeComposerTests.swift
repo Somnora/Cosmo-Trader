@@ -39,9 +39,18 @@ struct TodayMarketHoroscopeComposerTests {
                 ],
                 provenance: provenance,
                 completeness: .complete
+            ),
+            marketWeather: marketWeatherSummary(
+                provenance: provenance,
+                displayMode: .marketBackedResult,
+                coverage: 1,
+                averageReturn: 0.8,
+                winRate: 0.58
             )
         )
 
+        #expect(summary.marketContext.displayMode == .marketBacked)
+        #expect(summary.marketContext.metrics.map(\.label).contains("AVG MKT"))
         #expect(summary.portfolioContext.displayMode == .marketBacked)
         #expect(summary.portfolioContext.metrics.map(\.label).contains("AVG PORT"))
         #expect(summary.portfolioContext.metrics.map(\.label).contains("WIN"))
@@ -244,6 +253,8 @@ struct TodayMarketHoroscopeComposerTests {
         let productCopy = [
             summary.cosmicContext.headline,
             summary.cosmicContext.detail,
+            summary.marketContext.headline,
+            summary.marketContext.detail,
             summary.portfolioContext.headline,
             summary.portfolioContext.detail,
             summary.stockContext?.headline ?? "",
@@ -385,6 +396,49 @@ struct TodayMarketHoroscopeComposerTests {
             disclaimer: displayMode == .sampleOnly
                 ? "Sample chart data is labeled for preview only. No historical correlation claim is shown."
                 : "Historical price data unavailable. Correlation context will appear when provider-backed history is available."
+        )
+    }
+
+    private func marketWeatherSummary(
+        provenance: FinancialDataProvenance,
+        displayMode: CorrelationDisplayMode,
+        coverage: Double,
+        averageReturn: Double?,
+        winRate: Double?
+    ) -> MarketWeatherSummary {
+        MarketWeatherSummary(
+            symbols: MarketWeatherService.v1Symbols,
+            eventSummaries: [
+                MarketWeatherEventSummary(
+                    id: "fullMoon",
+                    eventName: "Full Moon",
+                    eventType: .fullMoon,
+                    eventCount: 6,
+                    sampleSize: displayMode == .marketBackedResult ? 4 : 0,
+                    window: CorrelationWindow(daysBefore: 1, daysAfter: 3),
+                    averageMarketReturn: averageReturn,
+                    medianMarketReturn: averageReturn,
+                    winRate: winRate,
+                    baselineMarketReturn: averageReturn.map { $0 / 2 },
+                    volatilityRatio: displayMode == .marketBackedResult ? 1.05 : nil,
+                    maxDrawdown: displayMode == .marketBackedResult ? 1.7 : nil,
+                    includedSymbols: coverage >= 1 ? ["DIA", "IWM", "QQQ", "SPY"] : ["DIA", "QQQ", "SPY"],
+                    excludedSymbols: coverage >= 1 ? [] : ["IWM"],
+                    staleSymbols: [],
+                    provenance: provenance,
+                    confidence: displayMode == .marketBackedResult ? .thin : .insufficient,
+                    displayMode: displayMode,
+                    disclaimer: "Historical market context only. Correlation does not imply causation and this is not financial advice."
+                )
+            ],
+            includedSymbols: coverage >= 1 ? ["DIA", "IWM", "QQQ", "SPY"] : ["DIA", "QQQ", "SPY"],
+            excludedSymbols: coverage >= 1 ? [] : ["IWM"],
+            staleSymbols: [],
+            partialSymbols: [],
+            insufficientSymbols: [],
+            coverage: coverage,
+            provenance: provenance,
+            disclaimer: "Historical market context only. Correlation does not imply causation and this is not financial advice."
         )
     }
 

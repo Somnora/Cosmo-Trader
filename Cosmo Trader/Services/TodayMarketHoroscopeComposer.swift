@@ -15,7 +15,8 @@ final class TodayMarketHoroscopeComposer {
         mercuryStatus: String,
         activeEventTitles: [String],
         portfolioSummaries: [PortfolioCosmicCorrelationSummary],
-        stockCandidate: TodayStockCandidate?
+        stockCandidate: TodayStockCandidate?,
+        marketWeather: MarketWeatherSummary? = nil
     ) -> TodayMarketHoroscopeSummary {
         let cosmicContext = makeCosmicContext(
             mood: mood,
@@ -23,6 +24,7 @@ final class TodayMarketHoroscopeComposer {
             mercuryStatus: mercuryStatus,
             activeEventTitles: activeEventTitles
         )
+        let marketContext = makeMarketContext(summary: marketWeather)
         let portfolioContext = makePortfolioContext(
             user: user,
             summaries: portfolioSummaries
@@ -30,11 +32,13 @@ final class TodayMarketHoroscopeComposer {
         let stockContext = stockCandidate.map(makeStockContext(candidate:))
         let provenance = aggregateProvenance(
             cosmic: cosmicContext.provenance,
+            market: marketContext.provenance,
             portfolio: portfolioContext.provenance,
             stock: stockContext?.provenance
         )
         let dataCoverage = makeDataCoverage(
             mood: mood,
+            marketContext: marketContext,
             portfolioContext: portfolioContext,
             stockContext: stockContext
         )
@@ -42,11 +46,52 @@ final class TodayMarketHoroscopeComposer {
         return TodayMarketHoroscopeSummary(
             date: date,
             cosmicContext: cosmicContext,
+            marketContext: marketContext,
             portfolioContext: portfolioContext,
             stockContext: stockContext,
             dataCoverage: dataCoverage,
             provenance: provenance,
             disclaimer: "Historical context only. Correlation does not imply causation and this is not financial advice."
+        )
+    }
+
+    func makeMarketContext(summary: MarketWeatherSummary?) -> TodayMarketContext {
+        guard let summary,
+              let eventSummary = preferredMarketSummary(from: summary.eventSummaries) else {
+            return TodayMarketContext(
+                headline: "Market Weather unavailable",
+                detail: "SPY, QQQ, DIA, and IWM history is required before Today can show broad market-weather context.",
+                eventName: nil,
+                windowLabel: nil,
+                eventCount: 0,
+                sampleSize: 0,
+                includedSymbols: [],
+                excludedSymbols: MarketWeatherService.v1Symbols.map(\.symbol),
+                staleSymbols: [],
+                coverage: 0,
+                metrics: [],
+                provenance: .unavailable(reason: "Provider-backed market ETF history unavailable"),
+                displayMode: .unavailable
+            )
+        }
+
+        let displayMode = marketDisplayMode(for: eventSummary, summary: summary)
+        let metrics = displayMode == .marketBacked ? marketMetrics(for: eventSummary) : []
+
+        return TodayMarketContext(
+            headline: marketHeadline(for: eventSummary, displayMode: displayMode),
+            detail: marketDetail(for: eventSummary, summary: summary, displayMode: displayMode),
+            eventName: eventSummary.eventName,
+            windowLabel: eventSummary.window.displayName,
+            eventCount: eventSummary.eventCount,
+            sampleSize: eventSummary.sampleSize,
+            includedSymbols: summary.includedSymbols,
+            excludedSymbols: summary.excludedSymbols,
+            staleSymbols: summary.staleSymbols,
+            coverage: summary.coverage,
+            metrics: metrics,
+            provenance: eventSummary.provenance,
+            displayMode: displayMode
         )
     }
 
@@ -177,6 +222,7 @@ final class TodayMarketHoroscopeComposer {
 
     private func makeDataCoverage(
         mood: CosmicMoodData,
+        marketContext: TodayMarketContext,
         portfolioContext: TodayPortfolioContext,
         stockContext: TodayStockContext?
     ) -> TodayDataCoverage {
@@ -185,6 +231,11 @@ final class TodayMarketHoroscopeComposer {
                 label: "Market tone",
                 value: mood.marketToneText,
                 provenance: mood.provenance
+            ),
+            TodayDataCoverageRow(
+                label: "Market weather",
+                value: "\(percentRate(marketContext.coverage)) fresh",
+                provenance: marketContext.provenance
             ),
             TodayDataCoverageRow(
                 label: "Portfolio history",
@@ -212,13 +263,14 @@ final class TodayMarketHoroscopeComposer {
         }
 
         let hasProviderBackedContext = portfolioContext.displayMode == .marketBacked
+            || marketContext.displayMode == .marketBacked
             || stockContext?.displayMode == .marketBacked
         let headline = hasProviderBackedContext
             ? "Source labels are active"
             : "Waiting on provider-backed history"
         let detail = hasProviderBackedContext
-            ? "Numeric context appears only where provider-backed or cached historical datasets pass sample-size, completeness, and coverage gates."
-            : "Today stays in cosmic or unavailable mode until provider-backed history clears the stock and portfolio gates."
+            ? "Numeric context appears only where provider-backed or cached-fresh historical datasets pass sample-size, completeness, freshness, and coverage gates."
+            : "Today stays in cosmic or unavailable mode until provider-backed history clears the market, stock, and portfolio gates."
 
         return TodayDataCoverage(headline: headline, detail: detail, rows: rows)
     }
@@ -227,6 +279,17 @@ final class TodayMarketHoroscopeComposer {
         summaries.sorted { lhs, rhs in
             let lhsScore = portfolioModeRank(lhs.displayMode)
             let rhsScore = portfolioModeRank(rhs.displayMode)
+            if lhsScore != rhsScore { return lhsScore < rhsScore }
+            if lhs.sampleSize != rhs.sampleSize { return lhs.sampleSize > rhs.sampleSize }
+            return lhs.eventName < rhs.eventName
+        }
+        .first
+    }
+
+    private func preferredMarketSummary(from summaries: [MarketWeatherEventSummary]) -> MarketWeatherEventSummary? {
+        summaries.sorted { lhs, rhs in
+            let lhsScore = marketModeRank(lhs.displayMode)
+            let rhsScore = marketModeRank(rhs.displayMode)
             if lhsScore != rhsScore { return lhsScore < rhsScore }
             if lhs.sampleSize != rhs.sampleSize { return lhs.sampleSize > rhs.sampleSize }
             return lhs.eventName < rhs.eventName
@@ -259,6 +322,24 @@ final class TodayMarketHoroscopeComposer {
             return .partialContext
         case .insufficientDataset, .unavailable:
             return .unavailable
+        }
+    }
+
+    private func marketDisplayMode(
+        for eventSummary: MarketWeatherEventSummary,
+        summary: MarketWeatherSummary
+    ) -> TodayMarketContext.DisplayMode {
+        switch eventSummary.displayMode {
+        case .marketBackedResult:
+            return summary.coverage >= 1 ? .marketBacked : .partialContext
+        case .partialCoverage, .partialDataset:
+            return summary.staleSymbols.isEmpty ? .partialContext : .stale
+        case .insufficientSample:
+            return summary.staleSymbols.isEmpty ? .insufficientSample : .stale
+        case .sampleOnly:
+            return .sampleOnly
+        case .insufficientDataset, .unavailable:
+            return summary.staleSymbols.isEmpty ? .unavailable : .stale
         }
     }
 
@@ -320,6 +401,48 @@ final class TodayMarketHoroscopeComposer {
         }
     }
 
+    private func marketHeadline(
+        for summary: MarketWeatherEventSummary,
+        displayMode: TodayMarketContext.DisplayMode
+    ) -> String {
+        switch displayMode {
+        case .marketBacked:
+            return "\(summary.eventName) market weather is ready"
+        case .partialContext:
+            return "Partial Market Weather only"
+        case .stale:
+            return "Market Weather is stale"
+        case .insufficientSample:
+            return "Not enough \(summary.eventName) market observations"
+        case .sampleOnly:
+            return "Sample market history is labeled"
+        case .unavailable:
+            return "Market Weather unavailable"
+        }
+    }
+
+    private func marketDetail(
+        for eventSummary: MarketWeatherEventSummary,
+        summary: MarketWeatherSummary,
+        displayMode: TodayMarketContext.DisplayMode
+    ) -> String {
+        let coverage = percentRate(summary.coverage)
+        switch displayMode {
+        case .marketBacked:
+            return "SPY, QQQ, DIA, and IWM have provider-backed fresh history. Metrics use the \(eventSummary.window.displayName) event window."
+        case .partialContext:
+            let excluded = summary.excludedSymbols.isEmpty ? "none" : summary.excludedSymbols.joined(separator: ", ")
+            return "Fresh provider-backed market history covers \(coverage) of the V1 market basket. Excluded: \(excluded). Full fresh coverage is required before headline market metrics appear."
+        case .stale:
+            let stale = summary.staleSymbols.joined(separator: ", ")
+            return "Cached market history is stale for \(stale). Market Weather stays context-only until fresh provider-backed history is available."
+        case .insufficientSample:
+            return "The market basket has provider-backed history, but this event does not have enough observations for a headline metric."
+        case .sampleOnly, .unavailable:
+            return eventSummary.disclaimer
+        }
+    }
+
     private func portfolioDetail(
         for summary: PortfolioCosmicCorrelationSummary,
         displayMode: TodayPortfolioContext.DisplayMode
@@ -373,6 +496,14 @@ final class TodayMarketHoroscopeComposer {
         }
     }
 
+    private func marketMetrics(for summary: MarketWeatherEventSummary) -> [TodayMetric] {
+        [
+            TodayMetric(label: "AVG MKT", value: percent(summary.averageMarketReturn)),
+            TodayMetric(label: "WIN", value: percentRate(summary.winRate)),
+            TodayMetric(label: "SAMPLE", value: "\(summary.sampleSize)")
+        ]
+    }
+
     private func portfolioMetrics(for summary: PortfolioCosmicCorrelationSummary) -> [TodayMetric] {
         [
             TodayMetric(label: "AVG PORT", value: percent(summary.averagePortfolioReturn)),
@@ -391,10 +522,11 @@ final class TodayMarketHoroscopeComposer {
 
     private func aggregateProvenance(
         cosmic: FinancialDataProvenance,
+        market: FinancialDataProvenance,
         portfolio: FinancialDataProvenance,
         stock: FinancialDataProvenance?
     ) -> FinancialDataProvenance {
-        let provenances = [cosmic, portfolio] + [stock].compactMap { $0 }
+        let provenances = [cosmic, market, portfolio] + [stock].compactMap { $0 }
         let providerBacked = provenances.filter(\.isProviderBacked)
 
         if providerBacked.count == provenances.count, !providerBacked.isEmpty {
@@ -416,6 +548,18 @@ final class TodayMarketHoroscopeComposer {
     }
 
     private func portfolioModeRank(_ mode: CorrelationDisplayMode) -> Int {
+        switch mode {
+        case .marketBackedResult: return 0
+        case .partialCoverage: return 1
+        case .insufficientSample: return 2
+        case .partialDataset: return 3
+        case .insufficientDataset: return 4
+        case .unavailable: return 5
+        case .sampleOnly: return 6
+        }
+    }
+
+    private func marketModeRank(_ mode: CorrelationDisplayMode) -> Int {
         switch mode {
         case .marketBackedResult: return 0
         case .partialCoverage: return 1
