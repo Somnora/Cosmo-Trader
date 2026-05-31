@@ -20,7 +20,7 @@ final class DailyFinancialReadingService {
         guard !holdings.isEmpty else {
             return emptyReading(
                 headline: "No portfolio reading yet",
-                impact: "Your market and lunar tape is live, but portfolio impact needs positions. Add 3-5 tickers so Cosmo can connect today's posture to what you actually own.",
+                impact: "Your market and lunar tape is live, but portfolio impact needs holdings. Add 3-5 tickers so Cosmo can connect today's context to what you actually own.",
                 framingLevel: user.signalFramingLevel
             )
         }
@@ -217,7 +217,7 @@ final class DailyFinancialReadingService {
         case .leanRational:
             return "Market tone is \(score.level.sentimentName.lowercased()) at \(score.value)/100 while the lunar cycle points to \(lunarData.phase.rawValue.lowercased()) conditions. \(mercury.statusMessage) keeps execution discipline in focus."
         case .balanced:
-            return "The tape is \(score.level.sentimentName.lowercased()) and the \(lunarData.phase.rawValue.lowercased()) moon in \(lunarData.moonSign.displayName) puts \(lunarData.activatedElement.displayName.lowercased()) names in focus. \(mercury.statusMessage) argues for quiet positioning and no theatrics."
+            return "The tape is \(score.level.sentimentName.lowercased()) and the \(lunarData.phase.rawValue.lowercased()) moon in \(lunarData.moonSign.displayName) puts \(lunarData.activatedElement.displayName.lowercased()) names in focus. \(mercury.statusMessage) argues for quiet review and no theatrics."
         case .leanMystical, .mystical:
             return "The \(lunarData.phase.rawValue.lowercased()) moon in \(lunarData.moonSign.displayName) activates \(lunarData.activatedElement.displayName.lowercased()) exposure while the market mood reads \(score.level.sentimentName.lowercased()). \(mercury.tradingAdvice)"
         }
@@ -314,10 +314,10 @@ final class DailyFinancialReadingService {
         }
 
         if stock.totalValue > 0 {
-            return "Large position weight; small moves matter here."
+            return "Large portfolio weight; small moves matter here."
         }
 
-        return "Watch for confirmation before changing posture."
+        return "Confirmation context is thin, so keep the read in perspective."
     }
 
     private func determineBestMove(
@@ -366,7 +366,7 @@ final class DailyFinancialReadingService {
         } else {
             basis.append("balanced framing")
         }
-        return "Based on \(basis.joined(separator: ", ")). This is posture guidance, not certainty."
+        return "Based on \(basis.joined(separator: ", ")). This is context guidance, not certainty."
     }
 
     private func marketBackedScore(from mood: CosmicMoodData) -> (level: CosmicMoodLevel, value: Int)? {

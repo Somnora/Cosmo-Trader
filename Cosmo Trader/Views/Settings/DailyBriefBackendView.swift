@@ -15,9 +15,19 @@ struct DailyBriefBackendView: View {
     @State private var briefProvenance: FinancialDataProvenance = .unavailable(reason: "Daily Brief not loaded")
     @State private var diagnosticsURL: String?
     @State private var diagnosticsStatusCode: Int?
+    @State private var todayViewModel = TodayMarketHoroscopeViewModel()
 
     var body: some View {
         List {
+            Section {
+                TodayMarketHoroscopeView(viewModel: todayViewModel) {
+                    appState.selectedTab = .portfolio
+                }
+            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 14, trailing: 16))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+
             Section {
                 DailyFinancialReadingCockpitView(reading: dailyReading) {
                     appState.selectedTab = .portfolio
@@ -182,9 +192,11 @@ struct DailyBriefBackendView: View {
         .tabBarSafeBottomPadding()
         .iPadReadableContent(maxWidth: 980)
         .refreshable {
+            await todayViewModel.reload(user: appState.currentUser)
             await refreshBrief()
         }
         .task {
+            await todayViewModel.load(user: appState.currentUser)
             if AppState.isScreenshotMode {
                 showLocalFallbackIfNeeded()
                 return

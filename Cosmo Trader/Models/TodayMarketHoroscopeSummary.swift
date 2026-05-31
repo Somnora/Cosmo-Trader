@@ -1,0 +1,108 @@
+import Foundation
+
+struct TodayMarketHoroscopeSummary: Equatable {
+    let date: Date
+    let cosmicContext: TodayCosmicContext
+    let portfolioContext: TodayPortfolioContext
+    let stockContext: TodayStockContext?
+    let dataCoverage: TodayDataCoverage
+    let provenance: FinancialDataProvenance
+    let disclaimer: String
+}
+
+struct TodayCosmicContext: Equatable {
+    let headline: String
+    let detail: String
+    let lunarLabel: String
+    let mercuryLabel: String
+    let marketToneLabel: String
+    let activeEvents: [String]
+    let provenance: FinancialDataProvenance
+}
+
+struct TodayPortfolioContext: Equatable {
+    enum DisplayMode: Equatable {
+        case setupRequired
+        case marketBacked
+        case partialContext
+        case insufficientCoverage
+        case insufficientSample
+        case unavailable
+        case sampleOnly
+    }
+
+    let headline: String
+    let detail: String
+    let eventName: String?
+    let windowLabel: String?
+    let eventCount: Int
+    let sampleSize: Int
+    let includedPortfolioWeight: Double
+    let excludedPortfolioWeight: Double
+    let unavailableHoldings: [String]
+    let metrics: [TodayMetric]
+    let provenance: FinancialDataProvenance
+    let displayMode: DisplayMode
+}
+
+struct TodayStockContext: Equatable {
+    enum DisplayMode: Equatable {
+        case marketBacked
+        case partialDataset
+        case insufficientDataset
+        case insufficientSample
+        case unavailable
+        case sampleOnly
+    }
+
+    let symbol: String
+    let name: String
+    let headline: String
+    let detail: String
+    let eventName: String?
+    let windowLabel: String?
+    let eventCount: Int
+    let sampleSize: Int
+    let metrics: [TodayMetric]
+    let provenance: FinancialDataProvenance
+    let displayMode: DisplayMode
+}
+
+struct TodayDataCoverage: Equatable {
+    let headline: String
+    let detail: String
+    let rows: [TodayDataCoverageRow]
+}
+
+struct TodayDataCoverageRow: Equatable, Identifiable {
+    let id: String
+    let label: String
+    let value: String
+    let provenance: FinancialDataProvenance
+
+    init(label: String, value: String, provenance: FinancialDataProvenance) {
+        self.id = label
+        self.label = label
+        self.value = value
+        self.provenance = provenance
+    }
+}
+
+struct TodayMetric: Equatable, Identifiable {
+    let id: String
+    let label: String
+    let value: String
+
+    init(label: String, value: String) {
+        self.id = label
+        self.label = label
+        self.value = value
+    }
+}
+
+struct TodayStockCandidate: Equatable {
+    let stock: Stock
+    let summaries: [StockCosmicCorrelationSummary]
+    let provenance: FinancialDataProvenance
+    let completeness: HistoricalDatasetCompleteness
+}

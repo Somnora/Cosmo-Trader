@@ -7,7 +7,7 @@ import SwiftUI
 //
 // "Next Mercury Retrograde: 23 days"
 // or
-// "MERCURY RETROGRADE ACTIVE — Day 12 of 21"
+// "MERCURY RETROGRADE ACTIVE - Day 12 of 21"
 //
 // WHY IT WORKS: Creates urgency. Drives engagement. Cosmic FOMO.
 
@@ -162,7 +162,7 @@ final class MercuryRetrogradeService {
         case .active, .stormBeginning, .stormEnding:
             return "Day \(currentDayOfRetrograde)/\(totalRetrogradeDays)"
         case .preShadow, .clear:
-            return daysUntilNext > 0 ? "\(daysUntilNext)d" : "—"
+            return daysUntilNext > 0 ? "\(daysUntilNext)d" : "N/A"
         }
     }
 
@@ -170,27 +170,29 @@ final class MercuryRetrogradeService {
     var currentAdvice: String {
         switch status {
         case .active:
-            return "Triple-check all communications and contracts. Avoid major tech purchases. Back up everything."
+            return "Communication and technology themes may feel noisy. Treat this as context and verify details independently."
         case .stormBeginning:
-            return "The retrograde storm is intensifying. Be extra cautious with decisions today."
+            return "Retrograde themes are building. Keep today's read as historical and cosmic context."
         case .stormEnding:
-            return "Almost through! But don't let your guard down — the final days can be tricky."
+            return "Retrograde themes are easing. Let source labels and your own plan carry more weight than cosmic flair."
         case .preShadow:
-            return "Pre-shadow period: Themes of the upcoming retrograde are emerging. Tie up loose ends."
+            return "Pre-shadow themes may surface. Use this as context for your review, not a directive."
         case .clear:
-            return "Mercury is direct. Good time for signing contracts, making deals, and clear communication."
+            return "Mercury is direct. Communication themes are calmer; this remains context only."
         }
     }
 
-    /// Trading advice
+    /// Historical/cosmic context for market surfaces. The property name is
+    /// retained for compatibility with older callers, but the copy is not a
+    /// trading instruction.
     var tradingAdvice: String {
         switch status {
         case .active, .stormBeginning, .stormEnding:
-            return "Review positions carefully. Avoid impulsive trades. Technology glitches may cause delays. Double-check order details before confirming."
+            return "Retrograde context flag: communication and technology themes may be noisy. Review source labels and your own rules."
         case .preShadow:
-            return "Consider closing or adjusting positions before retrograde begins. Prepare for potential volatility."
+            return "Pre-shadow context flag: volatility themes may feel amplified. Treat this as a watchlist note."
         case .clear:
-            return "Communication flows smoothly. Good period for researching new investments and executing planned trades."
+            return "Mercury direct context: communication themes are calmer. Historical context only."
         }
     }
 

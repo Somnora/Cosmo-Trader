@@ -1,0 +1,308 @@
+import Foundation
+import Testing
+@testable import Cosmo_Trader
+
+@MainActor
+struct TodayMarketHoroscopeComposerTests {
+    private let composer = TodayMarketHoroscopeComposer()
+
+    @Test("Market-backed Today summary exposes source-labeled portfolio and stock metrics")
+    func marketBackedSummaryExposesMetrics() {
+        let fetchedAt = date("2026-05-30")
+        let provenance: FinancialDataProvenance = .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+
+        let summary = composer.compose(
+            date: fetchedAt,
+            user: user(),
+            mood: mood(value: 68, provenance: provenance),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: ["Full Moon"],
+            portfolioSummaries: [
+                portfolioSummary(
+                    provenance: provenance,
+                    displayMode: .marketBackedResult,
+                    includedWeight: 0.82,
+                    averageReturn: 1.4,
+                    winRate: 0.67
+                )
+            ],
+            stockCandidate: TodayStockCandidate(
+                stock: stock(symbol: "AAPL", sharesOwned: 2),
+                summaries: [
+                    stockSummary(
+                        provenance: provenance,
+                        displayMode: .marketBackedResult,
+                        averageReturn: 2.1,
+                        winRate: 0.75
+                    )
+                ],
+                provenance: provenance,
+                completeness: .complete
+            )
+        )
+
+        #expect(summary.portfolioContext.displayMode == .marketBacked)
+        #expect(summary.portfolioContext.metrics.map(\.label).contains("AVG PORT"))
+        #expect(summary.portfolioContext.metrics.map(\.label).contains("WIN"))
+        #expect(summary.stockContext?.displayMode == .marketBacked)
+        #expect(summary.stockContext?.metrics.map(\.label).contains("AVG") == true)
+        #expect(summary.provenance.isProviderBacked)
+        #expect(summary.disclaimer.contains("not financial advice"))
+    }
+
+    @Test("Partial portfolio coverage stays context-only below seventy percent")
+    func partialPortfolioCoverageWithholdsHeadlineMetrics() {
+        let fetchedAt = date("2026-05-30")
+        let provenance: FinancialDataProvenance = .mixed(reason: "Only 60% of portfolio value has provider-backed historical prices")
+
+        let summary = composer.compose(
+            date: fetchedAt,
+            user: user(),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [
+                portfolioSummary(
+                    provenance: provenance,
+                    displayMode: .partialCoverage,
+                    includedWeight: 0.60,
+                    averageReturn: 9.9,
+                    winRate: 0.99
+                )
+            ],
+            stockCandidate: nil
+        )
+
+        #expect(summary.portfolioContext.displayMode == .partialContext)
+        #expect(summary.portfolioContext.metrics.isEmpty)
+        #expect(!summary.portfolioContext.metrics.map(\.label).contains("AVG PORT"))
+        #expect(summary.portfolioContext.detail.contains("70%"))
+        #expect(summary.portfolioContext.includedPortfolioWeight == 0.60)
+    }
+
+    @Test("Sample and unavailable stock context cannot produce numeric metrics")
+    func unsafeStockContextWithholdsMetrics() {
+        let unsafeSummary = stockSummary(
+            provenance: .sample(reason: "Preview fixture"),
+            displayMode: .sampleOnly,
+            averageReturn: 12.5,
+            winRate: 1
+        )
+
+        let context = composer.makeStockContext(
+            candidate: TodayStockCandidate(
+                stock: stock(symbol: "TSLA", sharesOwned: 0),
+                summaries: [unsafeSummary],
+                provenance: .sample(reason: "Preview fixture"),
+                completeness: .complete
+            )
+        )
+
+        #expect(context.displayMode == .sampleOnly)
+        #expect(context.metrics.isEmpty)
+        #expect(context.detail.contains("No historical correlation claim is shown"))
+    }
+
+    @Test("Today data coverage distinguishes stale, partial, and unavailable datasets")
+    func dataCoverageCarriesDatasetQuality() {
+        let fetchedAt = date("2026-05-28")
+        let stale: FinancialDataProvenance = .cached(
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: fetchedAt,
+            age: FinancialDataProvenance.defaultCachedStaleInterval * 2
+        )
+
+        let summary = composer.compose(
+            date: date("2026-05-30"),
+            user: user(),
+            mood: mood(value: 55, provenance: stale),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [
+                portfolioSummary(
+                    provenance: .mixed(reason: "Partial historical dataset. Provider returned a limited portion of the requested range"),
+                    displayMode: .partialCoverage,
+                    includedWeight: 0.55,
+                    averageReturn: nil,
+                    winRate: nil
+                )
+            ],
+            stockCandidate: TodayStockCandidate(
+                stock: stock(symbol: "MSFT", sharesOwned: 0),
+                summaries: [],
+                provenance: .unavailable(reason: "Provider-backed historical prices unavailable"),
+                completeness: .insufficient(reason: "Provider-backed historical prices unavailable")
+            )
+        )
+
+        #expect(summary.dataCoverage.rows.contains { $0.provenance.isCachedStale() })
+        #expect(summary.dataCoverage.rows.contains { $0.provenance.indicatorLabel == "Partial history" })
+        #expect(summary.dataCoverage.rows.contains { $0.provenance.indicatorLabel == "Unavailable" })
+    }
+
+    @Test("Today and Mercury copy avoid trading-instruction phrases")
+    func todayCopyAvoidsTradingInstructionPhrases() {
+        let summary = composer.compose(
+            user: user(),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: ["New Moon"],
+            portfolioSummaries: [],
+            stockCandidate: nil
+        )
+
+        let productCopy = [
+            summary.cosmicContext.headline,
+            summary.cosmicContext.detail,
+            summary.portfolioContext.headline,
+            summary.portfolioContext.detail,
+            summary.stockContext?.headline ?? "",
+            summary.stockContext?.detail ?? "",
+            summary.dataCoverage.headline,
+            summary.dataCoverage.detail,
+            summary.disclaimer,
+            MercuryRetrogradeService.shared.currentAdvice,
+            MercuryRetrogradeService.shared.tradingAdvice
+        ].joined(separator: "\n").lowercased()
+
+        for banned in [
+            "buy signal",
+            "sell signal",
+            "take profits",
+            "reduce exposure",
+            "reduce position",
+            "position size",
+            "smaller position",
+            "delay major decisions",
+            "high-risk positions",
+            "expected upside",
+            "expected downside"
+        ] {
+            #expect(!productCopy.contains(banned))
+        }
+    }
+
+    private func user() -> UserProfile {
+        UserProfile(
+            displayName: "Test",
+            email: "test@example.com",
+            birthDate: date("1990-04-12"),
+            portfolio: [
+                stock(symbol: "AAPL", sharesOwned: 2),
+                stock(symbol: "MSFT", sharesOwned: 1)
+            ],
+            watchlist: ["TSLA"]
+        )
+    }
+
+    private func stock(symbol: String, sharesOwned: Double) -> Stock {
+        Stock(
+            symbol: symbol,
+            name: "\(symbol) Inc.",
+            currentPrice: 100,
+            priceChange: 1,
+            percentageChange: 1,
+            sharesOwned: sharesOwned,
+            purchasePrice: 90,
+            foundedMonth: 4,
+            foundedDay: 1,
+            foundedYear: 1976,
+            sector: "Technology"
+        )
+    }
+
+    private func mood(value: Int?, provenance: FinancialDataProvenance) -> CosmicMoodData {
+        CosmicMoodData(
+            date: date("2026-05-30"),
+            value: value,
+            factors: [],
+            label: value == nil ? "Market data unavailable" : nil,
+            provenance: provenance,
+            marketDataCoverage: value == nil ? 0 : 1,
+            unavailableFactorWeight: value == nil ? 1 : 0,
+            displayMode: value == nil ? .unavailable : .marketBackedScore
+        )
+    }
+
+    private func lunarData() -> LunarData {
+        LunarData(
+            date: date("2026-05-30"),
+            phase: .waxingGibbous,
+            illumination: 0.82,
+            age: 11,
+            moonSign: .aries,
+            isWaxing: true
+        )
+    }
+
+    private func portfolioSummary(
+        provenance: FinancialDataProvenance,
+        displayMode: CorrelationDisplayMode,
+        includedWeight: Double,
+        averageReturn: Double?,
+        winRate: Double?
+    ) -> PortfolioCosmicCorrelationSummary {
+        PortfolioCosmicCorrelationSummary(
+            id: "fullMoon",
+            eventName: "Full Moon",
+            eventType: .fullMoon,
+            eventCount: 6,
+            sampleSize: displayMode == .marketBackedResult ? 4 : 0,
+            window: CorrelationWindow(daysBefore: 1, daysAfter: 3),
+            averagePortfolioReturn: averageReturn,
+            medianPortfolioReturn: averageReturn,
+            winRate: winRate,
+            baselinePortfolioReturn: averageReturn.map { $0 / 2 },
+            volatilityRatio: displayMode == .marketBackedResult ? 1.1 : nil,
+            maxDrawdown: displayMode == .marketBackedResult ? 2.3 : nil,
+            affectedHoldings: [],
+            unavailableHoldings: includedWeight < 1 ? ["MSFT"] : [],
+            includedPortfolioWeight: includedWeight,
+            excludedPortfolioWeight: max(0, 1 - includedWeight),
+            provenance: provenance,
+            confidence: displayMode == .marketBackedResult ? .thin : .insufficient,
+            displayMode: displayMode,
+            disclaimer: "Historical portfolio context only. Correlation does not imply causation and this is not financial advice."
+        )
+    }
+
+    private func stockSummary(
+        provenance: FinancialDataProvenance,
+        displayMode: CorrelationDisplayMode,
+        averageReturn: Double?,
+        winRate: Double?
+    ) -> StockCosmicCorrelationSummary {
+        StockCosmicCorrelationSummary(
+            id: "AAPL-fullMoon",
+            symbol: "AAPL",
+            eventName: "Full Moon",
+            eventType: .fullMoon,
+            eventCount: 6,
+            sampleSize: displayMode == .marketBackedResult ? 4 : 0,
+            window: CorrelationWindow(daysBefore: 1, daysAfter: 3),
+            averageReturn: averageReturn,
+            medianReturn: averageReturn,
+            winRate: winRate,
+            baselineReturn: averageReturn.map { $0 / 2 },
+            volatilityRatio: displayMode == .marketBackedResult ? 1.2 : nil,
+            maxDrawdown: displayMode == .marketBackedResult ? 2.1 : nil,
+            provenance: provenance,
+            confidence: displayMode == .marketBackedResult ? .thin : .unavailable,
+            displayMode: displayMode,
+            disclaimer: displayMode == .sampleOnly
+                ? "Sample chart data is labeled for preview only. No historical correlation claim is shown."
+                : "Historical price data unavailable. Correlation context will appear when provider-backed history is available."
+        )
+    }
+
+    private func date(_ value: String) -> Date {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        return formatter.date(from: value) ?? Date(timeIntervalSince1970: 0)
+    }
+}
