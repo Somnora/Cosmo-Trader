@@ -51,6 +51,61 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(summary.disclaimer.contains("not financial advice"))
     }
 
+    @Test("No portfolio stays setup-only with no numeric portfolio metrics")
+    func noPortfolioStaysSetupOnlyWithNoNumericPortfolioMetrics() {
+        let fetchedAt = date("2026-05-30")
+
+        let summary = composer.compose(
+            date: fetchedAt,
+            user: user(portfolio: [], watchlist: []),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [],
+            stockCandidate: nil
+        )
+
+        #expect(summary.portfolioContext.displayMode == .setupRequired)
+        #expect(summary.portfolioContext.metrics.isEmpty)
+        #expect(summary.portfolioContext.includedPortfolioWeight == 0)
+        #expect(summary.portfolioContext.excludedPortfolioWeight == 0)
+        #expect(summary.portfolioContext.provenance.indicatorLabel == "Unavailable")
+        #expect(summary.stockContext == nil)
+        #expect(summary.dataCoverage.rows.contains { $0.label == "Stock lens" && $0.provenance.indicatorLabel == "Unavailable" })
+    }
+
+    @Test("Below fifty percent portfolio coverage blocks Today portfolio context metrics")
+    func belowFiftyPercentPortfolioCoverageBlocksTodayPortfolioContextMetrics() {
+        let fetchedAt = date("2026-05-30")
+        let provenance: FinancialDataProvenance = .mixed(reason: "Only 49% of portfolio value has provider-backed historical prices")
+
+        let summary = composer.compose(
+            date: fetchedAt,
+            user: user(),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [
+                portfolioSummary(
+                    provenance: provenance,
+                    displayMode: .insufficientSample,
+                    includedWeight: 0.49,
+                    averageReturn: 8.8,
+                    winRate: 0.88
+                )
+            ],
+            stockCandidate: nil
+        )
+
+        #expect(summary.portfolioContext.displayMode == .insufficientCoverage)
+        #expect(summary.portfolioContext.metrics.isEmpty)
+        #expect(!summary.portfolioContext.metrics.map(\.label).contains("AVG PORT"))
+        #expect(summary.portfolioContext.detail.contains("At least 50% coverage"))
+        #expect(summary.portfolioContext.includedPortfolioWeight == 0.49)
+    }
+
     @Test("Partial portfolio coverage stays context-only below seventy percent")
     func partialPortfolioCoverageWithholdsHeadlineMetrics() {
         let fetchedAt = date("2026-05-30")
@@ -80,6 +135,37 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(!summary.portfolioContext.metrics.map(\.label).contains("AVG PORT"))
         #expect(summary.portfolioContext.detail.contains("70%"))
         #expect(summary.portfolioContext.includedPortfolioWeight == 0.60)
+    }
+
+    @Test("Exactly seventy percent portfolio coverage can render Today portfolio metrics")
+    func exactlySeventyPercentPortfolioCoverageCanRenderTodayPortfolioMetrics() {
+        let fetchedAt = date("2026-05-30")
+        let provenance: FinancialDataProvenance = .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+
+        let summary = composer.compose(
+            date: fetchedAt,
+            user: user(),
+            mood: mood(value: 62, provenance: provenance),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: ["Full Moon"],
+            portfolioSummaries: [
+                portfolioSummary(
+                    provenance: provenance,
+                    displayMode: .marketBackedResult,
+                    includedWeight: 0.70,
+                    averageReturn: 1.2,
+                    winRate: 0.64
+                )
+            ],
+            stockCandidate: nil
+        )
+
+        #expect(summary.portfolioContext.displayMode == .marketBacked)
+        #expect(summary.portfolioContext.metrics.map(\.label).contains("AVG PORT"))
+        #expect(summary.portfolioContext.metrics.map(\.label).contains("WIN"))
+        #expect(summary.portfolioContext.includedPortfolioWeight == 0.70)
+        #expect(summary.portfolioContext.detail.contains("Provider-backed history covers 70%"))
     }
 
     @Test("Sample and unavailable stock context cannot produce numeric metrics")
@@ -186,16 +272,19 @@ struct TodayMarketHoroscopeComposerTests {
         }
     }
 
-    private func user() -> UserProfile {
+    private func user(
+        portfolio: [Stock]? = nil,
+        watchlist: [String] = ["TSLA"]
+    ) -> UserProfile {
         UserProfile(
             displayName: "Test",
             email: "test@example.com",
             birthDate: date("1990-04-12"),
-            portfolio: [
+            portfolio: portfolio ?? [
                 stock(symbol: "AAPL", sharesOwned: 2),
                 stock(symbol: "MSFT", sharesOwned: 1)
             ],
-            watchlist: ["TSLA"]
+            watchlist: watchlist
         )
     }
 
