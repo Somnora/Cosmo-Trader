@@ -16,9 +16,9 @@ struct TodayMarketHoroscopeView: View {
     }
 
     private func summaryContent(_ summary: TodayMarketHoroscopeSummary) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             header(summary)
-            cosmicBlock(summary.cosmicContext)
+            loopSnapshot(summary)
             marketBlock(summary.marketContext)
             portfolioBlock(summary.portfolioContext)
 
@@ -31,6 +31,7 @@ struct TodayMarketHoroscopeView: View {
                 )
             }
 
+            cosmicBlock(summary.cosmicContext)
             dataCoverageBlock(summary.dataCoverage)
 
             Text(summary.disclaimer)
@@ -92,6 +93,85 @@ struct TodayMarketHoroscopeView: View {
 
             DataSourceIndicator(provenance: summary.provenance, size: .compact)
         }
+    }
+
+    private func loopSnapshot(_ summary: TodayMarketHoroscopeSummary) -> some View {
+        LazyVGrid(
+            columns: [
+                GridItem(.flexible(), spacing: 8),
+                GridItem(.flexible(), spacing: 8),
+                GridItem(.flexible(), spacing: 8)
+            ],
+            spacing: 8
+        ) {
+            snapshotCard(
+                label: "MARKET",
+                value: snapshotValue(for: summary.marketContext.displayMode),
+                detail: summary.marketContext.eventName ?? "Weather pending",
+                provenance: summary.marketContext.provenance
+            )
+
+            snapshotCard(
+                label: "PORTFOLIO",
+                value: snapshotValue(for: summary.portfolioContext.displayMode),
+                detail: portfolioCoverageLabel(summary.portfolioContext),
+                provenance: summary.portfolioContext.provenance
+            )
+
+            if let stockContext = summary.stockContext {
+                snapshotCard(
+                    label: "STOCK",
+                    value: stockContext.symbol,
+                    detail: snapshotValue(for: stockContext.displayMode),
+                    provenance: stockContext.provenance
+                )
+            } else {
+                snapshotCard(
+                    label: "WATCH",
+                    value: "SETUP",
+                    detail: "Add ticker",
+                    provenance: .unavailable(reason: "No stock or watchlist pattern available")
+                )
+            }
+        }
+    }
+
+    private func snapshotCard(
+        label: String,
+        value: String,
+        detail: String,
+        provenance: FinancialDataProvenance
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(TerminalFont.data(8, weight: .bold))
+                .foregroundColor(CosmicTheme.textMuted)
+                .tracking(0.5)
+                .lineLimit(1)
+
+            Text(value)
+                .font(TerminalFont.data(12, weight: .bold))
+                .foregroundColor(CosmicTheme.textPrimary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.72)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(detail)
+                .font(TerminalFont.data(8))
+                .foregroundColor(CosmicTheme.textMuted)
+                .lineLimit(2)
+                .minimumScaleFactor(0.72)
+
+            DataSourceIndicator(provenance: provenance, size: .compact)
+                .padding(.top, 1)
+        }
+        .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
+        .padding(9)
+        .background(CosmicTheme.panelElevated)
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.borderStrong, lineWidth: 0.75)
+        )
     }
 
     private func cosmicBlock(_ context: TodayCosmicContext) -> some View {
@@ -466,6 +546,67 @@ struct TodayMarketHoroscopeView: View {
                 compactSymbolRow(label: "Unavailable", symbols: context.excludedSymbols, color: CosmicTheme.textMuted)
             }
         }
+    }
+
+    private func snapshotValue(for mode: TodayMarketContext.DisplayMode) -> String {
+        switch mode {
+        case .marketBacked:
+            return "READY"
+        case .partialContext:
+            return "PARTIAL"
+        case .stale:
+            return "STALE"
+        case .insufficientSample:
+            return "THIN"
+        case .unavailable:
+            return "UNAVAILABLE"
+        case .sampleOnly:
+            return "SAMPLE"
+        }
+    }
+
+    private func snapshotValue(for mode: TodayPortfolioContext.DisplayMode) -> String {
+        switch mode {
+        case .setupRequired:
+            return "SETUP"
+        case .marketBacked:
+            return "READY"
+        case .partialContext:
+            return "PARTIAL"
+        case .insufficientCoverage:
+            return "LOW COVER"
+        case .insufficientSample:
+            return "THIN"
+        case .unavailable:
+            return "UNAVAILABLE"
+        case .sampleOnly:
+            return "SAMPLE"
+        }
+    }
+
+    private func snapshotValue(for mode: TodayStockContext.DisplayMode) -> String {
+        switch mode {
+        case .marketBacked:
+            return "Pattern ready"
+        case .partialDataset:
+            return "Partial history"
+        case .insufficientDataset:
+            return "Thin history"
+        case .insufficientSample:
+            return "Thin sample"
+        case .unavailable:
+            return "Unavailable"
+        case .sampleOnly:
+            return "Sample"
+        }
+    }
+
+    private func portfolioCoverageLabel(_ context: TodayPortfolioContext) -> String {
+        if context.displayMode == .setupRequired {
+            return "Add holdings"
+        }
+
+        return "\(percentRate(context.includedPortfolioWeight)) covered"
     }
 
     private func compactSymbolRow(label: String, symbols: [String], color: Color) -> some View {

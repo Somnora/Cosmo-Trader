@@ -42,11 +42,11 @@ struct CosmosView: View {
     private var framedHoroscopeTitle: String {
         switch framingLevel {
         case .rational, .leanRational:
-            return "Daily Portfolio Analysis"
+            return "Local Portfolio Context"
         case .balanced:
-            return "Daily Portfolio Reading"
+            return "Local Portfolio Context"
         case .leanMystical, .mystical:
-            return "Daily Portfolio Reading"
+            return "Local Portfolio Context"
         }
     }
 
@@ -484,7 +484,7 @@ struct CosmosView: View {
                         .foregroundColor(CosmicTheme.textMuted)
 
                     HStack(spacing: 8) {
-                        Text("Portfolio Status:")
+                        Text("Stored context:")
                             .font(.caption)
                             .foregroundColor(CosmicTheme.textSecondary)
 
@@ -498,6 +498,11 @@ struct CosmosView: View {
                             .fontWeight(.medium)
                             .foregroundColor(viewModel.performanceColor)
                     }
+
+                    DataSourceIndicator(
+                        provenance: .mixed(reason: "Local portfolio reading. Market Weather below carries provider-backed source state."),
+                        size: .compact
+                    )
                 }
 
                 Spacer()
@@ -614,10 +619,20 @@ struct CosmosView: View {
             }
 
             // Weather advice (framed)
-            Text(framedWeatherAdvice)
-                .font(.subheadline)
-                .foregroundColor(CosmicTheme.textSecondary)
-                .italic()
+            HStack(alignment: .top, spacing: 8) {
+                Text(framedWeatherAdvice)
+                    .font(.subheadline)
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .italic()
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 8)
+
+                DataSourceIndicator(
+                    provenance: .sample(reason: "Astrology-only context. Market data provenance is shown in Market Weather."),
+                    size: .compact
+                )
+            }
 
             // Active cosmic events
             if !astroService.activeEvents.isEmpty {

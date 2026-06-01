@@ -28,15 +28,6 @@ struct DailyBriefBackendView: View {
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
 
-            Section {
-                DailyFinancialReadingCockpitView(reading: dailyReading) {
-                    appState.selectedTab = .portfolio
-                }
-            }
-            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 14, trailing: 16))
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-
             if shouldShowBriefStatus {
                 briefStatusRow
                     .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
@@ -204,10 +195,6 @@ struct DailyBriefBackendView: View {
             loadCachedBrief()
             await refreshBrief()
         }
-    }
-
-    private var dailyReading: DailyFinancialReading {
-        DailyFinancialReadingService.shared.compose(for: appState.currentUser, backendBrief: brief)
     }
 
     private var shouldShowBriefStatus: Bool {

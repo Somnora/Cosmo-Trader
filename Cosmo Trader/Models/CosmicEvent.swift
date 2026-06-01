@@ -263,7 +263,7 @@ struct MockCosmicEvents {
                 title: "Mercury Retrograde",
                 subtitle: "in Sagittarius",
                 description: "Mercury stations retrograde in truth-seeking Sagittarius, raising communication and execution risk. Expect confusing headlines, tech friction, and delayed confirmations.",
-                advice: "Mercury retrograde is good for re-reading your notes, not for rushing them. Slow down before you act on anything.",
+                advice: "Mercury retrograde is good for re-reading your notes and checking assumptions. Treat this as cosmic context only.",
                 warningMessage: "Crypto headlines may read more chaotic than usual; treat with patience.",
                 startDate: calendar.date(byAdding: .day, value: -5, to: today)!,
                 endDate: calendar.date(byAdding: .day, value: 16, to: today)!,

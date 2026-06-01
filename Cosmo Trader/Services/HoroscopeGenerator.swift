@@ -103,9 +103,9 @@ struct HoroscopeGenerator {
         switch timeContext.period {
         case .preMarket:
             return [
-                "Markets open in \(timeContext.minutesToOpen ?? 0 > 60 ? "a few hours" : "\(timeContext.minutesToOpen ?? 60) minutes"). Your anxiety opened earlier.",
-                "Pre-market futures are moving. Your blood pressure is keeping pace.",
-                "The opening bell hasn't rung, but your portfolio thoughts are already loud.",
+                "Markets open in \(timeContext.minutesToOpen ?? 0 > 60 ? "a few hours" : "\(timeContext.minutesToOpen ?? 60) minutes"). Treat this as pre-open context.",
+                "The opening bell has not rung. This reading is local context, not a live market call.",
+                "Pre-open energy is loud. Provider-backed market status belongs in Market Weather.",
             ].randomElement()
 
         case .marketOpen:
@@ -175,16 +175,16 @@ struct HoroscopeGenerator {
         if let gainer = context.performance.topGainer {
             let gainerSign = gainer.zodiacSign?.displayName ?? "unknown"
             templates = [
-                "\(gainer.name)'s \(gainer.formattedPercentageChange) surge is carrying your portfolio today. \(gainerSign) energy said 'you're welcome.'",
-                "Your portfolio is up {change}. \(gainer.symbol) is doing the heavy lifting while the rest of your picks watch.",
-                "\(gainer.symbol)'s \(gainerSign) confidence is radiating through your account. {change} up and counting.",
-                "The {change} gain is real. \(gainer.name) remembered it has shareholders to impress.",
+                "\(gainer.name) is the standout in this stored portfolio snapshot. \(gainerSign) energy gets the spotlight.",
+                "Your portfolio snapshot is up {change}. \(gainer.symbol) is the main name shaping the reading.",
+                "\(gainer.symbol)'s \(gainerSign) profile is prominent in this local context. {change} up in the stored tape.",
+                "The {change} snapshot is constructive. \(gainer.name) is the visible driver in this reading.",
             ]
         } else {
             templates = [
                 "Your portfolio is up {change}. Even you seem surprised.",
-                "{change} gain. The cosmos aligned, or the market did. Take the win, {sign}.",
-                "Everything's green. Enjoy it. Screenshot it. This feeling is temporary.",
+                "{change} gain in the stored snapshot. The cosmos gets a cameo, not a vote.",
+                "Everything's green in this local portfolio view. Useful context, not a market claim.",
             ]
         }
 
@@ -216,7 +216,7 @@ struct HoroscopeGenerator {
 
         // Add concentration insight
         if analysis.techPercentage > 60 {
-            templates.append("You're \(Int(analysis.techPercentage))% tech. That's a bet on growth over stability. Own it or rebalance.")
+            templates.append("You're \(Int(analysis.techPercentage))% tech. That concentration is the main shape of this reading.")
         }
 
         return templates.randomElement() ?? templates[0]
@@ -227,9 +227,9 @@ struct HoroscopeGenerator {
 
         var templates = [
             "Your portfolio moved {change}. The market equivalent of a shrug emoji.",
-            "Nothing happened today. Your positions are in a holding pattern, and so is your blood pressure.",
+            "Nothing major changed in this snapshot. The reading is more posture than plot.",
             "Flat. The cosmos has no opinion on your stocks today. Neither does anyone else, apparently.",
-            "Zero percent change energy. The universe is edging you.",
+            "Zero percent change energy. The universe is sending a blank memo.",
         ]
 
         // Add balance insight
@@ -441,7 +441,7 @@ struct HoroscopeGenerator {
         // Add occasional question
         if Bool.random() {
             templates += [
-                "Did you check your watchlist or just your ex's Instagram?",
+                "Did you check your watchlist notes or just refresh the same chart?",
                 "What would you do if you weren't staring at a chart?",
                 "Have you considered that some questions don't have answers?",
             ]
