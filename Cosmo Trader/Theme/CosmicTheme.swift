@@ -178,6 +178,13 @@ struct CosmicTheme {
     }
 }
 
+enum AppLayout {
+    static let screenHorizontalPadding: CGFloat = 16
+    static let cardHorizontalPadding: CGFloat = 14
+    static let sectionSpacing: CGFloat = 14
+    static let bottomTabBarExtraClearance: CGFloat = 16
+}
+
 // MARK: - Color Extension for Hex
 
 extension Color {

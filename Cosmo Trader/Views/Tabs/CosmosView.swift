@@ -203,11 +203,11 @@ struct CosmosView: View {
                             regenerateButton
                         }
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, AppLayout.screenHorizontalPadding)
                     .padding(.top, 4)
                     .iPadReadableContent(maxWidth: 980)
                 }
-                .tabBarSafeBottomPadding()
+                .tabBarSafeBottomPadding(extra: AppLayout.bottomTabBarExtraClearance)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -378,7 +378,7 @@ struct CosmosView: View {
                 .foregroundColor(CosmicTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(14)
+        .padding(AppLayout.cardHorizontalPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .terminalPanel(.navy)
     }

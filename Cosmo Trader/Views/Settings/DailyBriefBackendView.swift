@@ -18,154 +18,26 @@ struct DailyBriefBackendView: View {
     @State private var todayViewModel = TodayMarketHoroscopeViewModel()
 
     var body: some View {
-        List {
-            Section {
+        ScrollView(showsIndicators: false) {
+            LazyVStack(spacing: AppLayout.sectionSpacing) {
                 TodayMarketHoroscopeView(viewModel: todayViewModel) {
                     appState.selectedTab = .portfolio
                 }
-            }
-            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 14, trailing: 16))
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
 
-            if shouldShowBriefStatus {
-                briefStatusRow
-                    .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
-                    .listRowBackground(CosmicTheme.cardBackground.opacity(0.78))
-            }
-
-            if let errorMessage {
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "exclamationmark.circle")
-                        .foregroundColor(CosmicTheme.gold)
-
-                    Text(errorMessage)
-                        .font(.caption)
-                        .foregroundColor(CosmicTheme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                if shouldShowBriefStatus {
+                    statusCard
                 }
-                .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
-                .listRowBackground(CosmicTheme.cardBackground.opacity(0.78))
+
+                if let errorMessage {
+                    errorCard(errorMessage)
+                }
+
+                dailyBriefSupplement
             }
-
-            if let brief, !AppState.isScreenshotMode {
-                Section {
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack(spacing: 8) {
-                            Rectangle()
-                                .fill(CosmicTheme.border)
-                                .frame(width: 18, height: 1)
-
-                            Text("SUPPORTING BRIEF")
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .tracking(1.2)
-                                .foregroundColor(CosmicTheme.textMuted)
-                        }
-
-                        HStack(spacing: 8) {
-                            Rectangle()
-                                .fill(CosmicTheme.gold.opacity(0.7))
-                                .frame(width: 18, height: 1)
-
-                            Text(displayBriefDate(brief.date).uppercased())
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .tracking(1.2)
-                                .foregroundColor(CosmicTheme.gold)
-                        }
-
-                        Text(brief.briefText)
-                            .font(.body)
-                            .foregroundColor(CosmicTheme.textPrimary)
-                            .lineSpacing(6)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        if let moodTag = brief.moodTag, !moodTag.isEmpty {
-                            HStack(spacing: 6) {
-                                Image(systemName: "moon.stars.fill")
-                                    .font(.caption2)
-                                    .foregroundColor(CosmicTheme.gold)
-
-                                Text("Mood")
-                                    .font(.caption2)
-                                    .foregroundColor(CosmicTheme.textMuted)
-
-                                Text(moodTag.capitalized)
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(CosmicTheme.gold)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(
-                                Capsule()
-                                    .fill(CosmicTheme.gold.opacity(0.10))
-                            )
-                            .overlay(
-                                Capsule()
-                                    .stroke(CosmicTheme.gold.opacity(0.25), lineWidth: 0.5)
-                            )
-                        }
-
-                        if let signals = brief.signals, !signals.isEmpty {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(signals, id: \.self) { signal in
-                                        Text(signal)
-                                            .font(.caption2)
-                                            .foregroundColor(CosmicTheme.textSecondary)
-                                            .padding(.horizontal, 10)
-                                            .padding(.vertical, 5)
-                                            .background(
-                                                Capsule()
-                                                    .fill(CosmicTheme.cardBackground.opacity(0.65))
-                                            )
-                                            .overlay(
-                                                Capsule()
-                                                    .stroke(CosmicTheme.gold.opacity(0.18), lineWidth: 0.5)
-                                            )
-                                    }
-                                }
-                                .padding(.trailing, 16)
-                            }
-                            .mask(
-                                LinearGradient(
-                                    stops: [
-                                        .init(color: .black, location: 0.0),
-                                        .init(color: .black, location: 0.92),
-                                        .init(color: .clear, location: 1.0)
-                                    ],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                        }
-                    }
-                    .padding(.vertical, 8)
-                }
-                .listRowInsets(EdgeInsets(top: 18, leading: 20, bottom: 18, trailing: 20))
-                .listRowBackground(CosmicTheme.cardBackground)
-            } else if isLoading && !AppState.isScreenshotMode {
-                Section {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                            .tint(CosmicTheme.gold)
-                        Spacer()
-                    }
-                }
-                .listRowBackground(CosmicTheme.cardBackground)
-            } else if errorMessage == nil && !AppState.isScreenshotMode {
-                Section {
-                    Text("No daily brief available yet.")
-                        .font(.subheadline)
-                        .foregroundColor(CosmicTheme.textMuted)
-                }
-                .listRowBackground(CosmicTheme.cardBackground)
-            }
+            .padding(.horizontal, AppLayout.screenHorizontalPadding)
+            .padding(.top, 4)
+            .iPadReadableContent(maxWidth: 980)
         }
-        .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -178,10 +50,8 @@ struct DailyBriefBackendView: View {
         .toolbarBackground(CosmicTheme.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .accessibilityIdentifier("today.dailyBrief")
-        .scrollContentBackground(.hidden)
         .background(CosmicTheme.background)
-        .tabBarSafeBottomPadding()
-        .iPadReadableContent(maxWidth: 980)
+        .tabBarSafeBottomPadding(extra: AppLayout.bottomTabBarExtraClearance)
         .refreshable {
             await todayViewModel.reload(user: appState.currentUser)
             await refreshBrief()
@@ -195,6 +65,178 @@ struct DailyBriefBackendView: View {
             loadCachedBrief()
             await refreshBrief()
         }
+    }
+
+    private var statusCard: some View {
+        briefStatusRow
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(CosmicTheme.cardBackground.opacity(0.78))
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+            )
+    }
+
+    private func errorCard(_ errorMessage: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.circle")
+                .foregroundColor(CosmicTheme.gold)
+
+            Text(errorMessage)
+                .font(.caption)
+                .foregroundColor(CosmicTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CosmicTheme.cardBackground.opacity(0.78))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+        )
+    }
+
+    @ViewBuilder
+    private var dailyBriefSupplement: some View {
+        if let brief, !AppState.isScreenshotMode {
+            supportingBriefCard(brief)
+        } else if isLoading && !AppState.isScreenshotMode {
+            loadingBriefCard
+        } else if errorMessage == nil && !AppState.isScreenshotMode {
+            emptyBriefCard
+        }
+    }
+
+    private func supportingBriefCard(_ brief: DailyBriefResponse) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 8) {
+                Rectangle()
+                    .fill(CosmicTheme.border)
+                    .frame(width: 18, height: 1)
+
+                Text("SUPPORTING BRIEF")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .tracking(1.2)
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+
+            HStack(spacing: 8) {
+                Rectangle()
+                    .fill(CosmicTheme.gold.opacity(0.7))
+                    .frame(width: 18, height: 1)
+
+                Text(displayBriefDate(brief.date).uppercased())
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .tracking(1.2)
+                    .foregroundColor(CosmicTheme.gold)
+            }
+
+            Text(brief.briefText)
+                .font(.body)
+                .foregroundColor(CosmicTheme.textPrimary)
+                .lineSpacing(6)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if let moodTag = brief.moodTag, !moodTag.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "moon.stars.fill")
+                        .font(.caption2)
+                        .foregroundColor(CosmicTheme.gold)
+
+                    Text("Mood")
+                        .font(.caption2)
+                        .foregroundColor(CosmicTheme.textMuted)
+
+                    Text(moodTag.capitalized)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(CosmicTheme.gold)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    Capsule()
+                        .fill(CosmicTheme.gold.opacity(0.10))
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(CosmicTheme.gold.opacity(0.25), lineWidth: 0.5)
+                )
+            }
+
+            if let signals = brief.signals, !signals.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(signals, id: \.self) { signal in
+                            Text(signal)
+                                .font(.caption2)
+                                .foregroundColor(CosmicTheme.textSecondary)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(
+                                    Capsule()
+                                        .fill(CosmicTheme.cardBackground.opacity(0.65))
+                                )
+                                .overlay(
+                                    Capsule()
+                                        .stroke(CosmicTheme.gold.opacity(0.18), lineWidth: 0.5)
+                                )
+                        }
+                    }
+                    .padding(.trailing, 16)
+                }
+                .mask(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .black, location: 0.0),
+                            .init(color: .black, location: 0.92),
+                            .init(color: .clear, location: 1.0)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+            }
+        }
+        .padding(AppLayout.cardHorizontalPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CosmicTheme.cardBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+        )
+    }
+
+    private var loadingBriefCard: some View {
+        HStack {
+            Spacer()
+            ProgressView()
+                .tint(CosmicTheme.gold)
+            Spacer()
+        }
+        .padding(AppLayout.cardHorizontalPadding)
+        .frame(maxWidth: .infinity)
+        .background(CosmicTheme.cardBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+        )
+    }
+
+    private var emptyBriefCard: some View {
+        Text("No daily brief available yet.")
+            .font(.subheadline)
+            .foregroundColor(CosmicTheme.textMuted)
+            .padding(AppLayout.cardHorizontalPadding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(CosmicTheme.cardBackground)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+            )
     }
 
     private var shouldShowBriefStatus: Bool {

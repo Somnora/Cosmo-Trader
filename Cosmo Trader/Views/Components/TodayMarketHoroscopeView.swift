@@ -40,7 +40,7 @@ struct TodayMarketHoroscopeView: View {
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(14)
+        .padding(AppLayout.cardHorizontalPadding)
         .background(CosmicTheme.terminalBlack)
         .overlay(
             RoundedRectangle(cornerRadius: 4)
@@ -66,7 +66,7 @@ struct TodayMarketHoroscopeView: View {
                     .lineSpacing(3)
             }
         }
-        .padding(14)
+        .padding(AppLayout.cardHorizontalPadding)
         .background(CosmicTheme.terminalBlack)
         .overlay(
             RoundedRectangle(cornerRadius: 4)
@@ -98,9 +98,9 @@ struct TodayMarketHoroscopeView: View {
     private func loopSnapshot(_ summary: TodayMarketHoroscopeSummary) -> some View {
         LazyVGrid(
             columns: [
-                GridItem(.flexible(), spacing: 8),
-                GridItem(.flexible(), spacing: 8),
-                GridItem(.flexible(), spacing: 8)
+                GridItem(.flexible(minimum: 72), spacing: 8),
+                GridItem(.flexible(minimum: 72), spacing: 8),
+                GridItem(.flexible(minimum: 72), spacing: 8)
             ],
             spacing: 8
         ) {
@@ -165,8 +165,8 @@ struct TodayMarketHoroscopeView: View {
             DataSourceIndicator(provenance: provenance, size: .compact)
                 .padding(.top, 1)
         }
-        .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
-        .padding(9)
+        .frame(maxWidth: .infinity, minHeight: 76, alignment: .topLeading)
+        .padding(8)
         .background(CosmicTheme.panelElevated)
         .overlay(
             RoundedRectangle(cornerRadius: 4)
