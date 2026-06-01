@@ -19,6 +19,7 @@ struct TodayMarketHoroscopeView: View {
         VStack(alignment: .leading, spacing: 16) {
             header(summary)
             cosmicBlock(summary.cosmicContext)
+            marketBlock(summary.marketContext)
             portfolioBlock(summary.portfolioContext)
 
             if let stockContext = summary.stockContext {
@@ -169,6 +170,48 @@ struct TodayMarketHoroscopeView: View {
             if !context.unavailableHoldings.isEmpty {
                 excludedHoldingsNote(context.unavailableHoldings)
             }
+        }
+    }
+
+    private func marketBlock(_ context: TodayMarketContext) -> some View {
+        section(title: "MARKET WEATHER", icon: "cloud.sun.fill") {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text(context.headline)
+                            .font(TerminalFont.data(15, weight: .semibold))
+                            .foregroundColor(CosmicTheme.textPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Spacer(minLength: 6)
+
+                        MarketStatusIndicator(showDetails: false, size: .small)
+                    }
+
+                    Text(context.detail)
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                DataSourceIndicator(provenance: context.provenance, size: .compact)
+            }
+
+            contextRows(
+                eventName: context.eventName,
+                windowLabel: context.windowLabel,
+                eventCount: context.eventCount,
+                sampleSize: context.sampleSize,
+                includedWeight: context.coverage,
+                excludedWeight: max(0, 1 - context.coverage)
+            )
+
+            if !context.metrics.isEmpty {
+                metricGrid(context.metrics)
+            }
+
+            marketBasketRows(context)
         }
     }
 
@@ -407,6 +450,37 @@ struct TodayMarketHoroscopeView: View {
             .foregroundColor(CosmicTheme.textMuted)
             .lineSpacing(3)
             .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func marketBasketRows(_ context: TodayMarketContext) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if !context.includedSymbols.isEmpty {
+                compactSymbolRow(label: "Fresh basket", symbols: context.includedSymbols, color: CosmicTheme.positive)
+            }
+
+            if !context.staleSymbols.isEmpty {
+                compactSymbolRow(label: "Stale cache", symbols: context.staleSymbols, color: CosmicTheme.gold)
+            }
+
+            if !context.excludedSymbols.isEmpty {
+                compactSymbolRow(label: "Unavailable", symbols: context.excludedSymbols, color: CosmicTheme.textMuted)
+            }
+        }
+    }
+
+    private func compactSymbolRow(label: String, symbols: [String], color: Color) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label.uppercased())
+                .font(TerminalFont.data(8, weight: .bold))
+                .foregroundColor(color)
+                .tracking(0.4)
+
+            Text(symbols.joined(separator: " / "))
+                .font(TerminalFont.data(9))
+                .foregroundColor(CosmicTheme.textMuted)
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+        }
     }
 
     private func formattedDate(_ date: Date) -> String {

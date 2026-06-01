@@ -3,6 +3,7 @@ import Foundation
 struct TodayMarketHoroscopeSummary: Equatable {
     let date: Date
     let cosmicContext: TodayCosmicContext
+    let marketContext: TodayMarketContext
     let portfolioContext: TodayPortfolioContext
     let stockContext: TodayStockContext?
     let dataCoverage: TodayDataCoverage
@@ -18,6 +19,31 @@ struct TodayCosmicContext: Equatable {
     let marketToneLabel: String
     let activeEvents: [String]
     let provenance: FinancialDataProvenance
+}
+
+struct TodayMarketContext: Equatable {
+    enum DisplayMode: Equatable {
+        case marketBacked
+        case partialContext
+        case stale
+        case insufficientSample
+        case unavailable
+        case sampleOnly
+    }
+
+    let headline: String
+    let detail: String
+    let eventName: String?
+    let windowLabel: String?
+    let eventCount: Int
+    let sampleSize: Int
+    let includedSymbols: [String]
+    let excludedSymbols: [String]
+    let staleSymbols: [String]
+    let coverage: Double
+    let metrics: [TodayMetric]
+    let provenance: FinancialDataProvenance
+    let displayMode: DisplayMode
 }
 
 struct TodayPortfolioContext: Equatable {
