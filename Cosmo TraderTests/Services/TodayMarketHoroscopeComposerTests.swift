@@ -80,8 +80,16 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(summary.portfolioContext.includedPortfolioWeight == 0)
         #expect(summary.portfolioContext.excludedPortfolioWeight == 0)
         #expect(summary.portfolioContext.provenance.indicatorLabel == "Unavailable")
-        #expect(summary.stockContext == nil)
-        #expect(summary.dataCoverage.rows.contains { $0.label == "Stock lens" && $0.provenance.indicatorLabel == "Unavailable" })
+        #expect(summary.portfolioContext.activation?.primaryActionTitle == "ADD HOLDING")
+        #expect(summary.portfolioContext.activation?.secondaryActionTitle == "ADD WATCHLIST SYMBOLS")
+        #expect(summary.portfolioContext.activation?.detail.contains("add a holding manually") == true)
+        #expect(summary.portfolioContext.activation?.actionItems.contains("Add holding manually") == true)
+        #expect(summary.portfolioContext.activation?.actionItems.contains("Import portfolio") == true)
+        #expect(summary.portfolioContext.activation?.actionItems.contains("Add watchlist symbols") == true)
+        #expect(summary.stockContext?.displayMode == .unavailable)
+        #expect(summary.stockContext?.activation?.primaryActionTitle == "ADD WATCHLIST SYMBOLS")
+        #expect(summary.stockContext?.activation?.secondaryActionTitle == "OPEN DISCOVER / SEARCH")
+        #expect(summary.dataCoverage.rows.contains { $0.label == "WATCH history" && $0.provenance.indicatorLabel == "Unavailable" })
     }
 
     @Test("Below fifty percent portfolio coverage blocks Today portfolio context metrics")
@@ -198,6 +206,101 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(context.displayMode == .sampleOnly)
         #expect(context.metrics.isEmpty)
         #expect(context.detail.contains("No historical correlation claim is shown"))
+        #expect(context.activation?.detail.contains("Sample data is demo context only") == true)
+    }
+
+    @Test("No market data state offers provider-backed market history refresh without metrics")
+    func noMarketDataStateOffersProviderBackedRefreshWithoutMetrics() {
+        let summary = composer.compose(
+            user: user(),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [],
+            stockCandidate: nil,
+            marketWeather: nil
+        )
+
+        #expect(summary.marketContext.displayMode == .unavailable)
+        #expect(summary.marketContext.metrics.isEmpty)
+        #expect(summary.marketContext.activation?.primaryActionTitle == "FETCH MARKET HISTORY")
+        #expect(summary.marketContext.activation?.detail.contains("provider/cache path") == true)
+        #expect(summary.marketContext.activation?.actionItems.contains("Fetch SPY / QQQ / DIA / IWM history") == true)
+        #expect(summary.marketContext.activation?.actionItems.contains("Show loading and provider/cache errors here") == true)
+        #expect(summary.marketContext.activation?.actionItems.contains("Do not create sample market data") == true)
+        #expect(!summary.marketContext.activation!.detail.localizedCaseInsensitiveContains("sample"))
+    }
+
+    @Test("Market refresh activation never turns unsafe market weather into metrics")
+    func marketRefreshActivationDoesNotCreateFakeMetrics() {
+        let summary = composer.compose(
+            user: user(),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [],
+            stockCandidate: nil,
+            marketWeather: marketWeatherSummary(
+                provenance: .unavailable(reason: "Provider-backed market ETF history unavailable"),
+                displayMode: .unavailable,
+                coverage: 0,
+                averageReturn: 4.2,
+                winRate: 0.99
+            )
+        )
+
+        #expect(summary.marketContext.displayMode == .unavailable)
+        #expect(summary.marketContext.metrics.isEmpty)
+        #expect(!summary.marketContext.metrics.map(\.label).contains("AVG MKT"))
+        #expect(summary.marketContext.activation?.primaryActionTitle == "FETCH MARKET HISTORY")
+        #expect(summary.marketContext.activation?.actionItems.contains("Do not create sample market data") == true)
+    }
+
+    @Test("Data label guide explains unavailable sample stored cached partial and insufficient")
+    func dataLabelGuideExplainsSourceStates() {
+        let summary = composer.compose(
+            user: user(portfolio: [], watchlist: []),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [],
+            stockCandidate: nil
+        )
+
+        let labels = summary.dataCoverage.explainers.map(\.label)
+        #expect(labels.contains("Unavailable"))
+        #expect(labels.contains("Sample data"))
+        #expect(labels.contains("Stored data"))
+        #expect(labels.contains("Cached/stale"))
+        #expect(labels.contains("Partial"))
+        #expect(labels.contains("Insufficient"))
+        #expect(summary.dataCoverage.explainers.contains { $0.detail.contains("never used for market claims") })
+        #expect(summary.dataCoverage.explainers.contains { $0.detail.contains("Stale cache stays context-only") })
+    }
+
+    @Test("No watchlist stock state offers watchlist and portfolio setup actions")
+    func noWatchlistStockStateOffersSetupActions() {
+        let summary = composer.compose(
+            user: user(portfolio: [], watchlist: []),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [],
+            stockCandidate: nil
+        )
+
+        #expect(summary.stockContext?.symbol == "WATCH")
+        #expect(summary.stockContext?.metrics.isEmpty == true)
+        #expect(summary.stockContext?.activation?.primaryActionTitle == "ADD WATCHLIST SYMBOLS")
+        #expect(summary.stockContext?.activation?.secondaryActionTitle == "OPEN DISCOVER / SEARCH")
+        #expect(summary.stockContext?.activation?.actionItems.contains("Add symbol") == true)
+        #expect(summary.stockContext?.activation?.actionItems.contains("Open Discover/Search") == true)
+        #expect(summary.stockContext?.activation?.actionItems.contains("Provider-backed stock history unlocks this lens") == true)
+        #expect(summary.stockContext?.detail.contains("provider-backed history") == true)
     }
 
     @Test("Today data coverage distinguishes stale, partial, and unavailable datasets")
@@ -259,8 +362,18 @@ struct TodayMarketHoroscopeComposerTests {
             summary.portfolioContext.detail,
             summary.stockContext?.headline ?? "",
             summary.stockContext?.detail ?? "",
+            summary.marketContext.activation?.title ?? "",
+            summary.marketContext.activation?.detail ?? "",
+            summary.marketContext.activation?.actionItems.joined(separator: "\n") ?? "",
+            summary.portfolioContext.activation?.title ?? "",
+            summary.portfolioContext.activation?.detail ?? "",
+            summary.portfolioContext.activation?.actionItems.joined(separator: "\n") ?? "",
+            summary.stockContext?.activation?.title ?? "",
+            summary.stockContext?.activation?.detail ?? "",
+            summary.stockContext?.activation?.actionItems.joined(separator: "\n") ?? "",
             summary.dataCoverage.headline,
             summary.dataCoverage.detail,
+            summary.dataCoverage.explainers.map(\.detail).joined(separator: "\n"),
             summary.disclaimer,
             MercuryRetrogradeService.shared.currentAdvice,
             MercuryRetrogradeService.shared.tradingAdvice

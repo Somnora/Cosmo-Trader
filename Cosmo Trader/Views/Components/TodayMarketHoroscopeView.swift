@@ -2,7 +2,9 @@ import SwiftUI
 
 struct TodayMarketHoroscopeView: View {
     let viewModel: TodayMarketHoroscopeViewModel
-    let setupAction: () -> Void
+    let marketRefreshAction: () -> Void
+    let portfolioSetupAction: () -> Void
+    let watchlistSetupAction: () -> Void
 
     var body: some View {
         Group {
@@ -24,11 +26,6 @@ struct TodayMarketHoroscopeView: View {
 
             if let stockContext = summary.stockContext {
                 stockBlock(stockContext)
-            } else {
-                unavailableBlock(
-                    title: "STOCK / WATCHLIST LENS",
-                    message: "Add a holding or watchlist symbol so Today can surface one provider-backed historical stock pattern."
-                )
             }
 
             cosmicBlock(summary.cosmicContext)
@@ -243,8 +240,12 @@ struct TodayMarketHoroscopeView: View {
                 metricGrid(context.metrics)
             }
 
-            if context.displayMode == .setupRequired {
-                setupButton
+            if let activation = context.activation {
+                activationPrompt(
+                    activation,
+                    primaryAction: portfolioSetupAction,
+                    secondaryAction: watchlistSetupAction
+                )
             }
 
             if !context.unavailableHoldings.isEmpty {
@@ -292,6 +293,24 @@ struct TodayMarketHoroscopeView: View {
             }
 
             marketBasketRows(context)
+
+            if viewModel.isLoading {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .tint(CosmicTheme.gold)
+                    Text("Refreshing provider/cache history")
+                        .font(TerminalFont.data(9))
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
+            }
+
+            if let activation = context.activation {
+                activationPrompt(
+                    activation,
+                    primaryAction: marketRefreshAction,
+                    secondaryAction: nil
+                )
+            }
         }
     }
 
@@ -333,6 +352,14 @@ struct TodayMarketHoroscopeView: View {
 
             if !context.metrics.isEmpty {
                 metricGrid(context.metrics)
+            }
+
+            if let activation = context.activation {
+                activationPrompt(
+                    activation,
+                    primaryAction: stockPrimaryAction(for: context.activation),
+                    secondaryAction: stockSecondaryAction(for: context.activation)
+                )
             }
         }
     }
@@ -384,6 +411,8 @@ struct TodayMarketHoroscopeView: View {
                 RoundedRectangle(cornerRadius: 4)
                     .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
             )
+
+            labelExplainerGrid(coverage.explainers)
         }
     }
 
@@ -503,24 +532,6 @@ struct TodayMarketHoroscopeView: View {
         }
     }
 
-    private var setupButton: some View {
-        Button(action: setupAction) {
-            HStack(spacing: 8) {
-                Image(systemName: "plus")
-                    .font(.caption)
-
-                Text("SET UP PORTFOLIO")
-                    .font(TerminalFont.data(10, weight: .bold))
-                    .tracking(0.7)
-            }
-            .foregroundColor(CosmicTheme.background)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 9)
-            .background(CosmicTheme.gold)
-        }
-        .buttonStyle(.plain)
-    }
-
     private func excludedHoldingsNote(_ symbols: [String]) -> some View {
         let visible = symbols.prefix(5).joined(separator: ", ")
         let suffix = symbols.count > 5 ? " +" : ""
@@ -546,6 +557,167 @@ struct TodayMarketHoroscopeView: View {
                 compactSymbolRow(label: "Unavailable", symbols: context.excludedSymbols, color: CosmicTheme.textMuted)
             }
         }
+    }
+
+    private func activationPrompt(
+        _ prompt: TodayActivationPrompt,
+        primaryAction: @escaping () -> Void,
+        secondaryAction: (() -> Void)?
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(prompt.title)
+                .font(TerminalFont.data(10, weight: .bold))
+                .foregroundColor(CosmicTheme.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(prompt.detail)
+                .font(TerminalFont.data(9))
+                .foregroundColor(CosmicTheme.textMuted)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if !prompt.actionItems.isEmpty {
+                VStack(alignment: .leading, spacing: 5) {
+                    ForEach(prompt.actionItems, id: \.self) { item in
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Circle()
+                                .fill(CosmicTheme.gold.opacity(0.75))
+                                .frame(width: 4, height: 4)
+
+                            Text(item)
+                                .font(TerminalFont.data(8))
+                                .foregroundColor(CosmicTheme.textSecondary)
+                                .lineSpacing(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                .padding(.top, 1)
+            }
+
+            HStack(spacing: 8) {
+                actionButton(title: prompt.primaryActionTitle, systemImage: actionIcon(for: prompt.primaryActionTitle), action: primaryAction)
+
+                if let secondaryAction, let secondaryTitle = prompt.secondaryActionTitle {
+                    actionButton(title: secondaryTitle, systemImage: actionIcon(for: secondaryTitle), isPrimary: false, action: secondaryAction)
+                }
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CosmicTheme.panelElevated)
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.borderStrong, lineWidth: 0.75)
+        )
+    }
+
+    private func actionButton(
+        title: String,
+        systemImage: String,
+        isPrimary: Bool = true,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 10, weight: .semibold))
+
+                Text(title)
+                    .font(TerminalFont.data(9, weight: .bold))
+                    .tracking(0.5)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .foregroundColor(isPrimary ? CosmicTheme.background : CosmicTheme.gold)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(maxWidth: isPrimary ? .infinity : nil)
+            .background(isPrimary ? CosmicTheme.gold : CosmicTheme.gold.opacity(0.10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(CosmicTheme.gold.opacity(isPrimary ? 0 : 0.45), lineWidth: 0.75)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func actionIcon(for title: String) -> String {
+        if title.localizedCaseInsensitiveContains("refresh") || title.localizedCaseInsensitiveContains("fetch") {
+            return "arrow.clockwise"
+        }
+        if title.localizedCaseInsensitiveContains("discover") || title.localizedCaseInsensitiveContains("search") {
+            return "magnifyingglass"
+        }
+        if title.localizedCaseInsensitiveContains("portfolio") || title.localizedCaseInsensitiveContains("holding") {
+            return "chart.pie.fill"
+        }
+        return "plus"
+    }
+
+    private func labelExplainerGrid(_ explainers: [TodayDataLabelExplainer]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("LABEL GUIDE")
+                .font(TerminalFont.data(8, weight: .bold))
+                .foregroundColor(CosmicTheme.gold)
+                .tracking(0.7)
+
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8)
+                ],
+                spacing: 8
+            ) {
+                ForEach(explainers) { item in
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(item.label.uppercased())
+                            .font(TerminalFont.data(8, weight: .bold))
+                            .foregroundColor(CosmicTheme.textSecondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+
+                        Text(item.detail)
+                            .font(TerminalFont.data(8))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .lineSpacing(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 70, alignment: .topLeading)
+                    .padding(8)
+                    .background(CosmicTheme.panelElevated.opacity(0.8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+                    )
+                }
+            }
+        }
+    }
+
+    private func stockPrimaryAction(for activation: TodayActivationPrompt?) -> () -> Void {
+        guard let activation else { return watchlistSetupAction }
+        if activation.primaryActionTitle.localizedCaseInsensitiveContains("refresh") {
+            return marketRefreshAction
+        }
+        if activation.primaryActionTitle.localizedCaseInsensitiveContains("holding") {
+            return portfolioSetupAction
+        }
+        if activation.primaryActionTitle.localizedCaseInsensitiveContains("discover") || activation.primaryActionTitle.localizedCaseInsensitiveContains("search") {
+            return watchlistSetupAction
+        }
+        return watchlistSetupAction
+    }
+
+    private func stockSecondaryAction(for activation: TodayActivationPrompt?) -> (() -> Void)? {
+        guard let secondaryTitle = activation?.secondaryActionTitle else { return nil }
+        if secondaryTitle.localizedCaseInsensitiveContains("holding") {
+            return portfolioSetupAction
+        }
+        if secondaryTitle.localizedCaseInsensitiveContains("discover") || secondaryTitle.localizedCaseInsensitiveContains("search") {
+            return watchlistSetupAction
+        }
+        return watchlistSetupAction
     }
 
     private func snapshotValue(for mode: TodayMarketContext.DisplayMode) -> String {

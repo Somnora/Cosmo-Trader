@@ -20,9 +20,20 @@ struct DailyBriefBackendView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             LazyVStack(spacing: AppLayout.sectionSpacing) {
-                TodayMarketHoroscopeView(viewModel: todayViewModel) {
-                    appState.selectedTab = .portfolio
-                }
+                TodayMarketHoroscopeView(
+                    viewModel: todayViewModel,
+                    marketRefreshAction: {
+                        Task {
+                            await todayViewModel.reload(user: appState.currentUser)
+                        }
+                    },
+                    portfolioSetupAction: {
+                        appState.selectedTab = .portfolio
+                    },
+                    watchlistSetupAction: {
+                        appState.selectedTab = .discover
+                    }
+                )
 
                 if shouldShowBriefStatus {
                     statusCard

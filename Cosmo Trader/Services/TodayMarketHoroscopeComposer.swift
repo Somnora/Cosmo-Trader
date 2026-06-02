@@ -29,12 +29,12 @@ final class TodayMarketHoroscopeComposer {
             user: user,
             summaries: portfolioSummaries
         )
-        let stockContext = stockCandidate.map(makeStockContext(candidate:))
+        let stockContext = stockCandidate.map(makeStockContext(candidate:)) ?? stockSetupContext()
         let provenance = aggregateProvenance(
             cosmic: cosmicContext.provenance,
             market: marketContext.provenance,
             portfolio: portfolioContext.provenance,
-            stock: stockContext?.provenance
+            stock: stockContext.provenance
         )
         let dataCoverage = makeDataCoverage(
             mood: mood,
@@ -71,7 +71,8 @@ final class TodayMarketHoroscopeComposer {
                 coverage: 0,
                 metrics: [],
                 provenance: .unavailable(reason: "Provider-backed market ETF history unavailable"),
-                displayMode: .unavailable
+                displayMode: .unavailable,
+                activation: marketActivation(for: .unavailable)
             )
         }
 
@@ -91,7 +92,8 @@ final class TodayMarketHoroscopeComposer {
             coverage: summary.coverage,
             metrics: metrics,
             provenance: eventSummary.provenance,
-            displayMode: displayMode
+            displayMode: displayMode,
+            activation: marketActivation(for: displayMode)
         )
     }
 
@@ -112,7 +114,8 @@ final class TodayMarketHoroscopeComposer {
                 unavailableHoldings: [],
                 metrics: [],
                 provenance: .unavailable(reason: "Portfolio holdings unavailable"),
-                displayMode: .setupRequired
+                displayMode: .setupRequired,
+                activation: portfolioActivation(for: .setupRequired)
             )
         }
 
@@ -129,7 +132,8 @@ final class TodayMarketHoroscopeComposer {
                 unavailableHoldings: user.portfolio.filter(\.isOwned).map { $0.symbol.uppercased() }.sorted(),
                 metrics: [],
                 provenance: .unavailable(reason: "Portfolio historical data unavailable"),
-                displayMode: .unavailable
+                displayMode: .unavailable,
+                activation: portfolioActivation(for: .unavailable)
             )
         }
 
@@ -148,7 +152,8 @@ final class TodayMarketHoroscopeComposer {
             unavailableHoldings: summary.unavailableHoldings,
             metrics: metrics,
             provenance: summary.provenance,
-            displayMode: displayMode
+            displayMode: displayMode,
+            activation: portfolioActivation(for: displayMode)
         )
     }
 
@@ -156,6 +161,7 @@ final class TodayMarketHoroscopeComposer {
         let stock = candidate.stock
 
         guard let summary = preferredStockSummary(from: candidate.summaries) else {
+            let displayMode = stockDisplayMode(for: candidate.provenance, completeness: candidate.completeness)
             return TodayStockContext(
                 symbol: stock.symbol.uppercased(),
                 name: stock.name,
@@ -167,7 +173,8 @@ final class TodayMarketHoroscopeComposer {
                 sampleSize: 0,
                 metrics: [],
                 provenance: candidate.provenance,
-                displayMode: stockDisplayMode(for: candidate.provenance, completeness: candidate.completeness)
+                displayMode: displayMode,
+                activation: stockActivation(for: displayMode, hasCandidate: true)
             )
         }
 
@@ -185,7 +192,8 @@ final class TodayMarketHoroscopeComposer {
             sampleSize: summary.sampleSize,
             metrics: metrics,
             provenance: summary.provenance,
-            displayMode: displayMode
+            displayMode: displayMode,
+            activation: stockActivation(for: displayMode, hasCandidate: true)
         )
     }
 
@@ -272,7 +280,29 @@ final class TodayMarketHoroscopeComposer {
             ? "Numeric context appears only where provider-backed or cached-fresh historical datasets pass sample-size, completeness, freshness, and coverage gates."
             : "Today stays in cosmic or unavailable mode until provider-backed history clears the market, stock, and portfolio gates."
 
-        return TodayDataCoverage(headline: headline, detail: detail, rows: rows)
+        return TodayDataCoverage(
+            headline: headline,
+            detail: detail,
+            rows: rows,
+            explainers: dataLabelExplainers()
+        )
+    }
+
+    func stockSetupContext() -> TodayStockContext {
+        TodayStockContext(
+            symbol: "WATCH",
+            name: "Watchlist setup",
+            headline: "Stock lens needs a ticker",
+            detail: "Add a watchlist symbol or portfolio holding. Today will check provider-backed history before showing any stock pattern.",
+            eventName: nil,
+            windowLabel: nil,
+            eventCount: 0,
+            sampleSize: 0,
+            metrics: [],
+            provenance: .unavailable(reason: "No portfolio or watchlist stock available"),
+            displayMode: .unavailable,
+            activation: stockActivation(for: .unavailable, hasCandidate: false)
+        )
     }
 
     private func preferredPortfolioSummary(from summaries: [PortfolioCosmicCorrelationSummary]) -> PortfolioCosmicCorrelationSummary? {
@@ -494,6 +524,187 @@ final class TodayMarketHoroscopeComposer {
         case .partialDataset, .insufficientDataset, .insufficientSample, .sampleOnly, .unavailable:
             return summary.disclaimer
         }
+    }
+
+    private func marketActivation(for displayMode: TodayMarketContext.DisplayMode) -> TodayActivationPrompt? {
+        switch displayMode {
+        case .marketBacked:
+            return nil
+        case .partialContext:
+            return TodayActivationPrompt(
+                title: "Complete the market basket",
+                detail: "Market Weather needs SPY, QQQ, DIA, and IWM provider-backed history before headline market metrics appear.",
+                actionItems: [
+                    "Refresh SPY / QQQ / DIA / IWM history",
+                    "Keep unavailable ETFs out of numeric claims",
+                    "Preserve the 100% basket gate"
+                ],
+                primaryActionTitle: "REFRESH MARKET CONTEXT",
+                secondaryActionTitle: nil
+            )
+        case .stale:
+            return TodayActivationPrompt(
+                title: "Refresh stale market history",
+                detail: "Cached provider-backed history is saved locally, but fresh SPY, QQQ, DIA, and IWM datasets are required for numeric market context.",
+                actionItems: [
+                    "Refresh SPY / QQQ / DIA / IWM history",
+                    "Use cached history as context until fresh data clears",
+                    "Keep stale data out of headline market metrics"
+                ],
+                primaryActionTitle: "REFRESH MARKET CONTEXT",
+                secondaryActionTitle: nil
+            )
+        case .insufficientSample:
+            return TodayActivationPrompt(
+                title: "Need more market observations",
+                detail: "The app found provider-backed history, but not enough matching events yet. Refresh can check the latest provider range.",
+                actionItems: [
+                    "Refresh provider-backed market history",
+                    "Wait for enough Full Moon, New Moon, or Mercury Retrograde samples",
+                    "Keep thin samples out of numeric claims"
+                ],
+                primaryActionTitle: "REFRESH MARKET CONTEXT",
+                secondaryActionTitle: nil
+            )
+        case .unavailable:
+            return TodayActivationPrompt(
+                title: "Fetch provider-backed market history",
+                detail: "Market Weather will appear after SPY, QQQ, DIA, and IWM history is available from the provider/cache path.",
+                actionItems: [
+                    "Fetch SPY / QQQ / DIA / IWM history",
+                    "Show loading and provider/cache errors here",
+                    "Do not create sample market data"
+                ],
+                primaryActionTitle: "FETCH MARKET HISTORY",
+                secondaryActionTitle: nil
+            )
+        case .sampleOnly:
+            return TodayActivationPrompt(
+                title: "Replace sample context with provider data",
+                detail: "Sample data is demo context only. Refresh uses the real provider/cache path and never creates fake market history.",
+                actionItems: [
+                    "Fetch provider-backed market history",
+                    "Keep sample context visibly labeled",
+                    "Require all four market ETFs before metrics"
+                ],
+                primaryActionTitle: "FETCH MARKET HISTORY",
+                secondaryActionTitle: nil
+            )
+        }
+    }
+
+    private func portfolioActivation(for displayMode: TodayPortfolioContext.DisplayMode) -> TodayActivationPrompt? {
+        switch displayMode {
+        case .marketBacked:
+            return nil
+        case .setupRequired:
+            return TodayActivationPrompt(
+                title: "Add your first holding",
+                detail: "Open Portfolio to add a holding manually or import a portfolio. You can also start with a watchlist if you are not ready to add holdings.",
+                actionItems: [
+                    "Add holding manually",
+                    "Import portfolio",
+                    "Add watchlist symbols"
+                ],
+                primaryActionTitle: "ADD HOLDING",
+                secondaryActionTitle: "ADD WATCHLIST SYMBOLS"
+            )
+        case .partialContext, .insufficientCoverage, .insufficientSample, .unavailable:
+            return TodayActivationPrompt(
+                title: "Refresh portfolio history",
+                detail: "Portfolio context unlocks when provider-backed holding history clears coverage, completeness, freshness, and sample-size gates.",
+                actionItems: [
+                    "Add holding manually",
+                    "Import portfolio",
+                    "Add watchlist symbols"
+                ],
+                primaryActionTitle: "OPEN PORTFOLIO",
+                secondaryActionTitle: "ADD WATCHLIST SYMBOLS"
+            )
+        case .sampleOnly:
+            return TodayActivationPrompt(
+                title: "Replace sample portfolio context",
+                detail: "Sample data is demo context only. Add/import real holdings so Today can evaluate actual portfolio exposure.",
+                actionItems: [
+                    "Add holding manually",
+                    "Import portfolio",
+                    "Add watchlist symbols"
+                ],
+                primaryActionTitle: "ADD HOLDING",
+                secondaryActionTitle: "ADD WATCHLIST SYMBOLS"
+            )
+        }
+    }
+
+    private func stockActivation(
+        for displayMode: TodayStockContext.DisplayMode,
+        hasCandidate: Bool
+    ) -> TodayActivationPrompt? {
+        switch displayMode {
+        case .marketBacked:
+            return nil
+        case .partialDataset, .insufficientDataset, .insufficientSample, .unavailable:
+            return TodayActivationPrompt(
+                title: hasCandidate ? "Refresh stock history" : "Add a stock to watch",
+                detail: hasCandidate
+                    ? "Stock context appears after provider-backed history clears completeness and sample-size gates."
+                    : "Add watchlist symbols or holdings. Today will use provider-backed history before showing stock-level patterns.",
+                actionItems: hasCandidate
+                    ? [
+                        "Refresh provider-backed stock history",
+                        "Open Discover/Search to add symbols",
+                        "Wait for enough historical event samples"
+                    ]
+                    : [
+                        "Add symbol",
+                        "Open Discover/Search",
+                        "Provider-backed stock history unlocks this lens"
+                    ],
+                primaryActionTitle: hasCandidate ? "REFRESH TODAY CONTEXT" : "ADD WATCHLIST SYMBOLS",
+                secondaryActionTitle: hasCandidate ? "OPEN DISCOVER / SEARCH" : "OPEN DISCOVER / SEARCH"
+            )
+        case .sampleOnly:
+            return TodayActivationPrompt(
+                title: "Replace sample stock context",
+                detail: "Sample data is demo context only. Add watchlist symbols or holdings to request provider-backed stock history.",
+                actionItems: [
+                    "Add symbol",
+                    "Open Discover/Search",
+                    "Provider-backed stock history unlocks this lens"
+                ],
+                primaryActionTitle: "ADD WATCHLIST SYMBOLS",
+                secondaryActionTitle: "OPEN DISCOVER / SEARCH"
+            )
+        }
+    }
+
+    private func dataLabelExplainers() -> [TodayDataLabelExplainer] {
+        [
+            TodayDataLabelExplainer(
+                label: "Unavailable",
+                detail: "The provider/cache path has not returned enough usable data yet."
+            ),
+            TodayDataLabelExplainer(
+                label: "Sample data",
+                detail: "Demo context only. It is labeled and never used for market claims."
+            ),
+            TodayDataLabelExplainer(
+                label: "Stored data",
+                detail: "Saved locally from portfolio setup or prior app state, not a fresh market read."
+            ),
+            TodayDataLabelExplainer(
+                label: "Cached/stale",
+                detail: "Provider-backed data saved earlier. Stale cache stays context-only until refreshed."
+            ),
+            TodayDataLabelExplainer(
+                label: "Partial",
+                detail: "Some required history is present, but coverage is too incomplete for headline metrics."
+            ),
+            TodayDataLabelExplainer(
+                label: "Insufficient",
+                detail: "There is not enough historical data or event sample size for a numeric read."
+            )
+        ]
     }
 
     private func marketMetrics(for summary: MarketWeatherEventSummary) -> [TodayMetric] {
