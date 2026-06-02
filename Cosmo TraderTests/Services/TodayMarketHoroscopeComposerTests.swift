@@ -81,7 +81,8 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(summary.portfolioContext.excludedPortfolioWeight == 0)
         #expect(summary.portfolioContext.provenance.indicatorLabel == "Unavailable")
         #expect(summary.portfolioContext.activation?.primaryActionTitle == "ADD HOLDING")
-        #expect(summary.portfolioContext.activation?.secondaryActionTitle == "ADD WATCHLIST SYMBOLS")
+        #expect(summary.portfolioContext.activation?.secondaryActionTitle == "IMPORT PORTFOLIO")
+        #expect(summary.portfolioContext.activation?.tertiaryActionTitle == "ADD WATCHLIST SYMBOLS")
         #expect(summary.portfolioContext.activation?.detail.contains("add a holding manually") == true)
         #expect(summary.portfolioContext.activation?.actionItems.contains("Add holding manually") == true)
         #expect(summary.portfolioContext.activation?.actionItems.contains("Import portfolio") == true)
@@ -277,8 +278,29 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(labels.contains("Cached/stale"))
         #expect(labels.contains("Partial"))
         #expect(labels.contains("Insufficient"))
-        #expect(summary.dataCoverage.explainers.contains { $0.detail.contains("never used for market claims") })
-        #expect(summary.dataCoverage.explainers.contains { $0.detail.contains("Stale cache stays context-only") })
+        #expect(summary.dataCoverage.explainers.contains { $0.label == "Unavailable" && $0.detail == "Provider has not returned enough data yet." })
+        #expect(summary.dataCoverage.explainers.contains { $0.label == "Sample data" && $0.detail == "Demo context only, not market data." })
+        #expect(summary.dataCoverage.explainers.contains { $0.label == "Stored data" && $0.detail == "Saved locally from your setup." })
+        #expect(summary.dataCoverage.explainers.contains { $0.label == "Cached/stale" && $0.detail == "Provider-backed data saved earlier." })
+        #expect(summary.dataCoverage.explainers.contains { $0.label == "Partial" && $0.detail == "Some required data is missing." })
+        #expect(summary.dataCoverage.explainers.contains { $0.label == "Insufficient" && $0.detail == "Not enough history for a reliable context view." })
+    }
+
+    @Test("Today activation routing opens the nearest add import or search tab")
+    func todayActivationRoutingSelectsSpecificDestinations() {
+        let appState = AppState(user: user(portfolio: [], watchlist: []))
+
+        appState.requestNavigation(.portfolioAddHolding)
+        #expect(appState.selectedTab == .portfolio)
+        #expect(appState.pendingNavigationIntent == .portfolioAddHolding)
+
+        appState.requestNavigation(.portfolioImport)
+        #expect(appState.selectedTab == .portfolio)
+        #expect(appState.pendingNavigationIntent == .portfolioImport)
+
+        appState.requestNavigation(.discoverSearch)
+        #expect(appState.selectedTab == .discover)
+        #expect(appState.pendingNavigationIntent == .discoverSearch)
     }
 
     @Test("No watchlist stock state offers watchlist and portfolio setup actions")
@@ -367,9 +389,15 @@ struct TodayMarketHoroscopeComposerTests {
             summary.marketContext.activation?.actionItems.joined(separator: "\n") ?? "",
             summary.portfolioContext.activation?.title ?? "",
             summary.portfolioContext.activation?.detail ?? "",
+            summary.portfolioContext.activation?.primaryActionTitle ?? "",
+            summary.portfolioContext.activation?.secondaryActionTitle ?? "",
+            summary.portfolioContext.activation?.tertiaryActionTitle ?? "",
             summary.portfolioContext.activation?.actionItems.joined(separator: "\n") ?? "",
             summary.stockContext?.activation?.title ?? "",
             summary.stockContext?.activation?.detail ?? "",
+            summary.stockContext?.activation?.primaryActionTitle ?? "",
+            summary.stockContext?.activation?.secondaryActionTitle ?? "",
+            summary.stockContext?.activation?.tertiaryActionTitle ?? "",
             summary.stockContext?.activation?.actionItems.joined(separator: "\n") ?? "",
             summary.dataCoverage.headline,
             summary.dataCoverage.detail,

@@ -43,6 +43,9 @@ struct DiscoverView: View {
     /// One-time profile hint toast
     @State private var showProfileHint: Bool = false
 
+    /// Search sheet opened from Today activation CTAs.
+    @State private var showSearch: Bool = false
+
     private let profileHintKey = "hasShownDiscoverProfileHint"
 
     /// Whether the view is ready for interaction
@@ -116,6 +119,10 @@ struct DiscoverView: View {
             .sheet(isPresented: showingFiltersBinding) {
                 filterSheet
             }
+            .sheet(isPresented: $showSearch) {
+                SearchView()
+                    .environment(appState)
+            }
             .navigationDestination(item: detailStockBinding) { stock in
                 StockDetailView(stock: stock)
             }
@@ -130,6 +137,12 @@ struct DiscoverView: View {
                 if !isEmpty {
                     showProfileHintIfNeeded()
                 }
+            }
+            .onAppear {
+                consumeNavigationIntentIfNeeded()
+            }
+            .onChange(of: appState.pendingNavigationIntent) { _, _ in
+                consumeNavigationIntentIfNeeded()
             }
             .overlay(alignment: .top) {
                 VStack(spacing: 8) {
@@ -147,6 +160,12 @@ struct DiscoverView: View {
                 .allowsHitTesting(false)
             }
         }
+    }
+
+    private func consumeNavigationIntentIfNeeded() {
+        guard appState.pendingNavigationIntent == .discoverSearch else { return }
+        showSearch = true
+        appState.pendingNavigationIntent = nil
     }
 
     // MARK: - Toasts

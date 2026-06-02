@@ -304,11 +304,34 @@ struct PortfolioView: View {
                     .environment(appState)
             }
         }
+        .onAppear {
+            consumeNavigationIntentIfNeeded()
+        }
+        .onChange(of: appState.pendingNavigationIntent) { _, _ in
+            consumeNavigationIntentIfNeeded()
+        }
         .task {
             openStockDetailForScreenshotIfNeeded()
             if !AppState.isScreenshotMode {
                 await fetchLivePrices()
             }
+        }
+    }
+
+    private func consumeNavigationIntentIfNeeded() {
+        guard let intent = appState.pendingNavigationIntent else { return }
+
+        switch intent {
+        case .portfolioAddHolding:
+            showImportPortfolio = false
+            showSearch = true
+            appState.pendingNavigationIntent = nil
+        case .portfolioImport:
+            showSearch = false
+            showImportPortfolio = true
+            appState.pendingNavigationIntent = nil
+        case .discoverSearch:
+            break
         }
     }
 

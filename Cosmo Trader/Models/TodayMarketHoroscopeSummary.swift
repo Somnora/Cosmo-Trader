@@ -136,19 +136,22 @@ struct TodayActivationPrompt: Equatable {
     let actionItems: [String]
     let primaryActionTitle: String
     let secondaryActionTitle: String?
+    let tertiaryActionTitle: String?
 
     init(
         title: String,
         detail: String,
         actionItems: [String] = [],
         primaryActionTitle: String,
-        secondaryActionTitle: String?
+        secondaryActionTitle: String?,
+        tertiaryActionTitle: String? = nil
     ) {
         self.title = title
         self.detail = detail
         self.actionItems = actionItems
         self.primaryActionTitle = primaryActionTitle
         self.secondaryActionTitle = secondaryActionTitle
+        self.tertiaryActionTitle = tertiaryActionTitle
     }
 }
 

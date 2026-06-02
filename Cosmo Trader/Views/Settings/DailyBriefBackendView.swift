@@ -28,10 +28,16 @@ struct DailyBriefBackendView: View {
                         }
                     },
                     portfolioSetupAction: {
-                        appState.selectedTab = .portfolio
+                        appState.requestNavigation(.portfolioAddHolding)
+                    },
+                    portfolioImportAction: {
+                        appState.requestNavigation(.portfolioImport)
                     },
                     watchlistSetupAction: {
-                        appState.selectedTab = .discover
+                        appState.requestNavigation(.discoverSearch)
+                    },
+                    discoverSearchAction: {
+                        appState.requestNavigation(.discoverSearch)
                     }
                 )
 
