@@ -44,6 +44,7 @@ struct TodayMarketContext: Equatable {
     let metrics: [TodayMetric]
     let provenance: FinancialDataProvenance
     let displayMode: DisplayMode
+    let activation: TodayActivationPrompt?
 }
 
 struct TodayPortfolioContext: Equatable {
@@ -69,6 +70,7 @@ struct TodayPortfolioContext: Equatable {
     let metrics: [TodayMetric]
     let provenance: FinancialDataProvenance
     let displayMode: DisplayMode
+    let activation: TodayActivationPrompt?
 }
 
 struct TodayStockContext: Equatable {
@@ -92,12 +94,14 @@ struct TodayStockContext: Equatable {
     let metrics: [TodayMetric]
     let provenance: FinancialDataProvenance
     let displayMode: DisplayMode
+    let activation: TodayActivationPrompt?
 }
 
 struct TodayDataCoverage: Equatable {
     let headline: String
     let detail: String
     let rows: [TodayDataCoverageRow]
+    let explainers: [TodayDataLabelExplainer]
 }
 
 struct TodayDataCoverageRow: Equatable, Identifiable {
@@ -123,6 +127,25 @@ struct TodayMetric: Equatable, Identifiable {
         self.id = label
         self.label = label
         self.value = value
+    }
+}
+
+struct TodayActivationPrompt: Equatable {
+    let title: String
+    let detail: String
+    let primaryActionTitle: String
+    let secondaryActionTitle: String?
+}
+
+struct TodayDataLabelExplainer: Equatable, Identifiable {
+    let id: String
+    let label: String
+    let detail: String
+
+    init(label: String, detail: String) {
+        self.id = label
+        self.label = label
+        self.detail = detail
     }
 }
 

@@ -137,9 +137,13 @@ struct StockCardView: View {
     }
 
     private var accessibilityValue: String {
-        let direction = card.stock.isPositive ? "up" : "down"
         var value = "\(card.compatibility.score) percent cosmic match. "
-        value += "Price \(card.stock.formattedPrice), \(direction) \(card.stock.formattedPercentageChange). "
+        if card.priceMoveDisplay.isProviderPerformance {
+            let direction = card.stock.isPositive ? "up" : "down"
+            value += "Price \(card.stock.formattedPrice), \(direction) \(card.stock.formattedPercentageChange). "
+        } else {
+            value += "Price \(card.stock.formattedPrice), \(card.priceMoveDisplay.label.lowercased()). "
+        }
         value += "Price source \(card.priceProvenance.shortLabel). "
         if let companyZodiacSign {
             value += "\(companyZodiacSign.displayName) sign, \(companyZodiacSign.element.displayName) element. "
@@ -261,6 +265,8 @@ struct StockCardView: View {
     private var priceSection: some View {
         let priceSize: CGFloat = isCompact ? 22 : 28
         let changeSize: CGFloat = isCompact ? 13 : 15
+        let moveDisplay = card.priceMoveDisplay
+        let moveColor = priceMoveColor(for: moveDisplay.tone)
 
         return VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
@@ -271,23 +277,25 @@ struct StockCardView: View {
                 Spacer()
 
                 HStack(spacing: 5) {
-                    Image(systemName: card.stock.isPositive ? "arrow.up.right" : "arrow.down.right")
+                    Image(systemName: moveDisplay.systemImage)
                         .font(.system(size: changeSize - 2, weight: .bold))
 
-                    Text(card.stock.formattedPercentageChange)
+                    Text(moveDisplay.label)
                         .font(TerminalFont.data(changeSize, weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.70)
                 }
-                .foregroundColor(card.stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
+                .foregroundColor(moveColor)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .background(
                     Capsule()
-                        .fill(card.stock.isPositive ? CosmicTheme.positive.opacity(0.10) : CosmicTheme.negative.opacity(0.10))
+                        .fill(moveColor.opacity(moveDisplay.isProviderPerformance ? 0.10 : 0.08))
                 )
                 .overlay(
                     Capsule()
                         .stroke(
-                            (card.stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative).opacity(0.32),
+                            moveColor.opacity(moveDisplay.isProviderPerformance ? 0.32 : 0.22),
                             lineWidth: 0.75
                         )
                 )
@@ -305,6 +313,17 @@ struct StockCardView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
             }
+        }
+    }
+
+    private func priceMoveColor(for tone: StockCardPriceMoveDisplay.Tone) -> Color {
+        switch tone {
+        case .positive:
+            return CosmicTheme.positive
+        case .negative:
+            return CosmicTheme.negative
+        case .neutral:
+            return CosmicTheme.textMuted
         }
     }
 

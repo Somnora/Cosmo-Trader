@@ -521,4 +521,50 @@ struct StockCard: Identifiable {
     var isCosmicChallenge: Bool {
         compatibility.score <= 40
     }
+
+    var priceMoveDisplay: StockCardPriceMoveDisplay {
+        switch priceProvenance {
+        case .live, .cached:
+            return StockCardPriceMoveDisplay(
+                label: stock.formattedPercentageChange,
+                systemImage: stock.isPositive ? "arrow.up.right" : "arrow.down.right",
+                tone: stock.isPositive ? .positive : .negative,
+                isProviderPerformance: true
+            )
+        case .sample:
+            return StockCardPriceMoveDisplay(
+                label: "Sample quote",
+                systemImage: "info.circle",
+                tone: .neutral,
+                isProviderPerformance: false
+            )
+        case .unavailable:
+            return StockCardPriceMoveDisplay(
+                label: "Quote unavailable",
+                systemImage: "exclamationmark.circle",
+                tone: .neutral,
+                isProviderPerformance: false
+            )
+        case .mixed:
+            return StockCardPriceMoveDisplay(
+                label: "Mixed source",
+                systemImage: "info.circle",
+                tone: .neutral,
+                isProviderPerformance: false
+            )
+        }
+    }
+}
+
+nonisolated struct StockCardPriceMoveDisplay: Equatable {
+    nonisolated enum Tone: Equatable {
+        case positive
+        case negative
+        case neutral
+    }
+
+    let label: String
+    let systemImage: String
+    let tone: Tone
+    let isProviderPerformance: Bool
 }
