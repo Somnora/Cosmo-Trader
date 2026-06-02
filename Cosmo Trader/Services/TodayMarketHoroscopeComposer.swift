@@ -534,6 +534,11 @@ final class TodayMarketHoroscopeComposer {
             return TodayActivationPrompt(
                 title: "Complete the market basket",
                 detail: "Market Weather needs SPY, QQQ, DIA, and IWM provider-backed history before headline market metrics appear.",
+                actionItems: [
+                    "Refresh SPY / QQQ / DIA / IWM history",
+                    "Keep unavailable ETFs out of numeric claims",
+                    "Preserve the 100% basket gate"
+                ],
                 primaryActionTitle: "REFRESH MARKET CONTEXT",
                 secondaryActionTitle: nil
             )
@@ -541,6 +546,11 @@ final class TodayMarketHoroscopeComposer {
             return TodayActivationPrompt(
                 title: "Refresh stale market history",
                 detail: "Cached provider-backed history is saved locally, but fresh SPY, QQQ, DIA, and IWM datasets are required for numeric market context.",
+                actionItems: [
+                    "Refresh SPY / QQQ / DIA / IWM history",
+                    "Use cached history as context until fresh data clears",
+                    "Keep stale data out of headline market metrics"
+                ],
                 primaryActionTitle: "REFRESH MARKET CONTEXT",
                 secondaryActionTitle: nil
             )
@@ -548,6 +558,11 @@ final class TodayMarketHoroscopeComposer {
             return TodayActivationPrompt(
                 title: "Need more market observations",
                 detail: "The app found provider-backed history, but not enough matching events yet. Refresh can check the latest provider range.",
+                actionItems: [
+                    "Refresh provider-backed market history",
+                    "Wait for enough Full Moon, New Moon, or Mercury Retrograde samples",
+                    "Keep thin samples out of numeric claims"
+                ],
                 primaryActionTitle: "REFRESH MARKET CONTEXT",
                 secondaryActionTitle: nil
             )
@@ -555,6 +570,11 @@ final class TodayMarketHoroscopeComposer {
             return TodayActivationPrompt(
                 title: "Fetch provider-backed market history",
                 detail: "Market Weather will appear after SPY, QQQ, DIA, and IWM history is available from the provider/cache path.",
+                actionItems: [
+                    "Fetch SPY / QQQ / DIA / IWM history",
+                    "Show loading and provider/cache errors here",
+                    "Do not create sample market data"
+                ],
                 primaryActionTitle: "FETCH MARKET HISTORY",
                 secondaryActionTitle: nil
             )
@@ -562,6 +582,11 @@ final class TodayMarketHoroscopeComposer {
             return TodayActivationPrompt(
                 title: "Replace sample context with provider data",
                 detail: "Sample data is demo context only. Refresh uses the real provider/cache path and never creates fake market history.",
+                actionItems: [
+                    "Fetch provider-backed market history",
+                    "Keep sample context visibly labeled",
+                    "Require all four market ETFs before metrics"
+                ],
                 primaryActionTitle: "FETCH MARKET HISTORY",
                 secondaryActionTitle: nil
             )
@@ -576,13 +601,23 @@ final class TodayMarketHoroscopeComposer {
             return TodayActivationPrompt(
                 title: "Add your first holding",
                 detail: "Open Portfolio to add a holding manually or import a portfolio. You can also start with a watchlist if you are not ready to add holdings.",
-                primaryActionTitle: "ADD / IMPORT HOLDINGS",
+                actionItems: [
+                    "Add holding manually",
+                    "Import portfolio",
+                    "Add watchlist symbols"
+                ],
+                primaryActionTitle: "ADD HOLDING",
                 secondaryActionTitle: "ADD WATCHLIST SYMBOLS"
             )
         case .partialContext, .insufficientCoverage, .insufficientSample, .unavailable:
             return TodayActivationPrompt(
                 title: "Refresh portfolio history",
                 detail: "Portfolio context unlocks when provider-backed holding history clears coverage, completeness, freshness, and sample-size gates.",
+                actionItems: [
+                    "Add holding manually",
+                    "Import portfolio",
+                    "Add watchlist symbols"
+                ],
                 primaryActionTitle: "OPEN PORTFOLIO",
                 secondaryActionTitle: "ADD WATCHLIST SYMBOLS"
             )
@@ -590,7 +625,12 @@ final class TodayMarketHoroscopeComposer {
             return TodayActivationPrompt(
                 title: "Replace sample portfolio context",
                 detail: "Sample data is demo context only. Add/import real holdings so Today can evaluate actual portfolio exposure.",
-                primaryActionTitle: "ADD / IMPORT HOLDINGS",
+                actionItems: [
+                    "Add holding manually",
+                    "Import portfolio",
+                    "Add watchlist symbols"
+                ],
+                primaryActionTitle: "ADD HOLDING",
                 secondaryActionTitle: "ADD WATCHLIST SYMBOLS"
             )
         }
@@ -609,15 +649,31 @@ final class TodayMarketHoroscopeComposer {
                 detail: hasCandidate
                     ? "Stock context appears after provider-backed history clears completeness and sample-size gates."
                     : "Add watchlist symbols or holdings. Today will use provider-backed history before showing stock-level patterns.",
+                actionItems: hasCandidate
+                    ? [
+                        "Refresh provider-backed stock history",
+                        "Open Discover/Search to add symbols",
+                        "Wait for enough historical event samples"
+                    ]
+                    : [
+                        "Add symbol",
+                        "Open Discover/Search",
+                        "Provider-backed stock history unlocks this lens"
+                    ],
                 primaryActionTitle: hasCandidate ? "REFRESH TODAY CONTEXT" : "ADD WATCHLIST SYMBOLS",
-                secondaryActionTitle: hasCandidate ? "ADD WATCHLIST SYMBOLS" : "ADD / IMPORT HOLDINGS"
+                secondaryActionTitle: hasCandidate ? "OPEN DISCOVER / SEARCH" : "OPEN DISCOVER / SEARCH"
             )
         case .sampleOnly:
             return TodayActivationPrompt(
                 title: "Replace sample stock context",
                 detail: "Sample data is demo context only. Add watchlist symbols or holdings to request provider-backed stock history.",
+                actionItems: [
+                    "Add symbol",
+                    "Open Discover/Search",
+                    "Provider-backed stock history unlocks this lens"
+                ],
                 primaryActionTitle: "ADD WATCHLIST SYMBOLS",
-                secondaryActionTitle: "ADD / IMPORT HOLDINGS"
+                secondaryActionTitle: "OPEN DISCOVER / SEARCH"
             )
         }
     }

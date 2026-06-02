@@ -576,6 +576,25 @@ struct TodayMarketHoroscopeView: View {
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
 
+            if !prompt.actionItems.isEmpty {
+                VStack(alignment: .leading, spacing: 5) {
+                    ForEach(prompt.actionItems, id: \.self) { item in
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Circle()
+                                .fill(CosmicTheme.gold.opacity(0.75))
+                                .frame(width: 4, height: 4)
+
+                            Text(item)
+                                .font(TerminalFont.data(8))
+                                .foregroundColor(CosmicTheme.textSecondary)
+                                .lineSpacing(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                .padding(.top, 1)
+            }
+
             HStack(spacing: 8) {
                 actionButton(title: prompt.primaryActionTitle, systemImage: actionIcon(for: prompt.primaryActionTitle), action: primaryAction)
 
@@ -626,6 +645,9 @@ struct TodayMarketHoroscopeView: View {
     private func actionIcon(for title: String) -> String {
         if title.localizedCaseInsensitiveContains("refresh") || title.localizedCaseInsensitiveContains("fetch") {
             return "arrow.clockwise"
+        }
+        if title.localizedCaseInsensitiveContains("discover") || title.localizedCaseInsensitiveContains("search") {
+            return "magnifyingglass"
         }
         if title.localizedCaseInsensitiveContains("portfolio") || title.localizedCaseInsensitiveContains("holding") {
             return "chart.pie.fill"
@@ -681,6 +703,9 @@ struct TodayMarketHoroscopeView: View {
         if activation.primaryActionTitle.localizedCaseInsensitiveContains("holding") {
             return portfolioSetupAction
         }
+        if activation.primaryActionTitle.localizedCaseInsensitiveContains("discover") || activation.primaryActionTitle.localizedCaseInsensitiveContains("search") {
+            return watchlistSetupAction
+        }
         return watchlistSetupAction
     }
 
@@ -688,6 +713,9 @@ struct TodayMarketHoroscopeView: View {
         guard let secondaryTitle = activation?.secondaryActionTitle else { return nil }
         if secondaryTitle.localizedCaseInsensitiveContains("holding") {
             return portfolioSetupAction
+        }
+        if secondaryTitle.localizedCaseInsensitiveContains("discover") || secondaryTitle.localizedCaseInsensitiveContains("search") {
+            return watchlistSetupAction
         }
         return watchlistSetupAction
     }

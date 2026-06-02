@@ -133,8 +133,23 @@ struct TodayMetric: Equatable, Identifiable {
 struct TodayActivationPrompt: Equatable {
     let title: String
     let detail: String
+    let actionItems: [String]
     let primaryActionTitle: String
     let secondaryActionTitle: String?
+
+    init(
+        title: String,
+        detail: String,
+        actionItems: [String] = [],
+        primaryActionTitle: String,
+        secondaryActionTitle: String?
+    ) {
+        self.title = title
+        self.detail = detail
+        self.actionItems = actionItems
+        self.primaryActionTitle = primaryActionTitle
+        self.secondaryActionTitle = secondaryActionTitle
+    }
 }
 
 struct TodayDataLabelExplainer: Equatable, Identifiable {

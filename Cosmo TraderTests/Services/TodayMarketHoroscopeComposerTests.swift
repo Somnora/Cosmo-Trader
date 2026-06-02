@@ -80,12 +80,15 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(summary.portfolioContext.includedPortfolioWeight == 0)
         #expect(summary.portfolioContext.excludedPortfolioWeight == 0)
         #expect(summary.portfolioContext.provenance.indicatorLabel == "Unavailable")
-        #expect(summary.portfolioContext.activation?.primaryActionTitle == "ADD / IMPORT HOLDINGS")
+        #expect(summary.portfolioContext.activation?.primaryActionTitle == "ADD HOLDING")
         #expect(summary.portfolioContext.activation?.secondaryActionTitle == "ADD WATCHLIST SYMBOLS")
         #expect(summary.portfolioContext.activation?.detail.contains("add a holding manually") == true)
+        #expect(summary.portfolioContext.activation?.actionItems.contains("Add holding manually") == true)
+        #expect(summary.portfolioContext.activation?.actionItems.contains("Import portfolio") == true)
+        #expect(summary.portfolioContext.activation?.actionItems.contains("Add watchlist symbols") == true)
         #expect(summary.stockContext?.displayMode == .unavailable)
         #expect(summary.stockContext?.activation?.primaryActionTitle == "ADD WATCHLIST SYMBOLS")
-        #expect(summary.stockContext?.activation?.secondaryActionTitle == "ADD / IMPORT HOLDINGS")
+        #expect(summary.stockContext?.activation?.secondaryActionTitle == "OPEN DISCOVER / SEARCH")
         #expect(summary.dataCoverage.rows.contains { $0.label == "WATCH history" && $0.provenance.indicatorLabel == "Unavailable" })
     }
 
@@ -223,6 +226,9 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(summary.marketContext.metrics.isEmpty)
         #expect(summary.marketContext.activation?.primaryActionTitle == "FETCH MARKET HISTORY")
         #expect(summary.marketContext.activation?.detail.contains("provider/cache path") == true)
+        #expect(summary.marketContext.activation?.actionItems.contains("Fetch SPY / QQQ / DIA / IWM history") == true)
+        #expect(summary.marketContext.activation?.actionItems.contains("Show loading and provider/cache errors here") == true)
+        #expect(summary.marketContext.activation?.actionItems.contains("Do not create sample market data") == true)
         #expect(!summary.marketContext.activation!.detail.localizedCaseInsensitiveContains("sample"))
     }
 
@@ -249,6 +255,7 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(summary.marketContext.metrics.isEmpty)
         #expect(!summary.marketContext.metrics.map(\.label).contains("AVG MKT"))
         #expect(summary.marketContext.activation?.primaryActionTitle == "FETCH MARKET HISTORY")
+        #expect(summary.marketContext.activation?.actionItems.contains("Do not create sample market data") == true)
     }
 
     @Test("Data label guide explains unavailable sample stored cached partial and insufficient")
@@ -289,7 +296,10 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(summary.stockContext?.symbol == "WATCH")
         #expect(summary.stockContext?.metrics.isEmpty == true)
         #expect(summary.stockContext?.activation?.primaryActionTitle == "ADD WATCHLIST SYMBOLS")
-        #expect(summary.stockContext?.activation?.secondaryActionTitle == "ADD / IMPORT HOLDINGS")
+        #expect(summary.stockContext?.activation?.secondaryActionTitle == "OPEN DISCOVER / SEARCH")
+        #expect(summary.stockContext?.activation?.actionItems.contains("Add symbol") == true)
+        #expect(summary.stockContext?.activation?.actionItems.contains("Open Discover/Search") == true)
+        #expect(summary.stockContext?.activation?.actionItems.contains("Provider-backed stock history unlocks this lens") == true)
         #expect(summary.stockContext?.detail.contains("provider-backed history") == true)
     }
 
@@ -354,10 +364,13 @@ struct TodayMarketHoroscopeComposerTests {
             summary.stockContext?.detail ?? "",
             summary.marketContext.activation?.title ?? "",
             summary.marketContext.activation?.detail ?? "",
+            summary.marketContext.activation?.actionItems.joined(separator: "\n") ?? "",
             summary.portfolioContext.activation?.title ?? "",
             summary.portfolioContext.activation?.detail ?? "",
+            summary.portfolioContext.activation?.actionItems.joined(separator: "\n") ?? "",
             summary.stockContext?.activation?.title ?? "",
             summary.stockContext?.activation?.detail ?? "",
+            summary.stockContext?.activation?.actionItems.joined(separator: "\n") ?? "",
             summary.dataCoverage.headline,
             summary.dataCoverage.detail,
             summary.dataCoverage.explainers.map(\.detail).joined(separator: "\n"),
