@@ -16,6 +16,7 @@ struct SchwabWebPositionsParserTests {
         #expect(portfolio.holdings.map(\.symbol) == ["AAPL", "MSFT", "NVDA", "TSLA", "GOOGL"])
         #expect(portfolio.holdings.map(\.shares) == [10, 5, 2, 3, 4])
         #expect(portfolio.holdings.compactMap(\.marketValue) == [3108.50, 1894.55, 935.60, 745.50, 567.20])
+        #expect(portfolio.holdings.compactMap(\.costBasisPerShare) == [150, 300, 300, 200, 120])
         #expect(portfolio.holdings.allSatisfy { $0.confidence == 1.0 })
     }
 

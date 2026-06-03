@@ -396,7 +396,8 @@ struct ImportPortfolioView: View {
             }
             .buttonStyle(PlainButtonStyle())
 
-            // Sample import option
+            #if DEBUG
+            // Debug-only sample import. Production import paths must use real user files.
             Button(action: {
                 loadSampleData()
             }) {
@@ -404,11 +405,12 @@ struct ImportPortfolioView: View {
                     Image(systemName: "sparkles")
                         .font(.caption2)
 
-                    Text("Try with sample data")
+                    Text("Try with DEBUG sample data")
                         .font(TerminalFont.data(11))
                 }
                 .foregroundColor(CosmicTheme.textMuted)
             }
+            #endif
         }
     }
 
@@ -760,6 +762,7 @@ struct ImportPortfolioView: View {
         }
     }
 
+    #if DEBUG
     private func loadSampleData() {
         do {
             let sampleCSV = PortfolioImportService.generateSampleCSV()
@@ -772,6 +775,7 @@ struct ImportPortfolioView: View {
             isShowingError = true
         }
     }
+    #endif
 
     private func confirmImport() {
         guard let result = importResult else { return }

@@ -7,6 +7,7 @@ struct SchwabWebPositionsParser: BrokerCSVParser {
         let symbol: Int
         let quantity: Int
         let marketValue: Int?
+        let costBasis: Int?
     }
 
     func canParse(_ csvText: String) -> Double {
@@ -74,11 +75,14 @@ struct SchwabWebPositionsParser: BrokerCSVParser {
             }
 
             let marketValue = BrokerCSVParsing.parseDouble(BrokerCSVParsing.value(in: row, at: columns.marketValue))
+            let totalCostBasis = BrokerCSVParsing.parseDouble(BrokerCSVParsing.value(in: row, at: columns.costBasis))
+            let costBasisPerShare = Self.costBasisPerShare(totalCostBasis: totalCostBasis, shares: shares)
 
             holdings.append(ParsedHolding(
                 symbol: symbol,
                 shares: shares,
                 marketValue: marketValue,
+                costBasisPerShare: costBasisPerShare,
                 confidence: BrokerCSVParsing.rowConfidence(
                     symbol: symbol,
                     shares: shares,
@@ -120,8 +124,15 @@ struct SchwabWebPositionsParser: BrokerCSVParser {
         return ColumnIndexes(
             symbol: symbol,
             quantity: quantity,
-            marketValue: BrokerCSVParsing.firstColumnIndex(in: map, matching: ["Market Value"])
+            marketValue: BrokerCSVParsing.firstColumnIndex(in: map, matching: ["Market Value"]),
+            costBasis: BrokerCSVParsing.firstColumnIndex(in: map, matching: ["Cost Basis"])
         )
+    }
+
+    private static func costBasisPerShare(totalCostBasis: Double?, shares: Double) -> Double? {
+        guard let totalCostBasis, shares != 0 else { return nil }
+        let value = abs(totalCostBasis / shares)
+        return value.isFinite && value > 0 ? value : nil
     }
 
     private func shouldSkip(symbol: String, row: [String]) -> Bool {

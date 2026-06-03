@@ -12,7 +12,7 @@ struct ImportReviewView: View {
     @State private var livePrices: [String: Double] = [:]
     @State private var quoteProvenanceBySymbol: [String: FinancialDataProvenance] = [:]
     @State private var isFetchingQuotes = false
-    @State private var showReplaceConfirmation = false
+    @State private var pendingCommitMode: PortfolioImportCommitMode?
 
     init(
         parsedPortfolio: ParsedPortfolio,
@@ -79,14 +79,15 @@ struct ImportReviewView: View {
         .task {
             await fetchLivePrices()
         }
-        .sheet(isPresented: $showReplaceConfirmation) {
-            ReplaceConfirmationSheet(
+        .sheet(item: $pendingCommitMode) { mode in
+            ImportCommitConfirmationSheet(
+                mode: mode,
                 existingCount: existingHoldingCount,
                 importedCount: committableHoldings.count,
-                onCancel: { showReplaceConfirmation = false },
+                onCancel: { pendingCommitMode = nil },
                 onConfirm: {
-                    showReplaceConfirmation = false
-                    replacePortfolio()
+                    pendingCommitMode = nil
+                    commitPortfolio(mode: mode)
                 }
             )
             .presentationDetents([.height(260)])
@@ -267,11 +268,11 @@ struct ImportReviewView: View {
     private var bottomActions: some View {
         VStack(spacing: 10) {
             Button(action: {
-                showReplaceConfirmation = true
+                pendingCommitMode = .append
             }) {
                 HStack(spacing: 8) {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                    Text("Replace my portfolio")
+                    Image(systemName: "plus.rectangle.on.folder")
+                    Text("Append to portfolio")
                 }
                 .font(TerminalFont.data(13, weight: .semibold))
                 .foregroundColor(CosmicTheme.background)
@@ -279,6 +280,24 @@ struct ImportReviewView: View {
                 .padding(.vertical, 13)
                 .background(committableHoldings.isEmpty ? CosmicTheme.textMuted : CosmicTheme.gold)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .disabled(committableHoldings.isEmpty)
+
+            Button(action: {
+                pendingCommitMode = .replace
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                    Text("Replace my portfolio")
+                }
+                .font(TerminalFont.data(13, weight: .semibold))
+                .foregroundColor(CosmicTheme.negative)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(committableHoldings.isEmpty ? CosmicTheme.textMuted : CosmicTheme.negative.opacity(0.65), lineWidth: 1)
+                )
             }
             .disabled(committableHoldings.isEmpty)
 
@@ -317,10 +336,11 @@ struct ImportReviewView: View {
         isFetchingQuotes = false
     }
 
-    private func replacePortfolio() {
-        PortfolioImportService.replacePortfolio(
+    private func commitPortfolio(mode: PortfolioImportCommitMode) {
+        PortfolioImportService.commitPortfolio(
             with: committableHoldings,
             in: appState,
+            mode: mode,
             livePrices: livePrices
         )
         onComplete()
@@ -415,6 +435,17 @@ private struct ImportReviewHoldingRow: View {
                         .foregroundColor((shares ?? 0) > 0 ? CosmicTheme.textPrimary : CosmicTheme.negative)
                 }
 
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("COST BASIS")
+                        .font(TerminalFont.data(8))
+                        .foregroundColor(CosmicTheme.textMuted)
+
+                    TextField("Optional", text: $holding.costBasisText)
+                        .keyboardType(.numbersAndPunctuation)
+                        .font(TerminalFont.price(12))
+                        .foregroundColor(holding.isCostBasisValid ? CosmicTheme.textPrimary : CosmicTheme.negative)
+                }
+
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("CSV VALUE")
                         .font(TerminalFont.data(8))
@@ -463,11 +494,57 @@ private struct ImportReviewHoldingRow: View {
     }
 }
 
-private struct ReplaceConfirmationSheet: View {
+extension PortfolioImportCommitMode: Identifiable {
+    var id: String {
+        switch self {
+        case .replace: return "replace"
+        case .append: return "append"
+        }
+    }
+}
+
+private struct ImportCommitConfirmationSheet: View {
+    let mode: PortfolioImportCommitMode
     let existingCount: Int
     let importedCount: Int
     let onCancel: () -> Void
     let onConfirm: () -> Void
+
+    private var title: String {
+        switch mode {
+        case .replace:
+            return "Replace portfolio?"
+        case .append:
+            return "Append holdings?"
+        }
+    }
+
+    private var message: String {
+        switch mode {
+        case .replace:
+            return "Replace \(existingCount) existing holdings with \(importedCount) imported holdings? This cannot be undone."
+        case .append:
+            return "Add \(importedCount) imported holdings to \(existingCount) existing holdings? Matching symbols will combine shares and weighted cost basis."
+        }
+    }
+
+    private var confirmTitle: String {
+        switch mode {
+        case .replace:
+            return "Replace my portfolio"
+        case .append:
+            return "Append holdings"
+        }
+    }
+
+    private var confirmColor: Color {
+        switch mode {
+        case .replace:
+            return CosmicTheme.negative
+        case .append:
+            return CosmicTheme.gold
+        }
+    }
 
     var body: some View {
         VStack(spacing: 18) {
@@ -477,11 +554,11 @@ private struct ReplaceConfirmationSheet: View {
                 .padding(.top, 10)
 
             VStack(spacing: 8) {
-                Text("Replace portfolio?")
+                Text(title)
                     .font(TerminalFont.data(16, weight: .semibold))
                     .foregroundColor(CosmicTheme.textPrimary)
 
-                Text("Replace \(existingCount) existing holdings with \(importedCount) imported holdings? This cannot be undone.")
+                Text(message)
                     .font(TerminalFont.data(12))
                     .foregroundColor(CosmicTheme.textSecondary)
                     .multilineTextAlignment(.center)
@@ -490,12 +567,12 @@ private struct ReplaceConfirmationSheet: View {
 
             VStack(spacing: 10) {
                 Button(action: onConfirm) {
-                    Text("Replace my portfolio")
+                    Text(confirmTitle)
                         .font(TerminalFont.data(13, weight: .semibold))
                         .foregroundColor(CosmicTheme.background)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(CosmicTheme.negative)
+                        .background(confirmColor)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
 
@@ -517,6 +594,7 @@ private struct ReviewedImportHolding: Identifiable {
     let id = UUID()
     var symbol: String
     var sharesText: String
+    var costBasisText: String
     let csvMarketValue: Double?
     let confidence: Double
     let rawSource: String
@@ -524,16 +602,22 @@ private struct ReviewedImportHolding: Identifiable {
     nonisolated init(holding: ParsedHolding) {
         symbol = holding.symbol
         sharesText = Self.formatShares(holding.shares)
+        costBasisText = Self.formatCostBasis(holding.costBasisPerShare)
         csvMarketValue = holding.marketValue
         confidence = holding.confidence
         rawSource = holding.rawSource
+    }
+
+    var isCostBasisValid: Bool {
+        parseCostBasis() != nil || costBasisText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var parsedHolding: ParsedHolding? {
         let cleanSymbol = BrokerCSVParsing.cleanSymbol(symbol)
         guard BrokerCSVParsing.isValidSymbol(cleanSymbol),
               let shares = Double(sharesText.trimmingCharacters(in: .whitespacesAndNewlines)),
-              shares.isFinite else {
+              shares.isFinite,
+              let costBasis = parseCostBasis() else {
             return nil
         }
 
@@ -541,6 +625,7 @@ private struct ReviewedImportHolding: Identifiable {
             symbol: cleanSymbol,
             shares: shares,
             marketValue: csvMarketValue,
+            costBasisPerShare: costBasis,
             confidence: confidence,
             rawSource: rawSource
         )
@@ -551,6 +636,22 @@ private struct ReviewedImportHolding: Identifiable {
             return String(format: "%.0f", value)
         }
         return String(format: "%.4f", value)
+    }
+
+    nonisolated private static func formatCostBasis(_ value: Double?) -> String {
+        guard let value else { return "" }
+        return String(format: "%.2f", value)
+    }
+
+    private func parseCostBasis() -> Double?? {
+        let text = costBasisText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return .some(nil) }
+        guard let value = BrokerCSVParsing.parseDouble(text),
+              value.isFinite,
+              value > 0 else {
+            return nil
+        }
+        return .some(value)
     }
 }
 
