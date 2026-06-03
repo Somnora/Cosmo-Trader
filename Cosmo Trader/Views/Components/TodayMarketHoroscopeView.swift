@@ -4,7 +4,11 @@ struct TodayMarketHoroscopeView: View {
     let viewModel: TodayMarketHoroscopeViewModel
     let marketRefreshAction: () -> Void
     let portfolioSetupAction: () -> Void
+    let portfolioImportAction: () -> Void
     let watchlistSetupAction: () -> Void
+    let discoverSearchAction: () -> Void
+
+    @State private var isLabelGuideExpanded = false
 
     var body: some View {
         Group {
@@ -243,8 +247,9 @@ struct TodayMarketHoroscopeView: View {
             if let activation = context.activation {
                 activationPrompt(
                     activation,
-                    primaryAction: portfolioSetupAction,
-                    secondaryAction: watchlistSetupAction
+                    primaryAction: action(for: activation.primaryActionTitle) ?? watchlistSetupAction,
+                    secondaryAction: action(for: activation.secondaryActionTitle),
+                    tertiaryAction: action(for: activation.tertiaryActionTitle)
                 )
             }
 
@@ -307,8 +312,9 @@ struct TodayMarketHoroscopeView: View {
             if let activation = context.activation {
                 activationPrompt(
                     activation,
-                    primaryAction: marketRefreshAction,
-                    secondaryAction: nil
+                    primaryAction: action(for: activation.primaryActionTitle) ?? marketRefreshAction,
+                    secondaryAction: action(for: activation.secondaryActionTitle),
+                    tertiaryAction: action(for: activation.tertiaryActionTitle)
                 )
             }
         }
@@ -357,8 +363,9 @@ struct TodayMarketHoroscopeView: View {
             if let activation = context.activation {
                 activationPrompt(
                     activation,
-                    primaryAction: stockPrimaryAction(for: context.activation),
-                    secondaryAction: stockSecondaryAction(for: context.activation)
+                    primaryAction: action(for: activation.primaryActionTitle) ?? watchlistSetupAction,
+                    secondaryAction: action(for: activation.secondaryActionTitle),
+                    tertiaryAction: action(for: activation.tertiaryActionTitle)
                 )
             }
         }
@@ -412,7 +419,7 @@ struct TodayMarketHoroscopeView: View {
                     .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
             )
 
-            labelExplainerGrid(coverage.explainers)
+            labelExplainerDisclosure(coverage.explainers)
         }
     }
 
@@ -562,9 +569,17 @@ struct TodayMarketHoroscopeView: View {
     private func activationPrompt(
         _ prompt: TodayActivationPrompt,
         primaryAction: @escaping () -> Void,
-        secondaryAction: (() -> Void)?
+        secondaryAction: (() -> Void)?,
+        tertiaryAction: (() -> Void)? = nil
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let actions: [(title: String, isPrimary: Bool, handler: () -> Void)] = [
+            (prompt.primaryActionTitle, true, primaryAction)
+        ] + [
+            prompt.secondaryActionTitle.map { ($0, false, secondaryAction ?? {}) },
+            prompt.tertiaryActionTitle.map { ($0, false, tertiaryAction ?? {}) }
+        ].compactMap { $0 }
+
+        return VStack(alignment: .leading, spacing: 8) {
             Text(prompt.title)
                 .font(TerminalFont.data(10, weight: .bold))
                 .foregroundColor(CosmicTheme.textPrimary)
@@ -595,11 +610,20 @@ struct TodayMarketHoroscopeView: View {
                 .padding(.top, 1)
             }
 
-            HStack(spacing: 8) {
-                actionButton(title: prompt.primaryActionTitle, systemImage: actionIcon(for: prompt.primaryActionTitle), action: primaryAction)
-
-                if let secondaryAction, let secondaryTitle = prompt.secondaryActionTitle {
-                    actionButton(title: secondaryTitle, systemImage: actionIcon(for: secondaryTitle), isPrimary: false, action: secondaryAction)
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8)
+                ],
+                spacing: 8
+            ) {
+                ForEach(Array(actions.enumerated()), id: \.offset) { _, action in
+                    actionButton(
+                        title: action.title,
+                        systemImage: actionIcon(for: action.title),
+                        isPrimary: action.isPrimary,
+                        action: action.handler
+                    )
                 }
             }
         }
@@ -632,7 +656,7 @@ struct TodayMarketHoroscopeView: View {
             .foregroundColor(isPrimary ? CosmicTheme.background : CosmicTheme.gold)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .frame(maxWidth: isPrimary ? .infinity : nil)
+            .frame(maxWidth: .infinity)
             .background(isPrimary ? CosmicTheme.gold : CosmicTheme.gold.opacity(0.10))
             .overlay(
                 RoundedRectangle(cornerRadius: 3)
@@ -653,6 +677,47 @@ struct TodayMarketHoroscopeView: View {
             return "chart.pie.fill"
         }
         return "plus"
+    }
+
+    private func labelExplainerDisclosure(_ explainers: [TodayDataLabelExplainer]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    isLabelGuideExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Text("LABEL GUIDE")
+                        .font(TerminalFont.data(8, weight: .bold))
+                        .foregroundColor(CosmicTheme.gold)
+                        .tracking(0.7)
+
+                    Text("Tap for data label meanings")
+                        .font(TerminalFont.data(8))
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+
+                    Spacer(minLength: 8)
+
+                    Image(systemName: isLabelGuideExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(CosmicTheme.panelElevated.opacity(0.8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+                )
+            }
+            .buttonStyle(.plain)
+
+            if isLabelGuideExpanded {
+                labelExplainerGrid(explainers)
+            }
+        }
     }
 
     private func labelExplainerGrid(_ explainers: [TodayDataLabelExplainer]) -> some View {
@@ -695,27 +760,22 @@ struct TodayMarketHoroscopeView: View {
         }
     }
 
-    private func stockPrimaryAction(for activation: TodayActivationPrompt?) -> () -> Void {
-        guard let activation else { return watchlistSetupAction }
-        if activation.primaryActionTitle.localizedCaseInsensitiveContains("refresh") {
+    private func action(for title: String?) -> (() -> Void)? {
+        guard let title else { return nil }
+        if title.localizedCaseInsensitiveContains("refresh") || title.localizedCaseInsensitiveContains("fetch") {
             return marketRefreshAction
         }
-        if activation.primaryActionTitle.localizedCaseInsensitiveContains("holding") {
+        if title.localizedCaseInsensitiveContains("import") {
+            return portfolioImportAction
+        }
+        if title.localizedCaseInsensitiveContains("holding") || title.localizedCaseInsensitiveContains("portfolio") {
             return portfolioSetupAction
         }
-        if activation.primaryActionTitle.localizedCaseInsensitiveContains("discover") || activation.primaryActionTitle.localizedCaseInsensitiveContains("search") {
-            return watchlistSetupAction
-        }
-        return watchlistSetupAction
-    }
-
-    private func stockSecondaryAction(for activation: TodayActivationPrompt?) -> (() -> Void)? {
-        guard let secondaryTitle = activation?.secondaryActionTitle else { return nil }
-        if secondaryTitle.localizedCaseInsensitiveContains("holding") {
-            return portfolioSetupAction
-        }
-        if secondaryTitle.localizedCaseInsensitiveContains("discover") || secondaryTitle.localizedCaseInsensitiveContains("search") {
-            return watchlistSetupAction
+        if title.localizedCaseInsensitiveContains("discover")
+            || title.localizedCaseInsensitiveContains("search")
+            || title.localizedCaseInsensitiveContains("watchlist")
+            || title.localizedCaseInsensitiveContains("symbol") {
+            return discoverSearchAction
         }
         return watchlistSetupAction
     }

@@ -607,7 +607,8 @@ final class TodayMarketHoroscopeComposer {
                     "Add watchlist symbols"
                 ],
                 primaryActionTitle: "ADD HOLDING",
-                secondaryActionTitle: "ADD WATCHLIST SYMBOLS"
+                secondaryActionTitle: "IMPORT PORTFOLIO",
+                tertiaryActionTitle: "ADD WATCHLIST SYMBOLS"
             )
         case .partialContext, .insufficientCoverage, .insufficientSample, .unavailable:
             return TodayActivationPrompt(
@@ -618,8 +619,9 @@ final class TodayMarketHoroscopeComposer {
                     "Import portfolio",
                     "Add watchlist symbols"
                 ],
-                primaryActionTitle: "OPEN PORTFOLIO",
-                secondaryActionTitle: "ADD WATCHLIST SYMBOLS"
+                primaryActionTitle: "ADD HOLDING",
+                secondaryActionTitle: "IMPORT PORTFOLIO",
+                tertiaryActionTitle: "ADD WATCHLIST SYMBOLS"
             )
         case .sampleOnly:
             return TodayActivationPrompt(
@@ -631,7 +633,8 @@ final class TodayMarketHoroscopeComposer {
                     "Add watchlist symbols"
                 ],
                 primaryActionTitle: "ADD HOLDING",
-                secondaryActionTitle: "ADD WATCHLIST SYMBOLS"
+                secondaryActionTitle: "IMPORT PORTFOLIO",
+                tertiaryActionTitle: "ADD WATCHLIST SYMBOLS"
             )
         }
     }
@@ -682,27 +685,27 @@ final class TodayMarketHoroscopeComposer {
         [
             TodayDataLabelExplainer(
                 label: "Unavailable",
-                detail: "The provider/cache path has not returned enough usable data yet."
+                detail: "Provider has not returned enough data yet."
             ),
             TodayDataLabelExplainer(
                 label: "Sample data",
-                detail: "Demo context only. It is labeled and never used for market claims."
+                detail: "Demo context only, not market data."
             ),
             TodayDataLabelExplainer(
                 label: "Stored data",
-                detail: "Saved locally from portfolio setup or prior app state, not a fresh market read."
+                detail: "Saved locally from your setup."
             ),
             TodayDataLabelExplainer(
                 label: "Cached/stale",
-                detail: "Provider-backed data saved earlier. Stale cache stays context-only until refreshed."
+                detail: "Provider-backed data saved earlier."
             ),
             TodayDataLabelExplainer(
                 label: "Partial",
-                detail: "Some required history is present, but coverage is too incomplete for headline metrics."
+                detail: "Some required data is missing."
             ),
             TodayDataLabelExplainer(
                 label: "Insufficient",
-                detail: "There is not enough historical data or event sample size for a numeric read."
+                detail: "Not enough history for a reliable context view."
             )
         ]
     }

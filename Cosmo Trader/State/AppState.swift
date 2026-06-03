@@ -1,6 +1,12 @@
 import Foundation
 import SwiftUI
 
+enum AppNavigationIntent: Equatable {
+    case portfolioAddHolding
+    case portfolioImport
+    case discoverSearch
+}
+
 // MARK: - AppState
 // ================
 // Central state management for the entire app.
@@ -53,6 +59,20 @@ class AppState {
 
     /// Currently selected tab (for cross-tab navigation)
     var selectedTab: Tab = .today
+
+    /// One-shot request for a tab to open a specific existing flow.
+    var pendingNavigationIntent: AppNavigationIntent?
+
+    func requestNavigation(_ intent: AppNavigationIntent) {
+        pendingNavigationIntent = intent
+
+        switch intent {
+        case .portfolioAddHolding, .portfolioImport:
+            selectedTab = .portfolio
+        case .discoverSearch:
+            selectedTab = .discover
+        }
+    }
 
     // MARK: - Storage Keys
 
