@@ -424,15 +424,18 @@ extension UserProfile {
 
     /// Add a stock to the watchlist
     mutating func addToWatchlist(_ symbol: String) {
-        guard !watchlist.contains(symbol) else { return }
-        watchlist.append(symbol)
+        let normalizedSymbol = symbol.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !normalizedSymbol.isEmpty else { return }
+        guard !watchlist.contains(where: { $0.uppercased() == normalizedSymbol }) else { return }
+        watchlist.append(normalizedSymbol)
         // Remove from skipped if it was there
-        skippedStocks.removeAll { $0 == symbol }
+        skippedStocks.removeAll { $0.uppercased() == normalizedSymbol }
     }
 
     /// Remove a stock from the watchlist
     mutating func removeFromWatchlist(_ symbol: String) {
-        watchlist.removeAll { $0 == symbol }
+        let normalizedSymbol = symbol.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        watchlist.removeAll { $0.uppercased() == normalizedSymbol }
     }
 
     /// Skip/dismiss a stock
@@ -445,7 +448,8 @@ extension UserProfile {
 
     /// Check if a stock is in the watchlist
     func isInWatchlist(_ symbol: String) -> Bool {
-        watchlist.contains(symbol)
+        let normalizedSymbol = symbol.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        return watchlist.contains { $0.uppercased() == normalizedSymbol }
     }
 
     /// Check if a stock has been skipped

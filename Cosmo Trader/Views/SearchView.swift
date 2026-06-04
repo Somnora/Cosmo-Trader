@@ -21,6 +21,7 @@ struct SearchView: View {
 
     @State private var searchService = SearchService.shared
     @State private var navPath = NavigationPath()
+    @State private var watchlistToast: String?
     @FocusState private var isSearchFieldFocused: Bool
 
     // MARK: - Body
@@ -57,6 +58,12 @@ struct SearchView: View {
                             }
                         }
                     }
+                }
+
+                if let watchlistToast {
+                    watchlistToastView(watchlistToast)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .zIndex(10)
                 }
             }
             .navigationBarHidden(true)
@@ -150,8 +157,13 @@ struct SearchView: View {
 
             // Results list
             ForEach(searchService.results) { result in
-                SearchResultRow(result: result) {
+                SearchResultRow(
+                    result: result,
+                    isInWatchlist: appState.currentUser?.isInWatchlist(result.symbol) ?? false
+                ) {
                     selectSearchResult(result)
+                } onAddToWatchlist: {
+                    addToWatchlist(symbol: result.symbol, name: result.description)
                 }
             }
         }
@@ -196,7 +208,7 @@ struct SearchView: View {
                     .tracking(1)
             }
 
-            Text("Search a symbol, open the stock detail, then add it to Portfolio. Start with 3-5 tickers; shares can be refined later.")
+            Text("Search a symbol, save it to your watchlist, or open the stock detail when you want the full context view.")
                 .font(.system(size: 12, weight: .medium, design: .monospaced))
                 .foregroundColor(CosmicTheme.textSecondary)
                 .lineSpacing(3)
@@ -241,6 +253,10 @@ struct SearchView: View {
                     selectRecentSearch(recent)
                 } onRemove: {
                     searchService.removeRecentSearch(recent)
+                } onAddToWatchlist: {
+                    addToWatchlist(symbol: recent.symbol, name: recent.name)
+                } isInWatchlist: {
+                    appState.currentUser?.isInWatchlist(recent.symbol) ?? false
                 }
             }
         }
@@ -267,8 +283,14 @@ struct SearchView: View {
                 GridItem(.flexible(), spacing: 8)
             ], spacing: 8) {
                 ForEach(SearchService.popularSuggestions, id: \.symbol) { suggestion in
-                    PopularSuggestionButton(symbol: suggestion.symbol, name: suggestion.name) {
+                    PopularSuggestionButton(
+                        symbol: suggestion.symbol,
+                        name: suggestion.name,
+                        isInWatchlist: appState.currentUser?.isInWatchlist(suggestion.symbol) ?? false
+                    ) {
                         selectPopularSuggestion(symbol: suggestion.symbol, name: suggestion.name)
+                    } onAddToWatchlist: {
+                        addToWatchlist(symbol: suggestion.symbol, name: suggestion.name)
                     }
                 }
             }
@@ -321,7 +343,7 @@ struct SearchView: View {
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .foregroundColor(CosmicTheme.textSecondary)
 
-            Text("Try a different symbol or add a popular ticker to begin portfolio setup")
+            Text("Try a different symbol, then save it to your watchlist for provider-backed history checks.")
                 .font(.system(size: 10, weight: .regular, design: .monospaced))
                 .foregroundColor(CosmicTheme.textMuted)
         }
@@ -362,6 +384,46 @@ struct SearchView: View {
         }
     }
 
+    private func addToWatchlist(symbol: String, name: String) {
+        appState.addToWatchlist(symbol)
+        searchService.addToRecentSearches(symbol: symbol, name: name)
+
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.86)) {
+            watchlistToast = "\(symbol.uppercased()) added to watchlist"
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+            withAnimation(.easeOut(duration: 0.18)) {
+                watchlistToast = nil
+            }
+        }
+    }
+
+    private func watchlistToastView(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "eye.fill")
+                .font(.caption)
+                .foregroundColor(CosmicTheme.gold)
+
+            Text(message)
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .foregroundColor(CosmicTheme.textPrimary)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            Capsule()
+                .fill(CosmicTheme.cardBackground)
+                .shadow(color: Color.black.opacity(0.35), radius: 8, y: 4)
+        )
+        .overlay(
+            Capsule()
+                .stroke(CosmicTheme.gold.opacity(0.35), lineWidth: 1)
+        )
+        .frame(maxHeight: .infinity, alignment: .top)
+        .padding(.top, 16)
+    }
+
     private func knownStock(symbol: String) -> Stock? {
         let normalized = symbol.uppercased()
         return Stock.samples.first { $0.symbol.uppercased() == normalized }
@@ -386,35 +448,55 @@ struct SearchView: View {
 
 struct SearchResultRow: View {
     let result: SymbolMatch
+    let isInWatchlist: Bool
     let onTap: () -> Void
+    let onAddToWatchlist: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
-                // Symbol badge
-                Text(result.displaySymbol)
-                    .font(.system(size: 13, weight: .bold, design: .monospaced))
-                    .foregroundColor(CosmicTheme.gold)
-                    .frame(width: 60, alignment: .leading)
+        HStack(spacing: 12) {
+            Button(action: onTap) {
+                HStack(spacing: 12) {
+                    // Symbol badge
+                    Text(result.displaySymbol)
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        .foregroundColor(CosmicTheme.gold)
+                        .frame(width: 60, alignment: .leading)
 
-                // Company name
-                Text(result.description)
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundColor(CosmicTheme.textPrimary)
-                    .lineLimit(1)
+                    // Company name
+                    Text(result.description)
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundColor(CosmicTheme.textPrimary)
+                        .lineLimit(1)
 
-                Spacer()
+                    Spacer()
 
-                // Chevron
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(CosmicTheme.textMuted)
+                    // Chevron
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(CosmicTheme.background)
+            .buttonStyle(PlainButtonStyle())
+
+            Button(action: onAddToWatchlist) {
+                Image(systemName: isInWatchlist ? "eye.fill" : "eye")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(isInWatchlist ? CosmicTheme.gold : CosmicTheme.textMuted)
+                    .frame(width: 30, height: 30)
+                    .background(CosmicTheme.cardBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(isInWatchlist ? CosmicTheme.gold.opacity(0.45) : CosmicTheme.borderDim, lineWidth: 0.75)
+                    )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isInWatchlist ? "\(result.symbol) already in watchlist" : "Add \(result.symbol) to watchlist")
+            .accessibilityIdentifier("search.result.addToWatchlist.\(result.symbol.uppercased())")
+            .disabled(isInWatchlist)
         }
-        .buttonStyle(PlainButtonStyle())
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(CosmicTheme.background)
 
         // Divider
         Rectangle()
@@ -430,6 +512,8 @@ struct RecentSearchRow: View {
     let recent: RecentSearch
     let onTap: () -> Void
     let onRemove: () -> Void
+    let onAddToWatchlist: () -> Void
+    let isInWatchlist: () -> Bool
 
     var body: some View {
         HStack(spacing: 12) {
@@ -457,6 +541,15 @@ struct RecentSearchRow: View {
             .buttonStyle(PlainButtonStyle())
 
             // Remove button
+            Button(action: onAddToWatchlist) {
+                Image(systemName: isInWatchlist() ? "eye.fill" : "eye")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(isInWatchlist() ? CosmicTheme.gold : CosmicTheme.textMuted)
+            }
+            .disabled(isInWatchlist())
+            .accessibilityLabel(isInWatchlist() ? "\(recent.symbol) already in watchlist" : "Add \(recent.symbol) to watchlist")
+            .accessibilityIdentifier("search.recent.addToWatchlist.\(recent.symbol.uppercased())")
+
             Button(action: onRemove) {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .medium))
@@ -479,30 +572,48 @@ struct RecentSearchRow: View {
 struct PopularSuggestionButton: View {
     let symbol: String
     let name: String
+    let isInWatchlist: Bool
     let onTap: () -> Void
+    let onAddToWatchlist: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(symbol)
-                    .font(.system(size: 13, weight: .bold, design: .monospaced))
-                    .foregroundColor(CosmicTheme.gold)
+        VStack(alignment: .leading, spacing: 8) {
+            Button(action: onTap) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(symbol)
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        .foregroundColor(CosmicTheme.gold)
 
-                Text(name)
-                    .font(.system(size: 9, weight: .medium, design: .monospaced))
-                    .foregroundColor(CosmicTheme.textMuted)
-                    .lineLimit(1)
+                    Text(name)
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(CosmicTheme.cardBackground)
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(CosmicTheme.border, lineWidth: 1)
-            )
+            .buttonStyle(PlainButtonStyle())
+
+            Button(action: onAddToWatchlist) {
+                Label(isInWatchlist ? "WATCHING" : "WATCH", systemImage: isInWatchlist ? "eye.fill" : "eye")
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .foregroundColor(isInWatchlist ? CosmicTheme.gold : CosmicTheme.textSecondary)
+                    .tracking(0.5)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .buttonStyle(.plain)
+            .disabled(isInWatchlist)
+            .accessibilityLabel(isInWatchlist ? "\(symbol) already in watchlist" : "Add \(symbol) to watchlist")
+            .accessibilityIdentifier("search.popular.addToWatchlist.\(symbol.uppercased())")
         }
-        .buttonStyle(PlainButtonStyle())
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(CosmicTheme.cardBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.border, lineWidth: 1)
+        )
     }
 }
 

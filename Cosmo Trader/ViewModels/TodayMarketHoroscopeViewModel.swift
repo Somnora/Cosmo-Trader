@@ -198,15 +198,38 @@ final class TodayMarketHoroscopeViewModel {
         }
 
         for symbol in user.watchlist.map({ $0.uppercased() }) {
-            guard !seen.contains(symbol),
-                  let stock = MockStockData.knownStocks.first(where: { $0.symbol.uppercased() == symbol }) else {
-                continue
-            }
+            guard !seen.contains(symbol) else { continue }
             seen.insert(symbol)
-            candidates.append(stock)
+            candidates.append(watchlistStock(for: symbol))
         }
 
         return Array(candidates.prefix(4))
+    }
+
+    private func watchlistStock(for symbol: String) -> Stock {
+        if let knownStock = MockStockData.knownStocks.first(where: { $0.symbol.uppercased() == symbol }) {
+            return Stock(
+                symbol: knownStock.symbol.uppercased(),
+                name: knownStock.name,
+                currentPrice: 0,
+                priceChange: 0,
+                percentageChange: 0,
+                foundedDate: knownStock.foundedDate,
+                sector: knownStock.sector,
+                ceoName: knownStock.ceoName,
+                ceoBirthDate: knownStock.ceoBirthDate
+            )
+        }
+
+        return Stock(
+            symbol: symbol,
+            name: symbol,
+            currentPrice: 0,
+            priceChange: 0,
+            percentageChange: 0,
+            foundedDate: nil,
+            sector: "Unknown"
+        )
     }
 
     private func signature(for user: UserProfile?) -> String {

@@ -325,6 +325,33 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(summary.stockContext?.detail.contains("provider-backed history") == true)
     }
 
+    @Test("Watchlist stock with unavailable history stays activation-only")
+    func watchlistStockWithUnavailableHistoryStaysActivationOnly() {
+        let summary = composer.compose(
+            user: user(portfolio: [], watchlist: ["NVDA"]),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [],
+            stockCandidate: TodayStockCandidate(
+                stock: stock(symbol: "NVDA", sharesOwned: 0),
+                summaries: [],
+                provenance: .unavailable(reason: "Provider-backed historical prices unavailable"),
+                completeness: .insufficient(reason: "Provider-backed historical prices unavailable")
+            )
+        )
+
+        #expect(summary.stockContext?.symbol == "NVDA")
+        #expect(summary.stockContext?.displayMode == .unavailable)
+        #expect(summary.stockContext?.metrics.isEmpty == true)
+        #expect(summary.stockContext?.headline == "NVDA historical context pending")
+        #expect(summary.stockContext?.detail.contains("provider-backed history") == true)
+        #expect(summary.stockContext?.activation?.primaryActionTitle == "REFRESH TODAY CONTEXT")
+        #expect(summary.stockContext?.activation?.secondaryActionTitle == "OPEN DISCOVER / SEARCH")
+        #expect(summary.dataCoverage.rows.contains { $0.label == "NVDA history" && $0.provenance.indicatorLabel == "Unavailable" })
+    }
+
     @Test("Today data coverage distinguishes stale, partial, and unavailable datasets")
     func dataCoverageCarriesDatasetQuality() {
         let fetchedAt = date("2026-05-28")

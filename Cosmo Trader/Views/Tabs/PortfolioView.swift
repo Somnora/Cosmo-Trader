@@ -45,10 +45,39 @@ struct PortfolioView: View {
 
     /// Stocks in the user's watchlist (not owned)
     private var watchlistStocks: [Stock] {
-        let watchlistSymbols = Set(safeUser.watchlist)
-        return MockStockData.knownStocks
-            .filter { watchlistSymbols.contains($0.symbol) }
-            .map { watchlistQuoteOverrides[$0.symbol] ?? $0 }
+        safeUser.watchlist.map { symbol in
+            let normalizedSymbol = symbol.uppercased()
+            if let quoteOverride = watchlistQuoteOverrides[normalizedSymbol] {
+                return quoteOverride
+            }
+            return watchlistDisplayStock(for: normalizedSymbol)
+        }
+    }
+
+    private func watchlistDisplayStock(for symbol: String) -> Stock {
+        if let knownStock = MockStockData.knownStocks.first(where: { $0.symbol.uppercased() == symbol }) {
+            return Stock(
+                symbol: knownStock.symbol.uppercased(),
+                name: knownStock.name,
+                currentPrice: 0,
+                priceChange: 0,
+                percentageChange: 0,
+                foundedDate: knownStock.foundedDate,
+                sector: knownStock.sector,
+                ceoName: knownStock.ceoName,
+                ceoBirthDate: knownStock.ceoBirthDate
+            )
+        }
+
+        return Stock(
+            symbol: symbol,
+            name: symbol,
+            currentPrice: 0,
+            priceChange: 0,
+            percentageChange: 0,
+            foundedDate: nil,
+            sector: "Unknown"
+        )
     }
 
     private var portfolioPriceProvenance: FinancialDataProvenance {
@@ -247,6 +276,9 @@ struct PortfolioView: View {
                         if !watchlistStocks.isEmpty {
                             dividerLine
                             watchingSection
+                        } else {
+                            dividerLine
+                            emptyWatchlistSection
                         }
 
                         // Timestamp footer
@@ -1051,6 +1083,57 @@ struct PortfolioView: View {
         .background(CosmicTheme.background)
     }
 
+    private var emptyWatchlistSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionHeader("WATCHING")
+
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "eye")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(CosmicTheme.gold)
+                    .frame(width: 34, height: 34)
+                    .background(CosmicTheme.cardBackground)
+                    .overlay(
+                        Rectangle()
+                            .stroke(CosmicTheme.border, lineWidth: 1)
+                    )
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("WATCHLIST SETUP")
+                        .font(TerminalFont.data(10, weight: .semibold))
+                        .foregroundColor(CosmicTheme.gold)
+                        .tracking(1.2)
+
+                    Text("Save tickers you want to review without adding holdings.")
+                        .font(TerminalFont.data(14, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text("Today will request provider-backed history for watchlist symbols before showing stock-level context. No sample prices or generated history are used.")
+                        .font(TerminalFont.data(11))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Button {
+                showSearch = true
+            } label: {
+                Label("ADD WATCHLIST SYMBOL", systemImage: "magnifyingglass")
+                    .font(TerminalFont.data(11, weight: .semibold))
+                    .foregroundColor(CosmicTheme.background)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(CosmicTheme.gold)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("portfolio.emptyWatchlist.addSymbol")
+        }
+        .padding(.bottom, 12)
+        .background(CosmicTheme.background)
+    }
+
     private func setupOutcomeRow(_ text: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "checkmark.seal")
@@ -1101,7 +1184,7 @@ struct PortfolioView: View {
             HStack(alignment: .top, spacing: 6) {
                 Image(systemName: "info.circle")
                     .font(.system(size: 10, weight: .semibold))
-                Text("Watchlist prices are labeled live, cached, or sample depending on the latest provider quote refresh.")
+                Text("Watchlist prices stay unavailable until a provider quote refresh succeeds; no sample price is treated as market data.")
                     .font(TerminalFont.data(9))
                     .fixedSize(horizontal: false, vertical: true)
             }

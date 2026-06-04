@@ -76,6 +76,27 @@ struct DiscoverView: View {
             .background(CosmicTheme.background.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(action: {
+                        showSearch = true
+                    }) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(CosmicTheme.gold)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                Circle()
+                                    .fill(CosmicTheme.cardBackground)
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(CosmicTheme.gold.opacity(0.3), lineWidth: 0.5)
+                            )
+                    }
+                    .accessibilityLabel("Search symbols to add to watchlist")
+                    .accessibilityIdentifier("discover.toolbar.searchWatchlistSymbols")
+                }
+
                 ToolbarItem(placement: .principal) {
                     HStack(spacing: 8) {
                         Text("DISCOVER")
@@ -819,6 +840,22 @@ struct DiscoverView: View {
 
             HStack(spacing: 16) {
                 Button(action: {
+                    HapticFeedback.medium()
+                    showSearch = true
+                }) {
+                    Text("Search Symbols")
+                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                        .foregroundColor(CosmicTheme.background)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(
+                            Capsule()
+                                .fill(CosmicTheme.gold)
+                        )
+                }
+                .accessibilityIdentifier("discover.empty.searchSymbols")
+
+                Button(action: {
                     HapticFeedback.light()
                     withAnimation {
                         viewModel?.clearFilters()
@@ -843,12 +880,12 @@ struct DiscoverView: View {
                 }) {
                     Text("Reset Skipped")
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
-                        .foregroundColor(CosmicTheme.background)
+                        .foregroundColor(CosmicTheme.textSecondary)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
                         .background(
                             Capsule()
-                                .fill(CosmicTheme.gold)
+                                .stroke(CosmicTheme.textMuted, lineWidth: 1)
                         )
                 }
             }

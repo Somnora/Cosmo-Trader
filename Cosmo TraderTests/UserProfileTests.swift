@@ -283,6 +283,25 @@ struct UserProfileWatchlistTests {
         #expect(profile.watchlist.filter { $0 == "AAPL" }.count == 1)
     }
 
+    @Test("Adding watchlist symbol normalizes and deduplicates")
+    func addWatchlistSymbolNormalizesAndDeduplicates() {
+        var profile = UserProfile(
+            displayName: "Test User",
+            email: "test@example.com",
+            birthMonth: 8,
+            birthDay: 15,
+            birthYear: 1990,
+            skippedStocks: ["aapl"]
+        )
+
+        profile.addToWatchlist(" aapl ")
+        profile.addToWatchlist("AAPL")
+
+        #expect(profile.watchlist == ["AAPL"])
+        #expect(profile.isInWatchlist("aapl"))
+        #expect(profile.skippedStocks.isEmpty)
+    }
+
     @Test("Remove from watchlist")
     func removeFromWatchlist() {
         var profile = UserProfile(
@@ -299,6 +318,23 @@ struct UserProfileWatchlistTests {
         #expect(!profile.watchlist.contains("GOOGL"))
         #expect(profile.watchlist.contains("AAPL"))
         #expect(profile.watchlist.contains("TSLA"))
+    }
+
+    @Test("Remove from watchlist is case insensitive")
+    func removeFromWatchlistIsCaseInsensitive() {
+        var profile = UserProfile(
+            displayName: "Test User",
+            email: "test@example.com",
+            birthMonth: 8,
+            birthDay: 15,
+            birthYear: 1990,
+            watchlist: ["AAPL", "MSFT"]
+        )
+
+        profile.removeFromWatchlist("aapl")
+
+        #expect(!profile.isInWatchlist("AAPL"))
+        #expect(profile.watchlist == ["MSFT"])
     }
 
     @Test("Skip stock adds to skipped list")
