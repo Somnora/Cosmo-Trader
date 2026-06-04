@@ -167,6 +167,11 @@ enum PortfolioImportError: Error, LocalizedError {
 
 // MARK: - Service
 
+enum PortfolioImportCommitMode: Equatable {
+    case replace
+    case append
+}
+
 enum PortfolioImportService {
 
     private static let screenshotParsers: [BrokerScreenshotParser] = [
@@ -533,7 +538,7 @@ enum PortfolioImportService {
         from parsedHoldings: [ParsedHolding],
         livePrices: [String: Double] = [:]
     ) -> [Stock] {
-        parsedHoldings.compactMap { stock(from: $0, livePrices: livePrices) }
+        mergeDuplicateStocks(parsedHoldings.compactMap { stock(from: $0, livePrices: livePrices) })
     }
 
     static func replacePortfolio(
@@ -541,8 +546,43 @@ enum PortfolioImportService {
         in appState: AppState,
         livePrices: [String: Double] = [:]
     ) {
+        commitPortfolio(
+            with: parsedHoldings,
+            in: appState,
+            mode: .replace,
+            livePrices: livePrices
+        )
+    }
+
+    static func appendPortfolio(
+        with parsedHoldings: [ParsedHolding],
+        in appState: AppState,
+        livePrices: [String: Double] = [:]
+    ) {
+        commitPortfolio(
+            with: parsedHoldings,
+            in: appState,
+            mode: .append,
+            livePrices: livePrices
+        )
+    }
+
+    static func commitPortfolio(
+        with parsedHoldings: [ParsedHolding],
+        in appState: AppState,
+        mode: PortfolioImportCommitMode,
+        livePrices: [String: Double] = [:]
+    ) {
         guard var user = appState.currentUser else { return }
-        user.portfolio = stocks(from: parsedHoldings, livePrices: livePrices)
+        let importedStocks = stocks(from: parsedHoldings, livePrices: livePrices)
+
+        switch mode {
+        case .replace:
+            user.portfolio = importedStocks
+        case .append:
+            user.portfolio = mergeDuplicateStocks(user.portfolio + importedStocks)
+        }
+
         appState.currentUser = user
         appState.saveUserToStorage()
     }
@@ -554,91 +594,111 @@ enum PortfolioImportService {
         let symbol = cleanSymbol(parsedHolding.symbol).uppercased()
         guard !symbol.isEmpty, parsedHolding.shares > 0 else { return nil }
 
-        let unitValueFromCSV: Double? = {
+        let marketValuePerShare: Double? = {
             guard let marketValue = parsedHolding.marketValue,
                   parsedHolding.shares != 0 else { return nil }
             let unitValue = abs(marketValue / parsedHolding.shares)
             return unitValue.isFinite && unitValue > 0 ? unitValue : nil
         }()
 
+        let costBasisPerShare = parsedHolding.costBasisPerShare.flatMap { value in
+            value.isFinite && value > 0 ? value : nil
+        }
         let livePrice = livePrices[symbol].flatMap { $0 > 0 ? $0 : nil }
+        let importedOrProviderPrice = livePrice ?? marketValuePerShare ?? 0
 
         if let knownStock = MockStockData.knownStocks.first(where: { $0.symbol.uppercased() == symbol }) {
             var stock = knownStock
             stock.sharesOwned = parsedHolding.shares
-            stock.currentPrice = livePrice ?? unitValueFromCSV ?? knownStock.currentPrice
-            stock.purchasePrice = unitValueFromCSV
+            stock.currentPrice = importedOrProviderPrice
+            stock.priceChange = 0
+            stock.percentageChange = 0
+            stock.purchasePrice = costBasisPerShare
             stock.purchaseDate = Date()
             return stock
         }
 
-        let price = livePrice ?? unitValueFromCSV ?? 0
         return Stock(
             symbol: symbol,
             name: symbol,
-            currentPrice: price,
+            currentPrice: importedOrProviderPrice,
             priceChange: 0,
             percentageChange: 0,
             sharesOwned: parsedHolding.shares,
-            purchasePrice: unitValueFromCSV,
+            purchasePrice: costBasisPerShare,
             purchaseDate: Date(),
             foundedDate: nil,
             sector: "Unknown"
         )
     }
 
-    /// Apply imported holdings to the app state
-    static func applyImport(
-        holdings: [ImportedHolding],
-        to appState: AppState,
-        replaceExisting: Bool = false
-    ) {
-        guard var user = appState.currentUser else { return }
+    private static func mergeDuplicateStocks(_ stocks: [Stock]) -> [Stock] {
+        var merged: [String: Stock] = [:]
+        var order: [String] = []
 
-        if replaceExisting {
-            // Clear existing portfolio
-            user.portfolio = []
-        }
+        for stock in stocks {
+            let symbol = stock.symbol.uppercased()
+            guard stock.sharesOwned > 0 else { continue }
 
-        for holding in holdings {
-            if let existingStock = holding.matchedStock {
-                // Update with import data
-                var stockToAdd = existingStock
-                stockToAdd.sharesOwned = holding.quantity
-                stockToAdd.purchasePrice = holding.averageCost
-                stockToAdd.purchaseDate = Date()
+            if var existing = merged[symbol] {
+                let combinedShares = existing.sharesOwned + stock.sharesOwned
+                existing.purchasePrice = weightedAverageCost(
+                    existingCost: existing.purchasePrice,
+                    existingShares: existing.sharesOwned,
+                    incomingCost: stock.purchasePrice,
+                    incomingShares: stock.sharesOwned
+                )
+                existing.sharesOwned = combinedShares
 
-                // Add or update in portfolio
-                if let index = user.portfolio.firstIndex(where: { $0.symbol == stockToAdd.symbol }) {
-                    if replaceExisting {
-                        user.portfolio[index] = stockToAdd
-                    } else {
-                        // Add to existing shares
-                        user.portfolio[index].sharesOwned += holding.quantity
-                    }
-                } else {
-                    user.portfolio.append(stockToAdd)
+                if stock.currentPrice > 0 {
+                    existing.currentPrice = stock.currentPrice
+                    existing.priceChange = stock.priceChange
+                    existing.percentageChange = stock.percentageChange
                 }
+
+                merged[symbol] = existing
+            } else {
+                merged[symbol] = stock
+                order.append(symbol)
             }
-            // Note: Unrecognized symbols are skipped for now
-            // In a production app, you might create placeholder stocks
         }
 
-        appState.currentUser = user
-        appState.saveUserToStorage()
+        return order.compactMap { merged[$0] }
     }
 
-    // MARK: - Sample CSV
+    private static func weightedAverageCost(
+        existingCost: Double?,
+        existingShares: Double,
+        incomingCost: Double?,
+        incomingShares: Double
+    ) -> Double? {
+        switch (existingCost, incomingCost) {
+        case let (.some(existingCost), .some(incomingCost)):
+            let totalShares = existingShares + incomingShares
+            guard totalShares > 0 else { return nil }
+            return ((existingCost * existingShares) + (incomingCost * incomingShares)) / totalShares
+        case let (.some(existingCost), .none):
+            return existingCost
+        case let (.none, .some(incomingCost)):
+            return incomingCost
+        case (.none, .none):
+            return nil
+        }
+    }
 
-    /// Generate sample CSV for testing
+    #if DEBUG
+    // MARK: - Debug Sample CSV
+
+    /// Generate sample CSV for previews and debug-only manual testing.
     static func generateSampleCSV() -> String {
         """
-        Symbol,Quantity,Average Cost,Current Price,Total Value
-        AAPL,10,150.00,178.52,1785.20
-        GOOGL,5,135.00,141.80,709.00
-        TSLA,3,200.00,248.50,745.50
-        MSFT,8,350.00,378.91,3031.28
-        NVDA,2,300.00,467.80,935.60
+        Symbol,Description,Quantity,Price,Market Value,Cost Basis
+        AAPL,Apple Inc,10,178.52,1785.20,1500.00
+        GOOGL,Alphabet Inc,5,141.80,709.00,675.00
+        TSLA,Tesla Inc,3,248.50,745.50,600.00
+        MSFT,Microsoft Corp,8,378.91,3031.28,2800.00
+        NVDA,NVIDIA Corp,2,467.80,935.60,600.00
         """
     }
+    #endif
 }

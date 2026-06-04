@@ -7,6 +7,7 @@ struct ThinkOrSwimPositionStatementParser: BrokerCSVParser {
         let instrument: Int
         let quantity: Int
         let marketValue: Int?
+        let tradePrice: Int?
     }
 
     func canParse(_ csvText: String) -> Double {
@@ -72,6 +73,7 @@ struct ThinkOrSwimPositionStatementParser: BrokerCSVParser {
             }
 
             let marketValue = BrokerCSVParsing.parseDouble(BrokerCSVParsing.value(in: row, at: columns.marketValue))
+            let tradePrice = BrokerCSVParsing.parseDouble(BrokerCSVParsing.value(in: row, at: columns.tradePrice))
             let source = [
                 currentGroup.map { "group: \($0) | " } ?? "",
                 rawLine
@@ -81,6 +83,7 @@ struct ThinkOrSwimPositionStatementParser: BrokerCSVParser {
                 symbol: symbol,
                 shares: shares,
                 marketValue: marketValue,
+                costBasisPerShare: Self.costBasisPerShare(tradePrice),
                 confidence: BrokerCSVParsing.rowConfidence(
                     symbol: symbol,
                     shares: shares,
@@ -130,8 +133,15 @@ struct ThinkOrSwimPositionStatementParser: BrokerCSVParser {
         return ColumnIndexes(
             instrument: instrument,
             quantity: quantity,
-            marketValue: BrokerCSVParsing.firstColumnIndex(in: map, matching: ["Net Liq", "Net Liquidity"])
+            marketValue: BrokerCSVParsing.firstColumnIndex(in: map, matching: ["Net Liq", "Net Liquidity"]),
+            tradePrice: BrokerCSVParsing.firstColumnIndex(in: map, matching: ["Trade Price"])
         )
+    }
+
+    private static func costBasisPerShare(_ tradePrice: Double?) -> Double? {
+        guard let tradePrice else { return nil }
+        let value = abs(tradePrice)
+        return value.isFinite && value > 0 ? value : nil
     }
 
     private func shouldSkip(instrument: String, row: [String]) -> Bool {

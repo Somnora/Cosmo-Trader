@@ -894,11 +894,12 @@ struct PortfolioView: View {
 
     private func priceCell(for stock: Stock, fallbackReason: String) -> some View {
         let provenance = quoteProvenance(for: stock, fallbackReason: fallbackReason)
+        let hasDisplayablePrice = stock.currentPrice > 0
 
         return VStack(alignment: .trailing, spacing: 2) {
-            Text(stock.formattedPrice)
+            Text(hasDisplayablePrice ? stock.formattedPrice : "—")
                 .font(TerminalFont.price(11))
-                .foregroundColor(CosmicTheme.textPrimary)
+                .foregroundColor(hasDisplayablePrice ? CosmicTheme.textPrimary : CosmicTheme.textMuted)
 
             Text(provenance.shortLabel.uppercased())
                 .font(TerminalFont.data(7, weight: .bold))
@@ -908,16 +909,27 @@ struct PortfolioView: View {
     }
 
     private func quoteProvenance(for stock: Stock, fallbackReason: String) -> FinancialDataProvenance {
-        quoteProvenanceBySymbol[stock.symbol.uppercased()] ?? .sample(reason: fallbackReason)
+        if let provenance = quoteProvenanceBySymbol[stock.symbol.uppercased()] {
+            return provenance
+        }
+
+        guard stock.currentPrice > 0 else {
+            return .unavailable(reason: "Provider quote unavailable; no stored import price")
+        }
+
+        return .sample(reason: fallbackReason)
     }
 
     private func changeCell(for stock: Stock, fallbackReason: String) -> some View {
         let provenance = quoteProvenance(for: stock, fallbackReason: fallbackReason)
+        let hasDisplayableChange = provenance.isProviderBacked
+            || stock.priceChange != 0
+            || stock.percentageChange != 0
 
         return VStack(alignment: .trailing, spacing: 2) {
-            Text(stock.formattedPercentageChange)
+            Text(hasDisplayableChange ? stock.formattedPercentageChange : "—")
                 .font(TerminalFont.price(11))
-                .foregroundColor(stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative)
+                .foregroundColor(hasDisplayableChange ? (stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative) : CosmicTheme.textMuted)
 
             Text(provenance.shortLabel.uppercased())
                 .font(TerminalFont.data(7, weight: .bold))

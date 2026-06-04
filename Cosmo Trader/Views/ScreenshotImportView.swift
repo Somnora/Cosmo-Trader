@@ -19,10 +19,11 @@ struct ScreenshotImportView: View {
     @State private var selectedItem: PhotosPickerItem?
     @State private var isProcessing = false
     @State private var extractedPortfolio: OCRExtractedPortfolio?
+    @State private var parsedPortfolio: ParsedPortfolio?
     @State private var editableHoldings: [OCRExtractedHolding] = []
     @State private var errorMessage = ""
     @State private var showError = false
-    @State private var showSuccess = false
+    @State private var isShowingImportReview = false
     @State private var replaceExisting = false
     @State private var scanLineOffset: CGFloat = 0
 
@@ -37,8 +38,6 @@ struct ScreenshotImportView: View {
                     VStack(spacing: 20) {
                         if isProcessing {
                             processingView
-                        } else if let portfolio = extractedPortfolio {
-                            resultsView(portfolio)
                         } else {
                             instructionsView
                             photoPickerSection
@@ -56,16 +55,6 @@ struct ScreenshotImportView: View {
                     }
                     .foregroundColor(CosmicTheme.textSecondary)
                 }
-
-                if extractedPortfolio != nil && !editableHoldings.isEmpty {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Import") {
-                            confirmImport()
-                        }
-                        .foregroundColor(CosmicTheme.gold)
-                        .fontWeight(.semibold)
-                    }
-                }
             }
             .onChange(of: selectedItem) { _, newValue in
                 Task {
@@ -77,12 +66,19 @@ struct ScreenshotImportView: View {
             } message: {
                 Text(errorMessage)
             }
-            .alert("Portfolio Imported!", isPresented: $showSuccess) {
-                Button("Done") {
-                    dismiss()
+            .navigationDestination(isPresented: $isShowingImportReview) {
+                if let parsedPortfolio {
+                    ImportReviewView(
+                        parsedPortfolio: parsedPortfolio,
+                        onComplete: {
+                            dismiss()
+                        },
+                        onCancel: {
+                            self.parsedPortfolio = nil
+                            isShowingImportReview = false
+                        }
+                    )
                 }
-            } message: {
-                Text("Successfully imported \(editableHoldings.count) holdings to your portfolio.")
             }
         }
     }
@@ -102,7 +98,7 @@ struct ScreenshotImportView: View {
                     .tracking(1)
             }
 
-            Text("Take a screenshot of your brokerage app's portfolio view, then import it here. Our OCR will extract your holdings automatically.")
+            Text("Take a screenshot of a supported brokerage positions view. You will review every parsed row before choosing append or replace.")
                 .font(TerminalFont.data(12))
                 .foregroundColor(CosmicTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -110,14 +106,15 @@ struct ScreenshotImportView: View {
             // Tips
             VStack(alignment: .leading, spacing: 8) {
                 tipRow(icon: "checkmark.circle", text: "Make sure stock symbols are visible")
-                tipRow(icon: "checkmark.circle", text: "Include quantities and prices if possible")
+                tipRow(icon: "checkmark.circle", text: "Include quantities and market values if possible")
                 tipRow(icon: "checkmark.circle", text: "Use a clear, high-resolution screenshot")
+                tipRow(icon: "checkmark.circle", text: "Confirm each row before importing")
             }
             .padding(.top, 4)
 
             // Supported brokers
             HStack(spacing: 8) {
-                ForEach(["Robinhood", "Fidelity", "Schwab"], id: \.self) { name in
+                ForEach(["Schwab mobile"], id: \.self) { name in
                     Text(name)
                         .font(TerminalFont.data(9))
                         .foregroundColor(CosmicTheme.textMuted)
@@ -126,9 +123,6 @@ struct ScreenshotImportView: View {
                         .background(CosmicTheme.cardBackground)
                         .clipShape(Capsule())
                 }
-                Text("+4 more")
-                    .font(TerminalFont.data(9))
-                    .foregroundColor(CosmicTheme.gold)
             }
         }
         .padding(16)
@@ -251,7 +245,7 @@ struct ScreenshotImportView: View {
                     .foregroundColor(CosmicTheme.gold)
                     .tracking(1)
 
-                Text("Extracting stock symbols and values...")
+                Text("Extracting rows for review...")
                     .font(TerminalFont.data(11))
                     .foregroundColor(CosmicTheme.textMuted)
             }
@@ -653,9 +647,9 @@ struct ScreenshotImportView: View {
         scanLineOffset = 0
 
         do {
-            let portfolio = try await VisionOCRService.shared.extractPortfolio(from: image)
-            extractedPortfolio = portfolio
-            editableHoldings = portfolio.holdings
+            let portfolio = try await PortfolioImportService.parseScreenshot(image)
+            parsedPortfolio = portfolio
+            isShowingImportReview = true
         } catch {
             errorMessage = error.localizedDescription
             showError = true
@@ -675,23 +669,11 @@ struct ScreenshotImportView: View {
             selectedImage = nil
             selectedItem = nil
             extractedPortfolio = nil
+            parsedPortfolio = nil
+            isShowingImportReview = false
             editableHoldings = []
             scanLineOffset = 0
         }
-    }
-
-    private func confirmImport() {
-        // Convert OCR holdings to ImportedHoldings
-        let importedHoldings = VisionOCRService.shared.convertToImportedHoldings(editableHoldings)
-
-        // Apply import using existing service
-        PortfolioImportService.applyImport(
-            holdings: importedHoldings,
-            to: appState,
-            replaceExisting: replaceExisting
-        )
-
-        showSuccess = true
     }
 }
 
