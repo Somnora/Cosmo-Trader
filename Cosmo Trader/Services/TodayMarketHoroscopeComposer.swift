@@ -679,16 +679,16 @@ final class TodayMarketHoroscopeComposer {
             )
         case .partialContext, .insufficientCoverage, .insufficientSample, .unavailable:
             return TodayActivationPrompt(
-                title: "Refresh portfolio history",
-                detail: "Portfolio context unlocks when provider-backed holding history clears coverage, completeness, freshness, and sample-size gates.",
+                title: "Load provider history for holdings",
+                detail: "Refresh requests provider-backed or cached holding history. Portfolio metrics stay hidden until the 70% coverage gate, completeness, freshness, and sample-size checks pass.",
                 actionItems: [
-                    "Add holding manually",
-                    "Import portfolio",
-                    "Add watchlist symbols"
+                    "Load provider-backed holding history",
+                    "Show which symbols still need data",
+                    "Keep partial or insufficient history out of numeric claims"
                 ],
-                primaryActionTitle: "ADD HOLDING",
+                primaryActionTitle: "LOAD PORTFOLIO HISTORY",
                 secondaryActionTitle: "IMPORT PORTFOLIO",
-                tertiaryActionTitle: "ADD WATCHLIST SYMBOLS"
+                tertiaryActionTitle: "ADD HOLDING"
             )
         case .sampleOnly:
             return TodayActivationPrompt(
@@ -721,7 +721,7 @@ final class TodayMarketHoroscopeComposer {
                     : "Add watchlist symbols or holdings. Today will use provider-backed history before showing stock-level patterns.",
                 actionItems: hasCandidate
                     ? [
-                        "Refresh provider-backed stock history",
+                        "Load provider-backed stock history",
                         "Open Discover/Search to add symbols",
                         "Wait for enough historical event samples"
                     ]
@@ -730,7 +730,7 @@ final class TodayMarketHoroscopeComposer {
                         "Open Discover/Search",
                         "Provider-backed stock history unlocks this lens"
                     ],
-                primaryActionTitle: hasCandidate ? "REFRESH TODAY CONTEXT" : "ADD WATCHLIST SYMBOLS",
+                primaryActionTitle: hasCandidate ? "LOAD STOCK HISTORY" : "ADD WATCHLIST SYMBOLS",
                 secondaryActionTitle: hasCandidate ? "OPEN DISCOVER / SEARCH" : "OPEN DISCOVER / SEARCH"
             )
         case .sampleOnly:

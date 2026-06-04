@@ -122,6 +122,8 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(!summary.portfolioContext.metrics.map(\.label).contains("AVG PORT"))
         #expect(summary.portfolioContext.detail.contains("At least 50% coverage"))
         #expect(summary.portfolioContext.includedPortfolioWeight == 0.49)
+        #expect(summary.portfolioContext.activation?.primaryActionTitle == "LOAD PORTFOLIO HISTORY")
+        #expect(summary.portfolioContext.activation?.actionItems.contains("Keep partial or insufficient history out of numeric claims") == true)
     }
 
     @Test("Partial portfolio coverage stays context-only below seventy percent")
@@ -153,6 +155,8 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(!summary.portfolioContext.metrics.map(\.label).contains("AVG PORT"))
         #expect(summary.portfolioContext.detail.contains("70%"))
         #expect(summary.portfolioContext.includedPortfolioWeight == 0.60)
+        #expect(summary.portfolioContext.activation?.primaryActionTitle == "LOAD PORTFOLIO HISTORY")
+        #expect(summary.portfolioContext.activation?.actionItems.contains("Show which symbols still need data") == true)
     }
 
     @Test("Exactly seventy percent portfolio coverage can render Today portfolio metrics")
@@ -323,6 +327,62 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(summary.stockContext?.activation?.actionItems.contains("Open Discover/Search") == true)
         #expect(summary.stockContext?.activation?.actionItems.contains("Provider-backed stock history unlocks this lens") == true)
         #expect(summary.stockContext?.detail.contains("provider-backed history") == true)
+    }
+
+    @Test("Existing stock candidate offers provider history load action when history is missing")
+    func existingStockCandidateOffersProviderHistoryLoadActionWhenHistoryIsMissing() {
+        let summary = composer.compose(
+            user: user(watchlist: ["AAPL"]),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [],
+            stockCandidate: TodayStockCandidate(
+                stock: stock(symbol: "AAPL", sharesOwned: 0),
+                summaries: [],
+                provenance: .unavailable(reason: "Provider-backed historical prices unavailable"),
+                completeness: .insufficient(reason: "Provider-backed historical prices unavailable")
+            )
+        )
+
+        #expect(summary.stockContext?.symbol == "AAPL")
+        #expect(summary.stockContext?.metrics.isEmpty == true)
+        #expect(summary.stockContext?.activation?.primaryActionTitle == "LOAD STOCK HISTORY")
+        #expect(summary.stockContext?.activation?.secondaryActionTitle == "OPEN DISCOVER / SEARCH")
+        #expect(summary.stockContext?.activation?.actionItems.contains("Load provider-backed stock history") == true)
+    }
+
+    @MainActor
+    @Test("Today reload updates stock context after provider history load")
+    func todayReloadUpdatesStockContextAfterProviderHistoryLoad() async throws {
+        let cacheURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cosmo-today-history-load-\(UUID().uuidString)", isDirectory: true)
+        let cache = HistoricalPriceCache(directoryURL: cacheURL, nowProvider: { date("2026-05-30") })
+        defer { try? cache.removeAll() }
+        var requestedSymbols: [String] = []
+        let historicalService = HistoricalPriceService.testingInstance(
+            historicalPriceCache: cache,
+            nowProvider: { date("2026-05-30") },
+            candleFetcher: { symbol, _, from, to in
+                requestedSymbols.append(symbol)
+                return dailyCandleResponse(from: from, to: to)
+            }
+        )
+        let datasetStore = CorrelationDatasetStore(historicalPriceService: historicalService)
+        let marketWeatherService = MarketWeatherService(datasetStore: datasetStore)
+        let viewModel = TodayMarketHoroscopeViewModel(
+            datasetStore: datasetStore,
+            marketWeatherService: marketWeatherService
+        )
+
+        await viewModel.reload(user: user(portfolio: [], watchlist: ["AAPL"]))
+
+        let summary = try #require(viewModel.summary)
+        #expect(requestedSymbols.contains("AAPL"))
+        #expect(summary.stockContext?.symbol == "AAPL")
+        #expect(summary.stockContext?.provenance.isProviderBacked == true)
+        #expect(summary.stockContext?.displayMode != .unavailable)
     }
 
     @Test("Today data coverage distinguishes stale, partial, and unavailable datasets")
@@ -589,5 +649,25 @@ struct TodayMarketHoroscopeComposerTests {
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         return formatter.date(from: value) ?? Date(timeIntervalSince1970: 0)
+    }
+
+    private func dailyCandleResponse(from: Date, to: Date) -> FinnhubCandleResponse {
+        var dates: [Date] = []
+        var current = from
+        while current <= to {
+            dates.append(current)
+            current = Calendar.current.date(byAdding: .day, value: 1, to: current) ?? to.addingTimeInterval(86_400)
+        }
+
+        let closes = dates.indices.map { 100 + Double($0) * 0.2 }
+        return FinnhubCandleResponse(
+            s: "ok",
+            t: dates.map { Int($0.timeIntervalSince1970) },
+            o: closes.map { $0 - 0.1 },
+            h: closes.map { $0 + 0.5 },
+            l: closes.map { max(0.01, $0 - 0.5) },
+            c: closes,
+            v: closes.map { _ in 1_000 }
+        )
     }
 }

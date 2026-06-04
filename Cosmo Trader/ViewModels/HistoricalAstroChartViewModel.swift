@@ -11,6 +11,7 @@ final class HistoricalAstroChartViewModel {
     var filterState = AstroOverlayFilterState()
     var historicalPriceProvenance: FinancialDataProvenance = .unavailable(reason: "Historical price data unavailable")
     var historicalDatasetCompleteness: HistoricalDatasetCompleteness = .insufficient(reason: "Historical price data unavailable")
+    var historyActivationSnapshot: ProviderHistoryActivationSnapshot = .empty()
     var isLoading = false
     var errorMessage: String?
 
@@ -61,6 +62,7 @@ final class HistoricalAstroChartViewModel {
             let prices = Self.demoPrices(for: stock, timeframe: timeframe)
             historicalDatasetCompleteness = .complete
             historicalPriceProvenance = .sample(reason: "DEBUG screenshot fixture")
+            historyActivationSnapshot = ProviderHistoryActivationSnapshot.empty(symbols: [stock.symbol])
             apply(prices: prices, stock: stock, provenance: historicalPriceProvenance)
             isLoading = false
             return
@@ -71,6 +73,10 @@ final class HistoricalAstroChartViewModel {
             let dataset = try await CorrelationDatasetStore.shared.dataset(
                 symbol: stock.symbol,
                 timeframe: timeframe
+            )
+            historyActivationSnapshot = ProviderHistoryActivationSnapshot(
+                symbols: [stock.symbol],
+                datasetsBySymbol: [stock.symbol.uppercased(): dataset]
             )
             historicalDatasetCompleteness = dataset.completeness
             historicalPriceProvenance = dataset.correlationDisplayProvenance
@@ -88,10 +94,20 @@ final class HistoricalAstroChartViewModel {
             selectedEvent = nil
             historicalPriceProvenance = .unavailable(reason: "Historical price data unavailable")
             historicalDatasetCompleteness = .insufficient(reason: "Historical price data unavailable")
+            historyActivationSnapshot = ProviderHistoryActivationSnapshot(
+                symbols: [stock.symbol],
+                datasetsBySymbol: [:],
+                unavailableProvenanceBySymbol: [stock.symbol.uppercased(): historicalPriceProvenance]
+            )
             errorMessage = "Historical price data unavailable. Correlation context will appear when provider-backed history is available."
         }
 
         isLoading = false
+    }
+
+    func refreshHistory() async {
+        guard let loadedStock, let loadedTimeframe else { return }
+        await load(stock: loadedStock, timeframe: loadedTimeframe)
     }
 
     func toggleKinds(_ kinds: Set<AstroOverlayEventKind>) {

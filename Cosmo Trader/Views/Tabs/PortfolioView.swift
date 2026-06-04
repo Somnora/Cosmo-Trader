@@ -492,7 +492,14 @@ struct PortfolioView: View {
     private var portfolioCorrelationSection: some View {
         Group {
             if SubscriptionManager.shared.canAccess(.historicalAstroOverlay) || AppState.isScreenshotMode {
-                PortfolioCosmicCorrelationView(viewModel: portfolioCorrelationViewModel)
+                PortfolioCosmicCorrelationView(
+                    viewModel: portfolioCorrelationViewModel,
+                    loadHistoryAction: {
+                        Task {
+                            await portfolioCorrelationViewModel.refreshHistory(holdings: holdings)
+                        }
+                    }
+                )
                     .task(id: portfolioCorrelationSignature) {
                         await portfolioCorrelationViewModel.load(holdings: holdings)
                     }

@@ -8,6 +8,7 @@ final class PortfolioCorrelationViewModel {
     var errorMessage: String?
     var eventCount = 0
     var historicalPriceProvenance: FinancialDataProvenance = .unavailable(reason: "Portfolio historical data unavailable")
+    var historyActivationSnapshot: ProviderHistoryActivationSnapshot = .empty()
 
     let checkedEventKinds: [AstroOverlayEventKind] = PortfolioCosmicCorrelationService.shared.supportedEventKinds
     let filterState = AstroOverlayFilterState(
@@ -35,6 +36,14 @@ final class PortfolioCorrelationViewModel {
         Array(Set(summaries.flatMap(\.unavailableHoldings))).sorted()
     }
 
+    var symbolsNeedingHistory: [String] {
+        historyActivationSnapshot.symbolsNeedingHistory
+    }
+
+    var usableHistorySymbols: [String] {
+        historyActivationSnapshot.usableSymbols
+    }
+
     var hasMarketBackedResult: Bool {
         summaries.contains { summary in
             summary.displayMode == .marketBackedResult
@@ -54,6 +63,7 @@ final class PortfolioCorrelationViewModel {
             summaries = []
             eventCount = 0
             historicalPriceProvenance = .unavailable(reason: "No initialized portfolio holdings")
+            historyActivationSnapshot = .empty()
             errorMessage = nil
             loadedSignature = signature
             return
@@ -71,6 +81,7 @@ final class PortfolioCorrelationViewModel {
             symbols: ownedHoldings.map(\.symbol),
             timeframe: timeframe
         )
+        historyActivationSnapshot = datasetSnapshot.historyActivationSnapshot
         let priceHistoryBySymbol = datasetSnapshot.priceHistoryBySymbol
         let provenanceBySymbol = datasetSnapshot.provenanceBySymbol
         let completenessBySymbol = datasetSnapshot.completenessBySymbol
@@ -108,6 +119,11 @@ final class PortfolioCorrelationViewModel {
         }
 
         isLoading = false
+    }
+
+    func refreshHistory(holdings: [Stock]) async {
+        loadedSignature = nil
+        await load(holdings: holdings)
     }
 
     private func aggregateProvenance(from summaries: [PortfolioCosmicCorrelationSummary]) -> FinancialDataProvenance {

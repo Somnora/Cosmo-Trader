@@ -15,6 +15,7 @@ struct HistoricalAstroChartView: View {
             header
             chartReadout
             content
+            historyActivationPanel
             timeframeSelector
             if !viewModel.ohlcData.isEmpty {
                 AstroOverlayControls(
@@ -489,6 +490,82 @@ struct HistoricalAstroChartView: View {
         .background(CosmicTheme.cardBackground.opacity(0.65))
     }
 
+    @ViewBuilder
+    private var historyActivationPanel: some View {
+        let snapshot = viewModel.historyActivationSnapshot
+        if !snapshot.statuses.isEmpty,
+           (!snapshot.symbolsNeedingHistory.isEmpty || !viewModel.canShowCorrelationMetrics) {
+            VStack(alignment: .leading, spacing: 9) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("LOAD HISTORY")
+                            .font(TerminalFont.data(9, weight: .bold))
+                            .foregroundColor(CosmicTheme.gold)
+                            .tracking(0.7)
+
+                        Text("Refresh uses provider-backed or cached historical prices for \(stock.symbol.uppercased()). It never creates sample candles.")
+                            .font(TerminalFont.data(9))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .lineSpacing(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .tint(CosmicTheme.gold)
+                    } else {
+                        Button {
+                            Task {
+                                await viewModel.refreshHistory()
+                            }
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.system(size: 9, weight: .semibold))
+                                Text("REFRESH HISTORY")
+                                    .font(TerminalFont.data(8, weight: .bold))
+                                    .tracking(0.5)
+                            }
+                            .foregroundColor(CosmicTheme.background)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(CosmicTheme.gold)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("stockCorrelation.refreshProviderHistory")
+                    }
+                }
+
+                ForEach(snapshot.statuses) { status in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(status.symbol)
+                            .font(TerminalFont.data(9, weight: .bold))
+                            .foregroundColor(CosmicTheme.textPrimary)
+
+                        Text(status.status.displayName.uppercased())
+                            .font(TerminalFont.data(8, weight: .bold))
+                            .foregroundColor(color(for: status.status))
+                            .tracking(0.5)
+
+                        Spacer(minLength: 8)
+
+                        DataSourceIndicator(provenance: status.provenance, size: .compact)
+                    }
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(CosmicTheme.panelElevated)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(CosmicTheme.borderStrong, lineWidth: 0.75)
+            )
+            .accessibilityIdentifier("stockCorrelation.historyActivation")
+        }
+    }
+
     private func eventMetric(_ label: String, _ value: String, _ color: Color) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label.uppercased())
@@ -547,6 +624,17 @@ struct HistoricalAstroChartView: View {
 
     private var chartColor: Color {
         viewModel.chartColor == .positive ? CosmicTheme.positive : CosmicTheme.negative
+    }
+
+    private func color(for status: ProviderHistorySymbolStatusKind) -> Color {
+        switch status {
+        case .live, .cached:
+            return CosmicTheme.positive
+        case .stale:
+            return CosmicTheme.gold
+        case .partial, .insufficient, .unavailable, .sample:
+            return CosmicTheme.textMuted
+        }
     }
 
     private var selectedEventMetricUnavailableText: String {

@@ -714,7 +714,9 @@ struct TodayMarketHoroscopeView: View {
     }
 
     private func actionIcon(for title: String) -> String {
-        if title.localizedCaseInsensitiveContains("refresh") || title.localizedCaseInsensitiveContains("fetch") {
+        if title.localizedCaseInsensitiveContains("refresh")
+            || title.localizedCaseInsensitiveContains("fetch")
+            || title.localizedCaseInsensitiveContains("load") {
             return "arrow.clockwise"
         }
         if title.localizedCaseInsensitiveContains("discover") || title.localizedCaseInsensitiveContains("search") {
@@ -809,7 +811,9 @@ struct TodayMarketHoroscopeView: View {
 
     private func action(for title: String?) -> (() -> Void)? {
         guard let title else { return nil }
-        if title.localizedCaseInsensitiveContains("refresh") || title.localizedCaseInsensitiveContains("fetch") {
+        if title.localizedCaseInsensitiveContains("refresh")
+            || title.localizedCaseInsensitiveContains("fetch")
+            || title.localizedCaseInsensitiveContains("load") {
             return marketRefreshAction
         }
         if title.localizedCaseInsensitiveContains("import") {

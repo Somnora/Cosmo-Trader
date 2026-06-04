@@ -2,11 +2,13 @@ import SwiftUI
 
 struct PortfolioCosmicCorrelationView: View {
     let viewModel: PortfolioCorrelationViewModel
+    var loadHistoryAction: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
             contextRows
+            historyActivationPanel
             content
 
             Text("Portfolio lens only. Correlation does not imply causation and this is not financial advice.")
@@ -51,6 +53,62 @@ struct PortfolioCosmicCorrelationView: View {
     }
 
     @ViewBuilder
+    private var historyActivationPanel: some View {
+        if !viewModel.historyActivationSnapshot.statuses.isEmpty,
+           (!viewModel.symbolsNeedingHistory.isEmpty || !viewModel.hasMarketBackedResult) {
+            VStack(alignment: .leading, spacing: 9) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("LOAD PROVIDER HISTORY")
+                            .font(TerminalFont.data(9, weight: .bold))
+                            .foregroundColor(CosmicTheme.gold)
+                            .tracking(0.7)
+
+                        Text("Refresh requests provider-backed or cached historical prices for holdings. No sample candles are created.")
+                            .font(TerminalFont.data(9))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .lineSpacing(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .tint(CosmicTheme.gold)
+                    } else if let loadHistoryAction {
+                        Button(action: loadHistoryAction) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.system(size: 9, weight: .semibold))
+                                Text("REFRESH HISTORY")
+                                    .font(TerminalFont.data(8, weight: .bold))
+                                    .tracking(0.5)
+                            }
+                            .foregroundColor(CosmicTheme.background)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(CosmicTheme.gold)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("portfolioCorrelation.refreshProviderHistory")
+                    }
+                }
+
+                historyStatusRows(viewModel.historyActivationSnapshot)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(CosmicTheme.panelElevated)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(CosmicTheme.borderStrong, lineWidth: 0.75)
+            )
+            .accessibilityIdentifier("portfolioCorrelation.historyActivation")
+        }
+    }
+
+    @ViewBuilder
     private var content: some View {
         if viewModel.isLoading {
             loadingState
@@ -65,6 +123,36 @@ struct PortfolioCosmicCorrelationView: View {
 
             if !viewModel.unavailableHoldings.isEmpty {
                 unavailableHoldingsNote
+            }
+        }
+    }
+
+    private func historyStatusRows(_ snapshot: ProviderHistoryActivationSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            historyStatusRow(label: "Usable", symbols: snapshot.usableSymbols, color: CosmicTheme.positive)
+            historyStatusRow(label: "Stale", symbols: snapshot.staleSymbols, color: CosmicTheme.gold)
+            historyStatusRow(label: "Partial", symbols: snapshot.partialSymbols, color: CosmicTheme.textMuted)
+            historyStatusRow(label: "Insufficient", symbols: snapshot.insufficientSymbols, color: CosmicTheme.textMuted)
+            historyStatusRow(label: "Unavailable", symbols: snapshot.unavailableSymbols, color: CosmicTheme.textMuted)
+            historyStatusRow(label: "Sample", symbols: snapshot.sampleSymbols, color: CosmicTheme.textMuted)
+        }
+    }
+
+    @ViewBuilder
+    private func historyStatusRow(label: String, symbols: [String], color: Color) -> some View {
+        if !symbols.isEmpty {
+            HStack(alignment: .firstTextBaseline, spacing: 7) {
+                Text(label.uppercased())
+                    .font(TerminalFont.data(8, weight: .bold))
+                    .foregroundColor(color)
+                    .tracking(0.5)
+                    .frame(width: 74, alignment: .leading)
+
+                Text(symbols.prefix(8).joined(separator: " / ") + (symbols.count > 8 ? " +" : ""))
+                    .font(TerminalFont.data(9))
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.75)
             }
         }
     }

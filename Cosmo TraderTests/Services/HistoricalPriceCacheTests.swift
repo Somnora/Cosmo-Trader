@@ -207,6 +207,100 @@ struct HistoricalPriceCacheTests {
         #expect(snapshot.provenanceBySymbol["AAPL"] == .unavailable(reason: "Provider-backed historical prices unavailable"))
     }
 
+    @MainActor
+    @Test("Provider history activation requests provider-backed history without sample data")
+    func providerHistoryActivationRequestsProviderBackedHistoryWithoutSampleData() async {
+        let cacheURL = temporaryCacheURL()
+        let now = date("2025-01-10")
+        let cache = HistoricalPriceCache(directoryURL: cacheURL, nowProvider: { now })
+        defer { try? cache.removeAll() }
+        var requestedSymbols: [String] = []
+        let service = HistoricalPriceService.testingInstance(
+            historicalPriceCache: cache,
+            nowProvider: { now },
+            candleFetcher: { symbol, _, _, _ in
+                requestedSymbols.append(symbol)
+                return candleResponse(closes: [100, 101, 102, 103, 104, 105, 106, 107, 108, 109])
+            }
+        )
+        let store = CorrelationDatasetStore(historicalPriceService: service)
+
+        let snapshot = await store.historyActivationSnapshot(symbols: ["AAPL"], timeframe: .week)
+
+        #expect(requestedSymbols == ["AAPL"])
+        #expect(snapshot.usableSymbols == ["AAPL"])
+        #expect(snapshot.symbolsNeedingHistory.isEmpty)
+        #expect(snapshot.statuses.first?.status == .live)
+        #expect(snapshot.statuses.first?.provenance.isProviderBacked == true)
+        #expect(snapshot.sampleSymbols.isEmpty)
+    }
+
+    @Test("Provider history activation labels stale partial insufficient and unavailable states")
+    func providerHistoryActivationLabelsDatasetQualityStates() {
+        let staleFetchedAt = date("2025-01-01")
+        let stale = completeProviderDataset(symbol: "STALE", fetchedAt: staleFetchedAt)
+            .withProvenance(.cached(
+                provider: FinancialDataProvenance.finnhubProvider,
+                fetchedAt: staleFetchedAt,
+                age: HistoricalPriceDataset.defaultStaleInterval + 1
+            ))
+        let partial = HistoricalPriceDataset.providerBacked(
+            symbol: "PART",
+            candles: prices([100, 101, 102]),
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: date("2025-01-10"),
+            requestedRange: DateInterval(start: date("2025-01-01"), end: date("2025-01-10")),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10"))
+        )
+        let insufficient = HistoricalPriceDataset.providerBacked(
+            symbol: "THIN",
+            candles: prices([100]),
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: date("2025-01-10"),
+            requestedRange: DateInterval(start: date("2025-01-01"), end: date("2025-01-10")),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10"))
+        )
+
+        let snapshot = ProviderHistoryActivationSnapshot(
+            symbols: ["STALE", "PART", "THIN", "MISS"],
+            datasetsBySymbol: [
+                "STALE": stale,
+                "PART": partial,
+                "THIN": insufficient
+            ],
+            unavailableProvenanceBySymbol: [
+                "MISS": .unavailable(reason: "Provider-backed historical prices unavailable")
+            ]
+        )
+
+        #expect(snapshot.staleSymbols == ["STALE"])
+        #expect(snapshot.partialSymbols == ["PART"])
+        #expect(snapshot.insufficientSymbols == ["THIN"])
+        #expect(snapshot.unavailableSymbols == ["MISS"])
+        #expect(snapshot.usableSymbols.isEmpty)
+        #expect(snapshot.aggregateProvenance.indicatorLabel == "Unavailable")
+    }
+
+    @Test("Provider history activation labels fresh cached history as usable")
+    func providerHistoryActivationLabelsFreshCachedHistoryAsUsable() {
+        let fetchedAt = date("2025-01-10")
+        let cached = completeProviderDataset(symbol: "MSFT", fetchedAt: fetchedAt)
+            .withProvenance(.cached(
+                provider: FinancialDataProvenance.finnhubProvider,
+                fetchedAt: fetchedAt,
+                age: 60
+            ))
+
+        let snapshot = ProviderHistoryActivationSnapshot(
+            symbols: ["MSFT"],
+            datasetsBySymbol: ["MSFT": cached]
+        )
+
+        #expect(snapshot.usableSymbols == ["MSFT"])
+        #expect(snapshot.statuses.first?.status == .cached)
+        #expect(snapshot.aggregateProvenance.indicatorLabel == "Finnhub cached")
+    }
+
     private func providerDataset(symbol: String, fetchedAt: Date) -> HistoricalPriceDataset {
         HistoricalPriceDataset.providerBacked(
             symbol: symbol,
@@ -214,6 +308,21 @@ struct HistoricalPriceCacheTests {
             provider: FinancialDataProvenance.finnhubProvider,
             fetchedAt: fetchedAt,
             requestedRange: DateInterval(start: date("2025-01-01"), end: date("2025-01-10")),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+        )
+    }
+
+    private func completeProviderDataset(symbol: String, fetchedAt: Date) -> HistoricalPriceDataset {
+        let candles = prices([100, 101, 102, 103, 104, 105, 106, 107, 108, 109])
+        return HistoricalPriceDataset.providerBacked(
+            symbol: symbol,
+            candles: candles,
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: fetchedAt,
+            requestedRange: DateInterval(
+                start: candles.first?.date ?? date("2025-01-01"),
+                end: candles.last?.date ?? date("2025-01-10")
+            ),
             provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
         )
     }
