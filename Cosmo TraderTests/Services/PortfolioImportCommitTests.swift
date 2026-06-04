@@ -64,6 +64,75 @@ struct PortfolioImportCommitTests {
         #expect(holding.purchasePrice == 175)
     }
 
+    @Test("Import success routes to Portfolio with confirmation")
+    func importSuccessRoutesToPortfolioWithConfirmation() throws {
+        let appState = AppState(user: testUser(portfolio: [
+            ownedStock(symbol: "AAPL", shares: 1, currentPrice: 150, purchasePrice: 100)
+        ]))
+        appState.selectedTab = .today
+
+        PortfolioImportService.commitPortfolio(
+            with: [
+                ParsedHolding(
+                    symbol: "MSFT",
+                    shares: 2,
+                    marketValue: nil,
+                    costBasisPerShare: 250,
+                    confidence: 1,
+                    rawSource: "MSFT,2"
+                )
+            ],
+            in: appState,
+            mode: .append
+        )
+
+        let feedback = try #require(appState.portfolioImportFeedback)
+        #expect(appState.selectedTab == .portfolio)
+        #expect(feedback.mode == .append)
+        #expect(feedback.importedCount == 1)
+        #expect(feedback.totalHoldings == 2)
+        #expect(feedback.detail.contains("weighted cost basis"))
+    }
+
+    @Test("Relaunch load restores imported holdings")
+    func relaunchLoadRestoresImportedHoldings() throws {
+        AppState(user: nil).deleteAllUserData()
+        defer { AppState(user: nil).deleteAllUserData() }
+
+        let appState = AppState(user: testUser())
+
+        PortfolioImportService.commitPortfolio(
+            with: [
+                ParsedHolding(
+                    symbol: "AAPL",
+                    shares: 2,
+                    marketValue: nil,
+                    costBasisPerShare: 150,
+                    confidence: 1,
+                    rawSource: "AAPL,2"
+                ),
+                ParsedHolding(
+                    symbol: "ZZZZ",
+                    shares: 3,
+                    marketValue: nil,
+                    costBasisPerShare: 12,
+                    confidence: 0.5,
+                    rawSource: "ZZZZ,3"
+                )
+            ],
+            in: appState,
+            mode: .replace
+        )
+
+        let reloaded = AppState()
+        let portfolio = try #require(reloaded.currentUser?.portfolio)
+        #expect(portfolio.map(\.symbol) == ["AAPL", "ZZZZ"])
+        #expect(portfolio.first { $0.symbol == "AAPL" }?.sharesOwned == 2)
+        #expect(portfolio.first { $0.symbol == "AAPL" }?.currentPrice == 0)
+        #expect(portfolio.first { $0.symbol == "ZZZZ" }?.foundedDate == nil)
+        #expect(reloaded.lastSaveTimestamp != nil)
+    }
+
     @Test("Known imported stock without quote or market value does not inherit sample price")
     func knownImportedStockWithoutQuoteOrMarketValueDoesNotInheritSamplePrice() throws {
         let appState = AppState(user: testUser())

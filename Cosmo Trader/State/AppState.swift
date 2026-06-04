@@ -7,6 +7,37 @@ enum AppNavigationIntent: Equatable {
     case discoverSearch
 }
 
+struct PortfolioImportFeedback: Equatable, Identifiable {
+    let id = UUID()
+    let mode: PortfolioImportCommitMode
+    let importedCount: Int
+    let totalHoldings: Int
+
+    static func == (lhs: PortfolioImportFeedback, rhs: PortfolioImportFeedback) -> Bool {
+        lhs.mode == rhs.mode
+            && lhs.importedCount == rhs.importedCount
+            && lhs.totalHoldings == rhs.totalHoldings
+    }
+
+    var title: String {
+        switch mode {
+        case .replace:
+            return "Portfolio replaced"
+        case .append:
+            return "Portfolio updated"
+        }
+    }
+
+    var detail: String {
+        switch mode {
+        case .replace:
+            return "\(importedCount) imported holdings replaced your previous portfolio. \(totalHoldings) holdings are now tracked."
+        case .append:
+            return "\(importedCount) imported holdings were appended. Matching symbols were merged with weighted cost basis."
+        }
+    }
+}
+
 // MARK: - AppState
 // ================
 // Central state management for the entire app.
@@ -62,6 +93,9 @@ class AppState {
 
     /// One-shot request for a tab to open a specific existing flow.
     var pendingNavigationIntent: AppNavigationIntent?
+
+    /// Transient confirmation shown after manual, CSV, or screenshot import commits.
+    var portfolioImportFeedback: PortfolioImportFeedback?
 
     func requestNavigation(_ intent: AppNavigationIntent) {
         pendingNavigationIntent = intent

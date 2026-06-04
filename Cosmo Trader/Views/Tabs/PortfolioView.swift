@@ -310,6 +310,9 @@ struct PortfolioView: View {
         .onChange(of: appState.pendingNavigationIntent) { _, _ in
             consumeNavigationIntentIfNeeded()
         }
+        .overlay(alignment: .top) {
+            importFeedbackOverlay
+        }
         .task {
             openStockDetailForScreenshotIfNeeded()
             if !AppState.isScreenshotMode {
@@ -332,6 +335,51 @@ struct PortfolioView: View {
             appState.pendingNavigationIntent = nil
         case .discoverSearch:
             break
+        }
+    }
+
+    @ViewBuilder
+    private var importFeedbackOverlay: some View {
+        if let feedback = appState.portfolioImportFeedback {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.positive)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(feedback.title.uppercased())
+                        .font(TerminalFont.data(10, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textPrimary)
+                        .tracking(1)
+
+                    Text(feedback.detail)
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 8)
+
+                Button {
+                    appState.portfolioImportFeedback = nil
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption2)
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .frame(width: 24, height: 24)
+                }
+                .accessibilityLabel("Dismiss portfolio import confirmation")
+            }
+            .padding(12)
+            .background(CosmicTheme.cardBackground.opacity(0.96))
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(CosmicTheme.positive.opacity(0.45), lineWidth: 1)
+            )
+            .padding(.horizontal, AppLayout.screenHorizontalPadding)
+            .padding(.top, 8)
+            .transition(.move(edge: .top).combined(with: .opacity))
+            .accessibilityIdentifier("portfolio.importConfirmation")
         }
     }
 
@@ -1022,21 +1070,24 @@ struct PortfolioView: View {
                 Button {
                     showImportPortfolio = true
                 } label: {
-                    Label("IMPORT", systemImage: "square.and.arrow.down")
+                    Label("IMPORT PORTFOLIO", systemImage: "square.and.arrow.down")
                         .font(TerminalFont.data(11, weight: .semibold))
                         .foregroundColor(CosmicTheme.background)
+                        .frame(maxWidth: .infinity)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                         .background(CosmicTheme.gold)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("portfolio.empty.importPortfolio")
 
                 Button {
                     showSearch = true
                 } label: {
-                    Label("ADD TICKER", systemImage: "magnifyingglass")
+                    Label("ADD HOLDING", systemImage: "magnifyingglass")
                         .font(TerminalFont.data(11, weight: .semibold))
                         .foregroundColor(CosmicTheme.gold)
+                        .frame(maxWidth: .infinity)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                         .overlay(
@@ -1045,6 +1096,7 @@ struct PortfolioView: View {
                         )
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("portfolio.empty.addHolding")
             }
         }
         .padding(16)

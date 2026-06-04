@@ -585,6 +585,12 @@ enum PortfolioImportService {
 
         appState.currentUser = user
         appState.saveUserToStorage()
+        appState.selectedTab = .portfolio
+        appState.portfolioImportFeedback = PortfolioImportFeedback(
+            mode: mode,
+            importedCount: importedStocks.count,
+            totalHoldings: user.portfolio.count
+        )
     }
 
     private static func stock(
