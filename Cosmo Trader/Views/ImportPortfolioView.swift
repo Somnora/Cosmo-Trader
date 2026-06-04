@@ -36,15 +36,9 @@ struct ImportPortfolioView: View {
 
                 ScrollView {
                     VStack(spacing: 20) {
-                        if let result = importResult {
-                            // Preview imported data
-                            importPreview(result)
-                        } else {
-                            // Import instructions
-                            instructionsSection
-                            brokerInstructions
-                            importButton
-                        }
+                        instructionsSection
+                        brokerInstructions
+                        importButton
                     }
                     .padding()
                 }
@@ -57,16 +51,6 @@ struct ImportPortfolioView: View {
                         dismiss()
                     }
                     .foregroundColor(CosmicTheme.textSecondary)
-                }
-
-                if importResult != nil {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Import") {
-                            confirmImport()
-                        }
-                        .foregroundColor(CosmicTheme.gold)
-                        .fontWeight(.semibold)
-                    }
                 }
             }
             .fileImporter(
@@ -375,7 +359,7 @@ struct ImportPortfolioView: View {
                             .font(TerminalFont.data(12, weight: .semibold))
                             .tracking(1)
 
-                        Text("Review and correct positions before replacing")
+                        Text("Review rows, then append or replace")
                             .font(TerminalFont.data(10))
                             .opacity(0.7)
                     }
@@ -764,30 +748,23 @@ struct ImportPortfolioView: View {
 
     #if DEBUG
     private func loadSampleData() {
-        do {
-            let sampleCSV = PortfolioImportService.generateSampleCSV()
-            let result = try PortfolioImportService.importFromCSVString(sampleCSV)
-            withAnimation {
-                importResult = result
+        Task {
+            do {
+                let sampleCSV = PortfolioImportService.generateSampleCSV()
+                let parsed = try await PortfolioImportService.parseCSV(sampleCSV)
+                await MainActor.run {
+                    parsedPortfolio = parsed
+                    isShowingImportReview = true
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = error.localizedDescription
+                    isShowingError = true
+                }
             }
-        } catch {
-            errorMessage = error.localizedDescription
-            isShowingError = true
         }
     }
     #endif
-
-    private func confirmImport() {
-        guard let result = importResult else { return }
-
-        PortfolioImportService.applyImport(
-            holdings: result.holdings,
-            to: appState,
-            replaceExisting: replaceExisting
-        )
-
-        showSuccess = true
-    }
 
     // MARK: - Helpers
 

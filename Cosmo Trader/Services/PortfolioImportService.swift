@@ -686,64 +686,18 @@ enum PortfolioImportService {
         }
     }
 
-    /// Apply imported holdings to the app state
-    static func applyImport(
-        holdings: [ImportedHolding],
-        to appState: AppState,
-        replaceExisting: Bool = false
-    ) {
-        guard var user = appState.currentUser else { return }
-
-        if replaceExisting {
-            // Clear existing portfolio
-            user.portfolio = []
-        }
-
-        for holding in holdings {
-            if let existingStock = holding.matchedStock {
-                // Update with import data
-                var stockToAdd = existingStock
-                stockToAdd.sharesOwned = holding.quantity
-                stockToAdd.purchasePrice = holding.averageCost
-                stockToAdd.purchaseDate = Date()
-                stockToAdd.currentPrice = holding.currentPrice
-                    ?? holding.totalValue.flatMap { holding.quantity > 0 ? $0 / holding.quantity : nil }
-                    ?? 0
-                stockToAdd.priceChange = 0
-                stockToAdd.percentageChange = 0
-
-                // Add or update in portfolio
-                if let index = user.portfolio.firstIndex(where: { $0.symbol == stockToAdd.symbol }) {
-                    if replaceExisting {
-                        user.portfolio[index] = stockToAdd
-                    } else {
-                        // Add to existing shares
-                        user.portfolio[index].sharesOwned += holding.quantity
-                    }
-                } else {
-                    user.portfolio.append(stockToAdd)
-                }
-            }
-            // Note: Unrecognized symbols are skipped for now
-            // In a production app, you might create placeholder stocks
-        }
-
-        appState.currentUser = user
-        appState.saveUserToStorage()
-    }
-
     #if DEBUG
     // MARK: - Debug Sample CSV
 
     /// Generate sample CSV for previews and debug-only manual testing.
     static func generateSampleCSV() -> String {
         """
-        Symbol,Quantity,Average Cost,Current Price,Total Value
-        AAPL,10,150.00,178.52,1785.20
-        GOOGL,5,135.00,141.80,709.00
-        TSLA,3,200.00,248.50,745.50
-        MSFT,8,350.00,378.91,3031.28
-        NVDA,2,300.00,467.80,935.60
+        Symbol,Description,Quantity,Price,Market Value,Cost Basis
+        AAPL,Apple Inc,10,178.52,1785.20,1500.00
+        GOOGL,Alphabet Inc,5,141.80,709.00,675.00
+        TSLA,Tesla Inc,3,248.50,745.50,600.00
+        MSFT,Microsoft Corp,8,378.91,3031.28,2800.00
+        NVDA,NVIDIA Corp,2,467.80,935.60,600.00
         """
     }
     #endif

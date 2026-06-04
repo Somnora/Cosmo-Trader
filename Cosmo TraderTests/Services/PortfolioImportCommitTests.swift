@@ -119,6 +119,70 @@ struct PortfolioImportCommitTests {
         #expect(holding.foundedElement == nil)
     }
 
+    @Test("Screenshot parser holdings append through hardened commit flow")
+    func screenshotParserHoldingsAppendThroughHardenedCommitFlow() throws {
+        let parser = SchwabMobileParser()
+        let parsed = try parser.parse([
+            "Schwab",
+            "Positions",
+            "Symbol Qty Last Mkt Value",
+            "AAPL",
+            "2 $200.00 $400.00",
+            "MSFT",
+            "3 $300.00 $900.00"
+        ])
+        let appState = AppState(user: testUser(portfolio: [
+            ownedStock(symbol: "AAPL", shares: 1, currentPrice: 150, purchasePrice: 100)
+        ]))
+
+        PortfolioImportService.commitPortfolio(
+            with: parsed.holdings,
+            in: appState,
+            mode: .append
+        )
+
+        let portfolio = appState.currentUser?.portfolio ?? []
+        let aapl = try #require(portfolio.first { $0.symbol == "AAPL" })
+        let msft = try #require(portfolio.first { $0.symbol == "MSFT" })
+
+        #expect(portfolio.count == 2)
+        #expect(aapl.sharesOwned == 3)
+        #expect(aapl.currentPrice == 200)
+        #expect(aapl.purchasePrice == 100)
+        #expect(msft.sharesOwned == 3)
+        #expect(msft.currentPrice == 300)
+        #expect(appState.lastSaveTimestamp != nil)
+    }
+
+    @Test("Screenshot parser unknown ticker survives replace without sample price or astrology")
+    func screenshotParserUnknownTickerSurvivesReplaceWithoutSamplePriceOrAstrology() throws {
+        let parser = SchwabMobileParser()
+        let parsed = try parser.parse([
+            "Schwab",
+            "Positions",
+            "Symbol Qty Last Mkt Value",
+            "ZZZZ",
+            "12 $10.00 $120.00"
+        ])
+        let appState = AppState(user: testUser(portfolio: [
+            ownedStock(symbol: "TSLA", shares: 4)
+        ]))
+
+        PortfolioImportService.commitPortfolio(
+            with: parsed.holdings,
+            in: appState,
+            mode: .replace
+        )
+
+        let holding = try #require(appState.currentUser?.portfolio.first)
+        #expect(appState.currentUser?.portfolio.count == 1)
+        #expect(holding.symbol == "ZZZZ")
+        #expect(holding.currentPrice == 10)
+        #expect(holding.foundedDate == nil)
+        #expect(holding.zodiacSign == nil)
+        #expect(holding.foundedElement == nil)
+    }
+
     private func testUser(portfolio: [Stock] = []) -> UserProfile {
         UserProfile(
             displayName: "Import Tester",
