@@ -196,7 +196,7 @@ enum PortfolioCompatibilityService {
             suggestions.append(RebalancingSuggestion(
                 type: .addElement,
                 icon: element.sfSymbol,
-                message: "Add \(element.displayName) sign stocks (you have 0%)",
+                message: "\(element.displayName) sign exposure is 0% of the verified portfolio read.",
                 priority: .high
             ))
         }
@@ -207,7 +207,7 @@ enum PortfolioCompatibilityService {
             suggestions.append(RebalancingSuggestion(
                 type: .reduceElement,
                 icon: "scale.3d",
-                message: "Consider reducing \(element.displayName) exposure (currently \(String(format: "%.0f%%", percentage)))",
+                message: "\(element.displayName) is the dominant verified exposure (\(String(format: "%.0f%%", percentage))).",
                 priority: .medium
             ))
         }
@@ -221,7 +221,7 @@ enum PortfolioCompatibilityService {
             suggestions.append(RebalancingSuggestion(
                 type: .addSign,
                 icon: "plus.circle",
-                message: "Add \(missingSign.displayName) exposure if it improves portfolio balance",
+                message: "\(missingSign.displayName) is absent from the verified sign mix.",
                 priority: .medium
             ))
         }
@@ -232,7 +232,7 @@ enum PortfolioCompatibilityService {
             suggestions.append(RebalancingSuggestion(
                 type: .diversify,
                 icon: "square.grid.2x2",
-                message: "Diversify across elements to reduce concentration risk",
+                message: "One element dominates verified exposure; concentration context only.",
                 priority: .high
             ))
         }
@@ -242,7 +242,7 @@ enum PortfolioCompatibilityService {
             suggestions.append(RebalancingSuggestion(
                 type: .cosmicBoost,
                 icon: "arrow.up.right.circle",
-                message: "Review same-element exposure (\(userSign.element.displayName)) for alignment",
+                message: "\(userSign.element.displayName) same-element exposure is limited in the verified read.",
                 priority: .high
             ))
         }

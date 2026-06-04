@@ -321,6 +321,133 @@ struct PortfolioCosmicCorrelationServiceTests {
         }
     }
 
+    @Test("Portfolio intelligence distinguishes stored values from provider quote coverage")
+    func portfolioIntelligenceDistinguishesStoredAndProviderQuoteCoverage() {
+        let live = stock(symbol: "LIVE", currentPrice: 100, sharesOwned: 1)
+        let stored = stock(symbol: "STOR", currentPrice: 100, sharesOwned: 1)
+
+        let summary = PortfolioIntelligenceSummary.make(
+            holdings: [live, stored],
+            quoteProvenanceBySymbol: [
+                "LIVE": .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10"))
+            ],
+            historicalIncludedWeight: 0.70,
+            historicalProvenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10")),
+            unavailableHistorySymbols: ["STOR"]
+        )
+
+        #expect(isClose(summary.totalStoredValue, 200))
+        #expect(isClose(summary.providerQuoteCoverage, 0.5))
+        #expect(summary.formattedQuoteCoverage == "50%")
+        if case .mixed(let reason) = summary.valueProvenance {
+            #expect(reason.contains("provider-backed quotes"))
+            #expect(reason.contains("stored setup values"))
+        } else {
+            Issue.record("Mixed quote provenance should distinguish stored and provider-backed values")
+        }
+    }
+
+    @Test("Portfolio intelligence excludes unknown-founded holdings from zodiac denominator")
+    func portfolioIntelligenceExcludesUnknownFoundedHoldingsFromZodiacDenominator() {
+        let known = stock(symbol: "KNOWN", currentPrice: 100, sharesOwned: 1)
+        let unknown = Stock(
+            symbol: "UNK",
+            name: "Unknown Corp.",
+            currentPrice: 300,
+            priceChange: 0,
+            percentageChange: 0,
+            sharesOwned: 1,
+            purchasePrice: 300,
+            foundedDate: nil,
+            sector: "Mystery"
+        )
+
+        let summary = PortfolioIntelligenceSummary.make(
+            holdings: [known, unknown],
+            quoteProvenanceBySymbol: [:],
+            historicalIncludedWeight: 0,
+            historicalProvenance: .unavailable(reason: "Provider-backed history unavailable"),
+            unavailableHistorySymbols: ["KNOWN", "UNK"]
+        )
+
+        #expect(isClose(summary.verifiedAstrologyCoverage, 0.25))
+        #expect(summary.unknownFoundedSymbols == ["UNK"])
+        #expect(summary.elementBreakdown.first?.label == ZodiacSign.aries.element.displayName)
+        #expect(isClose(summary.elementBreakdown.first?.percentage ?? 0, 1))
+        #expect(summary.astrologyCoverageText.contains("Unknown-founded holdings stay out"))
+    }
+
+    @Test("Portfolio intelligence concentration is market-value weighted")
+    func portfolioIntelligenceConcentrationUsesMarketValueWeights() {
+        let shareHeavy = stock(symbol: "SHARE", currentPrice: 2, sharesOwned: 100)
+        let valueHeavy = stock(symbol: "VALUE", currentPrice: 400, sharesOwned: 1)
+        let small = stock(symbol: "SMALL", currentPrice: 50, sharesOwned: 1)
+
+        let summary = PortfolioIntelligenceSummary.make(
+            holdings: [shareHeavy, valueHeavy, small],
+            quoteProvenanceBySymbol: providerProvenance(["SHARE", "VALUE", "SMALL"]),
+            historicalIncludedWeight: 1,
+            historicalProvenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10")),
+            unavailableHistorySymbols: []
+        )
+
+        #expect(summary.topHoldings.first?.label == "VALUE")
+        #expect(isClose(summary.largestHoldingWeight, 400.0 / 650.0))
+        #expect(isClose(summary.topThreeConcentration, 1))
+        #expect(!isClose(summary.largestHoldingWeight, 1.0 / 102.0, tolerance: 0.01))
+    }
+
+    @Test("Portfolio intelligence history coverage preserves seventy percent unlock policy")
+    func portfolioIntelligenceHistoryCoveragePreservesSeventyPercentUnlockPolicy() {
+        let live = stock(symbol: "LIVE", currentPrice: 60, sharesOwned: 10)
+        let missing = stock(symbol: "MISS", currentPrice: 40, sharesOwned: 10)
+
+        let summary = PortfolioIntelligenceSummary.make(
+            holdings: [live, missing],
+            quoteProvenanceBySymbol: providerProvenance(["LIVE", "MISS"]),
+            historicalIncludedWeight: 0.60,
+            historicalProvenance: .mixed(reason: "Only 60% of portfolio value has provider-backed historical prices"),
+            unavailableHistorySymbols: ["MISS"]
+        )
+
+        #expect(isClose(summary.historyCoverage, 0.60))
+        #expect(!summary.isPortfolioCorrelationUnlocked)
+        #expect(summary.historyUnlockText.contains("70% history coverage is required"))
+        #expect(summary.historyUnlockText.contains("headline portfolio correlation metrics"))
+    }
+
+    @Test("Portfolio intelligence copy is context-only and avoids trading instructions")
+    func portfolioIntelligenceCopyIsComplianceSafe() {
+        let holding = stock(symbol: "AAPL", currentPrice: 100, sharesOwned: 1)
+        let summary = PortfolioIntelligenceSummary.make(
+            holdings: [holding],
+            quoteProvenanceBySymbol: [:],
+            historicalIncludedWeight: 0,
+            historicalProvenance: .unavailable(reason: "Provider-backed history unavailable"),
+            unavailableHistorySymbols: ["AAPL"]
+        )
+
+        let copy = [
+            summary.historyUnlockText,
+            summary.astrologyCoverageText
+        ].joined(separator: " ").lowercased()
+        let bannedFragments = [
+            "buy",
+            "sell",
+            "take profits",
+            "reduce exposure",
+            "position size",
+            "avoid",
+            "guaranteed",
+            "expected upside",
+            "expected downside"
+        ]
+
+        for fragment in bannedFragments {
+            #expect(!copy.contains(fragment), "Unsafe portfolio intelligence copy fragment found: \(fragment)")
+        }
+    }
+
     private func isMarketBacked(_ summary: PortfolioCosmicCorrelationSummary?) -> Bool {
         guard let summary else { return false }
         if case .marketBackedResult = summary.displayMode { return true }
