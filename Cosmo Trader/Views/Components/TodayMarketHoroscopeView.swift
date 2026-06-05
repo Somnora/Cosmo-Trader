@@ -298,6 +298,7 @@ struct TodayMarketHoroscopeView: View {
             }
 
             marketBasketRows(context)
+            sectorBreadthRows(context.sectorBreadth)
 
             if viewModel.isLoading {
                 HStack(spacing: 8) {
@@ -563,6 +564,52 @@ struct TodayMarketHoroscopeView: View {
             if !context.excludedSymbols.isEmpty {
                 compactSymbolRow(label: "Unavailable", symbols: context.excludedSymbols, color: CosmicTheme.textMuted)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func sectorBreadthRows(_ breadth: TodayMarketSectorBreadth?) -> some View {
+        if let breadth {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("SECTOR BREADTH")
+                        .font(TerminalFont.data(8, weight: .bold))
+                        .foregroundColor(CosmicTheme.gold)
+                        .tracking(0.4)
+
+                    Text("\(percentRate(breadth.coverage)) coverage")
+                        .font(TerminalFont.data(9))
+                        .foregroundColor(CosmicTheme.textMuted)
+
+                    Spacer(minLength: 8)
+
+                    DataSourceIndicator(provenance: breadth.provenance, size: .compact)
+                }
+
+                Text(breadth.detail)
+                    .font(TerminalFont.data(9))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if !breadth.metrics.isEmpty {
+                    metricGrid(breadth.metrics)
+                }
+
+                if !breadth.staleSymbols.isEmpty {
+                    compactSymbolRow(label: "Stale sectors", symbols: breadth.staleSymbols, color: CosmicTheme.gold)
+                }
+
+                if !breadth.excludedSymbols.isEmpty {
+                    compactSymbolRow(label: "Unavailable sectors", symbols: breadth.excludedSymbols, color: CosmicTheme.textMuted)
+                }
+            }
+            .padding(10)
+            .background(CosmicTheme.panelElevated.opacity(0.7))
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+            )
         }
     }
 

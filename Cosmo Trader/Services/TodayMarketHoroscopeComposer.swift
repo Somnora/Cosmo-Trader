@@ -70,6 +70,7 @@ final class TodayMarketHoroscopeComposer {
                 staleSymbols: [],
                 coverage: 0,
                 metrics: [],
+                sectorBreadth: nil,
                 provenance: .unavailable(reason: "Provider-backed market ETF history unavailable"),
                 displayMode: .unavailable,
                 activation: marketActivation(for: .unavailable)
@@ -91,9 +92,38 @@ final class TodayMarketHoroscopeComposer {
             staleSymbols: summary.staleSymbols,
             coverage: summary.coverage,
             metrics: metrics,
+            sectorBreadth: summary.sectorBreadth.map(makeSectorBreadthContext(summary:)),
             provenance: eventSummary.provenance,
             displayMode: displayMode,
             activation: marketActivation(for: displayMode)
+        )
+    }
+
+    func makeSectorBreadthContext(summary: MarketSectorBreadthSummary) -> TodayMarketSectorBreadth {
+        let metrics: [TodayMetric]
+        if summary.displayMode == .marketBackedResult,
+           summary.provenance.isProviderBacked,
+           !summary.provenance.isCachedStale() {
+            metrics = [
+                TodayMetric(label: "ADV SECTORS", value: percentRate(summary.advancingSectorRate)),
+                TodayMetric(label: "AVG SECTOR", value: percent(summary.averageSectorReturn))
+            ]
+        } else {
+            metrics = []
+        }
+
+        return TodayMarketSectorBreadth(
+            headline: sectorBreadthHeadline(for: summary),
+            detail: sectorBreadthDetail(for: summary),
+            eventName: summary.eventName,
+            sampleSize: summary.sampleSize,
+            coverage: summary.coverage,
+            includedSymbols: summary.includedSymbols,
+            excludedSymbols: summary.excludedSymbols,
+            staleSymbols: summary.staleSymbols,
+            metrics: metrics,
+            provenance: summary.provenance,
+            displayMode: summary.displayMode
         )
     }
 
@@ -244,6 +274,11 @@ final class TodayMarketHoroscopeComposer {
                 label: "Market weather",
                 value: "\(percentRate(marketContext.coverage)) fresh",
                 provenance: marketContext.provenance
+            ),
+            TodayDataCoverageRow(
+                label: "Sector breadth",
+                value: marketContext.sectorBreadth.map { "\(percentRate($0.coverage)) sector coverage" } ?? "Unavailable",
+                provenance: marketContext.sectorBreadth?.provenance ?? .unavailable(reason: "Provider-backed sector ETF history unavailable")
             ),
             TodayDataCoverageRow(
                 label: "Portfolio history",
@@ -470,6 +505,38 @@ final class TodayMarketHoroscopeComposer {
             return "The market basket has provider-backed history, but this event does not have enough observations for a headline metric."
         case .sampleOnly, .unavailable:
             return eventSummary.disclaimer
+        }
+    }
+
+    private func sectorBreadthHeadline(for summary: MarketSectorBreadthSummary) -> String {
+        switch summary.displayMode {
+        case .marketBackedResult:
+            return "Sector breadth context is ready"
+        case .partialCoverage, .partialDataset:
+            return "Sector breadth is partial context only"
+        case .insufficientSample:
+            return "Sector breadth needs more observations"
+        case .insufficientDataset:
+            return "Sector breadth history is insufficient"
+        case .sampleOnly:
+            return "Sample sector history is labeled"
+        case .unavailable:
+            return "Sector breadth unavailable"
+        }
+    }
+
+    private func sectorBreadthDetail(for summary: MarketSectorBreadthSummary) -> String {
+        let coverage = percentRate(summary.coverage)
+        switch summary.displayMode {
+        case .marketBackedResult:
+            return "Sector ETFs have complete fresh provider-backed history for \(summary.eventName ?? "the selected event"). Historical context only."
+        case .partialCoverage, .partialDataset:
+            let excluded = summary.excludedSymbols.isEmpty ? "none" : summary.excludedSymbols.joined(separator: ", ")
+            return "Sector ETF coverage is \(coverage). Excluded: \(excluded). Full sector coverage is required before sector metrics appear."
+        case .insufficientSample:
+            return "Sector ETF history exists, but this event does not have enough observations for a sector metric."
+        case .insufficientDataset, .sampleOnly, .unavailable:
+            return summary.disclaimer
         }
     }
 
