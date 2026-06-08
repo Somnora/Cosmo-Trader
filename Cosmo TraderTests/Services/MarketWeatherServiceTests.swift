@@ -99,6 +99,103 @@ struct MarketWeatherServiceTests {
         expectNoMetrics(fullMoon)
     }
 
+    @Test("Full sector coverage produces separate sector breadth metrics")
+    func fullSectorCoverageProducesSeparateBreadthMetrics() {
+        let summary = service.summary(
+            datasetsBySymbol: liveDatasets().merging(liveSectorDatasets()) { current, _ in current },
+            events: events(kind: .newMoon, offsets: [1, 4, 7]),
+            filterState: filterState,
+            minimumSampleSize: 3
+        )
+
+        let breadth = summary.sectorBreadth
+        #expect(summary.coverage == 1)
+        #expect(summary.eventSummaries.first { $0.eventType == .newMoon }?.displayMode == .marketBackedResult)
+        #expect(breadth?.coverage == 1)
+        #expect(breadth?.displayMode == .marketBackedResult)
+        #expect(breadth?.averageSectorReturn != nil)
+        #expect(breadth?.advancingSectorRate != nil)
+        #expect(breadth?.strongestSectors.count == 3)
+        #expect(breadth?.provenance.isProviderBacked == true)
+        #expect(breadth?.disclaimer.contains("not financial advice") == true)
+    }
+
+    @Test("Partial sector coverage stays separate and hides sector metrics")
+    func partialSectorCoverageWithholdsSectorMetrics() {
+        var sectorDatasets = liveSectorDatasets()
+        sectorDatasets.removeValue(forKey: "XLC")
+        let summary = service.summary(
+            datasetsBySymbol: liveDatasets().merging(sectorDatasets) { current, _ in current },
+            unavailableProvenanceBySymbol: ["XLC": .unavailable(reason: "Provider-backed sector history unavailable")],
+            events: events(kind: .fullMoon, offsets: [1, 4, 7]),
+            filterState: filterState,
+            minimumSampleSize: 3
+        )
+
+        let breadth = summary.sectorBreadth
+        #expect(summary.coverage == 1)
+        #expect(summary.eventSummaries.first { $0.eventType == .fullMoon }?.displayMode == .marketBackedResult)
+        #expect(breadth?.coverage == 10.0 / 11.0)
+        #expect(breadth?.displayMode == .partialCoverage)
+        #expect(breadth?.excludedSymbols == ["XLC"])
+        expectNoSectorMetrics(breadth)
+    }
+
+    @Test("Stale sector data is labeled and never produces sector metrics")
+    func staleSectorDataWithholdsSectorMetrics() {
+        let summary = service.summary(
+            datasetsBySymbol: liveDatasets().merging(staleSectorDatasets()) { current, _ in current },
+            events: events(kind: .fullMoon, offsets: [1, 4, 7]),
+            filterState: filterState,
+            minimumSampleSize: 3
+        )
+
+        let breadth = summary.sectorBreadth
+        #expect(summary.coverage == 1)
+        #expect(breadth?.coverage == 0)
+        #expect(breadth?.staleSymbols == MarketWeatherService.sectorSymbols.map(\.symbol).sorted())
+        #expect(breadth?.provenance.isProviderBacked == false)
+        expectNoSectorMetrics(breadth)
+    }
+
+    @Test("Unavailable sector data stays unavailable without fake breadth")
+    func unavailableSectorDataWithholdsSectorMetrics() {
+        let summary = service.summary(
+            datasetsBySymbol: liveDatasets(),
+            unavailableProvenanceBySymbol: unavailableSectorProvenance(),
+            events: events(kind: .fullMoon, offsets: [1, 4, 7]),
+            filterState: filterState,
+            minimumSampleSize: 3
+        )
+
+        let breadth = summary.sectorBreadth
+        #expect(summary.coverage == 1)
+        #expect(breadth?.coverage == 0)
+        #expect(breadth?.excludedSymbols == MarketWeatherService.sectorSymbols.map(\.symbol).sorted())
+        #expect(breadth?.displayMode == .unavailable)
+        expectNoSectorMetrics(breadth)
+    }
+
+    @Test("Sector breadth cannot bypass V1 market basket gate")
+    func sectorBreadthCannotBypassV1BasketGate() {
+        var datasets = liveDatasets().merging(liveSectorDatasets()) { current, _ in current }
+        datasets.removeValue(forKey: "IWM")
+
+        let summary = service.summary(
+            datasetsBySymbol: datasets,
+            unavailableProvenanceBySymbol: ["IWM": .unavailable(reason: "Provider-backed market history unavailable")],
+            events: events(kind: .fullMoon, offsets: [1, 4, 7]),
+            filterState: filterState,
+            minimumSampleSize: 3
+        )
+
+        let fullMoon = summary.eventSummaries.first { $0.eventType == .fullMoon }
+        #expect(summary.coverage == 0.75)
+        #expect(fullMoon?.displayMode == .partialCoverage)
+        #expect(summary.sectorBreadth?.displayMode == .marketBackedResult)
+        expectNoMetrics(fullMoon)
+    }
+
     @Test("Sample market datasets are labeled and never produce market weather metrics")
     func sampleMarketDatasetsWithholdMetrics() {
         let summary = service.summary(
@@ -150,13 +247,21 @@ struct MarketWeatherServiceTests {
     @Test("Market weather copy avoids trading-instruction language")
     func marketWeatherCopyIsComplianceSafe() {
         let summary = service.summary(
-            datasetsBySymbol: liveDatasets(),
+            datasetsBySymbol: liveDatasets().merging(liveSectorDatasets()) { current, _ in current },
             events: events(kind: .fullMoon, offsets: [1, 4, 7]),
             filterState: filterState,
             minimumSampleSize: 3
         )
 
-        let copy = ([summary.disclaimer] + summary.eventSummaries.flatMap { event in
+        let sectorCopy = summary.sectorBreadth.map { breadth in
+            [
+                breadth.disclaimer,
+                breadth.eventName ?? "",
+                breadth.strongestSectors.map(\.displayName).joined(separator: " "),
+                breadth.weakestSectors.map(\.displayName).joined(separator: " ")
+            ].joined(separator: "\n")
+        } ?? ""
+        let copy = ([summary.disclaimer, sectorCopy] + summary.eventSummaries.flatMap { event in
             [event.disclaimer, event.eventName]
         }).joined(separator: "\n").lowercased()
 
@@ -243,8 +348,38 @@ struct MarketWeatherServiceTests {
         })
     }
 
+    private func liveSectorDatasets() -> [String: HistoricalPriceDataset] {
+        Dictionary(uniqueKeysWithValues: MarketWeatherService.sectorSymbols.enumerated().map { offset, definition in
+            (
+                definition.symbol,
+                dataset(
+                    symbol: definition.symbol,
+                    prices: prices([100, 101 + Double(offset), 103 + Double(offset), 102 + Double(offset), 104 + Double(offset), 106 + Double(offset), 105 + Double(offset), 107 + Double(offset), 109 + Double(offset)]),
+                    provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2026-05-30"))
+                )
+            )
+        })
+    }
+
     private func staleDatasets() -> [String: HistoricalPriceDataset] {
         Dictionary(uniqueKeysWithValues: MarketWeatherService.v1Symbols.map { definition in
+            (
+                definition.symbol,
+                dataset(
+                    symbol: definition.symbol,
+                    prices: prices([100, 102, 104, 103, 105, 107, 106, 108, 110]),
+                    provenance: .cached(
+                        provider: FinancialDataProvenance.finnhubProvider,
+                        fetchedAt: date("2026-05-28"),
+                        age: FinancialDataProvenance.defaultCachedStaleInterval * 2
+                    )
+                )
+            )
+        })
+    }
+
+    private func staleSectorDatasets() -> [String: HistoricalPriceDataset] {
+        Dictionary(uniqueKeysWithValues: MarketWeatherService.sectorSymbols.map { definition in
             (
                 definition.symbol,
                 dataset(
@@ -305,6 +440,15 @@ struct MarketWeatherServiceTests {
             (
                 definition.symbol,
                 .unavailable(reason: "Provider-backed market history unavailable")
+            )
+        })
+    }
+
+    private func unavailableSectorProvenance() -> [String: FinancialDataProvenance] {
+        Dictionary(uniqueKeysWithValues: MarketWeatherService.sectorSymbols.map { definition in
+            (
+                definition.symbol,
+                .unavailable(reason: "Provider-backed sector history unavailable")
             )
         })
     }
@@ -418,5 +562,13 @@ struct MarketWeatherServiceTests {
         #expect(summary?.baselineMarketReturn == nil)
         #expect(summary?.volatilityRatio == nil)
         #expect(summary?.maxDrawdown == nil)
+    }
+
+    private func expectNoSectorMetrics(_ summary: MarketSectorBreadthSummary?) {
+        #expect(summary?.averageSectorReturn == nil)
+        #expect(summary?.medianSectorReturn == nil)
+        #expect(summary?.advancingSectorRate == nil)
+        #expect(summary?.strongestSectors.isEmpty == true)
+        #expect(summary?.weakestSectors.isEmpty == true)
     }
 }

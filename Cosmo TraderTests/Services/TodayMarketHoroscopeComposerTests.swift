@@ -572,6 +572,7 @@ struct TodayMarketHoroscopeComposerTests {
                     disclaimer: "Historical market context only. Correlation does not imply causation and this is not financial advice."
                 )
             ],
+            sectorBreadth: nil,
             includedSymbols: coverage >= 1 ? ["DIA", "IWM", "QQQ", "SPY"] : ["DIA", "QQQ", "SPY"],
             excludedSymbols: coverage >= 1 ? [] : ["IWM"],
             staleSymbols: [],

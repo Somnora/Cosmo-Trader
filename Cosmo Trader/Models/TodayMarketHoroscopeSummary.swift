@@ -42,9 +42,24 @@ struct TodayMarketContext: Equatable {
     let staleSymbols: [String]
     let coverage: Double
     let metrics: [TodayMetric]
+    let sectorBreadth: TodayMarketSectorBreadth?
     let provenance: FinancialDataProvenance
     let displayMode: DisplayMode
     let activation: TodayActivationPrompt?
+}
+
+struct TodayMarketSectorBreadth: Equatable {
+    let headline: String
+    let detail: String
+    let eventName: String?
+    let sampleSize: Int
+    let coverage: Double
+    let includedSymbols: [String]
+    let excludedSymbols: [String]
+    let staleSymbols: [String]
+    let metrics: [TodayMetric]
+    let provenance: FinancialDataProvenance
+    let displayMode: CorrelationDisplayMode
 }
 
 struct TodayPortfolioContext: Equatable {
