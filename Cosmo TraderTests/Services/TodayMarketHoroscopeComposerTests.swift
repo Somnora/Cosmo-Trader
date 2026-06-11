@@ -372,6 +372,62 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(summary.stockContext?.detail.contains("provider-backed history") == true)
     }
 
+    @Test("Watchlist stock context stays unavailable without provider history")
+    func watchlistStockContextStaysUnavailableWithoutProviderHistory() {
+        let summary = composer.compose(
+            user: user(portfolio: [], watchlist: ["TSLA"]),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [],
+            stockCandidate: TodayStockCandidate(
+                stock: stock(symbol: "TSLA", sharesOwned: 0),
+                summaries: [],
+                provenance: .unavailable(reason: "Provider-backed historical prices unavailable"),
+                completeness: .insufficient(reason: "Provider-backed historical prices unavailable"),
+                source: .watchlist
+            )
+        )
+
+        #expect(summary.stockContext?.source == .watchlist)
+        #expect(summary.stockContext?.symbol == "TSLA")
+        #expect(summary.stockContext?.displayMode == .unavailable)
+        #expect(summary.stockContext?.metrics.isEmpty == true)
+        #expect(summary.stockContext?.detail.contains("watchlist") == true)
+        #expect(summary.stockContext?.detail.contains("Provider-backed history is required") == true)
+        #expect(summary.stockContext?.activation?.primaryActionTitle == "REFRESH TODAY CONTEXT")
+        #expect(summary.stockContext?.activation?.secondaryActionTitle == "OPEN DISCOVER / SEARCH")
+    }
+
+    @Test("Today stock candidates prefer watchlist symbols before portfolio holdings")
+    func todayStockCandidatesPreferWatchlistSymbolsBeforePortfolioHoldings() {
+        let viewModel = TodayMarketHoroscopeViewModel()
+        let candidates = viewModel.candidateStocks(
+            from: user(
+                portfolio: [
+                    stock(symbol: "AAPL", sharesOwned: 5),
+                    stock(symbol: "MSFT", sharesOwned: 3)
+                ],
+                watchlist: ["TSLA"]
+            )
+        )
+
+        #expect(candidates.first?.stock.symbol == "TSLA")
+        #expect(candidates.first?.source == .watchlist)
+        #expect(candidates.dropFirst().contains { $0.stock.symbol == "AAPL" && $0.source == .portfolio })
+    }
+
+    @Test("AppState watchlist additions persist on the current user path")
+    func appStateWatchlistAdditionsPersistOnCurrentUserPath() {
+        let appState = AppState(user: user(portfolio: [], watchlist: ["MSFT"]))
+
+        appState.addToWatchlist("TSLA")
+
+        #expect(appState.currentUser?.watchlist.contains("MSFT") == true)
+        #expect(appState.currentUser?.watchlist.contains("TSLA") == true)
+    }
+
     @Test("One-glance primary CTA can focus the watchlist when market and portfolio are ready")
     func oneGlancePrimaryCTACanFocusWatchlistWhenOtherLensesAreReady() {
         let fetchedAt = date("2026-05-30")
