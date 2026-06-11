@@ -58,6 +58,9 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(summary.stockContext?.metrics.map(\.label).contains("AVG") == true)
         #expect(summary.provenance.isProviderBacked)
         #expect(summary.disclaimer.contains("not financial advice"))
+        #expect(summary.shareCard.lenses.contains { $0.id == "market" && $0.metric?.label == "AVG MKT" })
+        #expect(summary.shareCard.lenses.contains { $0.id == "portfolio" && $0.metric?.label == "AVG PORT" })
+        #expect(summary.shareCard.lenses.contains { $0.id == "stock" && $0.metric?.label == "AVG" })
     }
 
     @Test("No portfolio stays setup-only with no numeric portfolio metrics")
@@ -94,6 +97,116 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(summary.stockContext?.activation?.primaryActionTitle == "ADD WATCHLIST SYMBOLS")
         #expect(summary.stockContext?.activation?.secondaryActionTitle == "OPEN DISCOVER / SEARCH")
         #expect(summary.dataCoverage.rows.contains { $0.label == "WATCH history" && $0.provenance.indicatorLabel == "Unavailable" })
+    }
+
+    @Test("Share card renders unavailable context honestly without portfolio or watchlist")
+    func shareCardRendersUnavailableContextWithoutPortfolioOrWatchlist() {
+        let summary = composer.compose(
+            user: user(portfolio: [], watchlist: []),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [],
+            stockCandidate: nil,
+            marketWeather: nil
+        )
+
+        let card = summary.shareCard
+        let view = TodayMarketHoroscopeShareCard(card: card)
+
+        #expect(view.card.lenses.count == 3)
+        #expect(card.headline == "Today is in context-building mode")
+        #expect(card.sourceLabel == "Unavailable")
+        #expect(card.lenses.allSatisfy { $0.metric == nil })
+        #expect(card.lenses.contains { $0.id == "market" && $0.status == "Market Weather unavailable" })
+        #expect(card.lenses.contains { $0.id == "portfolio" && $0.status == "Portfolio context needs holdings" })
+        #expect(card.lenses.contains { $0.id == "stock" && $0.status == "Stock lens needs a ticker" })
+        #expect(card.productCopy.localizedCaseInsensitiveContains("unavailable"))
+    }
+
+    @Test("Share card numeric claims respect existing gates")
+    func shareCardNumericClaimsRespectExistingGates() {
+        let summary = composer.compose(
+            user: user(),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [
+                portfolioSummary(
+                    provenance: .mixed(reason: "Only 60% of portfolio value has provider-backed historical prices"),
+                    displayMode: .partialCoverage,
+                    includedWeight: 0.60,
+                    averageReturn: 9.9,
+                    winRate: 0.99
+                )
+            ],
+            stockCandidate: TodayStockCandidate(
+                stock: stock(symbol: "TSLA", sharesOwned: 0),
+                summaries: [
+                    stockSummary(
+                        provenance: .sample(reason: "Preview fixture"),
+                        displayMode: .sampleOnly,
+                        averageReturn: 12.5,
+                        winRate: 1
+                    )
+                ],
+                provenance: .sample(reason: "Preview fixture"),
+                completeness: .complete
+            ),
+            marketWeather: marketWeatherSummary(
+                provenance: .unavailable(reason: "Provider-backed market ETF history unavailable"),
+                displayMode: .unavailable,
+                coverage: 0,
+                averageReturn: 4.2,
+                winRate: 0.99
+            )
+        )
+
+        let metrics = summary.shareCard.lenses.compactMap(\.metric)
+        #expect(metrics.isEmpty)
+        #expect(!summary.shareCard.productCopy.contains("+4.2%"))
+        #expect(!summary.shareCard.productCopy.contains("+9.9%"))
+        #expect(!summary.shareCard.productCopy.contains("+12.5%"))
+    }
+
+    @Test("Share card renders with watchlist stock context")
+    func shareCardRendersWithWatchlistStockContext() {
+        let fetchedAt = date("2026-05-30")
+        let provenance: FinancialDataProvenance = .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+
+        let summary = composer.compose(
+            date: fetchedAt,
+            user: user(watchlist: ["AAPL"]),
+            mood: mood(value: 62, provenance: provenance),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: ["Full Moon"],
+            portfolioSummaries: [],
+            stockCandidate: TodayStockCandidate(
+                stock: stock(symbol: "AAPL", sharesOwned: 0),
+                summaries: [
+                    stockSummary(
+                        provenance: provenance,
+                        displayMode: .marketBackedResult,
+                        averageReturn: 0.9,
+                        winRate: 0.55
+                    )
+                ],
+                provenance: provenance,
+                completeness: .complete
+            ),
+            marketWeather: nil
+        )
+
+        let card = summary.shareCard
+        let view = TodayMarketHoroscopeShareCard(card: card)
+
+        #expect(view.card.lenses.contains { $0.id == "stock" })
+        #expect(card.lenses.contains { $0.id == "stock" && $0.metric?.label == "AVG" })
+        #expect(card.lenses.contains { $0.id == "stock" && $0.status.localizedCaseInsensitiveContains("AAPL") })
+        #expect(TodayMarketHoroscopeShareCardRenderer.shareText(for: card).contains(card.headline))
     }
 
     @Test("Below fifty percent portfolio coverage blocks Today portfolio context metrics")
@@ -484,6 +597,8 @@ struct TodayMarketHoroscopeComposerTests {
             summary.stockContext?.activation?.secondaryActionTitle ?? "",
             summary.stockContext?.activation?.tertiaryActionTitle ?? "",
             summary.stockContext?.activation?.actionItems.joined(separator: "\n") ?? "",
+            summary.shareCard.productCopy,
+            TodayMarketHoroscopeShareCardRenderer.shareText(for: summary.shareCard),
             summary.dataCoverage.headline,
             summary.dataCoverage.detail,
             summary.dataCoverage.explainers.map(\.detail).joined(separator: "\n"),

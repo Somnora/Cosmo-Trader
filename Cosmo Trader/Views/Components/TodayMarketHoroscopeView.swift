@@ -9,6 +9,9 @@ struct TodayMarketHoroscopeView: View {
     let discoverSearchAction: () -> Void
 
     @State private var isLabelGuideExpanded = false
+    @State private var isGeneratingShareCard = false
+    @State private var isShareSheetPresented = false
+    @State private var shareItems: [Any] = []
 
     var body: some View {
         Group {
@@ -19,6 +22,9 @@ struct TodayMarketHoroscopeView: View {
             }
         }
         .accessibilityIdentifier("today.marketHoroscope")
+        .sheet(isPresented: $isShareSheetPresented) {
+            ShareSheet(items: shareItems)
+        }
     }
 
     private func summaryContent(_ summary: TodayMarketHoroscopeSummary) -> some View {
@@ -94,7 +100,41 @@ struct TodayMarketHoroscopeView: View {
             Spacer(minLength: 8)
 
             DataSourceIndicator(provenance: summary.provenance, size: .compact)
+
+            shareButton(summary)
         }
+    }
+
+    private func shareButton(_ summary: TodayMarketHoroscopeSummary) -> some View {
+        Button {
+            generateShareCard(summary)
+        } label: {
+            HStack(spacing: 5) {
+                if isGeneratingShareCard {
+                    ProgressView()
+                        .scaleEffect(0.62)
+                        .tint(CosmicTheme.gold)
+                } else {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+
+                Text("SHARE")
+                    .font(TerminalFont.data(8, weight: .bold))
+                    .tracking(0.5)
+            }
+            .foregroundColor(CosmicTheme.gold)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(CosmicTheme.gold.opacity(0.10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(CosmicTheme.gold.opacity(0.45), lineWidth: 0.75)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isGeneratingShareCard)
+        .accessibilityIdentifier("today.shareMarketHoroscope")
     }
 
     @ViewBuilder
@@ -917,6 +957,22 @@ struct TodayMarketHoroscopeView: View {
             return discoverSearchAction
         }
         return watchlistSetupAction
+    }
+
+    @MainActor
+    private func generateShareCard(_ summary: TodayMarketHoroscopeSummary) {
+        isGeneratingShareCard = true
+        let card = summary.shareCard
+        let text = TodayMarketHoroscopeShareCardRenderer.shareText(for: card)
+
+        if let image = TodayMarketHoroscopeShareCardRenderer.render(card: card) {
+            shareItems = [text, image]
+        } else {
+            shareItems = [text]
+        }
+
+        isGeneratingShareCard = false
+        isShareSheetPresented = true
     }
 
     private func snapshotValue(for mode: TodayMarketContext.DisplayMode) -> String {

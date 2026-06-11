@@ -47,6 +47,14 @@ final class TodayMarketHoroscopeComposer {
             portfolioContext: portfolioContext,
             stockContext: stockContext
         )
+        let shareCard = makeShareCard(
+            date: date,
+            marketContext: marketContext,
+            portfolioContext: portfolioContext,
+            stockContext: stockContext,
+            provenance: provenance,
+            disclaimer: "Historical context only. Not a prediction or financial advice."
+        )
 
         return TodayMarketHoroscopeSummary(
             date: date,
@@ -54,10 +62,61 @@ final class TodayMarketHoroscopeComposer {
             marketContext: marketContext,
             portfolioContext: portfolioContext,
             stockContext: stockContext,
+            shareCard: shareCard,
             dataCoverage: dataCoverage,
             primaryAction: primaryAction,
             provenance: provenance,
             disclaimer: "Historical context only. Correlation does not imply causation and this is not financial advice."
+        )
+    }
+
+    func makeShareCard(
+        date: Date,
+        marketContext: TodayMarketContext,
+        portfolioContext: TodayPortfolioContext,
+        stockContext: TodayStockContext?,
+        provenance: FinancialDataProvenance,
+        disclaimer: String
+    ) -> TodayShareCardSummary {
+        let lenses = [
+            TodayShareCardLens(
+                id: "market",
+                title: "Market Weather",
+                status: marketContext.headline,
+                detail: shareDetail(from: marketContext.detail),
+                metric: marketContext.metrics.first,
+                provenance: marketContext.provenance
+            ),
+            TodayShareCardLens(
+                id: "portfolio",
+                title: "Portfolio Context",
+                status: portfolioContext.headline,
+                detail: shareDetail(from: portfolioContext.detail),
+                metric: portfolioContext.metrics.first,
+                provenance: portfolioContext.provenance
+            ),
+            TodayShareCardLens(
+                id: "stock",
+                title: "Watchlist / Stock Lens",
+                status: stockContext?.headline ?? "Watchlist setup pending",
+                detail: shareDetail(from: stockContext?.detail ?? "Add watchlist symbols to unlock stock-level historical context."),
+                metric: stockContext?.metrics.first,
+                provenance: stockContext?.provenance ?? .unavailable(reason: "Watchlist context unavailable")
+            )
+        ]
+
+        return TodayShareCardSummary(
+            date: date,
+            headline: shareHeadline(
+                marketContext: marketContext,
+                portfolioContext: portfolioContext,
+                stockContext: stockContext
+            ),
+            lenses: lenses,
+            sourceLabel: provenance.indicatorLabel,
+            sourceDetail: provenance.detailText,
+            provenance: provenance,
+            disclaimer: disclaimer
         )
     }
 
@@ -327,6 +386,28 @@ final class TodayMarketHoroscopeComposer {
             rows: rows,
             explainers: dataLabelExplainers()
         )
+    }
+
+    private func shareHeadline(
+        marketContext: TodayMarketContext,
+        portfolioContext: TodayPortfolioContext,
+        stockContext: TodayStockContext?
+    ) -> String {
+        if marketContext.displayMode == .marketBacked {
+            return "Today has a provider-backed market-weather read"
+        }
+        if portfolioContext.displayMode == .marketBacked {
+            return "Today has portfolio historical context"
+        }
+        if stockContext?.displayMode == .marketBacked {
+            return "Today has stock historical context"
+        }
+        return "Today is in context-building mode"
+    }
+
+    private func shareDetail(from detail: String) -> String {
+        guard detail.count > 140 else { return detail }
+        return "\(detail.prefix(137))..."
     }
 
     private func makePrimaryAction(

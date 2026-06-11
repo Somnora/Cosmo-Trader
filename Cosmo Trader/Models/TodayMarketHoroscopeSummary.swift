@@ -6,10 +6,45 @@ struct TodayMarketHoroscopeSummary: Equatable {
     let marketContext: TodayMarketContext
     let portfolioContext: TodayPortfolioContext
     let stockContext: TodayStockContext?
+    let shareCard: TodayShareCardSummary
     let dataCoverage: TodayDataCoverage
     let primaryAction: TodayActivationPrompt?
     let provenance: FinancialDataProvenance
     let disclaimer: String
+}
+
+struct TodayShareCardSummary: Equatable {
+    let date: Date
+    let headline: String
+    let lenses: [TodayShareCardLens]
+    let sourceLabel: String
+    let sourceDetail: String
+    let provenance: FinancialDataProvenance
+    let disclaimer: String
+
+    var productCopy: String {
+        ([headline, sourceLabel, sourceDetail, disclaimer] + lenses.flatMap(\.productCopy))
+            .joined(separator: "\n")
+    }
+}
+
+struct TodayShareCardLens: Equatable, Identifiable {
+    let id: String
+    let title: String
+    let status: String
+    let detail: String
+    let metric: TodayMetric?
+    let provenance: FinancialDataProvenance
+
+    var productCopy: [String] {
+        [
+            title,
+            status,
+            detail,
+            metric.map { "\($0.label): \($0.value)" } ?? "",
+            provenance.indicatorLabel
+        ].filter { !$0.isEmpty }
+    }
 }
 
 struct TodayCosmicContext: Equatable {
