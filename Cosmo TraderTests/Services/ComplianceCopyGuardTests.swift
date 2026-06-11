@@ -48,6 +48,47 @@ struct ComplianceCopyGuardTests {
         #expect(violations.isEmpty)
     }
 
+    @Test("Stock technical generated context is compliance safe")
+    func stockTechnicalGeneratedContextIsComplianceSafe() {
+        let candles = (0..<220).map { index in
+            let date = Date(timeIntervalSince1970: 1_700_000_000 + Double(index * 86_400))
+            let close = 100 + Double(index) * 0.25 + Double(index % 7)
+            return OHLCData(
+                date: date,
+                open: close - 0.5,
+                high: close + 1,
+                low: close - 1,
+                close: close,
+                volume: 1_000_000 + index * 1_000
+            )
+        }
+        let fetchedAt = Date(timeIntervalSince1970: 1_720_000_000)
+        let dataset = HistoricalPriceDataset.providerBacked(
+            symbol: "AAPL",
+            candles: candles,
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: fetchedAt,
+            requestedRange: DateInterval(start: candles[0].date, end: candles[candles.count - 1].date),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+        )
+        let summary = StockTechnicalAnalysisService().summary(dataset: dataset)
+        let messages = [
+            summary.trendContext,
+            summary.momentumContext,
+            summary.volumeContext,
+            summary.volatilityContext,
+            summary.rangeContext,
+            summary.explanation,
+            summary.disclaimer
+        ] + summary.metrics.flatMap { [$0.label, $0.value, $0.detail] }
+
+        let violations = messages.flatMap(ComplianceCopyScanner.violations)
+        if !violations.isEmpty {
+            Issue.record("StockTechnicalAnalysisService copy violations: \(violations.map { $0.label }.joined(separator: ", "))")
+        }
+        #expect(violations.isEmpty)
+    }
+
     @Test("Scanner catches known trading-instruction phrases")
     func scannerCatchesKnownBadPhrases() {
         let unsafeExamples = [

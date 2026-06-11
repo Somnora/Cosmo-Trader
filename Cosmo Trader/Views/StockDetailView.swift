@@ -94,6 +94,8 @@ struct StockDetailView: View {
     @State private var priceProvenance: FinancialDataProvenance = .sample(reason: "Stored local price until provider quote loads")
     @State private var keyStats: StockKeyStats?
     @State private var keyStatsProvenance: FinancialDataProvenance = .unavailable(reason: "Provider fundamentals unavailable")
+    @State private var technicalSummary: StockTechnicalSummary?
+    @State private var isLoadingTechnicalSummary: Bool = !AppState.isScreenshotMode
 
     /// Chart state
     @State private var selectedTimeframe: ChartTimeframe = .month
@@ -191,6 +193,9 @@ struct StockDetailView: View {
                     chartSection
                         .id(Self.astroOverlayScrollID)
 
+                    // 2.5 Provider-backed technical context
+                    technicalContextSection
+
                     // 3. Key Statistics
                     keyStatsSection
 
@@ -267,9 +272,11 @@ struct StockDetailView: View {
                 if AppState.isScreenshotMode {
                     isLoadingPrice = false
                     isLoadingPatterns = false
+                    isLoadingTechnicalSummary = false
                 } else {
                     await fetchLivePrice()
                     await fetchKeyStats()
+                    await loadTechnicalSummary()
                     await loadCosmicPatterns()
                 }
 
@@ -316,6 +323,34 @@ struct StockDetailView: View {
         await MainActor.run {
             keyStats = result.value
             keyStatsProvenance = result.provenance
+        }
+    }
+
+    private func loadTechnicalSummary() async {
+        await MainActor.run {
+            isLoadingTechnicalSummary = true
+        }
+
+        do {
+            let result = try await HistoricalPriceService.shared.fetchHistoricalPriceResult(
+                symbol: stock.symbol,
+                timeframe: .year
+            )
+            let summary = StockTechnicalAnalysisService.shared.summary(dataset: result.dataset)
+
+            await MainActor.run {
+                technicalSummary = summary
+                isLoadingTechnicalSummary = false
+            }
+        } catch {
+            await MainActor.run {
+                technicalSummary = .unavailable(
+                    symbol: stock.symbol,
+                    reason: "Provider-backed daily candles unavailable. Technical context will appear after history loads.",
+                    provenance: .unavailable(reason: "Provider-backed daily candles unavailable")
+                )
+                isLoadingTechnicalSummary = false
+            }
         }
     }
 
@@ -557,6 +592,22 @@ struct StockDetailView: View {
                 HistoricalAstroOverlayLockedCard()
             }
         }
+        .padding(16)
+        .background(cardBackground)
+        .opacity(appearAnimation ? 1 : 0)
+        .offset(y: appearAnimation ? 0 : 20)
+    }
+
+    private var technicalContextSection: some View {
+        StockTechnicalContextView(
+            summary: technicalSummary,
+            isLoading: isLoadingTechnicalSummary,
+            onRefresh: {
+                Task {
+                    await loadTechnicalSummary()
+                }
+            }
+        )
         .padding(16)
         .background(cardBackground)
         .opacity(appearAnimation ? 1 : 0)
