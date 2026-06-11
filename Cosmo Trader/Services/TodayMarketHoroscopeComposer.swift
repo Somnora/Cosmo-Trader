@@ -42,6 +42,11 @@ final class TodayMarketHoroscopeComposer {
             portfolioContext: portfolioContext,
             stockContext: stockContext
         )
+        let primaryAction = makePrimaryAction(
+            marketContext: marketContext,
+            portfolioContext: portfolioContext,
+            stockContext: stockContext
+        )
 
         return TodayMarketHoroscopeSummary(
             date: date,
@@ -50,6 +55,7 @@ final class TodayMarketHoroscopeComposer {
             portfolioContext: portfolioContext,
             stockContext: stockContext,
             dataCoverage: dataCoverage,
+            primaryAction: primaryAction,
             provenance: provenance,
             disclaimer: "Historical context only. Correlation does not imply causation and this is not financial advice."
         )
@@ -321,6 +327,37 @@ final class TodayMarketHoroscopeComposer {
             rows: rows,
             explainers: dataLabelExplainers()
         )
+    }
+
+    private func makePrimaryAction(
+        marketContext: TodayMarketContext,
+        portfolioContext: TodayPortfolioContext,
+        stockContext: TodayStockContext?
+    ) -> TodayActivationPrompt? {
+        if portfolioContext.displayMode == .setupRequired {
+            return portfolioContext.activation
+        }
+
+        if let stockContext,
+           stockContext.symbol == "WATCH",
+           stockContext.displayMode != .marketBacked {
+            return stockContext.activation
+        }
+
+        if marketContext.displayMode != .marketBacked {
+            return marketContext.activation
+        }
+
+        if portfolioContext.displayMode != .marketBacked {
+            return portfolioContext.activation
+        }
+
+        if let stockContext,
+           stockContext.displayMode != .marketBacked {
+            return stockContext.activation
+        }
+
+        return nil
     }
 
     func stockSetupContext() -> TodayStockContext {

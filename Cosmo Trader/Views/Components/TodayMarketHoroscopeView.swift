@@ -25,11 +25,12 @@ struct TodayMarketHoroscopeView: View {
         VStack(alignment: .leading, spacing: 12) {
             header(summary)
             loopSnapshot(summary)
-            marketBlock(summary.marketContext)
-            portfolioBlock(summary.portfolioContext)
+            oneGlanceActionPanel(summary)
+            marketBlock(summary.marketContext, promotedAction: summary.primaryAction)
+            portfolioBlock(summary.portfolioContext, promotedAction: summary.primaryAction)
 
             if let stockContext = summary.stockContext {
-                stockBlock(stockContext)
+                stockBlock(stockContext, promotedAction: summary.primaryAction)
             }
 
             cosmicBlock(summary.cosmicContext)
@@ -94,6 +95,39 @@ struct TodayMarketHoroscopeView: View {
 
             DataSourceIndicator(provenance: summary.provenance, size: .compact)
         }
+    }
+
+    @ViewBuilder
+    private func oneGlanceActionPanel(_ summary: TodayMarketHoroscopeSummary) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("ONE-GLANCE READ")
+                    .font(TerminalFont.data(9, weight: .bold))
+                    .foregroundColor(CosmicTheme.gold)
+                    .tracking(0.8)
+
+                Spacer(minLength: 8)
+
+                DataSourceIndicator(provenance: summary.provenance, size: .compact)
+            }
+
+            Text(oneGlanceStatus(summary))
+                .font(TerminalFont.data(10))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if let prompt = summary.primaryAction {
+                compactActivationPrompt(prompt)
+            }
+        }
+        .padding(12)
+        .background(CosmicTheme.panelElevated.opacity(0.82))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.borderStrong, lineWidth: 0.75)
+        )
+        .accessibilityIdentifier("today.oneGlanceRead")
     }
 
     private func loopSnapshot(_ summary: TodayMarketHoroscopeSummary) -> some View {
@@ -210,7 +244,10 @@ struct TodayMarketHoroscopeView: View {
         }
     }
 
-    private func portfolioBlock(_ context: TodayPortfolioContext) -> some View {
+    private func portfolioBlock(
+        _ context: TodayPortfolioContext,
+        promotedAction: TodayActivationPrompt?
+    ) -> some View {
         section(title: "PORTFOLIO READ", icon: "chart.pie.fill") {
             HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -244,7 +281,7 @@ struct TodayMarketHoroscopeView: View {
                 metricGrid(context.metrics)
             }
 
-            if let activation = context.activation {
+            if let activation = context.activation, activation != promotedAction {
                 activationPrompt(
                     activation,
                     primaryAction: action(for: activation.primaryActionTitle) ?? watchlistSetupAction,
@@ -259,7 +296,10 @@ struct TodayMarketHoroscopeView: View {
         }
     }
 
-    private func marketBlock(_ context: TodayMarketContext) -> some View {
+    private func marketBlock(
+        _ context: TodayMarketContext,
+        promotedAction: TodayActivationPrompt?
+    ) -> some View {
         section(title: "MARKET WEATHER", icon: "cloud.sun.fill") {
             HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -310,7 +350,7 @@ struct TodayMarketHoroscopeView: View {
                 }
             }
 
-            if let activation = context.activation {
+            if let activation = context.activation, activation != promotedAction {
                 activationPrompt(
                     activation,
                     primaryAction: action(for: activation.primaryActionTitle) ?? marketRefreshAction,
@@ -321,7 +361,10 @@ struct TodayMarketHoroscopeView: View {
         }
     }
 
-    private func stockBlock(_ context: TodayStockContext) -> some View {
+    private func stockBlock(
+        _ context: TodayStockContext,
+        promotedAction: TodayActivationPrompt?
+    ) -> some View {
         section(title: "STOCK / WATCHLIST LENS", icon: "scope") {
             HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 5) {
@@ -361,7 +404,7 @@ struct TodayMarketHoroscopeView: View {
                 metricGrid(context.metrics)
             }
 
-            if let activation = context.activation {
+            if let activation = context.activation, activation != promotedAction {
                 activationPrompt(
                     activation,
                     primaryAction: action(for: activation.primaryActionTitle) ?? watchlistSetupAction,
@@ -610,6 +653,55 @@ struct TodayMarketHoroscopeView: View {
                 RoundedRectangle(cornerRadius: 4)
                     .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
             )
+        }
+    }
+
+    private func compactActivationPrompt(_ prompt: TodayActivationPrompt) -> some View {
+        let actions: [(title: String, isPrimary: Bool, handler: () -> Void)] = [
+            (prompt.primaryActionTitle, true, action(for: prompt.primaryActionTitle) ?? marketRefreshAction)
+        ] + [
+            prompt.secondaryActionTitle.map { ($0, false, action(for: $0) ?? {}) },
+            prompt.tertiaryActionTitle.map { ($0, false, action(for: $0) ?? {}) }
+        ].compactMap { $0 }
+
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: actionIcon(for: prompt.primaryActionTitle))
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(CosmicTheme.gold)
+                    .frame(width: 14)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(prompt.title)
+                        .font(TerminalFont.data(10, weight: .bold))
+                        .foregroundColor(CosmicTheme.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(prompt.detail)
+                        .font(TerminalFont.data(8))
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .lineSpacing(2)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8)
+                ],
+                spacing: 8
+            ) {
+                ForEach(Array(actions.enumerated()), id: \.offset) { _, action in
+                    actionButton(
+                        title: action.title,
+                        systemImage: actionIcon(for: action.title),
+                        isPrimary: action.isPrimary,
+                        action: action.handler
+                    )
+                }
+            }
         }
     }
 
@@ -890,6 +982,14 @@ struct TodayMarketHoroscopeView: View {
         }
 
         return "\(percentRate(context.includedPortfolioWeight)) covered"
+    }
+
+    private func oneGlanceStatus(_ summary: TodayMarketHoroscopeSummary) -> String {
+        let market = snapshotValue(for: summary.marketContext.displayMode).lowercased()
+        let portfolio = snapshotValue(for: summary.portfolioContext.displayMode).lowercased()
+        let stock = summary.stockContext.map { snapshotValue(for: $0.displayMode).lowercased() } ?? "setup"
+
+        return "Market \(market), portfolio \(portfolio), stock lens \(stock). \(summary.dataCoverage.headline)."
     }
 
     private func compactSymbolRow(label: String, symbols: [String], color: Color) -> some View {

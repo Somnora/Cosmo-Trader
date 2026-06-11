@@ -87,6 +87,9 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(summary.portfolioContext.activation?.actionItems.contains("Add holding manually") == true)
         #expect(summary.portfolioContext.activation?.actionItems.contains("Import portfolio") == true)
         #expect(summary.portfolioContext.activation?.actionItems.contains("Add watchlist symbols") == true)
+        #expect(summary.primaryAction?.primaryActionTitle == "ADD HOLDING")
+        #expect(summary.primaryAction?.secondaryActionTitle == "IMPORT PORTFOLIO")
+        #expect(summary.primaryAction?.tertiaryActionTitle == "ADD WATCHLIST SYMBOLS")
         #expect(summary.stockContext?.displayMode == .unavailable)
         #expect(summary.stockContext?.activation?.primaryActionTitle == "ADD WATCHLIST SYMBOLS")
         #expect(summary.stockContext?.activation?.secondaryActionTitle == "OPEN DISCOVER / SEARCH")
@@ -237,6 +240,50 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(!summary.marketContext.activation!.detail.localizedCaseInsensitiveContains("sample"))
     }
 
+    @Test("One-glance primary CTA prioritizes market history after portfolio and stock are ready")
+    func oneGlancePrimaryCTAPrioritizesMarketHistoryWhenOtherLensesAreReady() {
+        let fetchedAt = date("2026-05-30")
+        let provenance: FinancialDataProvenance = .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+
+        let summary = composer.compose(
+            date: fetchedAt,
+            user: user(),
+            mood: mood(value: 62, provenance: provenance),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: ["Full Moon"],
+            portfolioSummaries: [
+                portfolioSummary(
+                    provenance: provenance,
+                    displayMode: .marketBackedResult,
+                    includedWeight: 0.82,
+                    averageReturn: 1.1,
+                    winRate: 0.6
+                )
+            ],
+            stockCandidate: TodayStockCandidate(
+                stock: stock(symbol: "AAPL", sharesOwned: 0),
+                summaries: [
+                    stockSummary(
+                        provenance: provenance,
+                        displayMode: .marketBackedResult,
+                        averageReturn: 0.9,
+                        winRate: 0.55
+                    )
+                ],
+                provenance: provenance,
+                completeness: .complete
+            ),
+            marketWeather: nil
+        )
+
+        #expect(summary.marketContext.displayMode == .unavailable)
+        #expect(summary.portfolioContext.displayMode == .marketBacked)
+        #expect(summary.stockContext?.displayMode == .marketBacked)
+        #expect(summary.primaryAction?.primaryActionTitle == "FETCH MARKET HISTORY")
+        #expect(summary.primaryAction?.actionItems.contains("Do not create sample market data") == true)
+    }
+
     @Test("Market refresh activation never turns unsafe market weather into metrics")
     func marketRefreshActivationDoesNotCreateFakeMetrics() {
         let summary = composer.compose(
@@ -383,6 +430,44 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(summary.stockContext?.symbol == "AAPL")
         #expect(summary.stockContext?.provenance.isProviderBacked == true)
         #expect(summary.stockContext?.displayMode != .unavailable)
+    }
+
+    @Test("One-glance primary CTA can focus the watchlist when market and portfolio are ready")
+    func oneGlancePrimaryCTACanFocusWatchlistWhenOtherLensesAreReady() {
+        let fetchedAt = date("2026-05-30")
+        let provenance: FinancialDataProvenance = .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+
+        let summary = composer.compose(
+            date: fetchedAt,
+            user: user(watchlist: []),
+            mood: mood(value: 62, provenance: provenance),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: ["Full Moon"],
+            portfolioSummaries: [
+                portfolioSummary(
+                    provenance: provenance,
+                    displayMode: .marketBackedResult,
+                    includedWeight: 0.82,
+                    averageReturn: 1.1,
+                    winRate: 0.6
+                )
+            ],
+            stockCandidate: nil,
+            marketWeather: marketWeatherSummary(
+                provenance: provenance,
+                displayMode: .marketBackedResult,
+                coverage: 1,
+                averageReturn: 0.8,
+                winRate: 0.58
+            )
+        )
+
+        #expect(summary.marketContext.displayMode == .marketBacked)
+        #expect(summary.portfolioContext.displayMode == .marketBacked)
+        #expect(summary.stockContext?.displayMode == .unavailable)
+        #expect(summary.primaryAction?.primaryActionTitle == "ADD WATCHLIST SYMBOLS")
+        #expect(summary.primaryAction?.secondaryActionTitle == "OPEN DISCOVER / SEARCH")
     }
 
     @Test("Today data coverage distinguishes stale, partial, and unavailable datasets")

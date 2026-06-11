@@ -7,6 +7,7 @@ struct TodayMarketHoroscopeSummary: Equatable {
     let portfolioContext: TodayPortfolioContext
     let stockContext: TodayStockContext?
     let dataCoverage: TodayDataCoverage
+    let primaryAction: TodayActivationPrompt?
     let provenance: FinancialDataProvenance
     let disclaimer: String
 }
