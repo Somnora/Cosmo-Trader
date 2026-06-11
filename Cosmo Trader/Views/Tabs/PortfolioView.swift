@@ -67,6 +67,18 @@ struct PortfolioView: View {
         )
     }
 
+    private var shouldShowPortfolioDailyPL: Bool {
+        PortfolioIntelligenceSummary.shouldShowDailyPL(provenance: portfolioDailyPLProvenance)
+    }
+
+    private var portfolioIntelligenceSummary: PortfolioIntelligenceSummary {
+        PortfolioIntelligenceSummary.make(
+            holdings: holdings,
+            quoteProvenanceBySymbol: quoteProvenanceBySymbol,
+            correlationSummaries: portfolioCorrelationViewModel.summaries
+        )
+    }
+
     private var portfolioCorrelationSignature: String {
         holdings
             .map { "\($0.symbol.uppercased()):\($0.sharesOwned):\($0.marketValue)" }
@@ -204,6 +216,11 @@ struct PortfolioView: View {
                         portfolioHeader
 
                         dividerLine
+
+                        if !holdings.isEmpty {
+                            portfolioIntelligenceSection
+                            dividerLine
+                        }
 
                         if !holdings.isEmpty {
                             screenshotProofSection
@@ -438,12 +455,16 @@ struct PortfolioView: View {
                     .tracking(1)
 
                 HStack(spacing: 4) {
-                    Text(safeUser.formattedDailyChange)
+                    Text(shouldShowPortfolioDailyPL ? safeUser.formattedDailyChange : "—")
                         .font(TerminalFont.price(18))
-                    Text("(\(safeUser.formattedDailyChangePercent))")
+                    Text(shouldShowPortfolioDailyPL ? "(\(safeUser.formattedDailyChangePercent))" : "QUOTE NEEDED")
                         .font(TerminalFont.price(14))
                 }
-                .foregroundColor(safeUser.isPortfolioPositive ? CosmicTheme.positive : CosmicTheme.negative)
+                .foregroundColor(
+                    shouldShowPortfolioDailyPL
+                        ? (safeUser.isPortfolioPositive ? CosmicTheme.positive : CosmicTheme.negative)
+                        : CosmicTheme.textMuted
+                )
 
                 DataSourceIndicator(provenance: portfolioDailyPLProvenance, size: .compact)
             }
@@ -451,6 +472,226 @@ struct PortfolioView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
+    }
+
+    private var portfolioIntelligenceSection: some View {
+        let summary = portfolioIntelligenceSummary
+
+        return VStack(alignment: .leading, spacing: 12) {
+            sectionHeader("PORTFOLIO INTELLIGENCE")
+
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10)
+                ],
+                alignment: .leading,
+                spacing: 10
+            ) {
+                intelligenceMetricCard(
+                    label: "STORED VALUE",
+                    value: currency(summary.totalStoredValue),
+                    detail: "\(summary.holdingsCount) holdings from your setup",
+                    provenance: summary.totalStoredValueProvenance
+                )
+
+                intelligenceMetricCard(
+                    label: "QUOTE COVERAGE",
+                    value: PortfolioIntelligenceSummary.percent(summary.providerQuoteCoverage),
+                    detail: "\(currency(summary.providerQuoteValue)) provider-backed",
+                    provenance: summary.providerQuoteProvenance
+                )
+
+                intelligenceMetricCard(
+                    label: "TOP HOLDING",
+                    value: summary.topHoldingSymbol ?? "—",
+                    detail: "\(PortfolioIntelligenceSummary.percent(summary.topHoldingConcentration)) of stored value",
+                    provenance: summary.totalStoredValueProvenance
+                )
+
+                intelligenceMetricCard(
+                    label: "HISTORY COVERAGE",
+                    value: PortfolioIntelligenceSummary.percent(summary.historyCoverage),
+                    detail: "70% required for headline correlation metrics",
+                    provenance: summary.historyProvenance
+                )
+            }
+            .padding(.horizontal, 12)
+
+            VStack(alignment: .leading, spacing: 9) {
+                intelligenceCoverageRow(
+                    title: "Provider history",
+                    detail: summary.correlationReadinessCopy,
+                    provenance: summary.historyProvenance
+                )
+
+                intelligenceDistributionBlock(
+                    title: "Cosmic composition",
+                    detail: cosmicCompositionDetail(summary),
+                    slices: summary.elementDistribution,
+                    emptyText: "No verified company founding dates yet. Unknown-founded holdings stay out of zodiac and element math."
+                )
+
+                intelligenceDistributionBlock(
+                    title: "Sector allocation",
+                    detail: "Stored value by sector. Provider quotes are tracked separately above.",
+                    slices: summary.sectorDistribution,
+                    emptyText: "Sector data unavailable for current holdings."
+                )
+            }
+            .padding(.horizontal, 12)
+            .padding(.bottom, 14)
+        }
+    }
+
+    private func intelligenceMetricCard(
+        label: String,
+        value: String,
+        detail: String,
+        provenance: FinancialDataProvenance
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(label)
+                    .font(TerminalFont.data(8, weight: .bold))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .tracking(0.8)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+
+                Spacer(minLength: 6)
+
+                DataSourceIndicator(provenance: provenance, size: .compact)
+            }
+
+            Text(value)
+                .font(TerminalFont.price(18, weight: .semibold))
+                .foregroundColor(CosmicTheme.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+
+            Text(detail)
+                .font(TerminalFont.data(9))
+                .foregroundColor(CosmicTheme.textMuted)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
+        .terminalPanel(.elevated, cornerRadius: 4)
+    }
+
+    private func intelligenceCoverageRow(
+        title: String,
+        detail: String,
+        provenance: FinancialDataProvenance
+    ) -> some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: "clock.badge.checkmark")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(CosmicTheme.gold)
+                .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(title.uppercased())
+                        .font(TerminalFont.data(9, weight: .bold))
+                        .foregroundColor(CosmicTheme.gold)
+                        .tracking(0.8)
+
+                    DataSourceIndicator(provenance: provenance, size: .compact)
+                }
+
+                Text(detail)
+                    .font(TerminalFont.data(10))
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(10)
+        .terminalPanel(.navy, cornerRadius: 4)
+    }
+
+    private func intelligenceDistributionBlock(
+        title: String,
+        detail: String,
+        slices: [PortfolioDistributionSlice],
+        emptyText: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title.uppercased())
+                .font(TerminalFont.data(9, weight: .bold))
+                .foregroundColor(CosmicTheme.textMuted)
+                .tracking(0.8)
+
+            Text(detail)
+                .font(TerminalFont.data(10))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if slices.isEmpty {
+                Text(emptyText)
+                    .font(TerminalFont.data(10))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                VStack(spacing: 6) {
+                    ForEach(slices.prefix(4)) { slice in
+                        intelligenceDistributionRow(slice)
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .terminalPanel(.standard, cornerRadius: 4)
+    }
+
+    private func intelligenceDistributionRow(_ slice: PortfolioDistributionSlice) -> some View {
+        HStack(spacing: 8) {
+            Text(slice.label.uppercased())
+                .font(TerminalFont.data(9, weight: .semibold))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineLimit(1)
+                .frame(width: 78, alignment: .leading)
+
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Rectangle()
+                        .fill(CosmicTheme.border)
+                        .frame(height: 7)
+
+                    Rectangle()
+                        .fill(CosmicTheme.gold.opacity(0.72))
+                        .frame(width: geometry.size.width * CGFloat(min(max(slice.percentage, 0), 1)), height: 7)
+                }
+            }
+            .frame(height: 7)
+
+            Text(PortfolioIntelligenceSummary.percent(slice.percentage))
+                .font(TerminalFont.price(10))
+                .foregroundColor(CosmicTheme.textPrimary)
+                .frame(width: 42, alignment: .trailing)
+        }
+        .frame(height: 18)
+    }
+
+    private func cosmicCompositionDetail(_ summary: PortfolioIntelligenceSummary) -> String {
+        let verified = PortfolioIntelligenceSummary.percent(summary.verifiedAstrologyCoverage)
+        guard summary.unknownFoundedCount > 0 else {
+            return "\(verified) of stored value has verified founding-date astrology metadata."
+        }
+
+        return "\(verified) of stored value has verified founding-date astrology metadata. \(summary.unknownFoundedCount) unknown-founded holding(s), \(currency(summary.unknownFoundedValue)), stay out of zodiac and element denominators."
+    }
+
+    private func currency(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.maximumFractionDigits = value >= 10_000 ? 0 : 2
+        return formatter.string(from: NSNumber(value: value)) ?? "$0"
     }
 
     private var screenshotProofSection: some View {
