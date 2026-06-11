@@ -7,6 +7,7 @@ struct TodayMarketHoroscopeView: View {
     let portfolioImportAction: () -> Void
     let watchlistSetupAction: () -> Void
     let discoverSearchAction: () -> Void
+    let setupSkipAction: () -> Void
 
     @State private var isLabelGuideExpanded = false
 
@@ -24,6 +25,7 @@ struct TodayMarketHoroscopeView: View {
     private func summaryContent(_ summary: TodayMarketHoroscopeSummary) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             header(summary)
+            firstRunSetupBlock(summary.firstRunSetup)
             loopSnapshot(summary)
             oneGlanceActionPanel(summary)
             marketBlock(summary.marketContext, promotedAction: summary.primaryAction)
@@ -48,6 +50,89 @@ struct TodayMarketHoroscopeView: View {
             RoundedRectangle(cornerRadius: 4)
                 .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
         )
+    }
+
+    @ViewBuilder
+    private func firstRunSetupBlock(_ setup: TodayFirstRunSetupState) -> some View {
+        if !setup.isSkipped && !setup.isComplete {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("FIRST-RUN DATA SETUP")
+                        .font(TerminalFont.data(9, weight: .bold))
+                        .foregroundColor(CosmicTheme.gold)
+                        .tracking(0.8)
+
+                    Spacer(minLength: 8)
+
+                    Text("\(setup.steps.filter(\.isComplete).count)/\(setup.steps.count)")
+                        .font(TerminalFont.data(9, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
+
+                Text("Unlock Today in one session: watchlist, holdings, provider history, and readable data labels. You can skip this and keep exploring.")
+                    .font(TerminalFont.data(9))
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                VStack(spacing: 6) {
+                    ForEach(setup.steps) { step in
+                        firstRunSetupRow(step)
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    if let nextStep = setup.nextStep,
+                       let title = nextStep.actionTitle,
+                       let action = nextStep.action {
+                        actionButton(
+                            title: title,
+                            systemImage: setupActionIcon(for: action),
+                            isPrimary: true,
+                            action: setupAction(for: action)
+                        )
+                    }
+
+                    actionButton(
+                        title: "SKIP SETUP",
+                        systemImage: "forward.fill",
+                        isPrimary: false,
+                        action: setupSkipAction
+                    )
+                }
+            }
+            .padding(12)
+            .background(CosmicTheme.panelElevated.opacity(0.82))
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(CosmicTheme.borderStrong, lineWidth: 0.75)
+            )
+            .accessibilityIdentifier("today.firstRunDataSetup")
+        }
+    }
+
+    private func firstRunSetupRow(_ step: TodayFirstRunSetupStep) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: step.isComplete ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(step.isComplete ? CosmicTheme.positive : CosmicTheme.textMuted)
+                .frame(width: 14)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(step.title.uppercased())
+                    .font(TerminalFont.data(8, weight: .bold))
+                    .foregroundColor(step.isComplete ? CosmicTheme.textSecondary : CosmicTheme.textPrimary)
+                    .tracking(0.5)
+
+                Text(step.detail)
+                    .font(TerminalFont.data(8))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 4)
+        }
     }
 
     private var loadingContent: some View {
@@ -816,6 +901,40 @@ struct TodayMarketHoroscopeView: View {
             return "chart.pie.fill"
         }
         return "plus"
+    }
+
+    private func setupAction(for action: TodayFirstRunSetupAction) -> () -> Void {
+        switch action {
+        case .addWatchlist:
+            return watchlistSetupAction
+        case .addHolding:
+            return portfolioSetupAction
+        case .importPortfolio:
+            return portfolioImportAction
+        case .loadProviderHistory:
+            return marketRefreshAction
+        case .reviewLabels:
+            return {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    isLabelGuideExpanded = true
+                }
+            }
+        }
+    }
+
+    private func setupActionIcon(for action: TodayFirstRunSetupAction) -> String {
+        switch action {
+        case .addWatchlist:
+            return "eye.fill"
+        case .addHolding:
+            return "chart.pie.fill"
+        case .importPortfolio:
+            return "square.and.arrow.down"
+        case .loadProviderHistory:
+            return "arrow.clockwise"
+        case .reviewLabels:
+            return "info.circle"
+        }
     }
 
     private func labelExplainerDisclosure(_ explainers: [TodayDataLabelExplainer]) -> some View {

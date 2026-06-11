@@ -37,8 +37,8 @@ final class TodayMarketHoroscopeViewModel {
         self.overlayEventService = overlayEventService ?? AstroOverlayEventService.shared
     }
 
-    func load(user: UserProfile?) async {
-        let signature = signature(for: user)
+    func load(user: UserProfile?, firstRunSetupSkipped: Bool = false) async {
+        let signature = signature(for: user, firstRunSetupSkipped: firstRunSetupSkipped)
         if loadedSignature == signature, summary != nil {
             return
         }
@@ -76,15 +76,16 @@ final class TodayMarketHoroscopeViewModel {
             activeEventTitles: activeEvents,
             portfolioSummaries: portfolioSummaries,
             stockCandidate: stockCandidate,
-            marketWeather: marketWeather
+            marketWeather: marketWeather,
+            firstRunSetupSkipped: firstRunSetupSkipped
         )
 
         isLoading = false
     }
 
-    func reload(user: UserProfile?) async {
+    func reload(user: UserProfile?, firstRunSetupSkipped: Bool = false) async {
         loadedSignature = nil
-        await load(user: user)
+        await load(user: user, firstRunSetupSkipped: firstRunSetupSkipped)
     }
 
     private func loadPortfolioSummaries(holdings: [Stock]) async -> [PortfolioCosmicCorrelationSummary] {
@@ -209,8 +210,8 @@ final class TodayMarketHoroscopeViewModel {
         return Array(candidates.prefix(4))
     }
 
-    private func signature(for user: UserProfile?) -> String {
-        guard let user else { return "no-user" }
+    private func signature(for user: UserProfile?, firstRunSetupSkipped: Bool) -> String {
+        guard let user else { return "no-user|setupSkipped:\(firstRunSetupSkipped)" }
         let holdings = user.portfolio
             .filter(\.isOwned)
             .map { "\($0.symbol.uppercased()):\($0.sharesOwned):\($0.marketValue)" }
@@ -220,6 +221,6 @@ final class TodayMarketHoroscopeViewModel {
             .map { $0.uppercased() }
             .sorted()
             .joined(separator: "|")
-        return "\(user.id.uuidString)|\(holdings)|\(watchlist)"
+        return "\(user.id.uuidString)|\(holdings)|\(watchlist)|setupSkipped:\(firstRunSetupSkipped)"
     }
 }

@@ -16,7 +16,8 @@ final class TodayMarketHoroscopeComposer {
         activeEventTitles: [String],
         portfolioSummaries: [PortfolioCosmicCorrelationSummary],
         stockCandidate: TodayStockCandidate?,
-        marketWeather: MarketWeatherSummary? = nil
+        marketWeather: MarketWeatherSummary? = nil,
+        firstRunSetupSkipped: Bool = false
     ) -> TodayMarketHoroscopeSummary {
         let cosmicContext = makeCosmicContext(
             mood: mood,
@@ -47,6 +48,13 @@ final class TodayMarketHoroscopeComposer {
             portfolioContext: portfolioContext,
             stockContext: stockContext
         )
+        let firstRunSetup = makeFirstRunSetupState(
+            user: user,
+            marketContext: marketContext,
+            portfolioContext: portfolioContext,
+            stockContext: stockContext,
+            isSkipped: firstRunSetupSkipped
+        )
 
         return TodayMarketHoroscopeSummary(
             date: date,
@@ -54,11 +62,69 @@ final class TodayMarketHoroscopeComposer {
             marketContext: marketContext,
             portfolioContext: portfolioContext,
             stockContext: stockContext,
+            firstRunSetup: firstRunSetup,
             dataCoverage: dataCoverage,
             primaryAction: primaryAction,
             provenance: provenance,
             disclaimer: "Historical context only. Correlation does not imply causation and this is not financial advice."
         )
+    }
+
+    func makeFirstRunSetupState(
+        user: UserProfile?,
+        marketContext: TodayMarketContext,
+        portfolioContext: TodayPortfolioContext,
+        stockContext: TodayStockContext?,
+        isSkipped: Bool
+    ) -> TodayFirstRunSetupState {
+        let hasWatchlist = !(user?.watchlist.isEmpty ?? true)
+        let hasHoldings = user?.portfolio.contains(where: \.isOwned) ?? false
+        let hasProviderHistory = marketContext.provenance.isProviderBacked
+            || portfolioContext.provenance.isProviderBacked
+            || (stockContext?.provenance.isProviderBacked ?? false)
+
+        let steps = [
+            TodayFirstRunSetupStep(
+                id: .watchlist,
+                title: "Add watchlist symbols",
+                detail: hasWatchlist
+                    ? "Watchlist symbols are saved locally."
+                    : "Start with tickers you want Today to track through a stock lens.",
+                isComplete: hasWatchlist,
+                actionTitle: hasWatchlist ? nil : "ADD WATCHLIST",
+                action: hasWatchlist ? nil : .addWatchlist
+            ),
+            TodayFirstRunSetupStep(
+                id: .portfolio,
+                title: "Add or import holdings",
+                detail: hasHoldings
+                    ? "Portfolio holdings are saved locally."
+                    : "Add a holding manually or import a portfolio to unlock portfolio context.",
+                isComplete: hasHoldings,
+                actionTitle: hasHoldings ? nil : "IMPORT PORTFOLIO",
+                action: hasHoldings ? nil : .importPortfolio
+            ),
+            TodayFirstRunSetupStep(
+                id: .providerHistory,
+                title: "Load provider-backed history",
+                detail: hasProviderHistory
+                    ? "At least one lens has provider-backed or cached history."
+                    : "Refresh real market, portfolio, or stock history. No sample data is created.",
+                isComplete: hasProviderHistory,
+                actionTitle: hasProviderHistory ? nil : "LOAD HISTORY",
+                action: hasProviderHistory ? nil : .loadProviderHistory
+            ),
+            TodayFirstRunSetupStep(
+                id: .labels,
+                title: "Read the data labels",
+                detail: "Unavailable, stored, cached, partial, and insufficient labels are explained below.",
+                isComplete: true,
+                actionTitle: nil,
+                action: nil
+            )
+        ]
+
+        return TodayFirstRunSetupState(isSkipped: isSkipped, steps: steps)
     }
 
     func makeMarketContext(summary: MarketWeatherSummary?) -> TodayMarketContext {

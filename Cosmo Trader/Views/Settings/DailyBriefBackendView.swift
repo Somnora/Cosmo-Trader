@@ -38,6 +38,12 @@ struct DailyBriefBackendView: View {
                     },
                     discoverSearchAction: {
                         appState.requestNavigation(.discoverSearch)
+                    },
+                    setupSkipAction: {
+                        appState.skipFirstRunDataSetup()
+                        Task {
+                            await reloadTodayContext()
+                        }
                     }
                 )
 
@@ -70,11 +76,11 @@ struct DailyBriefBackendView: View {
         .background(CosmicTheme.background)
         .tabBarSafeBottomPadding(extra: AppLayout.bottomTabBarExtraClearance)
         .refreshable {
-            await todayViewModel.reload(user: appState.currentUser)
+            await reloadTodayContext()
             await refreshBrief()
         }
         .task {
-            await todayViewModel.load(user: appState.currentUser)
+            await loadTodayContext()
             if AppState.isScreenshotMode {
                 showLocalFallbackIfNeeded()
                 return
@@ -82,6 +88,22 @@ struct DailyBriefBackendView: View {
             loadCachedBrief()
             await refreshBrief()
         }
+    }
+
+    private func loadTodayContext() async {
+        await todayViewModel.load(
+            user: appState.currentUser,
+            firstRunSetupSkipped: appState.hasSkippedFirstRunDataSetup
+        )
+        appState.updateFirstRunDataSetupCompletion(todayViewModel.summary?.firstRunSetup.isComplete == true)
+    }
+
+    private func reloadTodayContext() async {
+        await todayViewModel.reload(
+            user: appState.currentUser,
+            firstRunSetupSkipped: appState.hasSkippedFirstRunDataSetup
+        )
+        appState.updateFirstRunDataSetupCompletion(todayViewModel.summary?.firstRunSetup.isComplete == true)
     }
 
     private var statusCard: some View {

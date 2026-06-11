@@ -96,6 +96,130 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(summary.dataCoverage.rows.contains { $0.label == "WATCH history" && $0.provenance.indicatorLabel == "Unavailable" })
     }
 
+    @Test("First-run user sees data setup flow without fake holdings")
+    func firstRunUserSeesDataSetupFlowWithoutFakeHoldings() {
+        let summary = composer.compose(
+            user: user(portfolio: [], watchlist: []),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [],
+            stockCandidate: nil,
+            marketWeather: nil
+        )
+
+        #expect(!summary.firstRunSetup.isSkipped)
+        #expect(!summary.firstRunSetup.isComplete)
+        #expect(summary.firstRunSetup.nextStep?.id == .watchlist)
+        #expect(summary.firstRunSetup.steps.contains { $0.id == .watchlist && !$0.isComplete && $0.action == .addWatchlist })
+        #expect(summary.firstRunSetup.steps.contains { $0.id == .portfolio && !$0.isComplete && $0.action == .importPortfolio })
+        #expect(summary.firstRunSetup.steps.contains { $0.id == .providerHistory && !$0.isComplete && $0.action == .loadProviderHistory })
+        #expect(summary.portfolioContext.metrics.isEmpty)
+        #expect(summary.stockContext?.metrics.isEmpty == true)
+    }
+
+    @Test("User can skip first-run data setup without blocking Today")
+    func userCanSkipFirstRunSetupWithoutBlockingToday() {
+        let summary = composer.compose(
+            user: user(portfolio: [], watchlist: []),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [],
+            stockCandidate: nil,
+            marketWeather: nil,
+            firstRunSetupSkipped: true
+        )
+
+        #expect(summary.firstRunSetup.isSkipped)
+        #expect(summary.portfolioContext.displayMode == .setupRequired)
+        #expect(summary.primaryAction?.primaryActionTitle == "ADD HOLDING")
+        #expect(summary.disclaimer.contains("not financial advice"))
+    }
+
+    @Test("First-run setup completion requires watchlist portfolio and provider history")
+    func firstRunSetupCompletionRequiresWatchlistPortfolioAndProviderHistory() {
+        let fetchedAt = date("2026-05-30")
+        let provenance: FinancialDataProvenance = .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+
+        let incomplete = composer.compose(
+            date: fetchedAt,
+            user: user(watchlist: ["AAPL"]),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [],
+            stockCandidate: nil,
+            marketWeather: nil
+        )
+
+        #expect(!incomplete.firstRunSetup.isComplete)
+        #expect(incomplete.firstRunSetup.steps.contains { $0.id == .watchlist && $0.isComplete })
+        #expect(incomplete.firstRunSetup.steps.contains { $0.id == .providerHistory && !$0.isComplete })
+
+        let complete = composer.compose(
+            date: fetchedAt,
+            user: user(watchlist: ["AAPL"]),
+            mood: mood(value: 62, provenance: provenance),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: ["Full Moon"],
+            portfolioSummaries: [
+                portfolioSummary(
+                    provenance: provenance,
+                    displayMode: .marketBackedResult,
+                    includedWeight: 0.82,
+                    averageReturn: 1.1,
+                    winRate: 0.6
+                )
+            ],
+            stockCandidate: TodayStockCandidate(
+                stock: stock(symbol: "AAPL", sharesOwned: 0),
+                summaries: [
+                    stockSummary(
+                        provenance: provenance,
+                        displayMode: .marketBackedResult,
+                        averageReturn: 0.9,
+                        winRate: 0.55
+                    )
+                ],
+                provenance: provenance,
+                completeness: .complete
+            ),
+            marketWeather: marketWeatherSummary(
+                provenance: provenance,
+                displayMode: .marketBackedResult,
+                coverage: 1,
+                averageReturn: 0.8,
+                winRate: 0.58
+            )
+        )
+
+        #expect(complete.firstRunSetup.isComplete)
+        #expect(complete.firstRunSetup.nextStep == nil)
+    }
+
+    @Test("First-run setup skip state persists and watchlist setup creates no holding")
+    func firstRunSetupSkipPersistsAndWatchlistCreatesNoHolding() {
+        let appState = AppState(user: user(portfolio: [], watchlist: []))
+        defer {
+            appState.deleteAllUserData()
+            UserDefaults.standard.removeObject(forKey: "com.cosmotrader.firstRunDataSetupSkipped")
+            UserDefaults.standard.removeObject(forKey: "com.cosmotrader.firstRunDataSetupCompleted")
+        }
+
+        appState.skipFirstRunDataSetup()
+        #expect(appState.hasSkippedFirstRunDataSetup)
+        #expect(UserDefaults.standard.bool(forKey: "com.cosmotrader.firstRunDataSetupSkipped"))
+
+        appState.addToWatchlist("AAPL")
+        #expect(appState.currentUser?.watchlist.contains("AAPL") == true)
+        #expect(appState.currentUser?.portfolio.isEmpty == true)
+    }
+
     @Test("Below fifty percent portfolio coverage blocks Today portfolio context metrics")
     func belowFiftyPercentPortfolioCoverageBlocksTodayPortfolioContextMetrics() {
         let fetchedAt = date("2026-05-30")

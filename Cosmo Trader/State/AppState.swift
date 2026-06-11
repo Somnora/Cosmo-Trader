@@ -23,6 +23,8 @@ enum AppNavigationIntent: Equatable {
 
 @Observable
 class AppState {
+    private static let firstRunDataSetupSkippedKey = "com.cosmotrader.firstRunDataSetupSkipped"
+    private static let firstRunDataSetupCompletedKey = "com.cosmotrader.firstRunDataSetupCompleted"
 
     // MARK: - Singleton for Persistence
     // (Optional pattern - you can also inject via environment)
@@ -63,6 +65,12 @@ class AppState {
     /// One-shot request for a tab to open a specific existing flow.
     var pendingNavigationIntent: AppNavigationIntent?
 
+    /// First-run data setup is separate from profile onboarding: users can
+    /// skip it and still enter the app, while Today keeps surfacing the next
+    /// real-data unlock step until the checklist is complete.
+    var hasSkippedFirstRunDataSetup: Bool = UserDefaults.standard.bool(forKey: AppState.firstRunDataSetupSkippedKey)
+    var hasCompletedFirstRunDataSetup: Bool = UserDefaults.standard.bool(forKey: AppState.firstRunDataSetupCompletedKey)
+
     func requestNavigation(_ intent: AppNavigationIntent) {
         pendingNavigationIntent = intent
 
@@ -72,6 +80,24 @@ class AppState {
         case .discoverSearch:
             selectedTab = .discover
         }
+    }
+
+    func skipFirstRunDataSetup() {
+        hasSkippedFirstRunDataSetup = true
+        UserDefaults.standard.set(true, forKey: Self.firstRunDataSetupSkippedKey)
+    }
+
+    func updateFirstRunDataSetupCompletion(_ isComplete: Bool) {
+        guard isComplete, !hasCompletedFirstRunDataSetup else { return }
+        hasCompletedFirstRunDataSetup = true
+        UserDefaults.standard.set(true, forKey: Self.firstRunDataSetupCompletedKey)
+    }
+
+    func resetFirstRunDataSetup() {
+        hasSkippedFirstRunDataSetup = false
+        hasCompletedFirstRunDataSetup = false
+        UserDefaults.standard.set(false, forKey: Self.firstRunDataSetupSkippedKey)
+        UserDefaults.standard.set(false, forKey: Self.firstRunDataSetupCompletedKey)
     }
 
     // MARK: - Storage Keys
@@ -94,6 +120,8 @@ class AppState {
     /// Initialize with a specific user (for previews/testing)
     init(user: UserProfile?) {
         self.currentUser = user
+        self.hasSkippedFirstRunDataSetup = false
+        self.hasCompletedFirstRunDataSetup = false
     }
 
     static var launchArguments: Set<String> {
@@ -227,6 +255,7 @@ class AppState {
         UserDefaults.standard.removeObject(forKey: backupProfileKey)
         UserDefaults.standard.removeObject(forKey: lastSaveKey)
         UserDefaults.standard.set(false, forKey: hasOnboardedKey)
+        resetFirstRunDataSetup()
         firebaseUID = nil
         didRecoverFromCorruption = false
         errorState.clear()
@@ -265,6 +294,7 @@ class AppState {
         )
 
         currentUser = newUser
+        resetFirstRunDataSetup()
         saveUserToStorage()
         return nil
     }
@@ -276,6 +306,7 @@ class AppState {
         UserDefaults.standard.removeObject(forKey: userProfileKey)
         UserDefaults.standard.removeObject(forKey: backupProfileKey)
         UserDefaults.standard.set(false, forKey: hasOnboardedKey)
+        resetFirstRunDataSetup()
         didRecoverFromCorruption = false
         errorState.clear()
     }
@@ -706,6 +737,8 @@ class AppState {
             "terminalAudio_effectsVolume",
             // Analytics keys (from AnalyticsService)
             "analytics_opted_out",
+            Self.firstRunDataSetupSkippedKey,
+            Self.firstRunDataSetupCompletedKey,
             // Moon phase keys (from MoonPhaseService)
             "notifyOnFullMoon",
             "notifyOnNewMoon",
@@ -724,6 +757,8 @@ class AppState {
         didRecoverFromCorruption = false
         lastSaveTimestamp = nil
         isOfflineMode = false
+        hasSkippedFirstRunDataSetup = false
+        hasCompletedFirstRunDataSetup = false
 
         Log.debug("[AppState] All user data has been deleted")
     }

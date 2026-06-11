@@ -24,7 +24,7 @@
 "onboarding.name.placeholder" = "Your name";
 
 "onboarding.stock.title" = "PICK YOUR FIRST STOCK";
-"onboarding.stock.prompt" = "Select a stock to add to your starter portfolio";
+"onboarding.stock.prompt" = "Select a stock to add to your starter watchlist";
 
 "onboarding.disclaimer.title" = "IMPORTANT DISCLAIMER";
 "onboarding.disclaimer.text" = "Cosmo Trader is for informational and entertainment purposes only and does not constitute financial advice. Past performance does not guarantee future results. Always do your own research before making investment decisions.";
