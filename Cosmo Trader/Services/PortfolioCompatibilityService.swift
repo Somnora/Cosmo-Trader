@@ -7,7 +7,7 @@ import SwiftUI
 // Larger dollar exposure = more influence on overall score.
 //
 // This creates a comprehensive view of portfolio "cosmic health" that
-// accounts for position sizing, not just presence of holdings.
+// accounts for position value, not just presence of holdings.
 
 // MARK: - Portfolio Compatibility Result
 
@@ -295,22 +295,22 @@ enum PortfolioCompatibilityService {
 
         case .highCompatibility:
             if isImbalanced {
-                return "Strong alignment, but \(dominantElement.displayName) energy is concentrated at \(String(format: "%.0f%%", maxElement?.value ?? 0)). Consider elemental diversification."
+                return "Strong alignment, with \(dominantElement.displayName) energy concentrated at \(String(format: "%.0f%%", maxElement?.value ?? 0)). Composition context only."
             }
             return "Your \(userSign.displayName) profile aligns well with current holdings. Structure is helping the reading."
 
         case .neutral:
             if !missingElements.isEmpty {
                 let missing = missingElements.map { $0.displayName }.joined(separator: ", ")
-                return "Balanced, but missing \(missing) exposure. Decide whether that gap is intentional diversification or an overlooked sleeve."
+                return "Balanced, with \(missing) absent from the verified exposure map. Context for the portfolio read."
             }
             return "Your portfolio is elementally balanced. No single exposure is driving the reading."
 
         case .challenging:
-            return "Your \(userSign.displayName) profile conflicts with \(dominantSign.displayName)-heavy exposure. Treat this as a risk-control prompt."
+            return "Your \(userSign.displayName) profile contrasts with \(dominantSign.displayName)-heavy exposure. Historical context for the portfolio read."
 
         case .cosmicClash:
-            return "Your portfolio runs against your \(userSign.displayName) profile. Keep position sizing and conviction under review."
+            return "Your portfolio runs against your \(userSign.displayName) profile. Read this as cosmic composition context, not an instruction."
         }
     }
 

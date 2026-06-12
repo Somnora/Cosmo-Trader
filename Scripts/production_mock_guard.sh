@@ -86,6 +86,8 @@ require_present "Cosmo Trader/Views/Components/CosmicMoodGauge.swift" "N/A"
 require_present "Cosmo Trader/Views/Components/CosmicMoodGauge.swift" "COSMIC ONLY"
 
 require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "portfolioDailyPLProvenance"
+require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "canShowDailyPL"
+require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "canShowDailyPL ? safeUser.formattedDailyChange"
 require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "changeCell(for:"
 require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" ".mixed(reason:"
 require_present "Cosmo Trader/ViewModels/PortfolioViewModel.swift" "struct PortfolioIntelligenceSummary"

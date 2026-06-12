@@ -67,6 +67,10 @@ struct PortfolioView: View {
         )
     }
 
+    private var canShowDailyPL: Bool {
+        portfolioDailyPLProvenance.isProviderBacked
+    }
+
     private var portfolioIntelligenceSummary: PortfolioIntelligenceSummary {
         PortfolioIntelligenceSummary.make(
             holdings: holdings,
@@ -90,8 +94,10 @@ struct PortfolioView: View {
 
         for stock in holdings {
             guard let element = stock.foundedElement else { continue }
-            elementValues[element, default: 0] += stock.totalValue
-            analyzedTotalValue += stock.totalValue
+            let value = stock.marketValue
+            guard value > 0 else { continue }
+            elementValues[element, default: 0] += value
+            analyzedTotalValue += value
         }
 
         guard analyzedTotalValue > 0 else { return [] }
@@ -453,12 +459,14 @@ struct PortfolioView: View {
                     .tracking(1)
 
                 HStack(spacing: 4) {
-                    Text(safeUser.formattedDailyChange)
+                    Text(canShowDailyPL ? safeUser.formattedDailyChange : "—")
                         .font(TerminalFont.price(18))
-                    Text("(\(safeUser.formattedDailyChangePercent))")
-                        .font(TerminalFont.price(14))
+                    if canShowDailyPL {
+                        Text("(\(safeUser.formattedDailyChangePercent))")
+                            .font(TerminalFont.price(14))
+                    }
                 }
-                .foregroundColor(safeUser.isPortfolioPositive ? CosmicTheme.positive : CosmicTheme.negative)
+                .foregroundColor(canShowDailyPL ? (safeUser.isPortfolioPositive ? CosmicTheme.positive : CosmicTheme.negative) : CosmicTheme.textMuted)
 
                 DataSourceIndicator(provenance: portfolioDailyPLProvenance, size: .compact)
             }
@@ -1147,8 +1155,8 @@ struct PortfolioView: View {
     }
 
     private func allocationBar(for stock: Stock) -> some View {
-        let totalValue = safeUser.totalPortfolioValue
-        let allocation = totalValue > 0 ? (stock.totalValue / totalValue) * 100 : 0
+        let totalValue = holdings.reduce(0) { $0 + $1.marketValue }
+        let allocation = totalValue > 0 ? (stock.marketValue / totalValue) * 100 : 0
         let barWidth = min(allocation / 50, 1.0) // Max bar at 50% allocation
 
         return HStack(spacing: 2) {
