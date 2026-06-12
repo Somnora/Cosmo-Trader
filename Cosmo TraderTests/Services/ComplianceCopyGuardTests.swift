@@ -78,6 +78,28 @@ struct ComplianceCopyGuardTests {
             #expect(ComplianceCopyScanner.violations(in: example).isEmpty, "Scanner rejected safe disclaimer: \(example)")
         }
     }
+
+    @Test("Chart and astro overlay copy snippets stay compliance safe")
+    func chartAndAstroOverlayCopySnippetsAreComplianceSafe() {
+        let safeExamples = [
+            "Loading provider chart data",
+            "Historical price data unavailable",
+            "Chart will appear when provider data is available.",
+            "Provider-backed history is required before event-window metrics are shown.",
+            "Mixed data freshness. Metric unavailable for this event.",
+            "Historical overlay only. Correlation view, not financial advice.",
+            "Overlay moon phases, Mercury retrograde, and company birth cycles against historical price action. Explore historical context, including when no pattern appears.",
+            "Sample chart mode is labeled for preview only; event-window metrics are hidden."
+        ]
+
+        for example in safeExamples {
+            let violations = ComplianceCopyScanner.violations(in: example)
+            if !violations.isEmpty {
+                Issue.record("Chart copy violation for '\(example)': \(violations.map { $0.label }.joined(separator: ", "))")
+            }
+            #expect(violations.isEmpty)
+        }
+    }
 }
 
 private enum ComplianceCopyScanner {
