@@ -25,6 +25,28 @@ struct AstroOverlayEventServiceTests {
         #expect(events.contains { $0.kind == .fullMoon })
     }
 
+    @Test("Overlay event feed includes chart marker kinds with visible icon metadata")
+    func overlayEventFeedIncludesChartMarkerKindsWithIconMetadata() {
+        let stock = makeStock()
+        let filters = AstroOverlayFilterState(
+            enabledKinds: [.newMoon, .fullMoon, .mercuryRetrograde],
+            showEstimatedEvents: true,
+            eventWindowDays: 3
+        )
+
+        let events = AstroOverlayEventService.shared.events(
+            for: stock,
+            from: date("2025-01-01"),
+            to: date("2025-12-31"),
+            filters: filters
+        )
+
+        #expect(events.contains { $0.kind == .newMoon })
+        #expect(events.contains { $0.kind == .fullMoon })
+        #expect(events.contains { $0.kind == .mercuryRetrograde })
+        #expect(events.allSatisfy { !$0.iconSystemName.isEmpty })
+    }
+
     @Test("Company birth month repeats once per year in the selected range")
     func companyBirthMonthRepeatsOncePerYear() {
         let stock = makeStock()
