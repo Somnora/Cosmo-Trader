@@ -96,6 +96,9 @@ struct StockDetailView: View {
     @State private var keyStatsProvenance: FinancialDataProvenance = .unavailable(reason: "Provider fundamentals unavailable")
     @State private var technicalSummary: StockTechnicalSummary?
     @State private var isLoadingTechnicalSummary: Bool = !AppState.isScreenshotMode
+    @State private var historyActivationState: StockDetailHistoryActivationState
+    @State private var isLoadingProviderHistory: Bool = false
+    @State private var chartHistoryReloadToken: Int = 0
 
     /// Chart state
     @State private var selectedTimeframe: ChartTimeframe = .month
@@ -178,6 +181,7 @@ struct StockDetailView: View {
     init(stock: Stock) {
         self.stock = stock
         self._liveStock = State(initialValue: stock)
+        self._historyActivationState = State(initialValue: .notLoaded(symbol: stock.symbol))
     }
 
     // MARK: - Body
@@ -331,27 +335,60 @@ struct StockDetailView: View {
             isLoadingTechnicalSummary = true
         }
 
-        do {
-            let result = try await HistoricalPriceService.shared.fetchHistoricalPriceResult(
-                symbol: stock.symbol,
-                timeframe: .year
-            )
-            let summary = StockTechnicalAnalysisService.shared.summary(dataset: result.dataset)
+        let result = await StockDetailHistoryActivationService.shared.loadProviderHistory(
+            symbol: stock.symbol,
+            timeframe: .year
+        )
 
-            await MainActor.run {
+        await MainActor.run {
+            historyActivationState = result.state
+
+            if let dataset = result.dataset {
+                let summary = StockTechnicalAnalysisService.shared.summary(dataset: dataset)
                 technicalSummary = summary
-                isLoadingTechnicalSummary = false
-            }
-        } catch {
-            await MainActor.run {
+            } else {
                 technicalSummary = .unavailable(
                     symbol: stock.symbol,
                     reason: "Provider-backed daily candles unavailable. Technical context will appear after history loads.",
                     provenance: .unavailable(reason: "Provider-backed daily candles unavailable")
                 )
-                isLoadingTechnicalSummary = false
             }
+
+            isLoadingTechnicalSummary = false
         }
+    }
+
+    private func loadProviderHistoryFromStockDetail() async {
+        await MainActor.run {
+            isLoadingProviderHistory = true
+            isLoadingTechnicalSummary = true
+            historyActivationState = .loading(symbol: stock.symbol)
+        }
+
+        let result = await StockDetailHistoryActivationService.shared.loadProviderHistory(
+            symbol: stock.symbol,
+            timeframe: .year
+        )
+
+        await MainActor.run {
+            historyActivationState = result.state
+
+            if let dataset = result.dataset {
+                technicalSummary = StockTechnicalAnalysisService.shared.summary(dataset: dataset)
+            } else {
+                technicalSummary = .unavailable(
+                    symbol: stock.symbol,
+                    reason: "Provider-backed daily candles unavailable. Technical context will appear after history loads.",
+                    provenance: .unavailable(reason: "Provider-backed daily candles unavailable")
+                )
+            }
+
+            chartHistoryReloadToken += 1
+            isLoadingProviderHistory = false
+            isLoadingTechnicalSummary = false
+        }
+
+        await loadCosmicPatterns()
     }
 
     /// Format the last update time
@@ -581,21 +618,37 @@ struct StockDetailView: View {
             if SubscriptionManager.shared.canAccess(.historicalAstroOverlay) || AppState.isScreenshotMode {
                 HistoricalAstroChartView(
                     stock: liveStock,
-                    selectedTimeframe: $selectedTimeframe
+                    selectedTimeframe: $selectedTimeframe,
+                    reloadToken: chartHistoryReloadToken
                 )
             } else {
                 StockChartView(
                     stock: liveStock,
-                    selectedTimeframe: $selectedTimeframe
+                    selectedTimeframe: $selectedTimeframe,
+                    reloadToken: chartHistoryReloadToken
                 )
 
                 HistoricalAstroOverlayLockedCard()
             }
+
+            historyActivationSection
         }
         .padding(16)
         .background(cardBackground)
         .opacity(appearAnimation ? 1 : 0)
         .offset(y: appearAnimation ? 0 : 20)
+    }
+
+    private var historyActivationSection: some View {
+        StockDetailHistoryActivationCard(
+            state: historyActivationState,
+            isLoading: isLoadingProviderHistory,
+            onLoadHistory: {
+                Task {
+                    await loadProviderHistoryFromStockDetail()
+                }
+            }
+        )
     }
 
     private var technicalContextSection: some View {
@@ -604,7 +657,7 @@ struct StockDetailView: View {
             isLoading: isLoadingTechnicalSummary,
             onRefresh: {
                 Task {
-                    await loadTechnicalSummary()
+                    await loadProviderHistoryFromStockDetail()
                 }
             }
         )

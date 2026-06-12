@@ -4,6 +4,7 @@ import Charts
 struct HistoricalAstroChartView: View {
     let stock: Stock
     @Binding var selectedTimeframe: ChartTimeframe
+    var reloadToken: Int = 0
 
     @State private var viewModel = HistoricalAstroChartViewModel()
     @State private var scrubDate: Date?
@@ -47,7 +48,7 @@ struct HistoricalAstroChartView: View {
                 .foregroundColor(CosmicTheme.textMuted)
                 .accessibilityLabel("Historical overlay only. Correlation view, not financial advice.")
         }
-        .task(id: "\(stock.symbol)-\(selectedTimeframe.rawValue)") {
+        .task(id: "\(stock.symbol)-\(selectedTimeframe.rawValue)-\(reloadToken)") {
             scrubDate = nil
             await viewModel.load(stock: stock, timeframe: selectedTimeframe)
             AnalyticsService.shared.trackAstroOverlayViewed(

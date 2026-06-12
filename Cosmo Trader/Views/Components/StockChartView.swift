@@ -12,6 +12,7 @@ struct StockChartView: View {
 
     let stock: Stock
     @Binding var selectedTimeframe: ChartTimeframe
+    var reloadToken: Int = 0
 
     // MARK: - State
 
@@ -103,7 +104,7 @@ struct StockChartView: View {
             // Timeframe selector
             timeframeSelector
         }
-        .task(id: "\(stock.symbol)-\(selectedTimeframe.rawValue)") {
+        .task(id: "\(stock.symbol)-\(selectedTimeframe.rawValue)-\(reloadToken)") {
             await loadChartData()
         }
     }

@@ -141,6 +141,29 @@ struct ComplianceCopyGuardTests {
             #expect(violations.isEmpty)
         }
     }
+
+    @Test("Stock detail history activation copy stays compliance safe")
+    func stockDetailHistoryActivationCopyIsComplianceSafe() {
+        let states = [
+            StockDetailHistoryActivationState.notLoaded(symbol: "AAPL"),
+            StockDetailHistoryActivationState.loading(symbol: "AAPL"),
+            StockDetailHistoryActivationState.unavailable(
+                symbol: "AAPL",
+                reason: "Provider-backed historical candles unavailable."
+            )
+        ]
+
+        let messages = states.flatMap { state in
+            [state.headline, state.detail, state.actionTitle ?? ""]
+                + state.sectionStatuses.flatMap { [$0.title, $0.detail] }
+        }
+
+        let violations = messages.flatMap(ComplianceCopyScanner.violations)
+        if !violations.isEmpty {
+            Issue.record("Stock detail history activation copy violations: \(violations.map { $0.label }.joined(separator: ", "))")
+        }
+        #expect(violations.isEmpty)
+    }
 }
 
 private enum ComplianceCopyScanner {
