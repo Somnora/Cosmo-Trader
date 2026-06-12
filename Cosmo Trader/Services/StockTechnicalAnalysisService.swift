@@ -35,6 +35,15 @@ final class StockTechnicalAnalysisService {
             )
         }
 
+        if dataset.provenance.isCachedStale(staleAfter: staleAfter) {
+            return StockTechnicalSummary.unavailable(
+                symbol: dataset.symbol,
+                reason: "Cached provider-backed history is stale. Refresh provider history before showing technical metrics.",
+                provenance: dataset.provenance,
+                displayMode: .staleDataset
+            )
+        }
+
         if !dataset.completeness.allowsNumericCorrelationClaims {
             switch dataset.completeness {
             case .complete:

@@ -2,6 +2,7 @@ import Foundation
 
 enum StockTechnicalDisplayMode: Equatable {
     case providerBacked
+    case staleDataset
     case partialDataset
     case insufficientDataset
     case unavailable
@@ -48,6 +49,8 @@ struct StockTechnicalSummary: Equatable {
         switch displayMode {
         case .providerBacked:
             return "\(timeframeLabel) daily candles - \(candleCount) candles - \(completeness.label) history"
+        case .staleDataset:
+            return "Stale cached provider-backed history"
         case .partialDataset:
             return "Partial provider-backed history"
         case .insufficientDataset:

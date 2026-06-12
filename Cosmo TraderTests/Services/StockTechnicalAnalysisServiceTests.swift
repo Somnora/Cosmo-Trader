@@ -70,8 +70,8 @@ struct StockTechnicalAnalysisServiceTests {
         #expect(insufficientSummary.canShowNumericMetrics == false)
     }
 
-    @Test("Stale cached provider data is labeled while preserving source state")
-    func staleDataIsLabeled() {
+    @Test("Stale cached provider data is labeled and withholds numeric metrics")
+    func staleDataIsLabeledAndWithholdsMetrics() {
         let fetchedAt = date("2026-05-20")
         let summary = service.summary(
             dataset: dataset(
@@ -84,8 +84,10 @@ struct StockTechnicalAnalysisServiceTests {
             )
         )
 
-        #expect(summary.displayMode == .providerBacked)
-        #expect(summary.canShowNumericMetrics)
+        #expect(summary.displayMode == .staleDataset)
+        #expect(!summary.canShowNumericMetrics)
+        #expect(summary.metrics.isEmpty)
+        #expect(summary.rsi14 == nil)
         #expect(summary.provenance.indicatorLabel == "Finnhub stale")
         #expect(summary.provenance.isCachedStale())
     }
