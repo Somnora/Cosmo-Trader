@@ -321,6 +321,141 @@ struct HistoricalAstroChartViewModelHelperTests {
         #expect(AstroOverlayEventKind.fullMoon.overlayColor != AstroOverlayEventKind.newMoon.overlayColor)
     }
 
+    @Test("Stock detail history refresh requests provider-backed history")
+    func stockDetailHistoryRefreshRequestsProviderBackedHistory() async throws {
+        let cacheURL = temporaryCacheURL()
+        let now = date("2025-01-10")
+        let cache = HistoricalPriceCache(directoryURL: cacheURL, nowProvider: { now })
+        defer { try? cache.removeAll() }
+        try cache.store(
+            dataset: providerDataset(symbol: "AAPL", fetchedAt: now, closes: Array(repeating: 100.0, count: 20)),
+            timeframe: .month,
+            resolution: "D"
+        )
+
+        var fetchCount = 0
+        let service = HistoricalPriceService.testingInstance(
+            historicalPriceCache: cache,
+            cacheDuration: 3600,
+            nowProvider: { now },
+            candleFetcher: { _, _, _, _ in
+                fetchCount += 1
+                return candleResponse(closes: Array(200..<220).map(Double.init))
+            }
+        )
+        let viewModel = HistoricalAstroChartViewModel(
+            datasetStore: CorrelationDatasetStore(historicalPriceService: service)
+        )
+
+        await viewModel.load(stock: stockForHistoryActivation(), timeframe: .month)
+        #expect(fetchCount == 0)
+        #expect(viewModel.historicalPriceProvenance.isCached)
+
+        let refreshed = await viewModel.refreshProviderHistory()
+
+        #expect(refreshed)
+        #expect(fetchCount == 1)
+        #expect(viewModel.ohlcData.map(\.close) == Array(200..<220).map(Double.init))
+        #expect(viewModel.historicalPriceProvenance == .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: now))
+        #expect(viewModel.canShowHistoricalChart)
+        #expect(viewModel.historySurfaceStatuses.allSatisfy { $0.isAvailable })
+    }
+
+    @Test("Stock detail history refresh does not create sample candles")
+    func stockDetailHistoryRefreshDoesNotCreateSampleCandles() async {
+        let cacheURL = temporaryCacheURL()
+        let cache = HistoricalPriceCache(directoryURL: cacheURL)
+        defer { try? cache.removeAll() }
+        let service = HistoricalPriceService.testingInstance(
+            historicalPriceCache: cache,
+            candleFetcher: { _, _, _, _ in
+                throw HistoricalPriceError.noHistoricalData
+            }
+        )
+        let viewModel = HistoricalAstroChartViewModel(
+            datasetStore: CorrelationDatasetStore(historicalPriceService: service)
+        )
+
+        await viewModel.load(stock: stockForHistoryActivation(), timeframe: .month)
+        let refreshed = await viewModel.refreshProviderHistory()
+
+        #expect(!refreshed)
+        #expect(viewModel.ohlcData.isEmpty)
+        #expect(viewModel.summaries.isEmpty)
+        #expect(viewModel.historicalPriceProvenance == .unavailable(reason: "Historical price data unavailable"))
+        #expect(!viewModel.canShowHistoricalChart)
+        #expect(!viewModel.canShowCorrelationMetrics)
+        if case .unavailable(let message) = viewModel.historyLoadState {
+            #expect(message == "Provider-backed history unavailable. Try again later.")
+        } else {
+            Issue.record("Provider failure should keep an unavailable history load state")
+        }
+    }
+
+    @Test("Insufficient history keeps stock detail surfaces unavailable")
+    func insufficientHistoryKeepsStockDetailSurfacesUnavailable() async {
+        let now = date("2025-01-10")
+        let cacheURL = temporaryCacheURL()
+        let cache = HistoricalPriceCache(directoryURL: cacheURL)
+        defer { try? cache.removeAll() }
+        let service = HistoricalPriceService.testingInstance(
+            historicalPriceCache: cache,
+            nowProvider: { now },
+            candleFetcher: { _, _, _, _ in
+                candleResponse(closes: [100])
+            }
+        )
+        let viewModel = HistoricalAstroChartViewModel(
+            datasetStore: CorrelationDatasetStore(historicalPriceService: service)
+        )
+
+        await viewModel.load(stock: stockForHistoryActivation(), timeframe: .month)
+
+        #expect(viewModel.ohlcData.count == 1)
+        #expect(!viewModel.canShowHistoricalChart)
+        #expect(!viewModel.canShowCorrelationMetrics)
+        #expect(viewModel.needsProviderHistoryActivation)
+        #expect(viewModel.historySurfaceStatuses.allSatisfy { !$0.isAvailable })
+        #expect(viewModel.historicalPriceProvenance.indicatorLabel == "Unavailable")
+        if case .insufficient = viewModel.historicalDatasetCompleteness {
+            #expect(viewModel.historyActivationMessage.contains("Insufficient provider history"))
+        } else {
+            Issue.record("One-candle history should be marked insufficient")
+        }
+    }
+
+    @Test("Stale cached history is labeled stale")
+    func staleCachedHistoryIsLabeledStale() async throws {
+        let cacheURL = temporaryCacheURL()
+        let fetchedAt = date("2025-01-01")
+        let now = date("2025-01-10")
+        let cache = HistoricalPriceCache(directoryURL: cacheURL, nowProvider: { now })
+        defer { try? cache.removeAll() }
+        try cache.store(
+            dataset: providerDataset(symbol: "AAPL", fetchedAt: fetchedAt, closes: Array(repeating: 100.0, count: 20)),
+            timeframe: .month,
+            resolution: "D"
+        )
+        let service = HistoricalPriceService.testingInstance(
+            historicalPriceCache: cache,
+            cacheDuration: 1,
+            nowProvider: { now },
+            candleFetcher: { _, _, _, _ in
+                throw HistoricalPriceError.noHistoricalData
+            }
+        )
+        let viewModel = HistoricalAstroChartViewModel(
+            datasetStore: CorrelationDatasetStore(historicalPriceService: service)
+        )
+
+        await viewModel.load(stock: stockForHistoryActivation(), timeframe: .month)
+
+        #expect(viewModel.historicalPriceProvenance.indicatorLabel == "Finnhub stale")
+        #expect(viewModel.historicalPriceProvenance.isCachedStale())
+        #expect(viewModel.needsProviderHistoryActivation)
+        #expect(viewModel.historyActivationTitle == "Refresh history")
+    }
+
     // MARK: - Helpers
 
     private func candles(on values: [String]) -> [OHLCData] {
@@ -381,5 +516,62 @@ struct HistoricalAstroChartViewModelHelperTests {
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.date(from: value) ?? Date(timeIntervalSince1970: 0)
+    }
+
+    private func stockForHistoryActivation() -> Stock {
+        Stock(
+            symbol: "AAPL",
+            name: "Apple Inc.",
+            currentPrice: 100,
+            priceChange: 0,
+            percentageChange: 0,
+            foundedDate: date("1976-04-01"),
+            sector: "Technology"
+        )
+    }
+
+    private func providerDataset(symbol: String, fetchedAt: Date, closes: [Double]) -> HistoricalPriceDataset {
+        HistoricalPriceDataset.providerBacked(
+            symbol: symbol,
+            candles: prices(closes: closes),
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: fetchedAt,
+            requestedRange: DateInterval(start: date("2024-12-11"), end: date("2025-01-10")),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+        )
+    }
+
+    private func prices(closes: [Double]) -> [OHLCData] {
+        closes.enumerated().map { index, close in
+            let day = Calendar.current.date(byAdding: .day, value: index, to: date("2024-12-15")) ?? date("2024-12-15")
+            return OHLCData(
+                date: day,
+                open: close,
+                high: close + 1,
+                low: max(0.01, close - 1),
+                close: close,
+                volume: 1_000
+            )
+        }
+    }
+
+    private func candleResponse(closes: [Double]) -> FinnhubCandleResponse {
+        let timestamps = closes.indices.map { index in
+            Int((Calendar.current.date(byAdding: .day, value: index, to: date("2024-12-15")) ?? date("2024-12-15")).timeIntervalSince1970)
+        }
+        return FinnhubCandleResponse(
+            s: "ok",
+            t: timestamps,
+            o: closes,
+            h: closes.map { $0 + 1 },
+            l: closes.map { max(0.01, $0 - 1) },
+            c: closes,
+            v: Array(repeating: 1_000, count: closes.count)
+        )
+    }
+
+    private func temporaryCacheURL() -> URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("HistoricalAstroChartViewModelTests-\(UUID().uuidString)", isDirectory: true)
     }
 }

@@ -95,7 +95,8 @@ final class HistoricalPriceService {
 
     func fetchHistoricalPriceResult(
         symbol: String,
-        timeframe: ChartTimeframe
+        timeframe: ChartTimeframe,
+        forceRefresh: Bool = false
     ) async throws -> HistoricalPriceResult {
         let request = requestParameters(for: timeframe)
         let normalizedSymbol = symbol.uppercased()
@@ -103,7 +104,8 @@ final class HistoricalPriceService {
         let key = cacheKey(symbol: normalizedSymbol, timeframe: timeframe, resolution: request.resolution)
         let now = nowProvider()
 
-        if let memoryDataset = memoryCache[key],
+        if !forceRefresh,
+           let memoryDataset = memoryCache[key],
            now.timeIntervalSince(memoryDataset.fetchedAt) < cacheDuration {
             return HistoricalPriceResult(
                 dataset: memoryDataset.withProvenance(
@@ -119,7 +121,8 @@ final class HistoricalPriceService {
             resolution: request.resolution,
             now: now
         )
-        if let durableDataset,
+        if !forceRefresh,
+           let durableDataset,
            now.timeIntervalSince(durableDataset.fetchedAt) < cacheDuration {
             memoryCache[key] = durableDataset
             return HistoricalPriceResult(dataset: durableDataset, source: .cache)
@@ -186,9 +189,14 @@ final class HistoricalPriceService {
 
     func fetchHistoricalDataset(
         symbol: String,
-        timeframe: ChartTimeframe
+        timeframe: ChartTimeframe,
+        forceRefresh: Bool = false
     ) async throws -> HistoricalPriceDataset {
-        try await fetchHistoricalPriceResult(symbol: symbol, timeframe: timeframe).dataset
+        try await fetchHistoricalPriceResult(
+            symbol: symbol,
+            timeframe: timeframe,
+            forceRefresh: forceRefresh
+        ).dataset
     }
 
     func requestParameters(for timeframe: ChartTimeframe) -> (resolution: String, from: Date, to: Date) {

@@ -32,8 +32,16 @@ final class CorrelationDatasetStore {
         self.historicalPriceService = historicalPriceService
     }
 
-    func dataset(symbol: String, timeframe: ChartTimeframe) async throws -> HistoricalPriceDataset {
-        try await historicalPriceService.fetchHistoricalDataset(symbol: symbol, timeframe: timeframe)
+    func dataset(
+        symbol: String,
+        timeframe: ChartTimeframe,
+        forceRefresh: Bool = false
+    ) async throws -> HistoricalPriceDataset {
+        try await historicalPriceService.fetchHistoricalDataset(
+            symbol: symbol,
+            timeframe: timeframe,
+            forceRefresh: forceRefresh
+        )
     }
 
     func datasets(symbols: [String], timeframe: ChartTimeframe) async -> CorrelationHistoricalDatasetSnapshot {

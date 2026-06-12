@@ -4,6 +4,7 @@ import Charts
 struct HistoricalAstroChartView: View {
     let stock: Stock
     @Binding var selectedTimeframe: ChartTimeframe
+    var onProviderHistoryLoaded: (() async -> Void)?
 
     @State private var viewModel = HistoricalAstroChartViewModel()
     @State private var scrubDate: Date?
@@ -15,6 +16,7 @@ struct HistoricalAstroChartView: View {
             header
             chartReadout
             content
+            historyActivationPanel
             timeframeSelector
             if !viewModel.ohlcData.isEmpty {
                 AstroOverlayControls(
@@ -169,7 +171,7 @@ struct HistoricalAstroChartView: View {
             loadingState
         } else if let errorMessage = viewModel.errorMessage {
             messageState(icon: "exclamationmark.triangle", title: errorMessage)
-        } else if viewModel.ohlcData.isEmpty {
+        } else if !viewModel.canShowHistoricalChart {
             messageState(icon: "chart.line.downtrend.xyaxis", title: "Historical price data unavailable. Correlation context will appear when provider-backed history is available.")
         } else if viewModel.overlayEvents.isEmpty {
             VStack(spacing: 12) {
@@ -178,6 +180,110 @@ struct HistoricalAstroChartView: View {
             }
         } else {
             chart
+        }
+    }
+
+    @ViewBuilder
+    private var historyActivationPanel: some View {
+        if viewModel.needsProviderHistoryActivation {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "arrow.clockwise.circle")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(CosmicTheme.gold)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(spacing: 8) {
+                            Text("PROVIDER HISTORY")
+                                .font(TerminalFont.data(10, weight: .bold))
+                                .foregroundColor(CosmicTheme.textPrimary)
+                                .tracking(1)
+
+                            DataSourceIndicator(provenance: viewModel.historicalPriceProvenance, size: .compact)
+                        }
+
+                        Text(viewModel.historyActivationMessage)
+                            .font(TerminalFont.data(10))
+                            .foregroundColor(CosmicTheme.textSecondary)
+                            .lineSpacing(3)
+                    }
+                }
+
+                VStack(spacing: 7) {
+                    ForEach(viewModel.historySurfaceStatuses, id: \.label) { status in
+                        HStack(spacing: 8) {
+                            Image(systemName: status.isAvailable ? "checkmark.circle.fill" : "circle.dashed")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(status.isAvailable ? CosmicTheme.positive : CosmicTheme.textMuted)
+
+                            Text(status.label.uppercased())
+                                .font(TerminalFont.data(9, weight: .semibold))
+                                .foregroundColor(CosmicTheme.textPrimary)
+                                .frame(width: 112, alignment: .leading)
+
+                            Text(status.detail)
+                                .font(TerminalFont.data(9))
+                                .foregroundColor(CosmicTheme.textMuted)
+                                .lineLimit(2)
+
+                            Spacer(minLength: 0)
+                        }
+                    }
+                }
+
+                Button {
+                    Task {
+                        let didLoadProviderBackedHistory = await viewModel.refreshProviderHistory()
+                        if didLoadProviderBackedHistory {
+                            await onProviderHistoryLoaded?()
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        if viewModel.isLoading {
+                            ProgressView()
+                                .tint(CosmicTheme.terminalBlack)
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "arrow.down.circle.fill")
+                                .font(.system(size: 12, weight: .bold))
+                        }
+
+                        Text(viewModel.historyActivationTitle.uppercased())
+                            .font(TerminalFont.data(10, weight: .bold))
+                            .tracking(1)
+                    }
+                    .foregroundColor(CosmicTheme.terminalBlack)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(CosmicTheme.gold)
+                }
+                .buttonStyle(.plain)
+                .disabled(viewModel.isLoading)
+
+                if case .loaded(let message) = viewModel.historyLoadState {
+                    Text(message)
+                        .font(TerminalFont.data(9))
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .lineSpacing(3)
+                } else if case .unavailable(let message) = viewModel.historyLoadState {
+                    Text(message)
+                        .font(TerminalFont.data(9))
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .lineSpacing(3)
+                }
+
+                Text("Historical context only. Not financial advice.")
+                    .font(TerminalFont.data(9))
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(CosmicTheme.terminalBlack)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+            )
         }
     }
 

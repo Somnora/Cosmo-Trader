@@ -3,6 +3,13 @@ import Foundation
 @MainActor
 @Observable
 final class HistoricalAstroChartViewModel {
+    enum HistoryLoadState: Equatable {
+        case idle
+        case loading
+        case loaded(message: String)
+        case unavailable(message: String)
+    }
+
     var ohlcData: [OHLCData] = []
     var overlayEvents: [AstroOverlayEvent] = []
     var reactions: [AstroEventPriceReaction] = []
@@ -13,9 +20,19 @@ final class HistoricalAstroChartViewModel {
     var historicalDatasetCompleteness: HistoricalDatasetCompleteness = .insufficient(reason: "Historical price data unavailable")
     var isLoading = false
     var errorMessage: String?
+    var historyLoadState: HistoryLoadState = .idle
 
     private var loadedStock: Stock?
     private var loadedTimeframe: ChartTimeframe?
+    private let datasetStore: CorrelationDatasetStore
+
+    init() {
+        self.datasetStore = .shared
+    }
+
+    init(datasetStore: CorrelationDatasetStore) {
+        self.datasetStore = datasetStore
+    }
 
     var priceRange: ClosedRange<Double> {
         let closes = ohlcData.map(\.close).filter(\.isFinite)
@@ -41,6 +58,112 @@ final class HistoricalAstroChartViewModel {
             && historicalDatasetCompleteness.allowsNumericCorrelationClaims
     }
 
+    var canShowHistoricalChart: Bool {
+        #if DEBUG
+        if AppState.isScreenshotMode {
+            return ohlcData.count >= 2
+        }
+        #endif
+
+        return historicalPriceProvenance.isProviderBacked
+            && historicalDatasetCompleteness.isUsableForCorrelation
+            && ohlcData.count >= 2
+    }
+
+    var needsProviderHistoryActivation: Bool {
+        guard !isLoading else { return false }
+
+        #if DEBUG
+        if AppState.isScreenshotMode {
+            return false
+        }
+        #endif
+
+        if !historicalPriceProvenance.isProviderBacked {
+            return true
+        }
+
+        if historicalPriceProvenance.isCachedStale() {
+            return true
+        }
+
+        switch historicalDatasetCompleteness {
+        case .complete:
+            return false
+        case .partial, .insufficient:
+            return true
+        }
+    }
+
+    var historyActivationTitle: String {
+        switch historicalPriceProvenance {
+        case .cached where historicalPriceProvenance.isCachedStale():
+            return "Refresh history"
+        case .mixed:
+            return "Refresh provider history"
+        case .unavailable, .sample:
+            return "Load provider history"
+        default:
+            switch historicalDatasetCompleteness {
+            case .complete:
+                return "Refresh history"
+            case .partial, .insufficient:
+                return "Refresh provider history"
+            }
+        }
+    }
+
+    var historyActivationMessage: String {
+        switch historicalDatasetCompleteness {
+        case .partial(let reason):
+            return "Partial provider history. \(reason)"
+        case .insufficient(let reason) where !ohlcData.isEmpty:
+            return "Insufficient provider history. \(reason)"
+        case .complete, .insufficient:
+            break
+        }
+
+        switch historicalPriceProvenance {
+        case .cached where historicalPriceProvenance.isCachedStale():
+            return "Cached provider history is stale. Refresh to ask the provider for newer candles."
+        case .mixed:
+            return "Provider returned partial history. Numeric correlation stays hidden until complete history is available."
+        case .unavailable:
+            return "Provider-backed historical prices are required for chart, technical notes, and cosmic correlation."
+        case .sample:
+            return "Sample history is preview context only. Load provider history for real chart and correlation context."
+        default:
+            switch historicalDatasetCompleteness {
+            case .complete:
+                return "Provider-backed history is available."
+            case .partial(let reason):
+                return "Partial provider history. \(reason)"
+            case .insufficient(let reason):
+                return "Insufficient provider history. \(reason)"
+            }
+        }
+    }
+
+    var historySurfaceStatuses: [(label: String, detail: String, isAvailable: Bool)] {
+        [
+            (
+                label: "Chart",
+                detail: canShowHistoricalChart ? "Provider-backed candles ready" : "Needs enough provider-backed candles",
+                isAvailable: canShowHistoricalChart
+            ),
+            (
+                label: "Technical notes",
+                detail: canShowHistoricalChart ? "Pattern context can refresh" : "Needs provider-backed candle history",
+                isAvailable: canShowHistoricalChart
+            ),
+            (
+                label: "Cosmic correlation",
+                detail: canShowCorrelationMetrics ? "Numeric context available" : "Numeric context gated",
+                isAvailable: canShowCorrelationMetrics
+            )
+        ]
+    }
+
     var checkedEventKinds: [AstroOverlayEventKind] {
         let orderedKinds = AstroOverlayFilterState.defaultKinds + AstroOverlayFilterState.optionalKinds
         return orderedKinds.filter { filterState.enabledKinds.contains($0) }
@@ -50,11 +173,12 @@ final class HistoricalAstroChartViewModel {
         CorrelationWindow(daysBefore: 1, daysAfter: max(1, filterState.eventWindowDays)).displayName
     }
 
-    func load(stock: Stock, timeframe: ChartTimeframe) async {
+    func load(stock: Stock, timeframe: ChartTimeframe, forceRefresh: Bool = false) async {
         loadedStock = stock
         loadedTimeframe = timeframe
         isLoading = true
         errorMessage = nil
+        historyLoadState = .loading
 
         #if DEBUG
         if AppState.isScreenshotMode {
@@ -62,15 +186,17 @@ final class HistoricalAstroChartViewModel {
             historicalDatasetCompleteness = .complete
             historicalPriceProvenance = .sample(reason: "DEBUG screenshot fixture")
             apply(prices: prices, stock: stock, provenance: historicalPriceProvenance)
+            historyLoadState = .loaded(message: "DEBUG screenshot fixture loaded.")
             isLoading = false
             return
         }
         #endif
 
         do {
-            let dataset = try await CorrelationDatasetStore.shared.dataset(
+            let dataset = try await datasetStore.dataset(
                 symbol: stock.symbol,
-                timeframe: timeframe
+                timeframe: timeframe,
+                forceRefresh: forceRefresh
             )
             historicalDatasetCompleteness = dataset.completeness
             historicalPriceProvenance = dataset.correlationDisplayProvenance
@@ -80,6 +206,7 @@ final class HistoricalAstroChartViewModel {
                 provenance: historicalPriceProvenance,
                 completeness: dataset.completeness
             )
+            historyLoadState = .loaded(message: historySuccessMessage(for: dataset))
         } catch {
             ohlcData = []
             overlayEvents = []
@@ -89,9 +216,21 @@ final class HistoricalAstroChartViewModel {
             historicalPriceProvenance = .unavailable(reason: "Historical price data unavailable")
             historicalDatasetCompleteness = .insufficient(reason: "Historical price data unavailable")
             errorMessage = "Historical price data unavailable. Correlation context will appear when provider-backed history is available."
+            historyLoadState = .unavailable(message: "Provider-backed history unavailable. Try again later.")
         }
 
         isLoading = false
+    }
+
+    @discardableResult
+    func refreshProviderHistory() async -> Bool {
+        guard let loadedStock, let loadedTimeframe else { return false }
+
+        await load(stock: loadedStock, timeframe: loadedTimeframe, forceRefresh: true)
+        if case .unavailable = historyLoadState {
+            return false
+        }
+        return historicalPriceProvenance.isProviderBacked
     }
 
     func toggleKinds(_ kinds: Set<AstroOverlayEventKind>) {
@@ -199,6 +338,24 @@ final class HistoricalAstroChartViewModel {
             self.selectedEvent = selectedEvent
         } else {
             self.selectedEvent = preferredInitialEvent(in: events)
+        }
+    }
+
+    private func historySuccessMessage(for dataset: HistoricalPriceDataset) -> String {
+        let freshness = dataset.freshness()
+        switch (dataset.completeness, freshness) {
+        case (.complete, .live):
+            return "Provider-backed history loaded for chart, technical notes, and cosmic correlation."
+        case (.complete, .cachedFresh(_)):
+            return "Cached provider history is available for chart, technical notes, and cosmic correlation."
+        case (.complete, .cachedStale(_)):
+            return "Stale cached provider history is available. Refresh can ask the provider again."
+        case (.partial, _):
+            return "Partial provider history loaded. Numeric correlation stays hidden until complete history is available."
+        case (.insufficient, _):
+            return "Provider returned insufficient history. Chart, technical notes, and numeric correlation remain unavailable."
+        case (_, .unavailable):
+            return "Provider-backed history unavailable."
         }
     }
 

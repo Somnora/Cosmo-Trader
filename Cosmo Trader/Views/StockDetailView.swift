@@ -546,7 +546,10 @@ struct StockDetailView: View {
             if SubscriptionManager.shared.canAccess(.historicalAstroOverlay) || AppState.isScreenshotMode {
                 HistoricalAstroChartView(
                     stock: liveStock,
-                    selectedTimeframe: $selectedTimeframe
+                    selectedTimeframe: $selectedTimeframe,
+                    onProviderHistoryLoaded: {
+                        await loadCosmicPatterns()
+                    }
                 )
             } else {
                 StockChartView(
