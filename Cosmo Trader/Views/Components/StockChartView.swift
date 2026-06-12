@@ -22,7 +22,7 @@ struct StockChartView: View {
     private enum ChartLoadState: Equatable {
         case idle
         case loading
-        case loaded(provenance: FinancialDataProvenance)
+        case loaded(provenance: FinancialDataProvenance, completeness: HistoricalDatasetCompleteness)
         case unavailable(String)
     }
 
@@ -70,8 +70,8 @@ struct StockChartView: View {
 
     private var sourceText: String? {
         switch chartLoadState {
-        case .loaded(let provenance):
-            return provenance.detailText
+        case .loaded(let provenance, let completeness):
+            return "\(provenance.detailText) - \(completeness.label) history"
         case .unavailable:
             return "Historical data unavailable"
         case .idle, .loading:
@@ -81,7 +81,7 @@ struct StockChartView: View {
 
     private var chartProvenance: FinancialDataProvenance? {
         switch chartLoadState {
-        case .loaded(let provenance):
+        case .loaded(let provenance, _):
             return provenance
         case .unavailable(let message):
             return .unavailable(reason: message)
@@ -323,7 +323,7 @@ struct StockChartView: View {
 
     private var timeframeSelector: some View {
         HStack(spacing: 0) {
-            ForEach(ChartTimeframe.allCases) { timeframe in
+            ForEach(ChartTimeframe.providerHistoryCases) { timeframe in
                 Button(action: {
                     selectedTimeframe = timeframe
                 }) {
@@ -364,6 +364,16 @@ struct StockChartView: View {
                 .map { PricePoint(date: $0.date, price: $0.close) }
                 .filter { $0.price.isFinite && $0.price > 0 }
 
+            guard result.provenance.isProviderBacked,
+                  result.completeness.allowsNumericCorrelationClaims else {
+                chartData = []
+                chartLoadState = .unavailable(chartUnavailableMessage(
+                    provenance: result.provenance,
+                    completeness: result.completeness
+                ))
+                return
+            }
+
             guard points.count >= 2 else {
                 chartData = []
                 chartLoadState = .unavailable("Chart will appear when provider data is available.")
@@ -372,7 +382,10 @@ struct StockChartView: View {
 
             withAnimation(.easeInOut(duration: 0.25)) {
                 chartData = points
-                chartLoadState = .loaded(provenance: result.provenance)
+                chartLoadState = .loaded(
+                    provenance: result.provenance,
+                    completeness: result.completeness
+                )
             }
         } catch {
             chartData = []
@@ -410,10 +423,28 @@ struct StockChartView: View {
             formatter.dateFormat = "E h:mm a"
         case .month, .threeMonth, .sixMonth:
             formatter.dateFormat = "MMM d"
-        case .year, .all:
+        case .year, .twoYear, .all:
             formatter.dateFormat = "MMM d, yyyy"
         }
         return formatter.string(from: date)
+    }
+
+    private func chartUnavailableMessage(
+        provenance: FinancialDataProvenance,
+        completeness: HistoricalDatasetCompleteness
+    ) -> String {
+        if !provenance.isProviderBacked {
+            return "Chart will appear when provider-backed history is available."
+        }
+
+        switch completeness {
+        case .complete:
+            return "Chart will appear when enough provider-backed history is available."
+        case .partial(let reason):
+            return "Partial historical dataset. \(reason). Chart will appear when complete provider-backed history is available."
+        case .insufficient(let reason):
+            return "Insufficient historical dataset. \(reason). Chart will appear when more provider-backed history is available."
+        }
     }
 
 }

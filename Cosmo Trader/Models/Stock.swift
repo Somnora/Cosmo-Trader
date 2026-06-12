@@ -1261,9 +1261,24 @@ enum ChartTimeframe: String, CaseIterable, Identifiable, Hashable {
     case threeMonth = "3M"
     case sixMonth = "6M"
     case year = "1Y"
+    case twoYear = "2Y"
     case all = "ALL"
 
     var id: String { rawValue }
+
+    /// Provider-backed chart windows shown on stock detail chart surfaces.
+    ///
+    /// Intraday/weekly/all-time ranges remain supported by the model where
+    /// existing callers need them, but the primary stock chart and historical
+    /// astro overlay use these daily-candle windows so source and completeness
+    /// gates are consistent.
+    static let providerHistoryCases: [ChartTimeframe] = [
+        .month,
+        .threeMonth,
+        .sixMonth,
+        .year,
+        .twoYear
+    ]
 
     /// Human-readable description
     var description: String {
@@ -1274,6 +1289,7 @@ enum ChartTimeframe: String, CaseIterable, Identifiable, Hashable {
         case .threeMonth: return "Past 3 Months"
         case .sixMonth: return "Past 6 Months"
         case .year: return "Past Year"
+        case .twoYear: return "Past 2 Years"
         case .all: return "All Time"
         }
     }
@@ -1287,6 +1303,7 @@ enum ChartTimeframe: String, CaseIterable, Identifiable, Hashable {
         case .threeMonth: return 66
         case .sixMonth: return 126
         case .year: return 252
+        case .twoYear: return 504
         case .all: return 1260  // 5 years
         }
     }

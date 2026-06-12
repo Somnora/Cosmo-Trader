@@ -14,7 +14,11 @@ struct HistoricalAstroChartView: View {
         VStack(alignment: .leading, spacing: 14) {
             header
             chartReadout
+            chartSourceLabel
             content
+            if viewModel.canRenderHistoricalChart {
+                eventLegend
+            }
             timeframeSelector
             if !viewModel.ohlcData.isEmpty {
                 AstroOverlayControls(
@@ -169,8 +173,8 @@ struct HistoricalAstroChartView: View {
             loadingState
         } else if let errorMessage = viewModel.errorMessage {
             messageState(icon: "exclamationmark.triangle", title: errorMessage)
-        } else if viewModel.ohlcData.isEmpty {
-            messageState(icon: "chart.line.downtrend.xyaxis", title: "Historical price data unavailable. Correlation context will appear when provider-backed history is available.")
+        } else if !viewModel.canRenderHistoricalChart {
+            messageState(icon: "chart.line.downtrend.xyaxis", title: viewModel.chartUnavailableMessage)
         } else if viewModel.overlayEvents.isEmpty {
             VStack(spacing: 12) {
                 chart
@@ -356,7 +360,7 @@ struct HistoricalAstroChartView: View {
 
     private var timeframeSelector: some View {
         HStack(spacing: 0) {
-            ForEach(ChartTimeframe.allCases) { timeframe in
+            ForEach(ChartTimeframe.providerHistoryCases) { timeframe in
                 Button {
                     selectedTimeframe = timeframe
                     AnalyticsService.shared.trackChartTimeframeChanged(
@@ -380,6 +384,43 @@ struct HistoricalAstroChartView: View {
                 .stroke(CosmicTheme.border, lineWidth: 1)
         )
         .accessibilityLabel("Chart timeframe")
+    }
+
+    private var chartSourceLabel: some View {
+        HStack(spacing: 6) {
+            DataSourceIndicator(provenance: viewModel.historicalPriceProvenance, size: .compact)
+
+            Text(viewModel.chartSourceLine)
+                .font(TerminalFont.data(9))
+                .foregroundColor(CosmicTheme.textMuted)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+        }
+        .accessibilityLabel("Chart source: \(viewModel.chartSourceLine)")
+    }
+
+    private var eventLegend: some View {
+        HStack(spacing: 8) {
+            ForEach(legendKinds, id: \.self) { kind in
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(kind.overlayColor)
+                        .frame(width: 6, height: 6)
+
+                    Text(kind.displayName.uppercased())
+                        .font(TerminalFont.data(8, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 2)
+        .accessibilityLabel("Astro overlay marker legend")
     }
 
     // MARK: - Selected Event Panel
@@ -514,6 +555,21 @@ struct HistoricalAstroChartView: View {
     private var scrubEvent: AstroOverlayEvent? {
         guard let scrubDate else { return nil }
         return viewModel.nearestEvent(to: scrubDate, within: 60 * 60 * 24 * 5)
+    }
+
+    private var legendKinds: [AstroOverlayEventKind] {
+        let preferred: [AstroOverlayEventKind] = [
+            .fullMoon,
+            .newMoon,
+            .mercuryRetrograde,
+            .companyFoundingAnniversary,
+            .companyBirthMonth,
+            .firstQuarter,
+            .lastQuarter,
+            .moonInSign
+        ]
+        let present = Set(viewModel.overlayEvents.map(\.kind))
+        return preferred.filter { present.contains($0) }
     }
 
     private var curveMoonEvents: [AstroOverlayEvent] {

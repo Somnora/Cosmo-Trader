@@ -41,6 +41,45 @@ final class HistoricalAstroChartViewModel {
             && historicalDatasetCompleteness.allowsNumericCorrelationClaims
     }
 
+    var canRenderHistoricalChart: Bool {
+        historicalPriceProvenance.isProviderBacked
+            && historicalDatasetCompleteness.allowsNumericCorrelationClaims
+            && ohlcData.count >= 2
+    }
+
+    var chartSourceLine: String {
+        switch historicalPriceProvenance {
+        case .live, .cached:
+            return "\(historicalPriceProvenance.detailText) - \(historicalDatasetCompleteness.label) history"
+        case .mixed:
+            return "Partial provider-backed history"
+        case .unavailable:
+            return "Provider-backed history unavailable"
+        case .sample:
+            return "Sample chart mode is preview-only"
+        }
+    }
+
+    var chartUnavailableMessage: String {
+        switch historicalPriceProvenance {
+        case .sample:
+            return "Sample chart mode is preview-only. Provider-backed history is required for historical overlays."
+        case .mixed:
+            return historicalDatasetCompleteness.reason.map {
+                "Partial historical dataset. \($0). Chart overlays will appear when complete provider-backed history is available."
+            } ?? "Partial historical dataset. Chart overlays will appear when complete provider-backed history is available."
+        case .unavailable:
+            return historicalDatasetCompleteness.reason.map {
+                "Insufficient historical dataset. \($0). Chart overlays will appear when provider-backed history is available."
+            } ?? "Historical price data unavailable. Correlation context will appear when provider-backed history is available."
+        case .live, .cached:
+            if ohlcData.count < 2 {
+                return "Not enough provider-backed price history for the selected chart window."
+            }
+            return "Complete provider-backed history is required for historical overlays."
+        }
+    }
+
     var checkedEventKinds: [AstroOverlayEventKind] {
         let orderedKinds = AstroOverlayFilterState.defaultKinds + AstroOverlayFilterState.optionalKinds
         return orderedKinds.filter { filterState.enabledKinds.contains($0) }
@@ -74,6 +113,16 @@ final class HistoricalAstroChartViewModel {
             )
             historicalDatasetCompleteness = dataset.completeness
             historicalPriceProvenance = dataset.correlationDisplayProvenance
+
+            guard Self.allowsChartRendering(
+                prices: dataset.ohlcData,
+                provenance: historicalPriceProvenance,
+                completeness: dataset.completeness
+            ) else {
+                clearChartData()
+                return
+            }
+
             apply(
                 prices: dataset.ohlcData,
                 stock: stock,
@@ -160,6 +209,13 @@ final class HistoricalAstroChartViewModel {
         provenance: FinancialDataProvenance,
         completeness: HistoricalDatasetCompleteness
     ) {
+        guard Self.allowsChartRendering(prices: prices, provenance: provenance, completeness: completeness) else {
+            clearChartData()
+            historicalPriceProvenance = provenance
+            historicalDatasetCompleteness = completeness
+            return
+        }
+
         ohlcData = prices.sorted { $0.date < $1.date }
         historicalPriceProvenance = provenance
         historicalDatasetCompleteness = completeness
@@ -232,6 +288,24 @@ final class HistoricalAstroChartViewModel {
         return events.first
     }
 
+    static func allowsChartRendering(
+        prices: [OHLCData],
+        provenance: FinancialDataProvenance,
+        completeness: HistoricalDatasetCompleteness
+    ) -> Bool {
+        provenance.isProviderBacked
+            && completeness.allowsNumericCorrelationClaims
+            && prices.count >= 2
+    }
+
+    private func clearChartData() {
+        ohlcData = []
+        overlayEvents = []
+        reactions = []
+        summaries = []
+        selectedEvent = nil
+    }
+
     // MARK: - Demo data for screenshot mode
 
     #if DEBUG
@@ -249,6 +323,7 @@ final class HistoricalAstroChartViewModel {
             case .threeMonth: return 92
             case .sixMonth: return 182
             case .year: return 180
+            case .twoYear: return 365
             case .all: return 365
             }
         }()
