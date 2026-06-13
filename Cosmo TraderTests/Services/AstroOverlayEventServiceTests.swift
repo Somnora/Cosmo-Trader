@@ -418,6 +418,125 @@ struct HistoricalAstroChartViewModelHelperTests {
         #expect(viewModel.nearestEvent(to: date("2025-01-14"), within: 60 * 60 * 24 * 5)?.kind == .mercuryRetrograde)
     }
 
+    @Test("stock detail chart timeframes use historical ranges only")
+    func stockDetailChartTimeframesUseHistoricalRangesOnly() {
+        #expect(ChartTimeframe.stockDetailHistoricalCases == [.month, .threeMonth, .sixMonth, .year, .twoYear])
+        #expect(!ChartTimeframe.stockDetailHistoricalCases.contains(.day))
+        #expect(!ChartTimeframe.stockDetailHistoricalCases.contains(.week))
+        #expect(!ChartTimeframe.stockDetailHistoricalCases.contains(.all))
+    }
+
+    @Test("complete provider-backed candles can render chart context")
+    func completeProviderBackedCandlesCanRenderChartContext() {
+        let dataset = providerDataset(
+            candles: candles(on: ["2025-01-01", "2025-01-06", "2025-01-11"]),
+            requestedStart: "2025-01-01",
+            requestedEnd: "2025-01-11",
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-11"))
+        )
+
+        let quality = HistoricalChartDataQuality.evaluate(dataset: dataset)
+
+        #expect(quality.canRenderChart)
+        #expect(quality.provenance.isProviderBacked)
+        #expect(quality.completeness == .complete)
+    }
+
+    @Test("fresh cached candles can render chart context")
+    func freshCachedCandlesCanRenderChartContext() {
+        let dataset = providerDataset(
+            candles: candles(on: ["2025-01-01", "2025-01-06", "2025-01-11"]),
+            requestedStart: "2025-01-01",
+            requestedEnd: "2025-01-11",
+            provenance: .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-11"), age: 60)
+        )
+
+        let quality = HistoricalChartDataQuality.evaluate(dataset: dataset)
+
+        #expect(quality.canRenderChart)
+        #expect(quality.provenance.isProviderBacked)
+    }
+
+    @Test("stale cached candles cannot render chart context")
+    func staleCachedCandlesCannotRenderChartContext() {
+        let dataset = providerDataset(
+            candles: candles(on: ["2025-01-01", "2025-01-06", "2025-01-11"]),
+            requestedStart: "2025-01-01",
+            requestedEnd: "2025-01-11",
+            provenance: .cached(
+                provider: FinancialDataProvenance.finnhubProvider,
+                fetchedAt: date("2025-01-11"),
+                age: FinancialDataProvenance.defaultCachedStaleInterval + 1
+            )
+        )
+
+        let quality = HistoricalChartDataQuality.evaluate(dataset: dataset)
+
+        #expect(!quality.canRenderChart)
+        #expect(quality.unavailableTitle == "Cached history is stale")
+        #expect(quality.provenance.isCachedStale())
+    }
+
+    @Test("partial and insufficient candles cannot render chart context")
+    func partialAndInsufficientCandlesCannotRenderChartContext() {
+        let partial = providerDataset(
+            candles: candles(on: ["2025-01-10", "2025-01-11"]),
+            requestedStart: "2025-01-01",
+            requestedEnd: "2025-01-11",
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-11"))
+        )
+        let insufficient = providerDataset(
+            candles: candles(on: ["2025-01-11"]),
+            requestedStart: "2025-01-01",
+            requestedEnd: "2025-01-11",
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-11"))
+        )
+
+        #expect(!HistoricalChartDataQuality.evaluate(dataset: partial).canRenderChart)
+        #expect(!HistoricalChartDataQuality.evaluate(dataset: insufficient).canRenderChart)
+    }
+
+    @Test("sample chart provenance cannot render production chart context")
+    func sampleChartProvenanceCannotRenderProductionChartContext() {
+        let sample = providerDataset(
+            candles: candles(on: ["2025-01-01", "2025-01-06", "2025-01-11"]),
+            requestedStart: "2025-01-01",
+            requestedEnd: "2025-01-11",
+            provenance: .sample(reason: "Preview fixture")
+        )
+
+        let quality = HistoricalChartDataQuality.evaluate(dataset: sample)
+
+        #expect(!quality.canRenderChart)
+        #expect(!quality.provenance.isProviderBacked)
+    }
+
+    @Test("visible legend kinds prioritize moon and Mercury markers")
+    func visibleLegendKindsPrioritizeMoonAndMercuryMarkers() {
+        let viewModel = HistoricalAstroChartViewModel()
+        viewModel.overlayEvents = [
+            pointEvent(on: "2025-01-05"),
+            rangeEvent(start: "2025-01-10", end: "2025-01-20"),
+            AstroOverlayEvent(
+                id: "new-moon",
+                kind: .newMoon,
+                title: "New Moon",
+                subtitle: nil,
+                startDate: date("2025-01-29"),
+                endDate: nil,
+                markerDate: date("2025-01-29"),
+                intensity: .high,
+                affectedElements: [],
+                affectedSectors: [],
+                iconSystemName: "moonphase.new.moon",
+                source: .calculatedMoonPhase,
+                isEstimated: false
+            )
+        ]
+
+        #expect(viewModel.visibleLegendKinds.prefix(3).map(\.self) == [.fullMoon, .newMoon, .mercuryRetrograde])
+    }
+
     // MARK: - Helpers
 
     private func candles(on values: [String]) -> [OHLCData] {
@@ -468,6 +587,22 @@ struct HistoricalAstroChartViewModelHelperTests {
             iconSystemName: "arrow.uturn.backward.circle.fill",
             source: .curatedDataset,
             isEstimated: true
+        )
+    }
+
+    private func providerDataset(
+        candles: [OHLCData],
+        requestedStart: String,
+        requestedEnd: String,
+        provenance: FinancialDataProvenance
+    ) -> HistoricalPriceDataset {
+        HistoricalPriceDataset.providerBacked(
+            symbol: "AAPL",
+            candles: candles,
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: date(requestedEnd),
+            requestedRange: DateInterval(start: date(requestedStart), end: date(requestedEnd)),
+            provenance: provenance
         )
     }
 

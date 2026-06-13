@@ -52,6 +52,10 @@ struct HistoricalAstroChartView: View {
             }
             chartReadout
             content
+            chartDataQualityBar
+            if viewModel.canRenderHistoricalChart, !viewModel.visibleLegendKinds.isEmpty {
+                astroMarkerLegend
+            }
             timeframeSelector
             if !viewModel.ohlcData.isEmpty {
                 AstroOverlayControls(
@@ -206,6 +210,11 @@ struct HistoricalAstroChartView: View {
             loadingState
         } else if let errorMessage = viewModel.errorMessage {
             messageState(icon: "exclamationmark.triangle", title: errorMessage)
+        } else if !viewModel.canRenderHistoricalChart {
+            messageState(
+                icon: viewModel.historicalPriceProvenance.isCachedStale() ? "clock.arrow.circlepath" : "chart.line.downtrend.xyaxis",
+                title: "\(viewModel.chartUnavailableTitle). \(viewModel.chartUnavailableMessage)"
+            )
         } else if viewModel.ohlcData.isEmpty {
             messageState(icon: "chart.line.downtrend.xyaxis", title: "Historical price data unavailable. Correlation context will appear when provider-backed history is available.")
         } else if viewModel.overlayEvents.isEmpty {
@@ -216,6 +225,74 @@ struct HistoricalAstroChartView: View {
         } else {
             chart
         }
+    }
+
+    private var chartDataQualityBar: some View {
+        HStack(spacing: 8) {
+            DataSourceIndicator(provenance: viewModel.historicalPriceProvenance, size: .compact)
+
+            Text(viewModel.historicalDatasetCompleteness.label.uppercased())
+                .font(TerminalFont.data(8, weight: .bold))
+                .foregroundColor(CosmicTheme.textMuted)
+                .tracking(0.6)
+
+            Spacer()
+
+            Text("HISTORICAL CONTEXT")
+                .font(TerminalFont.data(8, weight: .bold))
+                .foregroundColor(CosmicTheme.textMuted)
+                .tracking(0.6)
+        }
+        .padding(.horizontal, 2)
+        .accessibilityLabel("Chart source, freshness, and completeness")
+    }
+
+    private var astroMarkerLegend: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text("ASTRO MARKERS")
+                .font(TerminalFont.data(8, weight: .bold))
+                .foregroundColor(CosmicTheme.textMuted)
+                .tracking(0.8)
+
+            HStack(spacing: 8) {
+                ForEach(viewModel.visibleLegendKinds.prefix(5), id: \.self) { kind in
+                    HStack(spacing: 5) {
+                        if kind == .mercuryRetrograde {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(kind.overlayColor.opacity(0.22))
+                                .frame(width: 16, height: 7)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .stroke(kind.overlayColor.opacity(0.55), lineWidth: 0.6)
+                                )
+                        } else {
+                            Circle()
+                                .fill(kind == .fullMoon ? CosmicTheme.terminalBlack : kind.overlayColor)
+                                .overlay(
+                                    Circle()
+                                        .stroke(kind.overlayColor.opacity(0.9), lineWidth: kind == .fullMoon ? 1.5 : 0.6)
+                                )
+                                .frame(width: 8, height: 8)
+                        }
+
+                        Text(kind.displayName.uppercased())
+                            .font(TerminalFont.data(8, weight: .semibold))
+                            .foregroundColor(CosmicTheme.textSecondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                    .accessibilityLabel("\(kind.displayName) chart marker")
+                }
+
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(10)
+        .background(CosmicTheme.cardBackground.opacity(0.5))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+        )
     }
 
     private var chart: some View {
@@ -413,7 +490,7 @@ struct HistoricalAstroChartView: View {
 
     private var timeframeSelector: some View {
         HStack(spacing: 0) {
-            ForEach(ChartTimeframe.allCases) { timeframe in
+            ForEach(ChartTimeframe.stockDetailHistoricalCases) { timeframe in
                 Button {
                     selectedTimeframe = timeframe
                     AnalyticsService.shared.trackChartTimeframeChanged(
