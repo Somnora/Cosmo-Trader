@@ -29,9 +29,13 @@ struct StockTechnicalAnalysisServiceTests {
         #expect(shortSummary.movingAverage20 != nil)
         #expect(shortSummary.movingAverage50 != nil)
         #expect(shortSummary.movingAverage200 == nil)
+        #expect(shortSummary.metrics.contains { $0.id == "ma-20" })
+        #expect(shortSummary.metrics.contains { $0.id == "ma-50" })
+        #expect(!shortSummary.metrics.contains { $0.id == "ma-200" })
 
         #expect(longSummary.displayMode == .providerBacked)
         #expect(longSummary.movingAverage200 != nil)
+        #expect(longSummary.metrics.contains { $0.id == "ma-200" })
     }
 
     @Test("Sample and unavailable history produces no numeric technical claims")
@@ -68,6 +72,21 @@ struct StockTechnicalAnalysisServiceTests {
         #expect(insufficientSummary.metrics.isEmpty)
         #expect(partialSummary.canShowNumericMetrics == false)
         #expect(insufficientSummary.canShowNumericMetrics == false)
+    }
+
+    @Test("Support and resistance are withheld when candles are insufficient")
+    func supportResistanceRequiresEnoughProviderBackedCandles() {
+        let shortSummary = service.summary(dataset: dataset(count: 55))
+        let fullSummary = service.summary(dataset: dataset(count: 90))
+
+        #expect(shortSummary.displayMode == .providerBacked)
+        #expect(shortSummary.supportCandidate == nil)
+        #expect(shortSummary.resistanceCandidate == nil)
+        #expect(shortSummary.supportResistanceMetric == nil)
+
+        #expect(fullSummary.supportCandidate != nil)
+        #expect(fullSummary.resistanceCandidate != nil)
+        #expect(fullSummary.supportResistanceMetric != nil)
     }
 
     @Test("Stale cached provider data is labeled and withholds numeric metrics")

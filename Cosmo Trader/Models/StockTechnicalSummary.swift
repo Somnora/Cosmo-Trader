@@ -65,13 +65,42 @@ struct StockTechnicalSummary: Equatable {
     var metrics: [StockTechnicalMetric] {
         guard canShowNumericMetrics else { return [] }
 
-        return [
-            StockTechnicalMetric(
-                id: "trend",
-                label: "Trend context",
-                value: movingAverage50.map { "50D \(Self.currency($0))" } ?? "N/A",
-                detail: trendContext
-            ),
+        var items: [StockTechnicalMetric] = []
+
+        if let movingAverage20 {
+            items.append(
+                StockTechnicalMetric(
+                    id: "ma-20",
+                    label: "20D average",
+                    value: Self.currency(movingAverage20),
+                    detail: "Shorter-term trend context from provider-backed closes."
+                )
+            )
+        }
+
+        if let movingAverage50 {
+            items.append(
+                StockTechnicalMetric(
+                    id: "ma-50",
+                    label: "50D average",
+                    value: Self.currency(movingAverage50),
+                    detail: trendContext
+                )
+            )
+        }
+
+        if let movingAverage200 {
+            items.append(
+                StockTechnicalMetric(
+                    id: "ma-200",
+                    label: "200D average",
+                    value: Self.currency(movingAverage200),
+                    detail: "Longer-term trend context. Shown only when enough provider-backed candles exist."
+                )
+            )
+        }
+
+        items += [
             StockTechnicalMetric(
                 id: "momentum",
                 label: "Momentum context",
@@ -91,6 +120,8 @@ struct StockTechnicalSummary: Equatable {
                 detail: volatilityContext
             )
         ]
+
+        return items
     }
 
     var rangeMetric: StockTechnicalMetric? {
