@@ -67,6 +67,20 @@ struct PortfolioView: View {
         )
     }
 
+    private var canShowDailyPL: Bool {
+        portfolioDailyPLProvenance.isProviderBacked
+    }
+
+    private var portfolioIntelligenceSummary: PortfolioIntelligenceSummary {
+        PortfolioIntelligenceSummary.make(
+            holdings: holdings,
+            quoteProvenanceBySymbol: quoteProvenanceBySymbol,
+            historicalIncludedWeight: portfolioCorrelationViewModel.includedPortfolioWeight,
+            historicalProvenance: portfolioCorrelationViewModel.historicalPriceProvenance,
+            unavailableHistorySymbols: portfolioCorrelationViewModel.unavailableHoldings
+        )
+    }
+
     private var portfolioCorrelationSignature: String {
         holdings
             .map { "\($0.symbol.uppercased()):\($0.sharesOwned):\($0.marketValue)" }
@@ -80,8 +94,10 @@ struct PortfolioView: View {
 
         for stock in holdings {
             guard let element = stock.foundedElement else { continue }
-            elementValues[element, default: 0] += stock.totalValue
-            analyzedTotalValue += stock.totalValue
+            let value = stock.marketValue
+            guard value > 0 else { continue }
+            elementValues[element, default: 0] += value
+            analyzedTotalValue += value
         }
 
         guard analyzedTotalValue > 0 else { return [] }
@@ -144,11 +160,11 @@ struct PortfolioView: View {
     private var framedRebalancingSectionHeader: String {
         switch framingLevel {
         case .rational:
-            return "REBALANCING"
+            return "CONCENTRATION NOTES"
         case .leanRational:
-            return "REBALANCING SUGGESTIONS"
+            return "BALANCE NOTES"
         default:
-            return "COSMIC REBALANCING"
+            return "COSMIC BALANCE NOTES"
         }
     }
 
@@ -156,11 +172,11 @@ struct PortfolioView: View {
     private var framedRebalancingIntro: String {
         switch framingLevel {
         case .rational:
-            return "To improve diversification, consider:"
+            return "Context to compare against your own plan:"
         case .leanRational:
-            return "To improve balance, consider:"
+            return "Portfolio composition context:"
         default:
-            return "To improve cosmic alignment, consider:"
+            return "Cosmic composition context:"
         }
     }
 
@@ -204,6 +220,11 @@ struct PortfolioView: View {
                         portfolioHeader
 
                         dividerLine
+
+                        if !holdings.isEmpty {
+                            portfolioIntelligenceSection
+                            dividerLine
+                        }
 
                         if !holdings.isEmpty {
                             screenshotProofSection
@@ -438,12 +459,14 @@ struct PortfolioView: View {
                     .tracking(1)
 
                 HStack(spacing: 4) {
-                    Text(safeUser.formattedDailyChange)
+                    Text(canShowDailyPL ? safeUser.formattedDailyChange : "—")
                         .font(TerminalFont.price(18))
-                    Text("(\(safeUser.formattedDailyChangePercent))")
-                        .font(TerminalFont.price(14))
+                    if canShowDailyPL {
+                        Text("(\(safeUser.formattedDailyChangePercent))")
+                            .font(TerminalFont.price(14))
+                    }
                 }
-                .foregroundColor(safeUser.isPortfolioPositive ? CosmicTheme.positive : CosmicTheme.negative)
+                .foregroundColor(canShowDailyPL ? (safeUser.isPortfolioPositive ? CosmicTheme.positive : CosmicTheme.negative) : CosmicTheme.textMuted)
 
                 DataSourceIndicator(provenance: portfolioDailyPLProvenance, size: .compact)
             }
@@ -451,6 +474,263 @@ struct PortfolioView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 16)
+    }
+
+    private var portfolioIntelligenceSection: some View {
+        let summary = portfolioIntelligenceSummary
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 8) {
+                Image(systemName: "chart.bar.doc.horizontal")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.gold.opacity(0.8))
+
+                Text("PORTFOLIO INTELLIGENCE")
+                    .font(TerminalFont.data(10, weight: .semibold))
+                    .foregroundColor(CosmicTheme.gold)
+                    .tracking(1)
+
+                Spacer()
+
+                DataSourceIndicator(provenance: summary.valueProvenance, size: .compact)
+            }
+
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 8)
+                ],
+                spacing: 8
+            ) {
+                portfolioInsightCard(
+                    label: "STORED VALUE",
+                    value: summary.formattedStoredValue,
+                    detail: "Saved setup value",
+                    provenance: summary.valueProvenance
+                )
+                portfolioInsightCard(
+                    label: "QUOTE COVERAGE",
+                    value: summary.formattedQuoteCoverage,
+                    detail: "Provider-backed value",
+                    provenance: summary.valueProvenance
+                )
+                portfolioInsightCard(
+                    label: "TOP 3 CONC.",
+                    value: summary.formattedTopThreeConcentration,
+                    detail: "Largest holdings share",
+                    provenance: .sample(reason: "Stored portfolio composition from user holdings")
+                )
+                portfolioInsightCard(
+                    label: "HISTORY",
+                    value: summary.formattedHistoryCoverage,
+                    detail: "70% unlock threshold",
+                    provenance: summary.historyProvenance
+                )
+            }
+
+            portfolioHistoryUnlockRow(summary)
+
+            if !summary.topHoldings.isEmpty {
+                portfolioExposureRows(
+                    title: "TOP HOLDINGS",
+                    subtitle: "Market-value weighted from your stored holdings.",
+                    exposures: summary.topHoldings
+                )
+            }
+
+            portfolioCompositionRows(summary)
+        }
+        .padding(14)
+        .terminalPanel(.navy)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .accessibilityIdentifier("portfolio.intelligenceDashboard")
+    }
+
+    private func portfolioInsightCard(
+        label: String,
+        value: String,
+        detail: String,
+        provenance: FinancialDataProvenance
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(provenance.color)
+                    .frame(width: 5, height: 5)
+
+                Text(label)
+                    .font(TerminalFont.data(8, weight: .bold))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .tracking(0.7)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+
+            Text(value)
+                .font(TerminalFont.price(18))
+                .foregroundColor(CosmicTheme.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+
+            Text(detail)
+                .font(TerminalFont.data(8))
+                .foregroundColor(CosmicTheme.textMuted)
+                .lineLimit(2)
+                .minimumScaleFactor(0.76)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 86, alignment: .leading)
+        .background(CosmicTheme.panelElevated.opacity(0.78))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+        )
+    }
+
+    private func portfolioHistoryUnlockRow(_ summary: PortfolioIntelligenceSummary) -> some View {
+        HStack(alignment: .top, spacing: 9) {
+            Image(systemName: summary.isPortfolioCorrelationUnlocked ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(summary.isPortfolioCorrelationUnlocked ? CosmicTheme.positive : CosmicTheme.gold)
+                .frame(width: 16)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(summary.isPortfolioCorrelationUnlocked ? "CORRELATION READY" : "CORRELATION UNLOCK")
+                    .font(TerminalFont.data(9, weight: .bold))
+                    .foregroundColor(CosmicTheme.textPrimary)
+                    .tracking(0.8)
+
+                Text(summary.historyUnlockText)
+                    .font(TerminalFont.data(10))
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if !summary.historyUnavailableSymbols.isEmpty {
+                    Text("History needed: \(summary.historyUnavailableSymbols.prefix(5).joined(separator: ", "))")
+                        .font(TerminalFont.data(8))
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.75)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            DataSourceIndicator(provenance: summary.historyProvenance, size: .compact)
+        }
+        .padding(10)
+        .background(CosmicTheme.gold.opacity(0.06))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.gold.opacity(0.24), lineWidth: 0.75)
+        )
+    }
+
+    private func portfolioExposureRows(
+        title: String,
+        subtitle: String,
+        exposures: [PortfolioIntelligenceExposure]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Text(title)
+                    .font(TerminalFont.data(9, weight: .bold))
+                    .foregroundColor(CosmicTheme.textPrimary)
+                    .tracking(0.8)
+
+                Spacer()
+
+                Text(subtitle)
+                    .font(TerminalFont.data(8))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+
+            ForEach(exposures.prefix(3)) { exposure in
+                portfolioBreakdownRow(exposure)
+            }
+        }
+    }
+
+    private func portfolioCompositionRows(_ summary: PortfolioIntelligenceSummary) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
+                Text("COSMIC COMPOSITION")
+                    .font(TerminalFont.data(9, weight: .bold))
+                    .foregroundColor(CosmicTheme.textPrimary)
+                    .tracking(0.8)
+
+                Spacer()
+
+                Text("\(summary.formattedVerifiedAstrologyCoverage) verified")
+                    .font(TerminalFont.data(8, weight: .semibold))
+                    .foregroundColor(CosmicTheme.gold)
+            }
+
+            if let topElement = summary.elementBreakdown.first {
+                portfolioBreakdownRow(topElement, prefix: "Element")
+            }
+
+            if let topSign = summary.zodiacBreakdown.first {
+                portfolioBreakdownRow(topSign, prefix: "Sign")
+            }
+
+            if let topSector = summary.sectorBreakdown.first {
+                portfolioBreakdownRow(topSector, prefix: "Sector")
+            }
+
+            HStack(alignment: .top, spacing: 7) {
+                Text("?")
+                    .font(TerminalFont.data(11, weight: .bold))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .frame(width: 14)
+
+                Text(summary.astrologyCoverageText)
+                    .font(TerminalFont.data(9))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func portfolioBreakdownRow(
+        _ exposure: PortfolioIntelligenceExposure,
+        prefix: String? = nil
+    ) -> some View {
+        HStack(spacing: 8) {
+            Text(prefix.map { "\($0): \(exposure.label)" } ?? exposure.label)
+                .font(TerminalFont.data(10, weight: .semibold))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Rectangle()
+                        .fill(CosmicTheme.border)
+                        .frame(height: 7)
+
+                    Rectangle()
+                        .fill(CosmicTheme.gold.opacity(0.82))
+                        .frame(width: geometry.size.width * CGFloat(min(max(exposure.percentage, 0), 1)), height: 7)
+                }
+            }
+            .frame(height: 7)
+
+            VStack(alignment: .trailing, spacing: 1) {
+                Text(exposure.formattedPercentage)
+                    .font(TerminalFont.price(10))
+                    .foregroundColor(CosmicTheme.textPrimary)
+
+                Text(exposure.formattedValue)
+                    .font(TerminalFont.data(7))
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+            .frame(width: 54, alignment: .trailing)
+        }
+        .frame(minHeight: 20)
     }
 
     private var screenshotProofSection: some View {
@@ -875,8 +1155,8 @@ struct PortfolioView: View {
     }
 
     private func allocationBar(for stock: Stock) -> some View {
-        let totalValue = safeUser.totalPortfolioValue
-        let allocation = totalValue > 0 ? (stock.totalValue / totalValue) * 100 : 0
+        let totalValue = holdings.reduce(0) { $0 + $1.marketValue }
+        let allocation = totalValue > 0 ? (stock.marketValue / totalValue) * 100 : 0
         let barWidth = min(allocation / 50, 1.0) // Max bar at 50% allocation
 
         return HStack(spacing: 2) {
