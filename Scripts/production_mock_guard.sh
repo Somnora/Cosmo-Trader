@@ -196,12 +196,16 @@ require_present "Cosmo Trader/Services/TodayMarketHoroscopeComposer.swift" "Toda
 
 require_present "Cosmo Trader/Services/HistoricalPriceService.swift" "forceRefresh: Bool = false"
 require_present "Cosmo Trader/ViewModels/HistoricalAstroChartViewModel.swift" "func refreshProviderHistory() async -> Bool"
+require_present "Cosmo Trader/ViewModels/HistoricalAstroChartViewModel.swift" "forceRefresh: true"
+require_present "Cosmo Trader/ViewModels/HistoricalAstroChartViewModel.swift" "needsProviderHistoryActivation"
+require_present "Cosmo Trader/ViewModels/HistoricalAstroChartViewModel.swift" "historySurfaceStatuses"
 require_present "Cosmo Trader/ViewModels/HistoricalAstroChartViewModel.swift" "Provider-backed historical prices are required for chart, technical notes, and cosmic correlation."
 require_present "Cosmo Trader/Views/Components/HistoricalAstroChartView.swift" "PROVIDER HISTORY"
 require_present "Cosmo Trader/Views/Components/HistoricalAstroChartView.swift" "viewModel.refreshProviderHistory()"
 require_present "Cosmo Trader/Views/StockDetailView.swift" "onProviderHistoryLoaded"
 require_present "Cosmo TraderTests/Services/AstroOverlayEventServiceTests.swift" "Stock detail history refresh requests provider-backed history"
 require_present "Cosmo TraderTests/Services/AstroOverlayEventServiceTests.swift" "Stock detail history refresh does not create sample candles"
+require_present "Cosmo TraderTests/Services/AstroOverlayEventServiceTests.swift" "Partial history keeps numeric stock detail correlation gated"
 
 require_present "Cosmo Trader/Services/TodayMarketHoroscopeComposer.swift" "Market weather"
 require_present "Cosmo Trader/Services/TodayMarketHoroscopeComposer.swift" "Correlation does not imply causation"

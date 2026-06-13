@@ -446,6 +446,40 @@ struct HistoricalAstroChartViewModelHelperTests {
         }
     }
 
+    @Test("Partial history keeps numeric stock detail correlation gated")
+    func partialHistoryKeepsNumericStockDetailCorrelationGated() async {
+        let now = date("2025-01-10")
+        let cacheURL = temporaryCacheURL()
+        let cache = HistoricalPriceCache(directoryURL: cacheURL)
+        defer { try? cache.removeAll() }
+        let service = HistoricalPriceService.testingInstance(
+            historicalPriceCache: cache,
+            nowProvider: { now },
+            candleFetcher: { _, _, _, _ in
+                candleResponse(closes: Array(100..<106).map(Double.init))
+            }
+        )
+        let viewModel = HistoricalAstroChartViewModel(
+            datasetStore: CorrelationDatasetStore(historicalPriceService: service)
+        )
+
+        await viewModel.load(stock: stockForHistoryActivation(), timeframe: .month)
+
+        #expect(viewModel.ohlcData.count == 6)
+        #expect(!viewModel.canShowHistoricalChart)
+        #expect(!viewModel.canShowCorrelationMetrics)
+        #expect(viewModel.needsProviderHistoryActivation)
+        #expect(viewModel.historyActivationTitle == "Refresh provider history")
+        #expect(viewModel.historyActivationMessage.contains("Partial provider history"))
+        #expect(viewModel.historySurfaceStatuses.contains { $0.label == "Chart" && !$0.isAvailable })
+        #expect(viewModel.historySurfaceStatuses.contains { $0.label == "Cosmic correlation" && !$0.isAvailable })
+        if case .partial = viewModel.historicalDatasetCompleteness {
+            #expect(viewModel.historicalPriceProvenance.indicatorLabel == "Partial history")
+        } else {
+            Issue.record("Limited returned range should be marked partial")
+        }
+    }
+
     @Test("Stale cached history is labeled stale")
     func staleCachedHistoryIsLabeledStale() async throws {
         let cacheURL = temporaryCacheURL()
