@@ -26,6 +26,42 @@ struct ProductionMockGuardTests {
         #expect(patterns.isEmpty)
     }
 
+    @Test("Sample historical provenance cannot produce chart correlation metrics")
+    func sampleHistoricalProvenanceCannotProduceChartCorrelationMetrics() {
+        let summaries = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: [
+                OHLCData(date: Date(timeIntervalSince1970: 0), open: 100, high: 101, low: 99, close: 100, volume: 1_000),
+                OHLCData(date: Date(timeIntervalSince1970: 86_400), open: 101, high: 102, low: 100, close: 101, volume: 1_000),
+                OHLCData(date: Date(timeIntervalSince1970: 172_800), open: 102, high: 103, low: 101, close: 102, volume: 1_000)
+            ],
+            events: [
+                AstroOverlayEvent(
+                    id: "sample-full-moon",
+                    kind: .fullMoon,
+                    title: "Full Moon",
+                    subtitle: nil,
+                    startDate: Date(timeIntervalSince1970: 0),
+                    endDate: nil,
+                    markerDate: Date(timeIntervalSince1970: 0),
+                    intensity: .high,
+                    affectedElements: [],
+                    affectedSectors: [],
+                    iconSystemName: "moon.circle.fill",
+                    source: .calculatedMoonPhase,
+                    isEstimated: false
+                )
+            ],
+            filterState: AstroOverlayFilterState(eventWindowDays: 1),
+            provenance: .sample(reason: "DEBUG screenshot fixture")
+        )
+
+        #expect(summaries.first?.averageReturn == nil)
+        #expect(summaries.first?.medianReturn == nil)
+        #expect(summaries.first?.winRate == nil)
+        #expect(summaries.first?.displayMode == .sampleOnly)
+    }
+
     @Test("Cosmic pattern interpreter does not create notes without provider candles")
     func cosmicPatternInterpreterDoesNotUseGeneratedCandles() {
         ChartPatternService.shared.clearCache()

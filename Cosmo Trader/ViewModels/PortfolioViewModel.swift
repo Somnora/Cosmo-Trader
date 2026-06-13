@@ -293,6 +293,273 @@ struct ElementBreakdown: Identifiable {
     }
 }
 
+// MARK: - Portfolio Intelligence
+
+struct PortfolioIntelligenceExposure: Identifiable, Equatable {
+    let id: String
+    let label: String
+    let value: Double
+    let percentage: Double
+
+    var formattedPercentage: String {
+        "\(Int((percentage * 100).rounded()))%"
+    }
+
+    var formattedValue: String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "USD"
+        formatter.maximumFractionDigits = 0
+        return formatter.string(from: NSNumber(value: value)) ?? "$0"
+    }
+}
+
+struct PortfolioIntelligenceSummary: Equatable {
+    let holdingsCount: Int
+    let totalStoredValue: Double
+    let valueProvenance: FinancialDataProvenance
+    let providerQuoteCoverage: Double
+    let largestHoldingWeight: Double
+    let topThreeConcentration: Double
+    let topHoldings: [PortfolioIntelligenceExposure]
+    let sectorBreakdown: [PortfolioIntelligenceExposure]
+    let elementBreakdown: [PortfolioIntelligenceExposure]
+    let zodiacBreakdown: [PortfolioIntelligenceExposure]
+    let verifiedAstrologyCoverage: Double
+    let unknownFoundedSymbols: [String]
+    let historyCoverage: Double
+    let historyProvenance: FinancialDataProvenance
+    let historyUnavailableSymbols: [String]
+
+    var hasHoldings: Bool {
+        holdingsCount > 0 && totalStoredValue > 0
+    }
+
+    var isPortfolioCorrelationUnlocked: Bool {
+        historyCoverage >= 0.70
+    }
+
+    var formattedStoredValue: String {
+        Self.currencyFormatter.string(from: NSNumber(value: totalStoredValue)) ?? "$0"
+    }
+
+    var formattedQuoteCoverage: String {
+        Self.formatPercent(providerQuoteCoverage)
+    }
+
+    var formattedLargestHoldingWeight: String {
+        Self.formatPercent(largestHoldingWeight)
+    }
+
+    var formattedTopThreeConcentration: String {
+        Self.formatPercent(topThreeConcentration)
+    }
+
+    var formattedVerifiedAstrologyCoverage: String {
+        Self.formatPercent(verifiedAstrologyCoverage)
+    }
+
+    var formattedHistoryCoverage: String {
+        Self.formatPercent(historyCoverage)
+    }
+
+    var historyUnlockText: String {
+        if isPortfolioCorrelationUnlocked {
+            return "Portfolio history coverage is at or above 70%. Correlation metrics still depend on sample size and provider freshness."
+        }
+
+        if historyCoverage >= 0.50 {
+            return "Partial context only. 70% history coverage is required before headline portfolio correlation metrics appear."
+        }
+
+        if historyCoverage > 0 {
+            return "Load provider-backed history for more holdings. At least 50% coverage is required before portfolio context appears."
+        }
+
+        return "Load provider-backed holding history to unlock portfolio correlation context."
+    }
+
+    var astrologyCoverageText: String {
+        if unknownFoundedSymbols.isEmpty {
+            return "All initialized holdings with value have verified founding dates for zodiac and element reads."
+        }
+
+        return "Unknown-founded holdings stay out of zodiac and element denominators: \(unknownFoundedSymbols.joined(separator: ", "))."
+    }
+
+    static func make(
+        holdings: [Stock],
+        quoteProvenanceBySymbol: [String: FinancialDataProvenance],
+        historicalIncludedWeight: Double,
+        historicalProvenance: FinancialDataProvenance,
+        unavailableHistorySymbols: [String]
+    ) -> PortfolioIntelligenceSummary {
+        let ownedHoldings = holdings
+            .filter(\.isOwned)
+            .filter { $0.marketValue > 0 }
+        let totalValue = ownedHoldings.reduce(0) { $0 + $1.marketValue }
+
+        guard totalValue > 0 else {
+            return PortfolioIntelligenceSummary(
+                holdingsCount: ownedHoldings.count,
+                totalStoredValue: 0,
+                valueProvenance: .unavailable(reason: "No initialized portfolio holdings"),
+                providerQuoteCoverage: 0,
+                largestHoldingWeight: 0,
+                topThreeConcentration: 0,
+                topHoldings: [],
+                sectorBreakdown: [],
+                elementBreakdown: [],
+                zodiacBreakdown: [],
+                verifiedAstrologyCoverage: 0,
+                unknownFoundedSymbols: ownedHoldings.map { $0.symbol.uppercased() }.sorted(),
+                historyCoverage: 0,
+                historyProvenance: historicalProvenance,
+                historyUnavailableSymbols: unavailableHistorySymbols
+            )
+        }
+
+        let providerQuoteValue = ownedHoldings.reduce(0) { total, holding in
+            let provenance = quoteProvenanceBySymbol[holding.symbol.uppercased()]
+            return provenance?.isProviderBacked == true ? total + holding.marketValue : total
+        }
+        let providerQuoteCoverage = providerQuoteValue / totalValue
+        let topHoldings = ownedHoldings
+            .sorted { $0.marketValue > $1.marketValue }
+            .prefix(3)
+            .map {
+                PortfolioIntelligenceExposure(
+                    id: $0.symbol.uppercased(),
+                    label: $0.symbol.uppercased(),
+                    value: $0.marketValue,
+                    percentage: $0.marketValue / totalValue
+                )
+            }
+        let largestHoldingWeight = topHoldings.first?.percentage ?? 0
+        let topThreeConcentration = topHoldings.reduce(0) { $0 + $1.percentage }
+        let verifiedAstrologyValue = ownedHoldings
+            .filter { $0.foundedZodiacSign != nil }
+            .reduce(0) { $0 + $1.marketValue }
+        let unknownFoundedSymbols = ownedHoldings
+            .filter { $0.foundedZodiacSign == nil }
+            .map { $0.symbol.uppercased() }
+            .sorted()
+
+        return PortfolioIntelligenceSummary(
+            holdingsCount: ownedHoldings.count,
+            totalStoredValue: totalValue,
+            valueProvenance: aggregateQuoteProvenance(
+                holdings: ownedHoldings,
+                quoteProvenanceBySymbol: quoteProvenanceBySymbol
+            ),
+            providerQuoteCoverage: providerQuoteCoverage,
+            largestHoldingWeight: largestHoldingWeight,
+            topThreeConcentration: topThreeConcentration,
+            topHoldings: Array(topHoldings),
+            sectorBreakdown: breakdown(
+                values: ownedHoldings.reduce(into: [:]) { partialResult, stock in
+                    partialResult[stock.sector.isEmpty ? "Unknown sector" : stock.sector, default: 0] += stock.marketValue
+                },
+                denominator: totalValue
+            ),
+            elementBreakdown: breakdown(
+                values: ownedHoldings.reduce(into: [:]) { partialResult, stock in
+                    guard let element = stock.foundedElement else { return }
+                    partialResult[element.displayName, default: 0] += stock.marketValue
+                },
+                denominator: verifiedAstrologyValue
+            ),
+            zodiacBreakdown: breakdown(
+                values: ownedHoldings.reduce(into: [:]) { partialResult, stock in
+                    guard let sign = stock.foundedZodiacSign else { return }
+                    partialResult[sign.displayName, default: 0] += stock.marketValue
+                },
+                denominator: verifiedAstrologyValue
+            ),
+            verifiedAstrologyCoverage: verifiedAstrologyValue / totalValue,
+            unknownFoundedSymbols: unknownFoundedSymbols,
+            historyCoverage: min(max(historicalIncludedWeight, 0), 1),
+            historyProvenance: historicalProvenance,
+            historyUnavailableSymbols: unavailableHistorySymbols
+        )
+    }
+
+    private static func aggregateQuoteProvenance(
+        holdings: [Stock],
+        quoteProvenanceBySymbol: [String: FinancialDataProvenance]
+    ) -> FinancialDataProvenance {
+        guard !holdings.isEmpty else {
+            return .unavailable(reason: "No initialized portfolio holdings")
+        }
+
+        let provenances = holdings.map { holding in
+            quoteProvenanceBySymbol[holding.symbol.uppercased()]
+                ?? .sample(reason: "Stored portfolio value from setup; provider quote not loaded")
+        }
+
+        let liveFetches = provenances.compactMap { provenance -> Date? in
+            guard case .live(_, let fetchedAt) = provenance else { return nil }
+            return fetchedAt
+        }
+        let cachedFetches = provenances.compactMap { provenance -> Date? in
+            guard case .cached(_, let fetchedAt, _) = provenance else { return nil }
+            return fetchedAt
+        }
+
+        if liveFetches.count == provenances.count, let fetchedAt = liveFetches.min() {
+            return .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+        }
+
+        if cachedFetches.count == provenances.count, let fetchedAt = cachedFetches.min() {
+            return .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+        }
+
+        if provenances.allSatisfy({ if case .sample = $0 { return true }; return false }) {
+            return .sample(reason: "Stored portfolio value from setup; provider quote not loaded")
+        }
+
+        if provenances.allSatisfy({ $0.isProviderBacked }) {
+            return .mixed(reason: "Portfolio values combine live and cached provider quotes")
+        }
+
+        return .mixed(reason: "Portfolio values combine provider-backed quotes, stored setup values, or unavailable quote fields")
+    }
+
+    private static func breakdown(
+        values: [String: Double],
+        denominator: Double
+    ) -> [PortfolioIntelligenceExposure] {
+        guard denominator > 0 else { return [] }
+
+        return values
+            .map { key, value in
+                PortfolioIntelligenceExposure(
+                    id: key,
+                    label: key,
+                    value: value,
+                    percentage: value / denominator
+                )
+            }
+            .filter { $0.value > 0 }
+            .sorted { lhs, rhs in
+                if lhs.value == rhs.value { return lhs.label < rhs.label }
+                return lhs.value > rhs.value
+            }
+    }
+
+    private static func formatPercent(_ value: Double) -> String {
+        "\(Int((value * 100).rounded()))%"
+    }
+
+    private static let currencyFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "USD"
+        formatter.maximumFractionDigits = 0
+        return formatter
+    }()
+}
+
 // MARK: - Sample Data for Previews
 
 extension UserProfile {
