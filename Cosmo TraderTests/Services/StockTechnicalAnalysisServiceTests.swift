@@ -74,6 +74,22 @@ struct StockTechnicalAnalysisServiceTests {
         #expect(insufficientSummary.canShowNumericMetrics == false)
     }
 
+    @Test("Mixed provenance produces no numeric technical claims")
+    func mixedProvenanceWithholdsMetrics() {
+        let summary = service.summary(
+            dataset: dataset(
+                count: 220,
+                provenance: .mixed(reason: "Mixed provider freshness")
+            )
+        )
+
+        #expect(summary.displayMode == .unavailable)
+        #expect(summary.metrics.isEmpty)
+        #expect(summary.canShowNumericMetrics == false)
+        #expect(summary.movingAverage20 == nil)
+        #expect(summary.rsi14 == nil)
+    }
+
     @Test("Support and resistance are withheld when candles are insufficient")
     func supportResistanceRequiresEnoughProviderBackedCandles() {
         let shortSummary = service.summary(dataset: dataset(count: 55))

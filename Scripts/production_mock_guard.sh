@@ -64,6 +64,7 @@ require_present "Cosmo Trader/Views/Components/StockTechnicalContextView.swift" 
 require_present "Cosmo Trader/Views/Components/StockTechnicalContextView.swift" "DataSourceIndicator(provenance: summary.provenance"
 require_present "Cosmo Trader/Views/Components/StockTechnicalContextView.swift" "LOAD PROVIDER HISTORY"
 require_present "Cosmo TraderTests/Services/StockTechnicalAnalysisServiceTests.swift" "Sample and unavailable history produces no numeric technical claims"
+require_present "Cosmo TraderTests/Services/StockTechnicalAnalysisServiceTests.swift" "Mixed provenance produces no numeric technical claims"
 require_present "Cosmo TraderTests/Services/StockTechnicalAnalysisServiceTests.swift" "Stale cached provider data is labeled and withholds numeric metrics"
 require_present "Cosmo TraderTests/Services/StockTechnicalAnalysisServiceTests.swift" "Support and resistance are withheld when candles are insufficient"
 
