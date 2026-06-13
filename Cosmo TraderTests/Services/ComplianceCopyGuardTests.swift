@@ -103,7 +103,10 @@ struct ComplianceCopyGuardTests {
             "Provider-backed historical prices unavailable. Try again later.",
             "Historical context only. Not financial advice.",
             "Numeric claims remain gated",
-            "Needs complete fresh history"
+            "Needs complete fresh history",
+            "Cosmic calendar context only. Not predictive and not financial advice.",
+            "Company-specific events need verified founding metadata. Broad moon and Mercury events still appear.",
+            "Mercury retrograde range from curated ephemeris. Calendar context only."
         ]
 
         for example in safeExamples {

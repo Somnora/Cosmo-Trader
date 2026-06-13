@@ -208,6 +208,9 @@ struct StockDetailView: View {
                     // 4. Key Statistics
                     keyStatsSection
 
+                    // 3.25 Upcoming cosmic calendar context
+                    upcomingCosmicEventsSection
+
                     if companyZodiacSign != nil {
                         // 4.5. Cosmic Signals (Technical + Astro Analysis)
                         cosmicSignalsSection
@@ -629,6 +632,7 @@ struct StockDetailView: View {
         .background(cardBackground)
         .opacity(appearAnimation ? 1 : 0)
         .offset(y: appearAnimation ? 0 : 20)
+        .accessibilityIdentifier("stock.upcomingCosmicEvents")
     }
 
     private var stockHistoryActivationCard: some View {
@@ -790,6 +794,204 @@ struct StockDetailView: View {
             isLoadingPatterns = false
         }
     }
+
+    // MARK: - Upcoming Cosmic Events
+
+    private var upcomingCosmicEvents: [AstroOverlayEvent] {
+        AstroOverlayEventService.shared.upcomingEvents(
+            for: liveStock,
+            days: 30,
+            filters: .stockCosmicCalendar
+        )
+    }
+
+    private var upcomingCosmicEventsSection: some View {
+        let events = upcomingCosmicEvents
+
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                Image(systemName: "calendar.badge.clock")
+                    .foregroundColor(CosmicTheme.gold)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("UPCOMING COSMIC EVENTS")
+                        .font(TerminalFont.data(12, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textPrimary)
+                        .tracking(0.8)
+
+                    Text("Next 30 days for \(stock.symbol)")
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
+
+                Spacer()
+
+                Text("CALENDAR")
+                    .font(TerminalFont.data(8, weight: .bold))
+                    .foregroundColor(CosmicTheme.gold)
+                    .tracking(0.8)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(CosmicTheme.gold.opacity(0.10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(CosmicTheme.gold.opacity(0.45), lineWidth: 0.75)
+                    )
+            }
+
+            Text("Cosmic calendar context only. Not predictive and not financial advice.")
+                .font(TerminalFont.data(10))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineSpacing(3)
+
+            if events.isEmpty {
+                cosmicCalendarEmptyState
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(events.prefix(5)) { event in
+                        cosmicCalendarRow(event)
+                    }
+
+                    if events.count > 5 {
+                        Text("+\(events.count - 5) more calendar events in this window")
+                            .font(TerminalFont.data(10))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+
+            companySpecificCalendarNote
+        }
+        .padding(16)
+        .background(cardBackground)
+        .opacity(appearAnimation ? 1 : 0)
+        .offset(y: appearAnimation ? 0 : 20)
+    }
+
+    private var cosmicCalendarEmptyState: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "moon")
+                .foregroundColor(CosmicTheme.textMuted)
+
+            Text("No enabled cosmic calendar events were found in the next 30 days.")
+                .font(TerminalFont.data(11))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineSpacing(3)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CosmicTheme.secondaryBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+        )
+    }
+
+    private var companySpecificCalendarNote: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: stock.supportsCompanyOverlayEvents ? "checkmark.seal" : "info.circle")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(stock.supportsCompanyOverlayEvents ? CosmicTheme.positive : CosmicTheme.textMuted)
+
+            Text(stock.supportsCompanyOverlayEvents
+                ? "Company-specific events use verified founding metadata where available."
+                : "Company-specific events need verified founding metadata. Broad moon and Mercury events still appear.")
+                .font(TerminalFont.data(10))
+                .foregroundColor(CosmicTheme.textMuted)
+                .lineSpacing(2)
+        }
+        .accessibilityIdentifier("stock.upcomingCosmicEvents.metadataNote")
+    }
+
+    private func cosmicCalendarRow(_ event: AstroOverlayEvent) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(event.kind.overlayColor.opacity(0.16))
+                    .frame(width: 34, height: 34)
+
+                Image(systemName: event.iconSystemName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(event.kind.overlayColor)
+            }
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(event.title.uppercased())
+                        .font(TerminalFont.data(11, weight: .bold))
+                        .foregroundColor(CosmicTheme.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+
+                    Text(cosmicCalendarDateText(for: event))
+                        .font(TerminalFont.data(10, weight: .semibold))
+                        .foregroundColor(event.kind.overlayColor)
+                        .lineLimit(1)
+
+                    Spacer(minLength: 0)
+                }
+
+                Text(cosmicCalendarReason(for: event))
+                    .font(TerminalFont.data(10))
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(event.source.displayLabel.uppercased())
+                    .font(TerminalFont.data(8, weight: .bold))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .tracking(0.7)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(CosmicTheme.secondaryBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(event.kind.overlayColor.opacity(0.22), lineWidth: 0.75)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("stock.upcomingCosmicEvents.row.\(event.kind.rawValue)")
+    }
+
+    private func cosmicCalendarDateText(for event: AstroOverlayEvent) -> String {
+        if event.isRange, let endDate = event.endDate {
+            return "\(Self.cosmicCalendarDateFormatter.string(from: event.startDate)) - \(Self.cosmicCalendarDateFormatter.string(from: endDate))"
+        }
+        return Self.cosmicCalendarDateFormatter.string(from: event.markerDate)
+    }
+
+    private func cosmicCalendarReason(for event: AstroOverlayEvent) -> String {
+        switch event.kind {
+        case .newMoon:
+            return "Broad lunar calendar context for \(stock.symbol)."
+        case .fullMoon:
+            return "Broad lunar calendar context for \(stock.symbol)."
+        case .mercuryRetrograde:
+            return "Mercury retrograde range from curated ephemeris. Calendar context only."
+        case .moonInSign:
+            if let companyZodiacSign {
+                return "Moon moves through \(companyZodiacSign.displayName), \(stock.symbol)'s company sign."
+            }
+            return "Company sign unavailable, so this event is not shown for this stock."
+        case .companyBirthMonth:
+            return "Uses verified founding month for \(stock.symbol)."
+        case .companyFoundingAnniversary:
+            return "Uses verified founding date for \(stock.symbol)."
+        case .firstQuarter, .lastQuarter:
+            return "Broad lunar calendar context for \(stock.symbol)."
+        case .eclipse, .planetaryIngress:
+            return "Cosmic calendar context for \(stock.symbol)."
+        }
+    }
+
+    private static let cosmicCalendarDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter
+    }()
 
     private var unknownCompanyAstroSection: some View {
         VStack(alignment: .leading, spacing: 14) {

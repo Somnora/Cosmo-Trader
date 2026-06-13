@@ -11,6 +11,25 @@ final class AstroOverlayEventService {
 
     private init() {}
 
+    func upcomingEvents(
+        for stock: Stock,
+        from startDate: Date = Date(),
+        days: Int = 30,
+        filters: AstroOverlayFilterState? = nil
+    ) -> [AstroOverlayEvent] {
+        let clampedDays = max(1, min(days, 90))
+        let start = calendar.startOfDay(for: startDate)
+        let end = calendar.date(byAdding: .day, value: clampedDays, to: start) ?? start
+        let activeFilters = filters ?? .stockCosmicCalendar
+
+        return events(
+            for: stock,
+            from: start,
+            to: end,
+            filters: activeFilters
+        )
+    }
+
     func events(
         for stock: Stock,
         from startDate: Date,

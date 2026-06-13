@@ -103,6 +103,21 @@ enum AstroOverlaySource: String, Codable {
     case verifiedEphemeris
     case companyFoundedDate
     case curatedDataset
+
+    var displayLabel: String {
+        switch self {
+        case .calculatedMoonPhase:
+            return "Calculated moon phase"
+        case .calculatedMoonSign:
+            return "Calculated moon sign"
+        case .verifiedEphemeris:
+            return "Verified ephemeris"
+        case .companyFoundedDate:
+            return "Company founding metadata"
+        case .curatedDataset:
+            return "Curated ephemeris"
+        }
+    }
 }
 
 struct AstroOverlayFilterState: Codable, Equatable {
@@ -130,6 +145,19 @@ struct AstroOverlayFilterState: Codable, Equatable {
         .firstQuarter,
         .lastQuarter
     ]
+
+    static let stockCosmicCalendar = AstroOverlayFilterState(
+        enabledKinds: [
+            .newMoon,
+            .fullMoon,
+            .mercuryRetrograde,
+            .moonInSign,
+            .companyBirthMonth,
+            .companyFoundingAnniversary
+        ],
+        showEstimatedEvents: true,
+        eventWindowDays: 3
+    )
 }
 
 extension DateFormatter {

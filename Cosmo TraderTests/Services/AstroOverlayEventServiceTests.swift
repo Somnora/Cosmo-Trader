@@ -229,6 +229,62 @@ struct AstroOverlayEventServiceTests {
         #expect(events == events.sorted { $0.markerDate < $1.markerDate })
     }
 
+    @Test("Upcoming stock calendar generates future broad and company events")
+    func upcomingStockCalendarGeneratesFutureBroadAndCompanyEvents() {
+        let stock = makeStock()
+        let start = date("2026-03-20")
+        let calendarStart = Calendar.current.startOfDay(for: start)
+
+        let events = AstroOverlayEventService.shared.upcomingEvents(
+            for: stock,
+            from: start,
+            days: 30
+        )
+
+        #expect(events.contains { $0.kind == .newMoon || $0.kind == .fullMoon })
+        #expect(events.contains { $0.kind == .companyFoundingAnniversary })
+        #expect(events.allSatisfy { $0.markerDate >= calendarStart || $0.isRange })
+    }
+
+    @Test("Unknown-founded stocks keep broad upcoming events but omit company-specific events")
+    func unknownFoundedStocksKeepBroadUpcomingEventsOnly() {
+        let stock = makeUnknownDateStock()
+
+        let events = AstroOverlayEventService.shared.upcomingEvents(
+            for: stock,
+            from: date("2026-03-20"),
+            days: 30
+        )
+
+        #expect(events.contains { $0.kind == .newMoon || $0.kind == .fullMoon })
+        #expect(events.allSatisfy { event in
+            event.kind != .companyBirthMonth
+                && event.kind != .companyFoundingAnniversary
+                && event.kind != .moonInSign
+        })
+    }
+
+    @Test("Upcoming Mercury Retrograde renders as a range event")
+    func upcomingMercuryRetrogradeRendersAsRange() {
+        let stock = makeStock()
+        let filters = AstroOverlayFilterState(
+            enabledKinds: [.mercuryRetrograde],
+            showEstimatedEvents: true,
+            eventWindowDays: 3
+        )
+
+        let events = AstroOverlayEventService.shared.upcomingEvents(
+            for: stock,
+            from: date("2025-07-01"),
+            days: 45,
+            filters: filters
+        )
+
+        let mercury = events.first { $0.kind == .mercuryRetrograde }
+        #expect(mercury?.isRange == true)
+        #expect(mercury?.source == .curatedDataset)
+    }
+
     private func makeStock() -> Stock {
         Stock(
             symbol: "AAPL",
