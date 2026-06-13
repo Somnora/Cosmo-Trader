@@ -44,6 +44,7 @@ enum StockChartCandleEligibility {
         completeness: HistoricalDatasetCompleteness
     ) -> Bool {
         guard provenance.isProviderBacked else { return false }
+        guard !provenance.isCachedStale() else { return false }
         guard case .complete = completeness else { return false }
         return validCandles(from: candles).count >= minimumCandleCount
     }

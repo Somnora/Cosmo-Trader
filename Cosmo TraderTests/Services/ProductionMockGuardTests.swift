@@ -85,7 +85,16 @@ struct ProductionMockGuardTests {
         ))
         #expect(StockChartCandleEligibility.canRenderCandles(
             candles: validCandles,
-            provenance: .cached(provider: "Unit Test Provider", fetchedAt: Date(timeIntervalSince1970: 172_800), age: 60 * 60 * 48),
+            provenance: .cached(provider: "Unit Test Provider", fetchedAt: Date(timeIntervalSince1970: 172_800), age: 60 * 60),
+            completeness: .complete
+        ))
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: validCandles,
+            provenance: .cached(
+                provider: "Unit Test Provider",
+                fetchedAt: Date(timeIntervalSince1970: 172_800),
+                age: FinancialDataProvenance.defaultCachedStaleInterval + 60
+            ),
             completeness: .complete
         ))
     }

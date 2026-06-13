@@ -41,6 +41,7 @@ require_present "Cosmo Trader/Views/Components/StockChartView.swift" "enum Stock
 require_present "Cosmo Trader/Views/Components/StockChartView.swift" "case candle = \"CANDLE\""
 require_present "Cosmo Trader/Views/Components/StockChartView.swift" "enum StockChartCandleEligibility"
 require_present "Cosmo Trader/Views/Components/StockChartView.swift" "canRenderCandles"
+require_present "Cosmo Trader/Views/Components/StockChartView.swift" "isCachedStale"
 require_present "Cosmo Trader/Views/Components/StockChartView.swift" "high > candle.low"
 require_present "Cosmo Trader/Views/Components/StockChartView.swift" "StockChartModeSelector"
 require_present "Cosmo Trader/Views/Components/StockChartView.swift" "if effectiveDisplayMode == .candle"

@@ -356,7 +356,17 @@ struct HistoricalAstroChartViewModelHelperTests {
 
         #expect(StockChartCandleEligibility.canRenderCandles(
             candles: valid,
-            provenance: .cached(provider: "Unit Test Provider", fetchedAt: fetchedAt, age: 60 * 60 * 48),
+            provenance: .cached(provider: "Unit Test Provider", fetchedAt: fetchedAt, age: 60 * 60),
+            completeness: .complete
+        ))
+
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: valid,
+            provenance: .cached(
+                provider: "Unit Test Provider",
+                fetchedAt: fetchedAt,
+                age: FinancialDataProvenance.defaultCachedStaleInterval + 60
+            ),
             completeness: .complete
         ))
 
