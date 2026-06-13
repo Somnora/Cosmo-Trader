@@ -343,6 +343,81 @@ struct HistoricalAstroChartViewModelHelperTests {
         #expect(AstroOverlayEventKind.fullMoon.overlayColor != AstroOverlayEventKind.newMoon.overlayColor)
     }
 
+    @Test("Candle mode requires complete provider backed OHLC candles")
+    func candleModeRequiresCompleteProviderBackedOHLC() {
+        let valid = candles(on: ["2025-01-10", "2025-01-15", "2025-01-20"])
+        let fetchedAt = date("2025-01-21")
+
+        #expect(StockChartCandleEligibility.canRenderCandles(
+            candles: valid,
+            provenance: .live(provider: "Unit Test Provider", fetchedAt: fetchedAt),
+            completeness: .complete
+        ))
+
+        #expect(StockChartCandleEligibility.canRenderCandles(
+            candles: valid,
+            provenance: .cached(provider: "Unit Test Provider", fetchedAt: fetchedAt, age: 60 * 60),
+            completeness: .complete
+        ))
+
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: valid,
+            provenance: .cached(
+                provider: "Unit Test Provider",
+                fetchedAt: fetchedAt,
+                age: FinancialDataProvenance.defaultCachedStaleInterval + 60
+            ),
+            completeness: .complete
+        ))
+
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: valid,
+            provenance: .sample(reason: "Preview-only chart fixture"),
+            completeness: .complete
+        ))
+
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: valid,
+            provenance: .mixed(reason: "Partial historical dataset. Provider returned a limited range."),
+            completeness: .partial(reason: "Provider returned a limited range")
+        ))
+
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: valid,
+            provenance: .unavailable(reason: "Historical price data unavailable"),
+            completeness: .insufficient(reason: "Provider returned fewer than two candles")
+        ))
+    }
+
+    @Test("Candle mode does not synthesize candles from close only data")
+    func candleModeRejectsCloseOnlySyntheticCandles() {
+        let closeOnly = [
+            OHLCData(date: date("2025-01-10"), open: 100, high: 100, low: 100, close: 100, volume: 1_000),
+            OHLCData(date: date("2025-01-11"), open: 101, high: 101, low: 101, close: 101, volume: 1_000)
+        ]
+
+        #expect(StockChartCandleEligibility.validCandles(from: closeOnly).isEmpty)
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: closeOnly,
+            provenance: .live(provider: "Unit Test Provider", fetchedAt: date("2025-01-12")),
+            completeness: .complete
+        ))
+    }
+
+    @Test("Astro overlay marker helpers stay independent of chart display mode")
+    func astroOverlayMarkerHelpersStayIndependentOfChartMode() {
+        let viewModel = HistoricalAstroChartViewModel()
+        viewModel.ohlcData = candles(on: ["2025-01-10", "2025-01-15", "2025-01-20"])
+        viewModel.overlayEvents = [
+            pointEvent(on: "2025-01-15"),
+            rangeEvent(start: "2025-01-12", end: "2025-01-18")
+        ]
+
+        #expect(StockChartDisplayMode.candle.accessibilityLabel == "Candle chart")
+        #expect(viewModel.nearestCandle(to: date("2025-01-16"))?.date == date("2025-01-15"))
+        #expect(viewModel.nearestEvent(to: date("2025-01-14"), within: 60 * 60 * 24 * 5)?.kind == .mercuryRetrograde)
+    }
+
     // MARK: - Helpers
 
     private func candles(on values: [String]) -> [OHLCData] {

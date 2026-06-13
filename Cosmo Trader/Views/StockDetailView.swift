@@ -97,6 +97,7 @@ struct StockDetailView: View {
 
     /// Chart state
     @State private var selectedTimeframe: ChartTimeframe = .month
+    @State private var selectedChartDisplayMode: StockChartDisplayMode = .line
 
     /// Cosmic pattern state
     @State private var cosmicInsights: [CosmicPatternInsight] = []
@@ -566,12 +567,14 @@ struct StockDetailView: View {
             if SubscriptionManager.shared.canAccess(.historicalAstroOverlay) || AppState.isScreenshotMode {
                 HistoricalAstroChartView(
                     stock: liveStock,
-                    selectedTimeframe: $selectedTimeframe
+                    selectedTimeframe: $selectedTimeframe,
+                    selectedDisplayMode: $selectedChartDisplayMode
                 )
             } else {
                 StockChartView(
                     stock: liveStock,
-                    selectedTimeframe: $selectedTimeframe
+                    selectedTimeframe: $selectedTimeframe,
+                    selectedDisplayMode: $selectedChartDisplayMode
                 )
 
                 HistoricalAstroOverlayLockedCard()

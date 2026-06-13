@@ -62,6 +62,43 @@ struct ProductionMockGuardTests {
         #expect(summaries.first?.displayMode == .sampleOnly)
     }
 
+    @Test("Candle chart mode cannot render sample or synthetic close-only candles")
+    func candleChartModeDoesNotUseSampleOrSyntheticCandles() {
+        let validCandles = [
+            OHLCData(date: Date(timeIntervalSince1970: 0), open: 100, high: 105, low: 98, close: 103, volume: 1_000),
+            OHLCData(date: Date(timeIntervalSince1970: 86_400), open: 103, high: 106, low: 101, close: 102, volume: 1_000)
+        ]
+        let closeOnlyCandles = [
+            OHLCData(date: Date(timeIntervalSince1970: 0), open: 100, high: 100, low: 100, close: 100, volume: 1_000),
+            OHLCData(date: Date(timeIntervalSince1970: 86_400), open: 101, high: 101, low: 101, close: 101, volume: 1_000)
+        ]
+
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: validCandles,
+            provenance: .sample(reason: "DEBUG screenshot fixture"),
+            completeness: .complete
+        ))
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: closeOnlyCandles,
+            provenance: .live(provider: "Unit Test Provider", fetchedAt: Date(timeIntervalSince1970: 172_800)),
+            completeness: .complete
+        ))
+        #expect(StockChartCandleEligibility.canRenderCandles(
+            candles: validCandles,
+            provenance: .cached(provider: "Unit Test Provider", fetchedAt: Date(timeIntervalSince1970: 172_800), age: 60 * 60),
+            completeness: .complete
+        ))
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: validCandles,
+            provenance: .cached(
+                provider: "Unit Test Provider",
+                fetchedAt: Date(timeIntervalSince1970: 172_800),
+                age: FinancialDataProvenance.defaultCachedStaleInterval + 60
+            ),
+            completeness: .complete
+        ))
+    }
+
     @Test("Cosmic pattern interpreter does not create notes without provider candles")
     func cosmicPatternInterpreterDoesNotUseGeneratedCandles() {
         ChartPatternService.shared.clearCache()

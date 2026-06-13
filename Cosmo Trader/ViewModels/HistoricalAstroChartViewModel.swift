@@ -18,11 +18,11 @@ final class HistoricalAstroChartViewModel {
     private var loadedTimeframe: ChartTimeframe?
 
     var priceRange: ClosedRange<Double> {
-        let closes = ohlcData.map(\.close).filter(\.isFinite)
-        guard let minClose = closes.min(), let maxClose = closes.max() else { return 0...1 }
-        let spread = max(maxClose - minClose, max(abs(maxClose), 1) * 0.01)
+        let prices = ohlcData.flatMap { [$0.low, $0.high, $0.close] }.filter { $0.isFinite && $0 > 0 }
+        guard let minPrice = prices.min(), let maxPrice = prices.max() else { return 0...1 }
+        let spread = max(maxPrice - minPrice, max(abs(maxPrice), 1) * 0.01)
         let padding = spread * 0.12
-        return (minClose - padding)...(maxClose + padding)
+        return (minPrice - padding)...(maxPrice + padding)
     }
 
     var chartColor: ColorDirection {

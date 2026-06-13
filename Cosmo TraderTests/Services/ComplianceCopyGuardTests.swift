@@ -89,7 +89,12 @@ struct ComplianceCopyGuardTests {
             "Mixed data freshness. Metric unavailable for this event.",
             "Historical overlay only. Correlation view, not financial advice.",
             "Overlay moon phases, Mercury retrograde, and company birth cycles against historical price action. Explore historical context, including when no pattern appears.",
-            "Sample chart mode is labeled for preview only; event-window metrics are hidden."
+            "Sample chart mode is labeled for preview only; event-window metrics are hidden.",
+            "Historical price view",
+            "Provider-backed candles",
+            "Line chart with selected astrological overlays",
+            "Candle chart with selected astrological overlays",
+            "Chart context only. Not a prediction."
         ]
 
         for example in safeExamples {

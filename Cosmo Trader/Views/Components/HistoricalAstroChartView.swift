@@ -4,15 +4,52 @@ import Charts
 struct HistoricalAstroChartView: View {
     let stock: Stock
     @Binding var selectedTimeframe: ChartTimeframe
+    @Binding var selectedDisplayMode: StockChartDisplayMode
 
     @State private var viewModel = HistoricalAstroChartViewModel()
     @State private var scrubDate: Date?
 
     private let chartHeight: CGFloat = 220
 
+    private var canRenderCandleMode: Bool {
+        StockChartCandleEligibility.canRenderCandles(
+            candles: viewModel.ohlcData,
+            provenance: viewModel.historicalPriceProvenance,
+            completeness: viewModel.historicalDatasetCompleteness
+        )
+    }
+
+    private var effectiveDisplayMode: StockChartDisplayMode {
+        canRenderCandleMode ? selectedDisplayMode : .line
+    }
+
+    private var candleData: [OHLCData] {
+        StockChartCandleEligibility.validCandles(from: viewModel.ohlcData)
+    }
+
+    private var candleBodyWidth: MarkDimension {
+        let count = candleData.count
+        if count > 160 { return .fixed(2) }
+        if count > 80 { return .fixed(3) }
+        if count > 35 { return .fixed(4) }
+        return .fixed(6)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
+            if canRenderCandleMode {
+                HStack {
+                    Text("HISTORICAL PRICE VIEW")
+                        .font(TerminalFont.data(9, weight: .bold))
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .tracking(1)
+
+                    Spacer()
+
+                    StockChartModeSelector(selectedMode: $selectedDisplayMode)
+                }
+            }
             chartReadout
             content
             timeframeSelector
@@ -203,15 +240,35 @@ struct HistoricalAstroChartView: View {
                     .lineStyle(StrokeStyle(lineWidth: 1.25, dash: [3, 3]))
             }
 
-            // Price line
-            ForEach(viewModel.ohlcData) { candle in
-                LineMark(
-                    x: .value("Date", candle.date),
-                    y: .value("Close", candle.close)
-                )
-                .foregroundStyle(chartColor)
-                .lineStyle(StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
-                .interpolationMethod(.catmullRom)
+            if effectiveDisplayMode == .candle {
+                ForEach(candleData) { candle in
+                    RuleMark(
+                        x: .value("Date", candle.date),
+                        yStart: .value("Low", candle.low),
+                        yEnd: .value("High", candle.high)
+                    )
+                    .foregroundStyle(candle.close >= candle.open ? CosmicTheme.positive.opacity(0.72) : CosmicTheme.negative.opacity(0.72))
+                    .lineStyle(StrokeStyle(lineWidth: 1))
+
+                    RectangleMark(
+                        x: .value("Date", candle.date),
+                        yStart: .value("Open", min(candle.open, candle.close)),
+                        yEnd: .value("Close", max(candle.open, candle.close)),
+                        width: candleBodyWidth
+                    )
+                    .foregroundStyle(candle.close >= candle.open ? CosmicTheme.positive.opacity(0.9) : CosmicTheme.negative.opacity(0.9))
+                }
+            } else {
+                // Price line
+                ForEach(viewModel.ohlcData) { candle in
+                    LineMark(
+                        x: .value("Date", candle.date),
+                        y: .value("Close", candle.close)
+                    )
+                    .foregroundStyle(chartColor)
+                    .lineStyle(StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
+                    .interpolationMethod(.catmullRom)
+                }
             }
 
             // Primary moon markers on the price curve
@@ -305,7 +362,7 @@ struct HistoricalAstroChartView: View {
             }
         }
         .frame(height: chartHeight)
-        .accessibilityLabel("Historical price chart with selected astrological overlays")
+        .accessibilityLabel("\(effectiveDisplayMode.accessibilityLabel) with selected astrological overlays")
     }
 
     // MARK: - Event Strip
