@@ -125,6 +125,10 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(!summary.portfolioContext.metrics.map(\.label).contains("AVG PORT"))
         #expect(summary.portfolioContext.detail.contains("At least 50% coverage"))
         #expect(summary.portfolioContext.includedPortfolioWeight == 0.49)
+        #expect(summary.portfolioContext.activation?.primaryActionTitle == "REFRESH HOLDING HISTORY")
+        #expect(summary.portfolioContext.activation?.secondaryActionTitle == "ADD HOLDING")
+        #expect(summary.portfolioContext.activation?.actionItems.contains("Refresh provider-backed holding history") == true)
+        #expect(summary.portfolioContext.activation?.actionItems.contains("Never create sample candles") == true)
     }
 
     @Test("Partial portfolio coverage stays context-only below seventy percent")
@@ -156,6 +160,7 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(!summary.portfolioContext.metrics.map(\.label).contains("AVG PORT"))
         #expect(summary.portfolioContext.detail.contains("70%"))
         #expect(summary.portfolioContext.includedPortfolioWeight == 0.60)
+        #expect(summary.portfolioContext.activation?.primaryActionTitle == "REFRESH HOLDING HISTORY")
     }
 
     @Test("Exactly seventy percent portfolio coverage can render Today portfolio metrics")
@@ -234,6 +239,29 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(summary.marketContext.activation?.actionItems.contains("Show loading and provider/cache errors here") == true)
         #expect(summary.marketContext.activation?.actionItems.contains("Do not create sample market data") == true)
         #expect(!summary.marketContext.activation!.detail.localizedCaseInsensitiveContains("sample"))
+    }
+
+    @Test("Holdings without history offer provider-backed history refresh")
+    func holdingsWithoutHistoryOfferProviderBackedHistoryRefresh() {
+        let summary = composer.compose(
+            user: user(),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [],
+            stockCandidate: nil,
+            marketWeather: nil
+        )
+
+        #expect(summary.portfolioContext.displayMode == .unavailable)
+        #expect(summary.portfolioContext.metrics.isEmpty)
+        #expect(summary.portfolioContext.activation?.title == "Load holding history")
+        #expect(summary.portfolioContext.activation?.primaryActionTitle == "REFRESH HOLDING HISTORY")
+        #expect(summary.portfolioContext.activation?.actionItems.contains("Refresh provider-backed holding history") == true)
+        #expect(summary.portfolioContext.activation?.actionItems.contains("Show symbols that still need data") == true)
+        #expect(summary.portfolioContext.activation?.actionItems.contains("Never create sample candles") == true)
+        #expect(summary.portfolioContext.unavailableHoldings.contains("AAPL"))
     }
 
     @Test("One-glance primary CTA prioritizes market history after portfolio and stock are ready")
