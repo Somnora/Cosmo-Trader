@@ -449,54 +449,17 @@ struct StockDetailView: View {
                 }
             }
 
-            // Main price display using new component
-            HStack(alignment: .top) {
-                HStack(alignment: .top, spacing: 8) {
-                    if isLoadingPrice && lastPriceUpdate == nil {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("$----.--")
-                                .font(TerminalFont.price(36))
-                                .foregroundColor(CosmicTheme.textMuted)
-                            Text("---.-- (--.--%)")
-                                .font(TerminalFont.data(14))
-                                .foregroundColor(CosmicTheme.textMuted)
-                        }
-                    } else {
-                        PriceDisplayView(
-                            price: liveStock.currentPrice,
-                            change: liveStock.priceChange,
-                            changePercent: liveStock.percentageChange,
-                            size: .hero
-                        )
-                    }
-
-                    DataSourceIndicator(provenance: priceProvenance, size: .compact)
-                        .padding(.top, 4)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    priceValueAndSource
+                    Spacer(minLength: 8)
+                    unavailableMiniChart
                 }
 
-                Spacer()
-
-                // Mini chart state. No provider-backed 7D sparkline exists here yet,
-                // so avoid rendering generated samples as market history.
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("7D")
-                        .font(TerminalFont.data(9))
-                        .foregroundColor(CosmicTheme.textMuted)
-
-                    VStack(spacing: 3) {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(CosmicTheme.textMuted)
-                        Text("N/A")
-                            .font(TerminalFont.data(9, weight: .bold))
-                            .foregroundColor(CosmicTheme.textMuted)
-                    }
-                    .frame(width: 80, height: 40)
-                    .background(CosmicTheme.cardBackground.opacity(0.55))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(CosmicTheme.borderDim, lineWidth: 0.5)
-                    )
+                VStack(alignment: .leading, spacing: 12) {
+                    priceValueAndSource
+                    unavailableMiniChart
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             }
 
@@ -525,6 +488,63 @@ struct StockDetailView: View {
             Rectangle()
                 .stroke(CosmicTheme.border, lineWidth: 0.5)
         )
+    }
+
+    private var priceValueAndSource: some View {
+        HStack(alignment: .top, spacing: 8) {
+            priceValue
+                .layoutPriority(1)
+
+            DataSourceIndicator(provenance: priceProvenance, size: .compact)
+                .padding(.top, 4)
+                .fixedSize()
+        }
+    }
+
+    @ViewBuilder
+    private var priceValue: some View {
+        if isLoadingPrice && lastPriceUpdate == nil {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("$----.--")
+                    .font(TerminalFont.price(36))
+                    .foregroundColor(CosmicTheme.textMuted)
+                Text("---.-- (--.--%)")
+                    .font(TerminalFont.data(14))
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+        } else {
+            PriceDisplayView(
+                price: liveStock.currentPrice,
+                change: liveStock.priceChange,
+                changePercent: liveStock.percentageChange,
+                size: .hero
+            )
+        }
+    }
+
+    private var unavailableMiniChart: some View {
+        // No provider-backed 7D sparkline exists here yet, so avoid rendering
+        // generated samples as market history.
+        VStack(alignment: .trailing, spacing: 4) {
+            Text("7D")
+                .font(TerminalFont.data(9))
+                .foregroundColor(CosmicTheme.textMuted)
+
+            VStack(spacing: 3) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textMuted)
+                Text("N/A")
+                    .font(TerminalFont.data(9, weight: .bold))
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+            .frame(width: 80, height: 40)
+            .background(CosmicTheme.cardBackground.opacity(0.55))
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(CosmicTheme.borderDim, lineWidth: 0.5)
+            )
+        }
     }
 
     /// Whether to surface a price-fetch error to the user inline.
