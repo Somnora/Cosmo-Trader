@@ -103,7 +103,11 @@ struct ComplianceCopyGuardTests {
             "Provider-backed historical prices unavailable. Try again later.",
             "Historical context only. Not financial advice.",
             "Numeric claims remain gated",
-            "Needs complete fresh history"
+            "Needs complete fresh history",
+            "Historical astro-technical context only. Not predictive and not financial advice.",
+            "Combined context: Full Moon average window +1.2% vs baseline +0.4%.",
+            "Technical and cosmic context are mixed. Review as historical context only.",
+            "Combined numeric context stays hidden until the cosmic sample and provenance gates pass."
         ]
 
         for example in safeExamples {

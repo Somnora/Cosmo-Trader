@@ -103,6 +103,7 @@ struct StockDetailView: View {
 
     /// Provider-backed technical context state
     @State private var technicalSummary: StockTechnicalSummary
+    @State private var astroTechnicalContext: StockAstroTechnicalContext
     @State private var isLoadingTechnicalAnalysis: Bool = !AppState.isScreenshotMode
 
     /// Cosmic pattern state
@@ -187,6 +188,10 @@ struct StockDetailView: View {
             symbol: stock.symbol,
             reason: "Provider-backed historical candles not loaded"
         ))
+        self._astroTechnicalContext = State(initialValue: StockAstroTechnicalContextService.shared.unavailableContext(
+            symbol: stock.symbol,
+            reason: "Provider-backed historical candles not loaded"
+        ))
     }
 
     // MARK: - Body
@@ -204,6 +209,9 @@ struct StockDetailView: View {
 
                     // 3. Technical Lens
                     technicalAnalysisSection
+
+                    // 3.5 Astro-Technical Context
+                    astroTechnicalContextSection
 
                     // 4. Key Statistics
                     keyStatsSection
@@ -343,9 +351,40 @@ struct StockDetailView: View {
                 timeframe: .year
             )
             let summary = StockTechnicalAnalysisService.shared.summary(for: result.dataset)
+            let filters = AstroOverlayFilterState()
+            let prices = result.dataset.ohlcData
+            let events: [AstroOverlayEvent]
+            if let firstDate = prices.first?.date,
+               let lastDate = prices.last?.date {
+                events = AstroOverlayEventService.shared.events(
+                    for: liveStock,
+                    from: firstDate,
+                    to: lastDate,
+                    filters: filters
+                )
+            } else {
+                events = []
+            }
+            let cosmicProvenance = result.dataset.correlationDisplayProvenance
+            let cosmicSummaries = AstroCorrelationService.shared.stockSummaries(
+                symbol: liveStock.symbol,
+                prices: prices,
+                events: events,
+                filterState: filters,
+                provenance: cosmicProvenance,
+                completeness: result.dataset.completeness
+            )
+            let combinedContext = StockAstroTechnicalContextService.shared.context(
+                symbol: liveStock.symbol,
+                technicalSummary: summary,
+                cosmicSummaries: cosmicSummaries,
+                cosmicProvenance: cosmicProvenance,
+                cosmicCompleteness: result.dataset.completeness
+            )
 
             await MainActor.run {
                 technicalSummary = summary
+                astroTechnicalContext = combinedContext
                 isLoadingTechnicalAnalysis = false
             }
         } catch {
@@ -353,9 +392,14 @@ struct StockDetailView: View {
                 symbol: liveStock.symbol,
                 reason: "Provider-backed historical candles unavailable"
             )
+            let combinedContext = StockAstroTechnicalContextService.shared.unavailableContext(
+                symbol: liveStock.symbol,
+                reason: "Provider-backed historical candles unavailable"
+            )
 
             await MainActor.run {
                 technicalSummary = summary
+                astroTechnicalContext = combinedContext
                 isLoadingTechnicalAnalysis = false
             }
         }
@@ -748,6 +792,17 @@ struct StockDetailView: View {
                     await loadTechnicalAnalysis()
                 }
             }
+        )
+        .padding(16)
+        .background(cardBackground)
+        .opacity(appearAnimation ? 1 : 0)
+        .offset(y: appearAnimation ? 0 : 20)
+    }
+
+    private var astroTechnicalContextSection: some View {
+        StockAstroTechnicalContextView(
+            context: astroTechnicalContext,
+            isLoading: isLoadingTechnicalAnalysis
         )
         .padding(16)
         .background(cardBackground)
