@@ -99,6 +99,10 @@ struct StockDetailView: View {
     @State private var selectedTimeframe: ChartTimeframe = .month
     @State private var selectedChartDisplayMode: StockChartDisplayMode = .line
 
+    /// Provider-backed technical context state
+    @State private var technicalSummary: StockTechnicalSummary
+    @State private var isLoadingTechnicalAnalysis: Bool = !AppState.isScreenshotMode
+
     /// Cosmic pattern state
     @State private var cosmicInsights: [CosmicPatternInsight] = []
     @State private var isLoadingPatterns: Bool = !AppState.isScreenshotMode
@@ -177,6 +181,10 @@ struct StockDetailView: View {
     init(stock: Stock) {
         self.stock = stock
         self._liveStock = State(initialValue: stock)
+        self._technicalSummary = State(initialValue: StockTechnicalAnalysisService.shared.unavailableSummary(
+            symbol: stock.symbol,
+            reason: "Provider-backed historical candles not loaded"
+        ))
     }
 
     // MARK: - Body
@@ -192,20 +200,23 @@ struct StockDetailView: View {
                     chartSection
                         .id(Self.astroOverlayScrollID)
 
-                    // 3. Key Statistics
+                    // 3. Technical Lens
+                    technicalAnalysisSection
+
+                    // 4. Key Statistics
                     keyStatsSection
 
                     if companyZodiacSign != nil {
-                        // 3.5. Cosmic Signals (Technical + Astro Analysis)
+                        // 4.5. Cosmic Signals (Technical + Astro Analysis)
                         cosmicSignalsSection
 
-                        // 4. Compatibility Section
+                        // 5. Compatibility Section
                         compatibilitySection
 
-                        // 4.5 Signal Framing Override (Premium)
+                        // 5.5 Signal Framing Override (Premium)
                         framingOverrideSection
 
-                        // 3. Astrological Profile
+                        // 6. Astrological Profile
                         astrologicalProfileSection
                     } else {
                         unknownCompanyAstroSection
@@ -271,6 +282,7 @@ struct StockDetailView: View {
                 } else {
                     await fetchLivePrice()
                     await fetchKeyStats()
+                    await loadTechnicalAnalysis()
                     await loadCosmicPatterns()
                 }
 
@@ -317,6 +329,33 @@ struct StockDetailView: View {
         await MainActor.run {
             keyStats = result.value
             keyStatsProvenance = result.provenance
+        }
+    }
+
+    private func loadTechnicalAnalysis() async {
+        isLoadingTechnicalAnalysis = true
+
+        do {
+            let result = try await HistoricalPriceService.shared.fetchHistoricalPriceResult(
+                symbol: liveStock.symbol,
+                timeframe: .year
+            )
+            let summary = StockTechnicalAnalysisService.shared.summary(for: result.dataset)
+
+            await MainActor.run {
+                technicalSummary = summary
+                isLoadingTechnicalAnalysis = false
+            }
+        } catch {
+            let summary = StockTechnicalAnalysisService.shared.unavailableSummary(
+                symbol: liveStock.symbol,
+                reason: "Provider-backed historical candles unavailable"
+            )
+
+            await MainActor.run {
+                technicalSummary = summary
+                isLoadingTechnicalAnalysis = false
+            }
         }
     }
 
@@ -594,6 +633,24 @@ struct StockDetailView: View {
             .background(cardBackground)
             .opacity(appearAnimation ? 1 : 0)
             .offset(y: appearAnimation ? 0 : 20)
+    }
+
+    // MARK: - Technical Analysis Section
+
+    private var technicalAnalysisSection: some View {
+        StockTechnicalAnalysisView(
+            summary: technicalSummary,
+            isLoading: isLoadingTechnicalAnalysis,
+            refreshAction: {
+                Task {
+                    await loadTechnicalAnalysis()
+                }
+            }
+        )
+        .padding(16)
+        .background(cardBackground)
+        .opacity(appearAnimation ? 1 : 0)
+        .offset(y: appearAnimation ? 0 : 20)
     }
 
     // MARK: - Cosmic Signals Section

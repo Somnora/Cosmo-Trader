@@ -94,7 +94,11 @@ struct ComplianceCopyGuardTests {
             "Provider-backed candles",
             "Line chart with selected astrological overlays",
             "Candle chart with selected astrological overlays",
-            "Chart context only. Not a prediction."
+            "Chart context only. Not a prediction.",
+            "Technical lens uses provider-backed historical candles only. Read this as historical context, not financial advice.",
+            "Provider-backed complete candles are required before this technical context can show metrics.",
+            "Cached candles are stale under the current policy. Refresh provider history to recheck.",
+            "Technical lens: above 50D average, RSI balanced."
         ]
 
         for example in safeExamples {
