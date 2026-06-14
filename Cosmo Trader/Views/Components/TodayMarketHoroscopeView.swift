@@ -803,6 +803,7 @@ struct TodayMarketHoroscopeView: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("today.activation.\(accessibilityKey(for: title))")
     }
 
     private func actionIcon(for title: String) -> String {
@@ -816,6 +817,15 @@ struct TodayMarketHoroscopeView: View {
             return "chart.pie.fill"
         }
         return "plus"
+    }
+
+    private func accessibilityKey(for title: String) -> String {
+        title
+            .lowercased()
+            .replacingOccurrences(of: " / ", with: ".")
+            .replacingOccurrences(of: "/", with: ".")
+            .split { !$0.isLetter && !$0.isNumber }
+            .joined(separator: ".")
     }
 
     private func labelExplainerDisclosure(_ explainers: [TodayDataLabelExplainer]) -> some View {
