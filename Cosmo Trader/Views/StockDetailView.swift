@@ -96,8 +96,24 @@ struct StockDetailView: View {
     @State private var keyStatsProvenance: FinancialDataProvenance = .unavailable(reason: "Provider fundamentals unavailable")
 
     /// Chart state
-    @State private var selectedTimeframe: ChartTimeframe = .month
-    @State private var selectedChartDisplayMode: StockChartDisplayMode = .line
+    @State private var selectedTimeframe: ChartTimeframe = {
+        #if DEBUG
+        if AppState.usesProviderBackedChartFixture,
+           let timeframe = AppState.providerBackedChartFixtureTimeframe {
+            return timeframe
+        }
+        #endif
+        return .month
+    }()
+    @State private var selectedChartDisplayMode: StockChartDisplayMode = {
+        #if DEBUG
+        if AppState.usesProviderBackedChartFixture,
+           AppState.launchArguments.contains("--chart-display-mode=candle") {
+            return .candle
+        }
+        #endif
+        return .line
+    }()
 
     /// Cosmic pattern state
     @State private var cosmicInsights: [CosmicPatternInsight] = []

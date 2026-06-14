@@ -8,7 +8,7 @@ failures=0
 require_absent() {
   local file="$1"
   local needle="$2"
-  if grep -Fq "$needle" "$ROOT/$file"; then
+  if grep -Fq -- "$needle" "$ROOT/$file"; then
     echo "FAIL: '$needle' is still present in $file"
     failures=$((failures + 1))
   fi
@@ -17,7 +17,7 @@ require_absent() {
 require_present() {
   local file="$1"
   local needle="$2"
-  if ! grep -Fq "$needle" "$ROOT/$file"; then
+  if ! grep -Fq -- "$needle" "$ROOT/$file"; then
     echo "FAIL: '$needle' is missing from $file"
     failures=$((failures + 1))
   fi
@@ -52,6 +52,19 @@ require_present "Cosmo Trader/Views/Components/HistoricalAstroChartView.swift" "
 require_present "Cosmo Trader/Views/Components/HistoricalAstroChartView.swift" "if effectiveDisplayMode == .candle"
 require_present "Cosmo Trader/Views/Components/HistoricalAstroChartView.swift" "curveMoonEvents"
 require_present "Cosmo Trader/Views/Components/HistoricalAstroChartView.swift" "overlayEvents.filter(\\.isRange)"
+require_present "Cosmo Trader/Services/HistoricalPriceCache.swift" "enum ProviderBackedChartFixtureSeeder"
+require_present "Cosmo Trader/Services/HistoricalPriceCache.swift" "static let launchFlag = \"--provider-chart-fixture\""
+require_present "Cosmo Trader/Services/HistoricalPriceCache.swift" "arguments.contains(\"--uitesting\") && arguments.contains(launchFlag)"
+require_present "Cosmo Trader/Services/HistoricalPriceCache.swift" "UI Test Fixture Provider"
+require_present "Cosmo Trader/Services/HistoricalPriceCache.swift" "HistoricalPriceCacheUITestFixtures"
+require_present "Cosmo Trader/Services/HistoricalPriceCache.swift" "staleFlag"
+require_present "Cosmo Trader/State/AppState.swift" "ProviderBackedChartFixtureSeeder.seedIfRequested"
+require_present "Cosmo Trader/State/AppState.swift" "--chart-timeframe="
+require_present "Cosmo Trader/ViewModels/HistoricalAstroChartViewModel.swift" "!AppState.usesProviderBackedChartFixture"
+require_present "Cosmo TraderTests/Services/HistoricalPriceCacheTests.swift" "Provider-backed chart fixture seeding is unavailable outside explicit UI test mode"
+require_present "Cosmo TraderTests/Services/HistoricalPriceCacheTests.swift" "Stale provider-backed chart fixture cannot render candle mode"
+require_absent "Cosmo Trader/Views/Components/StockChartView.swift" "ProviderBackedChartFixtureSeeder"
+require_absent "Cosmo Trader/Views/Components/HistoricalAstroChartView.swift" "ProviderBackedChartFixtureSeeder"
 require_present "Cosmo TraderTests/Services/AstroOverlayEventServiceTests.swift" "Candle mode requires complete provider backed OHLC candles"
 require_present "Cosmo TraderTests/Services/AstroOverlayEventServiceTests.swift" "Candle mode does not synthesize candles from close only data"
 require_present "Cosmo TraderTests/Services/ProductionMockGuardTests.swift" "Candle chart mode cannot render sample or synthetic close-only candles"

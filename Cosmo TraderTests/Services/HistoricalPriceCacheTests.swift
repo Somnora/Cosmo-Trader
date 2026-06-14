@@ -207,6 +207,116 @@ struct HistoricalPriceCacheTests {
         #expect(snapshot.provenanceBySymbol["AAPL"] == .unavailable(reason: "Provider-backed historical prices unavailable"))
     }
 
+    @Test("Provider-backed chart fixture seeding is unavailable outside explicit UI test mode")
+    func providerBackedChartFixtureSeedingIsUnavailableOutsideExplicitUITestMode() throws {
+        #if DEBUG
+        let cacheURL = temporaryCacheURL()
+        let cache = HistoricalPriceCache(directoryURL: cacheURL)
+        defer { try? cache.removeAll() }
+
+        #expect(!ProviderBackedChartFixtureSeeder.shouldSeed(arguments: []))
+        #expect(!ProviderBackedChartFixtureSeeder.shouldSeed(arguments: ["--uitesting"]))
+        #expect(!ProviderBackedChartFixtureSeeder.shouldSeed(arguments: [ProviderBackedChartFixtureSeeder.launchFlag]))
+        #expect(ProviderBackedChartFixtureSeeder.isolatedCacheDirectoryURL(
+            fileManager: .default,
+            arguments: [ProviderBackedChartFixtureSeeder.launchFlag]
+        ) == nil)
+
+        let seeded = try ProviderBackedChartFixtureSeeder.seedIfRequested(
+            arguments: [ProviderBackedChartFixtureSeeder.launchFlag],
+            cache: cache,
+            now: date("2025-01-31")
+        )
+
+        #expect(seeded.isEmpty)
+        #expect(cache.dataset(symbol: "AAPL", timeframe: .month, resolution: "D") == nil)
+        #endif
+    }
+
+    @Test("Provider-backed chart fixture seeds complete fresh cached OHLC for UI tests")
+    func providerBackedChartFixtureSeedsCompleteFreshCachedOHLCForUITests() throws {
+        #if DEBUG
+        let cacheURL = temporaryCacheURL()
+        let now = date("2025-01-31")
+        let cache = HistoricalPriceCache(directoryURL: cacheURL, nowProvider: { now })
+        defer { try? cache.removeAll() }
+
+        let seeded = try ProviderBackedChartFixtureSeeder.seedIfRequested(
+            arguments: [
+                "--uitesting",
+                ProviderBackedChartFixtureSeeder.launchFlag,
+                "--provider-chart-fixture-symbol=MSFT"
+            ],
+            cache: cache,
+            now: now
+        )
+
+        #expect(seeded["MSFT-1M"] != nil)
+
+        let dataset = try #require(cache.dataset(symbol: "MSFT", timeframe: .month, resolution: "D", now: now))
+        #expect(dataset.provider == ProviderBackedChartFixtureSeeder.providerName)
+        #expect(dataset.provenance.provider == ProviderBackedChartFixtureSeeder.providerName)
+        #expect(dataset.provenance.isCached)
+        #expect(!dataset.provenance.isCachedStale())
+        #expect(dataset.completeness == .complete)
+        #expect(dataset.candles.count >= 2)
+        #expect(StockChartCandleEligibility.canRenderCandles(
+            candles: dataset.ohlcData,
+            provenance: dataset.provenance,
+            completeness: dataset.completeness
+        ))
+        #endif
+    }
+
+    @Test("Stale provider-backed chart fixture cannot render candle mode")
+    func staleProviderBackedChartFixtureCannotRenderCandleMode() throws {
+        #if DEBUG
+        let cacheURL = temporaryCacheURL()
+        let now = date("2025-01-31")
+        let cache = HistoricalPriceCache(directoryURL: cacheURL, nowProvider: { now })
+        defer { try? cache.removeAll() }
+
+        try ProviderBackedChartFixtureSeeder.seedIfRequested(
+            arguments: [
+                "--uitesting",
+                ProviderBackedChartFixtureSeeder.launchFlag,
+                ProviderBackedChartFixtureSeeder.staleFlag
+            ],
+            cache: cache,
+            now: now
+        )
+
+        let dataset = try #require(cache.dataset(symbol: "AAPL", timeframe: .month, resolution: "D", now: now))
+        #expect(dataset.provenance.isCachedStale())
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: dataset.ohlcData,
+            provenance: dataset.provenance,
+            completeness: dataset.completeness
+        ))
+        #endif
+    }
+
+    @Test("Sample partial and insufficient datasets remain ineligible for candle fixtures")
+    func samplePartialAndInsufficientDatasetsRemainIneligibleForCandleFixtures() {
+        let validCandles = prices([100, 104, 108])
+
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: validCandles,
+            provenance: .sample(reason: "Preview fixture"),
+            completeness: .complete
+        ))
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: validCandles,
+            provenance: .cached(provider: "Unit Test Provider", fetchedAt: date("2025-01-31"), age: 60),
+            completeness: .partial(reason: "Provider returned a limited portion of the requested range")
+        ))
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: validCandles,
+            provenance: .cached(provider: "Unit Test Provider", fetchedAt: date("2025-01-31"), age: 60),
+            completeness: .insufficient(reason: "Provider returned fewer than two historical candles")
+        ))
+    }
+
     private func providerDataset(symbol: String, fetchedAt: Date) -> HistoricalPriceDataset {
         HistoricalPriceDataset.providerBacked(
             symbol: symbol,
