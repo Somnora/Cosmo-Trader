@@ -98,7 +98,12 @@ struct ComplianceCopyGuardTests {
             "Technical lens uses provider-backed historical candles only. Read this as historical context, not financial advice.",
             "Provider-backed complete candles are required before this technical context can show metrics.",
             "Cached candles are stale under the current policy. Refresh provider history to recheck.",
-            "Technical lens: above 50D average, RSI balanced."
+            "Technical lens: above 50D average, RSI balanced.",
+            "Load provider-backed history to unlock chart, technical, and cosmic context when enough data is available.",
+            "Provider-backed historical prices unavailable. Try again later.",
+            "Historical context only. Not financial advice.",
+            "Numeric claims remain gated",
+            "Needs complete fresh history"
         ]
 
         for example in safeExamples {
