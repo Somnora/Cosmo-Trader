@@ -99,6 +99,23 @@ struct ProductionMockGuardTests {
         ))
     }
 
+    @Test("Stock detail history activation uses provider service without sample fallback")
+    func stockDetailHistoryActivationUsesProviderServiceWithoutSampleFallback() async {
+        let viewModel = StockDetailHistoryActivationViewModel { _, _ in
+            throw HistoricalPriceError.noHistoricalData
+        }
+
+        let didLoad = await viewModel.refresh(symbol: "AAPL", timeframe: .month)
+
+        #expect(!didLoad)
+        #expect(viewModel.state.provenance == .unavailable(reason: "Provider-backed historical prices unavailable. Try again later."))
+        if case .sample = viewModel.state.provenance {
+            Issue.record("Stock Detail history activation must not fall back to sample provenance")
+        }
+        #expect(viewModel.state.contextRows.allSatisfy { !$0.status.localizedCaseInsensitiveContains("sample data") })
+        #expect(viewModel.state.contextRows.allSatisfy { !$0.status.localizedCaseInsensitiveContains("sample fallback") })
+    }
+
     @Test("Cosmic pattern interpreter does not create notes without provider candles")
     func cosmicPatternInterpreterDoesNotUseGeneratedCandles() {
         ChartPatternService.shared.clearCache()

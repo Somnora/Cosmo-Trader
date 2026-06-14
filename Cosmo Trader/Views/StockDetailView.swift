@@ -98,6 +98,8 @@ struct StockDetailView: View {
     /// Chart state
     @State private var selectedTimeframe: ChartTimeframe = .month
     @State private var selectedChartDisplayMode: StockChartDisplayMode = .line
+    @State private var chartReloadToken = UUID()
+    @State private var historyActivationViewModel = StockDetailHistoryActivationViewModel()
 
     /// Provider-backed technical context state
     @State private var technicalSummary: StockTechnicalSummary
@@ -609,20 +611,120 @@ struct StockDetailView: View {
                     selectedTimeframe: $selectedTimeframe,
                     selectedDisplayMode: $selectedChartDisplayMode
                 )
+                .id(chartReloadToken)
             } else {
                 StockChartView(
                     stock: liveStock,
                     selectedTimeframe: $selectedTimeframe,
                     selectedDisplayMode: $selectedChartDisplayMode
                 )
+                .id(chartReloadToken)
 
                 HistoricalAstroOverlayLockedCard()
             }
+
+            stockHistoryActivationCard
         }
         .padding(16)
         .background(cardBackground)
         .opacity(appearAnimation ? 1 : 0)
         .offset(y: appearAnimation ? 0 : 20)
+    }
+
+    private var stockHistoryActivationCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: historyActivationViewModel.state.isLoading ? "arrow.triangle.2.circlepath" : "clock.arrow.circlepath")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(CosmicTheme.gold)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(historyActivationViewModel.state.title.uppercased())
+                        .font(TerminalFont.data(10, weight: .bold))
+                        .foregroundColor(CosmicTheme.textPrimary)
+                        .tracking(1)
+
+                    Text(historyActivationViewModel.state.message)
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                        .lineSpacing(3)
+                }
+
+                Spacer(minLength: 8)
+
+                DataSourceIndicator(provenance: historyActivationViewModel.state.provenance, size: .compact)
+                    .fixedSize()
+            }
+
+            VStack(spacing: 7) {
+                ForEach(historyActivationViewModel.state.contextRows) { row in
+                    HStack(spacing: 10) {
+                        Text(row.title.uppercased())
+                            .font(TerminalFont.data(8, weight: .bold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .tracking(0.8)
+
+                        Spacer()
+
+                        Text(row.status)
+                            .font(TerminalFont.data(9))
+                            .foregroundColor(CosmicTheme.textSecondary)
+                            .multilineTextAlignment(.trailing)
+                    }
+                }
+            }
+
+            Button {
+                Task {
+                    await refreshProviderHistory()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    if historyActivationViewModel.state.isLoading {
+                        ProgressView()
+                            .scaleEffect(0.62)
+                            .tint(CosmicTheme.terminalBlack)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 11, weight: .bold))
+                    }
+
+                    Text(historyActivationViewModel.state.actionTitle.uppercased())
+                        .font(TerminalFont.data(10, weight: .bold))
+                        .tracking(1)
+                }
+                .foregroundColor(CosmicTheme.terminalBlack)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(CosmicTheme.gold)
+            }
+            .buttonStyle(.plain)
+            .disabled(historyActivationViewModel.state.isLoading)
+            .opacity(historyActivationViewModel.state.isLoading ? 0.72 : 1)
+
+            Text("Historical context only. Not financial advice.")
+                .font(TerminalFont.data(8))
+                .foregroundColor(CosmicTheme.textMuted)
+        }
+        .padding(12)
+        .background(CosmicTheme.secondaryBackground.opacity(0.7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(CosmicTheme.borderDim, lineWidth: 0.5)
+        )
+    }
+
+    private func refreshProviderHistory() async {
+        let didLoad = await historyActivationViewModel.refresh(
+            symbol: liveStock.symbol,
+            timeframe: selectedTimeframe
+        )
+
+        guard didLoad else { return }
+
+        chartReloadToken = UUID()
+        await loadTechnicalAnalysis()
+        await loadCosmicPatterns()
     }
 
     // MARK: - Key Stats Section

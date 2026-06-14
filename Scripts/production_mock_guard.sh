@@ -8,7 +8,7 @@ failures=0
 require_absent() {
   local file="$1"
   local needle="$2"
-  if grep -Fq "$needle" "$ROOT/$file"; then
+  if grep -Fq -- "$needle" "$ROOT/$file"; then
     echo "FAIL: '$needle' is still present in $file"
     failures=$((failures + 1))
   fi
@@ -17,7 +17,7 @@ require_absent() {
 require_present() {
   local file="$1"
   local needle="$2"
-  if ! grep -Fq "$needle" "$ROOT/$file"; then
+  if ! grep -Fq -- "$needle" "$ROOT/$file"; then
     echo "FAIL: '$needle' is missing from $file"
     failures=$((failures + 1))
   fi
@@ -62,6 +62,19 @@ require_absent "Cosmo Trader/Views/StockDetailView.swift" "formatted52Week"
 require_absent "Cosmo Trader/Views/StockDetailView.swift" "stock.formattedMarketCap"
 require_present "Cosmo Trader/Views/StockDetailView.swift" "DataSourceIndicator(provenance: priceProvenance"
 require_present "Cosmo Trader/Views/StockDetailView.swift" "Fundamentals such as market cap"
+require_present "Cosmo Trader/Views/StockDetailView.swift" "StockDetailHistoryActivationViewModel"
+require_present "Cosmo Trader/Views/StockDetailView.swift" "stockHistoryActivationCard"
+require_present "Cosmo Trader/Views/StockDetailView.swift" "chartReloadToken"
+require_present "Cosmo Trader/Views/StockDetailView.swift" "await loadTechnicalAnalysis()"
+require_present "Cosmo Trader/Views/StockDetailView.swift" "await loadCosmicPatterns()"
+require_present "Cosmo Trader/ViewModels/StockDetailHistoryActivationViewModel.swift" "HistoricalPriceService.shared.fetchHistoricalPriceResult"
+require_present "Cosmo Trader/ViewModels/StockDetailHistoryActivationViewModel.swift" "Provider-backed historical prices unavailable"
+require_present "Cosmo Trader/ViewModels/StockDetailHistoryActivationViewModel.swift" "Numeric claims remain gated"
+require_absent "Cosmo Trader/ViewModels/StockDetailHistoryActivationViewModel.swift" ".sample("
+require_absent "Cosmo Trader/ViewModels/StockDetailHistoryActivationViewModel.swift" "Mock"
+require_present "Cosmo TraderTests/Services/StockDetailHistoryActivationViewModelTests.swift" "Load action requests provider-backed history"
+require_present "Cosmo TraderTests/Services/StockDetailHistoryActivationViewModelTests.swift" "Load action does not create sample data on provider failure"
+require_present "Cosmo TraderTests/Services/ProductionMockGuardTests.swift" "Stock detail history activation uses provider service without sample fallback"
 
 require_absent "Cosmo Trader/Services/ChartPatternService.swift" "MockOHLCGenerator.generate"
 require_present "Cosmo Trader/Services/ChartPatternService.swift" "pattern analysis unavailable"
