@@ -103,7 +103,13 @@ struct ComplianceCopyGuardTests {
             "Provider-backed historical prices unavailable. Try again later.",
             "Historical context only. Not financial advice.",
             "Numeric claims remain gated",
-            "Needs complete fresh history"
+            "Needs complete fresh history",
+            "Portfolio correlation needs usable market value, provider-backed history, 70% usable coverage, and enough event samples before numeric metrics appear.",
+            "Cached provider-backed history is stale under the current freshness policy.",
+            "Provider returned some history, but the required range is incomplete.",
+            "Provider returned too little history for correlation context.",
+            "70% usable coverage is met. Portfolio correlation still depends on provider freshness and minimum event sample size.",
+            "Refresh history"
         ]
 
         for example in safeExamples {

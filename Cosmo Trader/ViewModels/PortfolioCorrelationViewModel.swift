@@ -8,6 +8,7 @@ final class PortfolioCorrelationViewModel {
     var errorMessage: String?
     var eventCount = 0
     var historicalPriceProvenance: FinancialDataProvenance = .unavailable(reason: "Portfolio historical data unavailable")
+    var historyCoverageDiagnostics: PortfolioHistoryCoverageDiagnostics = .empty
 
     let checkedEventKinds: [AstroOverlayEventKind] = PortfolioCosmicCorrelationService.shared.supportedEventKinds
     let filterState = AstroOverlayFilterState(
@@ -41,7 +42,7 @@ final class PortfolioCorrelationViewModel {
         }
     }
 
-    func load(holdings: [Stock]) async {
+    func load(holdings: [Stock], force: Bool = false) async {
         let ownedHoldings = holdings
             .filter(\.isOwned)
             .filter { $0.marketValue > 0 }
@@ -54,22 +55,30 @@ final class PortfolioCorrelationViewModel {
             summaries = []
             eventCount = 0
             historicalPriceProvenance = .unavailable(reason: "No initialized portfolio holdings")
+            historyCoverageDiagnostics = .empty
             errorMessage = nil
             loadedSignature = signature
             return
         }
 
-        if loadedSignature == signature, !summaries.isEmpty {
+        if !force,
+           loadedSignature == signature,
+           (isLoading || !summaries.isEmpty || !historyCoverageDiagnostics.rows.isEmpty) {
             return
         }
 
         loadedSignature = signature
         isLoading = true
         errorMessage = nil
+        defer { isLoading = false }
 
         let datasetSnapshot = await CorrelationDatasetStore.shared.datasets(
             symbols: ownedHoldings.map(\.symbol),
             timeframe: timeframe
+        )
+        historyCoverageDiagnostics = PortfolioHistoryCoverageDiagnostics.make(
+            holdings: ownedHoldings,
+            datasetSnapshot: datasetSnapshot
         )
         let priceHistoryBySymbol = datasetSnapshot.priceHistoryBySymbol
         let provenanceBySymbol = datasetSnapshot.provenanceBySymbol
@@ -106,8 +115,6 @@ final class PortfolioCorrelationViewModel {
         if nextSummaries.allSatisfy({ $0.displayMode == .unavailable }) {
             errorMessage = "Portfolio correlation context will appear when provider-backed holding history is available."
         }
-
-        isLoading = false
     }
 
     private func aggregateProvenance(from summaries: [PortfolioCosmicCorrelationSummary]) -> FinancialDataProvenance {
