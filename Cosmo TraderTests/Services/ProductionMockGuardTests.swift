@@ -116,6 +116,89 @@ struct ProductionMockGuardTests {
         #expect(viewModel.state.contextRows.allSatisfy { !$0.status.localizedCaseInsensitiveContains("sample fallback") })
     }
 
+    @Test("Today share card does not convert sample or unavailable context into provider-backed claims")
+    func todayShareCardDoesNotConvertSampleOrUnavailableContextIntoProviderBackedClaims() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let summary = TodayMarketHoroscopeSummary(
+            date: now,
+            cosmicContext: TodayCosmicContext(
+                headline: "Cosmic context only",
+                detail: "Moon phase context without provider-backed market tone.",
+                lunarLabel: "New Moon / Aries",
+                mercuryLabel: "Mercury Direct",
+                marketToneLabel: "Market data unavailable",
+                activeEvents: [],
+                provenance: .unavailable(reason: "Provider-backed market tone unavailable")
+            ),
+            marketContext: TodayMarketContext(
+                headline: "Market Weather unavailable",
+                detail: "Provider-backed market ETF history unavailable.",
+                eventName: nil,
+                windowLabel: nil,
+                eventCount: 0,
+                sampleSize: 0,
+                includedSymbols: [],
+                excludedSymbols: ["SPY", "QQQ", "DIA", "IWM"],
+                staleSymbols: [],
+                coverage: 0,
+                metrics: [],
+                sectorBreadth: nil,
+                provenance: .unavailable(reason: "Provider-backed market ETF history unavailable"),
+                displayMode: .unavailable,
+                activation: nil
+            ),
+            portfolioContext: TodayPortfolioContext(
+                headline: "Sample portfolio context is labeled",
+                detail: "Demo context only.",
+                eventName: nil,
+                windowLabel: nil,
+                eventCount: 0,
+                sampleSize: 0,
+                includedPortfolioWeight: 0,
+                excludedPortfolioWeight: 1,
+                unavailableHoldings: [],
+                metrics: [],
+                provenance: .sample(reason: "Demo context only, not portfolio data"),
+                displayMode: .sampleOnly,
+                activation: nil
+            ),
+            stockContext: TodayStockContext(
+                symbol: "WATCH",
+                name: "Watchlist setup",
+                headline: "Stock lens needs a ticker",
+                detail: "Add a watchlist symbol.",
+                eventName: nil,
+                windowLabel: nil,
+                eventCount: 0,
+                sampleSize: 0,
+                metrics: [],
+                provenance: .unavailable(reason: "No portfolio or watchlist stock available"),
+                displayMode: .unavailable,
+                activation: nil
+            ),
+            dataCoverage: TodayDataCoverage(
+                headline: "Waiting on provider-backed history",
+                detail: "No provider-backed history is available yet.",
+                rows: [],
+                explainers: []
+            ),
+            primaryAction: nil,
+            provenance: .mixed(reason: "Today combines unavailable and sample-labeled datasets."),
+            disclaimer: "Historical context only. Correlation does not imply causation and this is not financial advice."
+        )
+
+        let card = TodayMarketHoroscopeShareCardContent.make(from: summary)
+
+        #expect(card.marketLine.metrics.isEmpty)
+        #expect(card.portfolioLine?.metrics.isEmpty == true)
+        #expect(card.stockLine?.metrics.isEmpty == true)
+        #expect(card.marketLine.provenance.indicatorLabel == "Unavailable")
+        #expect(card.portfolioLine?.provenance.indicatorLabel == "Sample data")
+        #expect(!card.searchableText.localizedCaseInsensitiveContains("Finnhub live"))
+        #expect(!card.searchableText.localizedCaseInsensitiveContains("provider-backed basket history cleared"))
+        #expect(!card.searchableText.localizedCaseInsensitiveContains("provider-backed holding history cleared"))
+    }
+
     @Test("Cosmic pattern interpreter does not create notes without provider candles")
     func cosmicPatternInterpreterDoesNotUseGeneratedCandles() {
         ChartPatternService.shared.clearCache()

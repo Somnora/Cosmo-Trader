@@ -103,7 +103,14 @@ struct ComplianceCopyGuardTests {
             "Provider-backed historical prices unavailable. Try again later.",
             "Historical context only. Not financial advice.",
             "Numeric claims remain gated",
-            "Needs complete fresh history"
+            "Needs complete fresh history",
+            "Daily Market Horoscope",
+            "Historical context, source-labeled",
+            "Historical context only. No forecast. Not financial advice.",
+            "Market Weather unavailable",
+            "Portfolio setup needed",
+            "Watchlist setup needed",
+            "Demo context only, not market data."
         ]
 
         for example in safeExamples {
