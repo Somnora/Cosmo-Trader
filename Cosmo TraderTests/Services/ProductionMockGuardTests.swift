@@ -62,6 +62,29 @@ struct ProductionMockGuardTests {
         #expect(summaries.first?.displayMode == .sampleOnly)
     }
 
+    @Test("Upcoming cosmic events do not use fake price or company metadata")
+    func upcomingCosmicEventsDoNotUseFakePriceOrCompanyMetadata() {
+        let unknownStock = Stock(
+            symbol: "NOH",
+            name: "No History Corp.",
+            currentPrice: 0,
+            priceChange: 0,
+            percentageChange: 0,
+            foundedDate: nil,
+            sector: "Unknown"
+        )
+        let summary = StockUpcomingCosmicEventsService.shared.summary(
+            for: unknownStock,
+            startDate: date("2026-06-14")
+        )
+
+        #expect(!summary.hasCompanySpecificMetadata)
+        #expect(!summary.events.isEmpty)
+        #expect(summary.events.allSatisfy { ![.moonInSign, .companyBirthMonth, .companyFoundingAnniversary].contains($0.kind) })
+        #expect(summary.events.allSatisfy { !$0.sourceLabel.localizedCaseInsensitiveContains("sample") })
+        #expect(summary.events.allSatisfy { !$0.whyText.localizedCaseInsensitiveContains("price") })
+    }
+
     @Test("Candle chart mode cannot render sample or synthetic close-only candles")
     func candleChartModeDoesNotUseSampleOrSyntheticCandles() {
         let validCandles = [
@@ -145,6 +168,15 @@ struct ProductionMockGuardTests {
         #expect(service.getEarningsThisWeek().isEmpty)
         #expect(service.getNextEarnings(for: "AAPL") == nil)
         #expect(service.dataProvenance == .unavailable(reason: "Earnings calendar unavailable"))
+    }
+
+    private func date(_ value: String) -> Date {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: value) ?? Date(timeIntervalSince1970: 0)
     }
 
     @Test("Provider-dependent cosmic mood factors do not simulate market data")
