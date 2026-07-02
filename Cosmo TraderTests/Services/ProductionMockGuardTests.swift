@@ -284,8 +284,8 @@ struct ProductionMockGuardTests {
     }
 
     @Test("Daily reading does not quote unavailable cosmic mood as a market score")
-    func dailyReadingDoesNotQuoteUnavailableMoodScore() {
-        let reading = DailyFinancialReadingService.shared.compose(for: .sampleWithHoldings)
+    func dailyReadingDoesNotQuoteUnavailableMoodScore() async {
+        let reading = await DailyFinancialReadingService.shared.compose(for: .sampleWithHoldings)
 
         #expect(reading.marketTone == "Cosmic context only")
         #expect(!reading.marketCosmicPosture.contains("/100"))

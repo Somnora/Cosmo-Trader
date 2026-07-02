@@ -18,7 +18,7 @@ struct PortfolioView: View {
     @State private var isFetchingPrices: Bool = false
     @State private var quoteProvenanceBySymbol: [String: FinancialDataProvenance] = [:]
     @State private var watchlistQuoteOverrides: [String: Stock] = [:]
-    @ObservedObject private var stockAPI = StockAPIService.shared
+    private let stockAPI = StockAPIService.shared
     @State private var showRebalancingSuggestions: Bool = false
     @State private var chartTimeframe: ChartTimeframe = .month
     @State private var showPerformanceChart: Bool = true

@@ -57,7 +57,7 @@ final class DataSourceMonitor {
         self.hasValidFinnhubKey = hasValidFinnhubKeyProvider()
         self.mostRecentSuccessfulStockResponse = stockAPIService.lastUpdateTime
 
-        stockAPIService.$lastUpdateTime
+        stockAPIService.lastUpdateTimePublisher
             .receive(on: RunLoop.main)
             .sink { [weak self] timestamp in
                 Task { @MainActor [weak self] in

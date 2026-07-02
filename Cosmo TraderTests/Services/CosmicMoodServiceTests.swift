@@ -228,8 +228,8 @@ struct CosmicMoodServiceTests {
     // MARK: - Daily Brief integration
 
     @Test("Daily Brief marketTone reflects mood provenance honestly")
-    func dailyBriefMarketToneIsCosmicOnly() {
-        let reading = DailyFinancialReadingService.shared.compose(for: .sampleWithHoldings)
+    func dailyBriefMarketToneIsCosmicOnly() async {
+        let reading = await DailyFinancialReadingService.shared.compose(for: .sampleWithHoldings)
 
         #expect(reading.marketTone == "Cosmic context only")
         // The cell-level provenance must agree with the text. The cockpit

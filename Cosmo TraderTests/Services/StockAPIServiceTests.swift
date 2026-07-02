@@ -343,11 +343,6 @@ struct StockAPIServiceConfigTests {
     func maxRequestsPerMinuteValue() {
         #expect(StockAPIService.maxRequestsPerMinute == 60)
     }
-
-    @Test("Minimum request delay is 1 second")
-    func minRequestDelayValue() {
-        #expect(StockAPIService.minRequestDelay == 1.0)
-    }
 }
 
 // MARK: - Stock Extension Tests
