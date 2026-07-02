@@ -537,6 +537,214 @@ struct TodayMarketHoroscopeComposerTests {
         }
     }
 
+    @Test("Share card renders unavailable Today state honestly")
+    func shareCardRendersUnavailableTodayStateHonestly() {
+        let summary = composer.compose(
+            date: date("2026-05-30"),
+            user: user(portfolio: [], watchlist: []),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [],
+            stockCandidate: nil,
+            marketWeather: nil
+        )
+
+        let card = TodayMarketHoroscopeShareCardContent.make(from: summary)
+
+        #expect(card.marketLine.value == "Market Weather unavailable")
+        #expect(card.marketLine.metrics.isEmpty)
+        #expect(card.portfolioLine?.value == "Portfolio setup needed")
+        #expect(card.stockLine?.value == "Watchlist setup needed")
+        #expect(card.provenanceLabel == "Unavailable")
+        #expect(card.searchableText.localizedCaseInsensitiveContains("not available yet"))
+        #expect(card.footer == "Historical context only. No forecast. Not financial advice.")
+    }
+
+    @Test("Share card numeric claims only come from gated Today metrics")
+    func shareCardNumericClaimsRespectTodayGates() {
+        let fetchedAt = date("2026-05-30")
+        let live: FinancialDataProvenance = .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+        let readySummary = composer.compose(
+            date: fetchedAt,
+            user: user(),
+            mood: mood(value: 68, provenance: live),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: ["Full Moon"],
+            portfolioSummaries: [
+                portfolioSummary(
+                    provenance: live,
+                    displayMode: .marketBackedResult,
+                    includedWeight: 0.82,
+                    averageReturn: 1.4,
+                    winRate: 0.67
+                )
+            ],
+            stockCandidate: TodayStockCandidate(
+                stock: stock(symbol: "AAPL", sharesOwned: 0),
+                summaries: [
+                    stockSummary(
+                        provenance: live,
+                        displayMode: .marketBackedResult,
+                        averageReturn: 2.1,
+                        winRate: 0.75
+                    )
+                ],
+                provenance: live,
+                completeness: .complete
+            ),
+            marketWeather: marketWeatherSummary(
+                provenance: live,
+                displayMode: .marketBackedResult,
+                coverage: 1,
+                averageReturn: 0.8,
+                winRate: 0.58
+            )
+        )
+
+        let readyCard = TodayMarketHoroscopeShareCardContent.make(from: readySummary)
+        #expect(readyCard.marketLine.metrics.map(\.value).contains("+0.8%"))
+        #expect(readyCard.portfolioLine?.metrics.map(\.value).contains("+1.4%") == true)
+        #expect(readyCard.stockLine?.metrics.map(\.value).contains("+2.1%") == true)
+
+        let unavailableSummary = composer.compose(
+            date: fetchedAt,
+            user: user(),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [
+                portfolioSummary(
+                    provenance: .mixed(reason: "Only 40% of portfolio value has provider-backed historical prices"),
+                    displayMode: .insufficientSample,
+                    includedWeight: 0.40,
+                    averageReturn: 8.8,
+                    winRate: 0.88
+                )
+            ],
+            stockCandidate: TodayStockCandidate(
+                stock: stock(symbol: "TSLA", sharesOwned: 0),
+                summaries: [
+                    stockSummary(
+                        provenance: .sample(reason: "Preview fixture"),
+                        displayMode: .sampleOnly,
+                        averageReturn: 12.5,
+                        winRate: 1
+                    )
+                ],
+                provenance: .sample(reason: "Preview fixture"),
+                completeness: .complete
+            ),
+            marketWeather: marketWeatherSummary(
+                provenance: .unavailable(reason: "Provider-backed market ETF history unavailable"),
+                displayMode: .unavailable,
+                coverage: 0,
+                averageReturn: 9.9,
+                winRate: 0.99
+            )
+        )
+
+        let unavailableCard = TodayMarketHoroscopeShareCardContent.make(from: unavailableSummary)
+        let allUnavailableMetricsHidden = unavailableCard.lines.allSatisfy { $0.metrics.isEmpty }
+        #expect(allUnavailableMetricsHidden)
+        #expect(!unavailableCard.searchableText.contains("+9.9%"))
+        #expect(!unavailableCard.searchableText.contains("+8.8%"))
+        #expect(!unavailableCard.searchableText.contains("+12.5%"))
+        #expect(!unavailableCard.searchableText.contains("99%"))
+        #expect(!unavailableCard.searchableText.contains("100%"))
+    }
+
+    @Test("Share card can render without portfolio or watchlist")
+    func shareCardCanRenderWithoutPortfolioOrWatchlist() {
+        let summary = composer.compose(
+            date: date("2026-05-30"),
+            user: user(portfolio: [], watchlist: []),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: [],
+            portfolioSummaries: [],
+            stockCandidate: nil,
+            marketWeather: nil
+        )
+
+        let card = TodayMarketHoroscopeShareCardContent.make(from: summary)
+
+        #expect(card.portfolioLine?.detail == "Add or import holdings to unlock portfolio context.")
+        #expect(card.stockLine?.title == "WATCHLIST LENS")
+        #expect(card.stockLine?.detail == "Add a watchlist symbol or holding to unlock the stock lens.")
+        #expect(card.shareText.contains("PORTFOLIO LENS: Portfolio setup needed"))
+        #expect(card.shareText.contains("WATCHLIST LENS: Watchlist setup needed"))
+    }
+
+    @Test("Share card can render with watchlist stock context")
+    func shareCardCanRenderWithWatchlistStockContext() {
+        let fetchedAt = date("2026-05-30")
+        let live: FinancialDataProvenance = .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+        let summary = composer.compose(
+            date: fetchedAt,
+            user: user(),
+            mood: mood(value: 62, provenance: live),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: ["Full Moon"],
+            portfolioSummaries: [],
+            stockCandidate: TodayStockCandidate(
+                stock: stock(symbol: "AAPL", sharesOwned: 0),
+                summaries: [
+                    stockSummary(
+                        provenance: live,
+                        displayMode: .marketBackedResult,
+                        averageReturn: 2.1,
+                        winRate: 0.75
+                    )
+                ],
+                provenance: live,
+                completeness: .complete
+            ),
+            marketWeather: nil
+        )
+
+        let card = TodayMarketHoroscopeShareCardContent.make(from: summary)
+
+        #expect(card.stockLine?.title == "AAPL LENS")
+        #expect(card.stockLine?.value == "AAPL context ready")
+        #expect(card.stockLine?.metrics.map(\.label).contains("AVG") == true)
+        #expect(card.stockLine?.provenance.isProviderBacked == true)
+    }
+
+    @Test("Share card copy stays compliance safe")
+    func shareCardCopyStaysComplianceSafe() {
+        let summary = composer.compose(
+            user: user(portfolio: [], watchlist: []),
+            mood: mood(value: nil, provenance: .unavailable(reason: "Provider-backed market factors unavailable")),
+            lunarData: lunarData(),
+            mercuryStatus: "Mercury Direct",
+            activeEventTitles: ["New Moon"],
+            portfolioSummaries: [],
+            stockCandidate: nil,
+            marketWeather: nil
+        )
+        let card = TodayMarketHoroscopeShareCardContent.make(from: summary)
+        let copy = card.searchableText.lowercased()
+
+        for banned in [
+            "buy signal",
+            "sell signal",
+            "take profits",
+            "reduce exposure",
+            "position size",
+            "expected upside",
+            "expected downside",
+            "guaranteed outcome"
+        ] {
+            #expect(!copy.contains(banned))
+        }
+    }
+
     private func user(
         portfolio: [Stock]? = nil,
         watchlist: [String] = ["TSLA"]
