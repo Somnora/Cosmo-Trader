@@ -205,6 +205,9 @@ struct StockDetailView: View {
                     // 3. Technical Lens
                     technicalAnalysisSection
 
+                    // 3.25. Forward-looking cosmic calendar context
+                    upcomingCosmicEventsSection
+
                     // 4. Key Statistics
                     keyStatsSection
 
@@ -748,6 +751,18 @@ struct StockDetailView: View {
                     await loadTechnicalAnalysis()
                 }
             }
+        )
+        .padding(16)
+        .background(cardBackground)
+        .opacity(appearAnimation ? 1 : 0)
+        .offset(y: appearAnimation ? 0 : 20)
+    }
+
+    // MARK: - Upcoming Cosmic Events Section
+
+    private var upcomingCosmicEventsSection: some View {
+        StockUpcomingCosmicEventsView(
+            summary: StockUpcomingCosmicEventsService.shared.summary(for: liveStock)
         )
         .padding(16)
         .background(cardBackground)
