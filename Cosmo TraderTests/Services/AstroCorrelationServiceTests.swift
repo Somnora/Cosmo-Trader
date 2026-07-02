@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 @testable import Cosmo_Trader
 
@@ -121,6 +122,37 @@ struct AstroCorrelationServiceTests {
         #expect(summary?.provenance.isProviderBacked == true)
     }
 
+    @Test("Stock summaries expose explainability fields for market-backed results")
+    func stockSummariesExposeExplainabilityFieldsForMarketBackedResults() {
+        let summaries = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: prices([100, 102, 101, 106, 104, 111, 109, 118, 115, 125, 122, 130]),
+            events: [
+                pointEvent(on: "2025-01-02"),
+                pointEvent(on: "2025-01-04"),
+                pointEvent(on: "2025-01-06"),
+                pointEvent(on: "2025-01-08")
+            ],
+            filterState: AstroOverlayFilterState(eventWindowDays: 1),
+            provenance: .cached(
+                provider: FinancialDataProvenance.finnhubProvider,
+                fetchedAt: date("2025-01-10"),
+                age: 60 * 30
+            ),
+            completeness: .complete
+        )
+
+        let summary = summaries.first
+        #expect(isMarketBacked(summary))
+        #expect(summary?.dataCompleteness == .complete)
+        #expect(summary?.bestHistoricalReturn != nil)
+        #expect(summary?.medianReturn != nil)
+        #expect(summary?.weakestHistoricalReturn != nil)
+        #expect((summary?.bestHistoricalReturn ?? 0) >= (summary?.weakestHistoricalReturn ?? 0))
+        #expect(summary?.baselineReturn != nil)
+        #expect(summary?.confidence != .unavailable)
+    }
+
     @Test("Stock summaries with thin event coverage withhold numeric claims")
     func stockSummariesWithThinEventCoverageWithholdNumericClaims() {
         let summaries = AstroCorrelationService.shared.stockSummaries(
@@ -140,6 +172,8 @@ struct AstroCorrelationServiceTests {
         #expect(summary?.winRate == nil)
         #expect(summary?.baselineReturn == nil)
         #expect(summary?.disclaimer.contains("No return claim") == true)
+        #expect(summary?.bestHistoricalReturn == nil)
+        #expect(summary?.weakestHistoricalReturn == nil)
     }
 
     @Test("Stock summaries with unavailable provenance do not expose numeric claims")
@@ -201,6 +235,9 @@ struct AstroCorrelationServiceTests {
         #expect(summary?.winRate == nil)
         #expect(summary?.disclaimer.contains("Partial historical dataset") == true)
         #expect(summary?.provenance.indicatorLabel == "Partial history")
+        #expect(summary?.dataCompleteness == .partial(reason: "Provider returned a limited portion of the requested range"))
+        #expect(summary?.bestHistoricalReturn == nil)
+        #expect(summary?.weakestHistoricalReturn == nil)
     }
 
     @Test("Stock summaries with insufficient dataset completeness do not expose numeric claims")
@@ -223,6 +260,142 @@ struct AstroCorrelationServiceTests {
         #expect(summary?.averageReturn == nil)
         #expect(summary?.winRate == nil)
         #expect(summary?.disclaimer.contains("Insufficient historical dataset") == true)
+        #expect(summary?.dataCompleteness == .insufficient(reason: "Provider returned fewer than two historical candles"))
+        #expect(summary?.bestHistoricalReturn == nil)
+        #expect(summary?.weakestHistoricalReturn == nil)
+    }
+
+    @MainActor
+    @Test("Correlation explainability disclosure view instantiates for available and unavailable states")
+    func correlationExplainabilityDisclosureViewInstantiates() {
+        let availableSummary = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: prices([100, 102, 101, 106, 104, 111, 109, 118, 115, 125, 122, 130]),
+            events: [
+                pointEvent(on: "2025-01-02"),
+                pointEvent(on: "2025-01-04"),
+                pointEvent(on: "2025-01-06"),
+                pointEvent(on: "2025-01-08")
+            ],
+            filterState: AstroOverlayFilterState(eventWindowDays: 1),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10"))
+        )
+
+        let unavailableSummary = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: prices([100, 102, 101, 106]),
+            events: [pointEvent(on: "2025-01-02")],
+            filterState: AstroOverlayFilterState(eventWindowDays: 1),
+            provenance: .sample(reason: "Preview fixture")
+        )
+
+        _ = AstroCorrelationSummaryView(
+            summaries: availableSummary + unavailableSummary,
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10")),
+            checkedEventKinds: [.fullMoon],
+            eventCount: 5,
+            windowLabel: CorrelationWindow(daysBefore: 1, daysAfter: 1).displayName,
+            hasHistoricalPrices: true
+        )
+    }
+
+    @Test("Historical dataset with empty candles is insufficient and unusable for chart claims")
+    func historicalDatasetWithEmptyCandlesIsInsufficientAndUnusable() {
+        let requestedRange = DateInterval(start: date("2025-01-01"), end: date("2025-03-01"))
+        let dataset = HistoricalPriceDataset.providerBacked(
+            symbol: "AAPL",
+            candles: [],
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: date("2025-03-01"),
+            requestedRange: requestedRange,
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-03-01"))
+        )
+
+        #expect(dataset.candles.isEmpty)
+        #expect(dataset.isUsableForCorrelation == false)
+        #expect(dataset.completeness.label == "Insufficient")
+        #expect(dataset.correlationDisplayProvenance.isProviderBacked == false)
+        #expect(dataset.correlationDisplayProvenance.indicatorLabel == "Unavailable")
+    }
+
+    @Test("Historical dataset with one candle is insufficient and cannot drive overlay metrics")
+    func historicalDatasetWithOneCandleIsInsufficient() {
+        let requestedRange = DateInterval(start: date("2025-01-01"), end: date("2025-03-01"))
+        let dataset = HistoricalPriceDataset.providerBacked(
+            symbol: "AAPL",
+            candles: prices([100]),
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: date("2025-03-01"),
+            requestedRange: requestedRange,
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-03-01"))
+        )
+
+        let summaries = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: dataset.ohlcData,
+            events: [pointEvent(on: "2025-01-01"), pointEvent(on: "2025-01-02"), pointEvent(on: "2025-01-03")],
+            filterState: AstroOverlayFilterState(eventWindowDays: 1),
+            provenance: dataset.correlationDisplayProvenance,
+            completeness: dataset.completeness
+        )
+
+        #expect(dataset.candles.count == 1)
+        #expect(dataset.isUsableForCorrelation == false)
+        #expect(isInsufficientDataset(summaries.first))
+        #expect(summaries.first?.averageReturn == nil)
+        #expect(summaries.first?.winRate == nil)
+    }
+
+    @Test("Stale cached candles remain provider-backed but are labeled stale")
+    func staleCachedCandlesRemainProviderBackedButLabeledStale() {
+        let staleAge = FinancialDataProvenance.defaultCachedStaleInterval + 60
+        let fetchedAt = date("2025-01-01")
+        let requestedRange = DateInterval(start: date("2025-01-01"), end: date("2025-01-10"))
+        let dataset = HistoricalPriceDataset.providerBacked(
+            symbol: "AAPL",
+            candles: prices([100, 101, 102, 103, 104, 105, 106, 107, 108, 109]),
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: fetchedAt,
+            requestedRange: requestedRange,
+            provenance: .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt, age: staleAge)
+        )
+
+        #expect(dataset.provenance.isProviderBacked)
+        #expect(dataset.provenance.isCachedStale())
+        #expect(dataset.freshness() == .cachedStale(age: staleAge))
+        #expect(dataset.correlationDisplayProvenance.isProviderBacked)
+    }
+
+    @Test("Partial provider-backed candles become mixed provenance and hide numeric chart claims")
+    func partialProviderBackedCandlesHideNumericChartClaims() {
+        let requestedRange = DateInterval(start: date("2025-01-01"), end: date("2025-04-01"))
+        let dataset = HistoricalPriceDataset.providerBacked(
+            symbol: "AAPL",
+            candles: [
+                OHLCData(date: date("2025-03-20"), open: 100, high: 101, low: 99, close: 100, volume: 1_000),
+                OHLCData(date: date("2025-03-21"), open: 101, high: 102, low: 100, close: 101, volume: 1_000)
+            ],
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: date("2025-04-01"),
+            requestedRange: requestedRange,
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-04-01"))
+        )
+
+        let summaries = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: dataset.ohlcData,
+            events: [pointEvent(on: "2025-03-20"), pointEvent(on: "2025-03-21"), pointEvent(on: "2025-03-22")],
+            filterState: AstroOverlayFilterState(eventWindowDays: 1),
+            provenance: dataset.correlationDisplayProvenance,
+            completeness: dataset.completeness
+        )
+
+        #expect(dataset.completeness.label == "Partial")
+        #expect(dataset.correlationDisplayProvenance.indicatorLabel == "Partial history")
+        #expect(isPartialDataset(summaries.first))
+        #expect(summaries.first?.averageReturn == nil)
+        #expect(summaries.first?.medianReturn == nil)
+        #expect(summaries.first?.baselineReturn == nil)
     }
 
     private func pointEvent(on value: String) -> AstroOverlayEvent {

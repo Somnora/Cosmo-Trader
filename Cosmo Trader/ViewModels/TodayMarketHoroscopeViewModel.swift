@@ -37,8 +37,8 @@ final class TodayMarketHoroscopeViewModel {
         self.overlayEventService = overlayEventService ?? AstroOverlayEventService.shared
     }
 
-    func load(user: UserProfile?) async {
-        let signature = signature(for: user)
+    func load(user: UserProfile?, firstRunSetupSkipped: Bool = false) async {
+        let signature = signature(for: user, firstRunSetupSkipped: firstRunSetupSkipped)
         if loadedSignature == signature, summary != nil {
             return
         }
@@ -76,15 +76,16 @@ final class TodayMarketHoroscopeViewModel {
             activeEventTitles: activeEvents,
             portfolioSummaries: portfolioSummaries,
             stockCandidate: stockCandidate,
-            marketWeather: marketWeather
+            marketWeather: marketWeather,
+            firstRunSetupSkipped: firstRunSetupSkipped
         )
 
         isLoading = false
     }
 
-    func reload(user: UserProfile?) async {
+    func reload(user: UserProfile?, firstRunSetupSkipped: Bool = false) async {
         loadedSignature = nil
-        await load(user: user)
+        await load(user: user, firstRunSetupSkipped: firstRunSetupSkipped)
     }
 
     private func loadPortfolioSummaries(holdings: [Stock]) async -> [PortfolioCosmicCorrelationSummary] {
@@ -125,7 +126,9 @@ final class TodayMarketHoroscopeViewModel {
     }
 
     private func loadStockCandidate(for user: UserProfile?) async -> TodayStockCandidate? {
-        for stock in candidateStocks(from: user) {
+        let candidates = candidateStocks(from: user)
+        for candidateInput in candidates {
+            let stock = candidateInput.stock
             let symbol = stock.symbol.uppercased()
 
             do {
@@ -157,7 +160,8 @@ final class TodayMarketHoroscopeViewModel {
                     stock: stock,
                     summaries: summaries,
                     provenance: dataset.correlationDisplayProvenance,
-                    completeness: dataset.completeness
+                    completeness: dataset.completeness,
+                    source: candidateInput.source
                 )
 
                 if summaries.contains(where: { $0.displayMode == .marketBackedResult }) {
@@ -172,45 +176,49 @@ final class TodayMarketHoroscopeViewModel {
             }
         }
 
-        if let fallback = candidateStocks(from: user).first {
+        if let fallback = candidates.first {
             return TodayStockCandidate(
-                stock: fallback,
+                stock: fallback.stock,
                 summaries: [],
                 provenance: .unavailable(reason: "Provider-backed historical prices unavailable"),
-                completeness: .insufficient(reason: "Provider-backed historical prices unavailable")
+                completeness: .insufficient(reason: "Provider-backed historical prices unavailable"),
+                source: fallback.source
             )
         }
 
         return nil
     }
 
-    private func candidateStocks(from user: UserProfile?) -> [Stock] {
+    func candidateStocks(from user: UserProfile?) -> [(stock: Stock, source: TodayStockCandidateSource)] {
         guard let user else { return [] }
 
         var seen: Set<String> = []
-        var candidates: [Stock] = []
+        var candidates: [(stock: Stock, source: TodayStockCandidateSource)] = []
 
-        for holding in user.portfolio.filter(\.isOwned).sorted(by: { $0.marketValue > $1.marketValue }) {
-            let symbol = holding.symbol.uppercased()
-            guard !seen.contains(symbol) else { continue }
-            seen.insert(symbol)
-            candidates.append(holding)
-        }
-
+        // Watchlist-first users should get a Today stock lens without
+        // needing portfolio holdings. Use known company metadata only; this
+        // never supplies fake quote or history data.
         for symbol in user.watchlist.map({ $0.uppercased() }) {
             guard !seen.contains(symbol),
                   let stock = MockStockData.knownStocks.first(where: { $0.symbol.uppercased() == symbol }) else {
                 continue
             }
             seen.insert(symbol)
-            candidates.append(stock)
+            candidates.append((stock, .watchlist))
+        }
+
+        for holding in user.portfolio.filter(\.isOwned).sorted(by: { $0.marketValue > $1.marketValue }) {
+            let symbol = holding.symbol.uppercased()
+            guard !seen.contains(symbol) else { continue }
+            seen.insert(symbol)
+            candidates.append((holding, .portfolio))
         }
 
         return Array(candidates.prefix(4))
     }
 
-    private func signature(for user: UserProfile?) -> String {
-        guard let user else { return "no-user" }
+    private func signature(for user: UserProfile?, firstRunSetupSkipped: Bool) -> String {
+        guard let user else { return "no-user|setupSkipped:\(firstRunSetupSkipped)" }
         let holdings = user.portfolio
             .filter(\.isOwned)
             .map { "\($0.symbol.uppercased()):\($0.sharesOwned):\($0.marketValue)" }
@@ -220,6 +228,6 @@ final class TodayMarketHoroscopeViewModel {
             .map { $0.uppercased() }
             .sorted()
             .joined(separator: "|")
-        return "\(user.id.uuidString)|\(holdings)|\(watchlist)"
+        return "\(user.id.uuidString)|\(holdings)|\(watchlist)|setupSkipped:\(firstRunSetupSkipped)"
     }
 }

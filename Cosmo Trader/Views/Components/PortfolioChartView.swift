@@ -475,7 +475,7 @@ struct PortfolioChartView: View {
             formatter.dateFormat = "E h:mm a"
         case .month, .threeMonth, .sixMonth:
             formatter.dateFormat = "MMM d"
-        case .year, .all:
+        case .year, .twoYear, .all:
             formatter.dateFormat = "MMM d, yyyy"
         }
         return formatter.string(from: date)

@@ -131,6 +131,8 @@ struct AstroCorrelationSummaryView: View {
                     .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+
+            calculationDisclosure(summary)
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -171,11 +173,108 @@ struct AstroCorrelationSummaryView: View {
                 smallStat(label: "MAX DD", value: percent(summary.maxDrawdown.map { -abs($0) }))
             }
 
+            distributionContext(summary)
+
             Text(summary.disclaimer)
                 .font(TerminalFont.data(9))
                 .foregroundColor(CosmicTheme.textMuted)
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder
+    private func distributionContext(_ summary: StockCosmicCorrelationSummary) -> some View {
+        if summary.displayMode == .marketBackedResult,
+           summary.bestHistoricalReturn != nil,
+           summary.medianReturn != nil,
+           summary.weakestHistoricalReturn != nil {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                smallStat(label: "BEST OBS", value: percent(summary.bestHistoricalReturn))
+                smallStat(label: "MEDIAN OBS", value: percent(summary.medianReturn))
+                smallStat(label: "WEAKEST OBS", value: percent(summary.weakestHistoricalReturn))
+            }
+        }
+    }
+
+    private func calculationDisclosure(_ summary: StockCosmicCorrelationSummary) -> some View {
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 5) {
+                disclosureRow(label: "EVENT TYPE", value: summary.eventName)
+                disclosureRow(label: "SAMPLE", value: sampleExplanation(summary))
+                disclosureRow(label: "WINDOW", value: summary.window.displayName)
+                disclosureRow(label: "DATA", value: "\(summary.provenance.detailText) - \(summary.dataCompleteness.label) history")
+                disclosureRow(label: "BASELINE", value: baselineExplanation(summary))
+                disclosureRow(label: "CONFIDENCE", value: summary.confidence.displayName)
+
+                if summary.displayMode != .marketBackedResult {
+                    disclosureRow(label: "WHY NO METRICS", value: unavailableExplanation(summary))
+                }
+
+                Text("Historical context only. Correlation lens, not predictive and not financial advice. Correlation does not imply causation.")
+                    .font(TerminalFont.data(8))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 2)
+            }
+            .padding(.top, 5)
+        } label: {
+            Text("HOW THIS WAS CALCULATED")
+                .font(TerminalFont.data(8, weight: .bold))
+                .foregroundColor(CosmicTheme.gold)
+                .tracking(0.6)
+        }
+        .tint(CosmicTheme.gold)
+        .font(TerminalFont.data(9))
+    }
+
+    private func disclosureRow(label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(TerminalFont.data(7, weight: .bold))
+                .foregroundColor(CosmicTheme.textMuted)
+                .tracking(0.5)
+
+            Text(value)
+                .font(TerminalFont.data(9))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func sampleExplanation(_ summary: StockCosmicCorrelationSummary) -> String {
+        if summary.displayMode == .marketBackedResult {
+            return "\(summary.sampleSize) usable observations from \(summary.eventCount) checked \(summary.eventName) events."
+        }
+        return "\(summary.sampleSize) usable observations from \(summary.eventCount) checked \(summary.eventName) events. At least 3 provider-backed observations are required for a numeric context view."
+    }
+
+    private func baselineExplanation(_ summary: StockCosmicCorrelationSummary) -> String {
+        guard summary.displayMode == .marketBackedResult,
+              let baselineReturn = summary.baselineReturn else {
+            return "Baseline comparison appears when provider-backed history and sample size gates pass."
+        }
+        return "Same-window baseline: \(percent(baselineReturn))."
+    }
+
+    private func unavailableExplanation(_ summary: StockCosmicCorrelationSummary) -> String {
+        switch summary.displayMode {
+        case .insufficientSample:
+            return "This event does not have enough provider-backed historical observations."
+        case .partialDataset:
+            return "The historical dataset is partial, so return metrics are withheld."
+        case .insufficientDataset:
+            return "The historical dataset is insufficient, so return metrics are withheld."
+        case .sampleOnly:
+            return "Sample data is preview-only and cannot produce numeric correlation metrics."
+        case .unavailable:
+            return "Provider-backed historical price data is unavailable."
+        case .partialCoverage:
+            return "Coverage is partial, so numeric metrics are withheld."
+        case .marketBackedResult:
+            return "Numeric context is available."
         }
     }
 

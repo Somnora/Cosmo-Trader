@@ -208,6 +208,8 @@ final class HistoricalPriceService {
             return ("D", calendar.date(byAdding: .day, value: -180, to: to) ?? to, to)
         case .year:
             return ("D", calendar.date(byAdding: .day, value: -365, to: to) ?? to, to)
+        case .twoYear:
+            return ("D", calendar.date(byAdding: .year, value: -2, to: to) ?? to, to)
         case .all:
             return ("W", calendar.date(byAdding: .year, value: -5, to: to) ?? to, to)
         }

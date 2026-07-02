@@ -6,9 +6,48 @@ struct TodayMarketHoroscopeSummary: Equatable {
     let marketContext: TodayMarketContext
     let portfolioContext: TodayPortfolioContext
     let stockContext: TodayStockContext?
+    let firstRunSetup: TodayFirstRunSetupState
     let dataCoverage: TodayDataCoverage
+    let primaryAction: TodayActivationPrompt?
     let provenance: FinancialDataProvenance
     let disclaimer: String
+}
+
+struct TodayFirstRunSetupState: Equatable {
+    let isSkipped: Bool
+    let steps: [TodayFirstRunSetupStep]
+
+    var isComplete: Bool {
+        !steps.isEmpty && steps.allSatisfy(\.isComplete)
+    }
+
+    var nextStep: TodayFirstRunSetupStep? {
+        steps.first { !$0.isComplete }
+    }
+}
+
+struct TodayFirstRunSetupStep: Equatable, Identifiable {
+    let id: TodayFirstRunSetupStepID
+    let title: String
+    let detail: String
+    let isComplete: Bool
+    let actionTitle: String?
+    let action: TodayFirstRunSetupAction?
+}
+
+enum TodayFirstRunSetupStepID: String, Equatable, Hashable {
+    case watchlist
+    case portfolio
+    case providerHistory
+    case labels
+}
+
+enum TodayFirstRunSetupAction: String, Equatable {
+    case addWatchlist
+    case addHolding
+    case importPortfolio
+    case loadProviderHistory
+    case reviewLabels
 }
 
 struct TodayCosmicContext: Equatable {
@@ -42,9 +81,24 @@ struct TodayMarketContext: Equatable {
     let staleSymbols: [String]
     let coverage: Double
     let metrics: [TodayMetric]
+    let sectorBreadth: TodayMarketSectorBreadth?
     let provenance: FinancialDataProvenance
     let displayMode: DisplayMode
     let activation: TodayActivationPrompt?
+}
+
+struct TodayMarketSectorBreadth: Equatable {
+    let headline: String
+    let detail: String
+    let eventName: String?
+    let sampleSize: Int
+    let coverage: Double
+    let includedSymbols: [String]
+    let excludedSymbols: [String]
+    let staleSymbols: [String]
+    let metrics: [TodayMetric]
+    let provenance: FinancialDataProvenance
+    let displayMode: CorrelationDisplayMode
 }
 
 struct TodayPortfolioContext: Equatable {
@@ -94,6 +148,7 @@ struct TodayStockContext: Equatable {
     let metrics: [TodayMetric]
     let provenance: FinancialDataProvenance
     let displayMode: DisplayMode
+    let source: TodayStockCandidateSource?
     let activation: TodayActivationPrompt?
 }
 
@@ -167,9 +222,38 @@ struct TodayDataLabelExplainer: Equatable, Identifiable {
     }
 }
 
+enum TodayStockCandidateSource: Equatable {
+    case watchlist
+    case portfolio
+
+    var displayName: String {
+        switch self {
+        case .watchlist:
+            return "Watchlist"
+        case .portfolio:
+            return "Portfolio"
+        }
+    }
+}
+
 struct TodayStockCandidate: Equatable {
     let stock: Stock
     let summaries: [StockCosmicCorrelationSummary]
     let provenance: FinancialDataProvenance
     let completeness: HistoricalDatasetCompleteness
+    let source: TodayStockCandidateSource
+
+    init(
+        stock: Stock,
+        summaries: [StockCosmicCorrelationSummary],
+        provenance: FinancialDataProvenance,
+        completeness: HistoricalDatasetCompleteness,
+        source: TodayStockCandidateSource = .portfolio
+    ) {
+        self.stock = stock
+        self.summaries = summaries
+        self.provenance = provenance
+        self.completeness = completeness
+        self.source = source
+    }
 }

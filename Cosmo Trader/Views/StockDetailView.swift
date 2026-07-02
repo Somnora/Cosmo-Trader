@@ -96,7 +96,31 @@ struct StockDetailView: View {
     @State private var keyStatsProvenance: FinancialDataProvenance = .unavailable(reason: "Provider fundamentals unavailable")
 
     /// Chart state
-    @State private var selectedTimeframe: ChartTimeframe = .month
+    @State private var selectedTimeframe: ChartTimeframe = {
+        #if DEBUG
+        if AppState.usesProviderBackedChartFixture,
+           let timeframe = AppState.providerBackedChartFixtureTimeframe {
+            return timeframe
+        }
+        #endif
+        return .month
+    }()
+    @State private var selectedChartDisplayMode: StockChartDisplayMode = {
+        #if DEBUG
+        if AppState.usesProviderBackedChartFixture,
+           AppState.launchArguments.contains("--chart-display-mode=candle") {
+            return .candle
+        }
+        #endif
+        return .line
+    }()
+    @State private var chartReloadToken = UUID()
+    @State private var historyActivationViewModel = StockDetailHistoryActivationViewModel()
+
+    /// Provider-backed technical context state
+    @State private var technicalSummary: StockTechnicalSummary
+    @State private var astroTechnicalContext: StockAstroTechnicalContext
+    @State private var isLoadingTechnicalAnalysis: Bool = !AppState.isScreenshotMode
 
     /// Cosmic pattern state
     @State private var cosmicInsights: [CosmicPatternInsight] = []
@@ -176,6 +200,14 @@ struct StockDetailView: View {
     init(stock: Stock) {
         self.stock = stock
         self._liveStock = State(initialValue: stock)
+        self._technicalSummary = State(initialValue: StockTechnicalAnalysisService.shared.unavailableSummary(
+            symbol: stock.symbol,
+            reason: "Provider-backed historical candles not loaded"
+        ))
+        self._astroTechnicalContext = State(initialValue: StockAstroTechnicalContextService.shared.unavailableContext(
+            symbol: stock.symbol,
+            reason: "Provider-backed historical candles not loaded"
+        ))
     }
 
     // MARK: - Body
@@ -191,20 +223,29 @@ struct StockDetailView: View {
                     chartSection
                         .id(Self.astroOverlayScrollID)
 
-                    // 3. Key Statistics
+                    // 3. Technical Lens
+                    technicalAnalysisSection
+
+                    // 3.25. Forward-looking cosmic calendar context
+                    upcomingCosmicEventsSection
+
+                    // 3.5 Astro-Technical Context
+                    astroTechnicalContextSection
+
+                    // 4. Key Statistics
                     keyStatsSection
 
                     if companyZodiacSign != nil {
-                        // 3.5. Cosmic Signals (Technical + Astro Analysis)
+                        // 4.5. Cosmic Signals (Technical + Astro Analysis)
                         cosmicSignalsSection
 
-                        // 4. Compatibility Section
+                        // 5. Compatibility Section
                         compatibilitySection
 
-                        // 4.5 Signal Framing Override (Premium)
+                        // 5.5 Signal Framing Override (Premium)
                         framingOverrideSection
 
-                        // 3. Astrological Profile
+                        // 6. Astrological Profile
                         astrologicalProfileSection
                     } else {
                         unknownCompanyAstroSection
@@ -270,6 +311,7 @@ struct StockDetailView: View {
                 } else {
                     await fetchLivePrice()
                     await fetchKeyStats()
+                    await loadTechnicalAnalysis()
                     await loadCosmicPatterns()
                 }
 
@@ -316,6 +358,69 @@ struct StockDetailView: View {
         await MainActor.run {
             keyStats = result.value
             keyStatsProvenance = result.provenance
+        }
+    }
+
+    private func loadTechnicalAnalysis() async {
+        isLoadingTechnicalAnalysis = true
+
+        do {
+            let result = try await HistoricalPriceService.shared.fetchHistoricalPriceResult(
+                symbol: liveStock.symbol,
+                timeframe: .year
+            )
+            let summary = StockTechnicalAnalysisService.shared.summary(for: result.dataset)
+            let filters = AstroOverlayFilterState()
+            let prices = result.dataset.ohlcData
+            let events: [AstroOverlayEvent]
+            if let firstDate = prices.first?.date,
+               let lastDate = prices.last?.date {
+                events = AstroOverlayEventService.shared.events(
+                    for: liveStock,
+                    from: firstDate,
+                    to: lastDate,
+                    filters: filters
+                )
+            } else {
+                events = []
+            }
+            let cosmicProvenance = result.dataset.correlationDisplayProvenance
+            let cosmicSummaries = AstroCorrelationService.shared.stockSummaries(
+                symbol: liveStock.symbol,
+                prices: prices,
+                events: events,
+                filterState: filters,
+                provenance: cosmicProvenance,
+                completeness: result.dataset.completeness
+            )
+            let combinedContext = StockAstroTechnicalContextService.shared.context(
+                symbol: liveStock.symbol,
+                technicalSummary: summary,
+                cosmicSummaries: cosmicSummaries,
+                cosmicProvenance: cosmicProvenance,
+                cosmicCompleteness: result.dataset.completeness
+            )
+
+            await MainActor.run {
+                technicalSummary = summary
+                astroTechnicalContext = combinedContext
+                isLoadingTechnicalAnalysis = false
+            }
+        } catch {
+            let summary = StockTechnicalAnalysisService.shared.unavailableSummary(
+                symbol: liveStock.symbol,
+                reason: "Provider-backed historical candles unavailable"
+            )
+            let combinedContext = StockAstroTechnicalContextService.shared.unavailableContext(
+                symbol: liveStock.symbol,
+                reason: "Provider-backed historical candles unavailable"
+            )
+
+            await MainActor.run {
+                technicalSummary = summary
+                astroTechnicalContext = combinedContext
+                isLoadingTechnicalAnalysis = false
+            }
         }
     }
 
@@ -449,54 +554,17 @@ struct StockDetailView: View {
                 }
             }
 
-            // Main price display using new component
-            HStack(alignment: .top) {
-                HStack(alignment: .top, spacing: 8) {
-                    if isLoadingPrice && lastPriceUpdate == nil {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("$----.--")
-                                .font(TerminalFont.price(36))
-                                .foregroundColor(CosmicTheme.textMuted)
-                            Text("---.-- (--.--%)")
-                                .font(TerminalFont.data(14))
-                                .foregroundColor(CosmicTheme.textMuted)
-                        }
-                    } else {
-                        PriceDisplayView(
-                            price: liveStock.currentPrice,
-                            change: liveStock.priceChange,
-                            changePercent: liveStock.percentageChange,
-                            size: .hero
-                        )
-                    }
-
-                    DataSourceIndicator(provenance: priceProvenance, size: .compact)
-                        .padding(.top, 4)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    priceValueAndSource
+                    Spacer(minLength: 8)
+                    unavailableMiniChart
                 }
 
-                Spacer()
-
-                // Mini chart state. No provider-backed 7D sparkline exists here yet,
-                // so avoid rendering generated samples as market history.
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("7D")
-                        .font(TerminalFont.data(9))
-                        .foregroundColor(CosmicTheme.textMuted)
-
-                    VStack(spacing: 3) {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(CosmicTheme.textMuted)
-                        Text("N/A")
-                            .font(TerminalFont.data(9, weight: .bold))
-                            .foregroundColor(CosmicTheme.textMuted)
-                    }
-                    .frame(width: 80, height: 40)
-                    .background(CosmicTheme.cardBackground.opacity(0.55))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(CosmicTheme.borderDim, lineWidth: 0.5)
-                    )
+                VStack(alignment: .leading, spacing: 12) {
+                    priceValueAndSource
+                    unavailableMiniChart
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             }
 
@@ -527,6 +595,63 @@ struct StockDetailView: View {
         )
     }
 
+    private var priceValueAndSource: some View {
+        HStack(alignment: .top, spacing: 8) {
+            priceValue
+                .layoutPriority(1)
+
+            DataSourceIndicator(provenance: priceProvenance, size: .compact)
+                .padding(.top, 4)
+                .fixedSize()
+        }
+    }
+
+    @ViewBuilder
+    private var priceValue: some View {
+        if isLoadingPrice && lastPriceUpdate == nil {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("$----.--")
+                    .font(TerminalFont.price(36))
+                    .foregroundColor(CosmicTheme.textMuted)
+                Text("---.-- (--.--%)")
+                    .font(TerminalFont.data(14))
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+        } else {
+            PriceDisplayView(
+                price: liveStock.currentPrice,
+                change: liveStock.priceChange,
+                changePercent: liveStock.percentageChange,
+                size: .hero
+            )
+        }
+    }
+
+    private var unavailableMiniChart: some View {
+        // No provider-backed 7D sparkline exists here yet, so avoid rendering
+        // generated samples as market history.
+        VStack(alignment: .trailing, spacing: 4) {
+            Text("7D")
+                .font(TerminalFont.data(9))
+                .foregroundColor(CosmicTheme.textMuted)
+
+            VStack(spacing: 3) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textMuted)
+                Text("N/A")
+                    .font(TerminalFont.data(9, weight: .bold))
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+            .frame(width: 80, height: 40)
+            .background(CosmicTheme.cardBackground.opacity(0.55))
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(CosmicTheme.borderDim, lineWidth: 0.5)
+            )
+        }
+    }
+
     /// Whether to surface a price-fetch error to the user inline.
     /// Configuration errors (no API key) read as scary support copy
     /// even though the cached price is fine, so we hide them here.
@@ -546,21 +671,123 @@ struct StockDetailView: View {
             if SubscriptionManager.shared.canAccess(.historicalAstroOverlay) || AppState.isScreenshotMode {
                 HistoricalAstroChartView(
                     stock: liveStock,
-                    selectedTimeframe: $selectedTimeframe
+                    selectedTimeframe: $selectedTimeframe,
+                    selectedDisplayMode: $selectedChartDisplayMode
                 )
+                .id(chartReloadToken)
             } else {
                 StockChartView(
                     stock: liveStock,
-                    selectedTimeframe: $selectedTimeframe
+                    selectedTimeframe: $selectedTimeframe,
+                    selectedDisplayMode: $selectedChartDisplayMode
                 )
+                .id(chartReloadToken)
 
                 HistoricalAstroOverlayLockedCard()
             }
+
+            stockHistoryActivationCard
         }
         .padding(16)
         .background(cardBackground)
         .opacity(appearAnimation ? 1 : 0)
         .offset(y: appearAnimation ? 0 : 20)
+    }
+
+    private var stockHistoryActivationCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: historyActivationViewModel.state.isLoading ? "arrow.triangle.2.circlepath" : "clock.arrow.circlepath")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(CosmicTheme.gold)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(historyActivationViewModel.state.title.uppercased())
+                        .font(TerminalFont.data(10, weight: .bold))
+                        .foregroundColor(CosmicTheme.textPrimary)
+                        .tracking(1)
+
+                    Text(historyActivationViewModel.state.message)
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                        .lineSpacing(3)
+                }
+
+                Spacer(minLength: 8)
+
+                DataSourceIndicator(provenance: historyActivationViewModel.state.provenance, size: .compact)
+                    .fixedSize()
+            }
+
+            VStack(spacing: 7) {
+                ForEach(historyActivationViewModel.state.contextRows) { row in
+                    HStack(spacing: 10) {
+                        Text(row.title.uppercased())
+                            .font(TerminalFont.data(8, weight: .bold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .tracking(0.8)
+
+                        Spacer()
+
+                        Text(row.status)
+                            .font(TerminalFont.data(9))
+                            .foregroundColor(CosmicTheme.textSecondary)
+                            .multilineTextAlignment(.trailing)
+                    }
+                }
+            }
+
+            Button {
+                Task {
+                    await refreshProviderHistory()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    if historyActivationViewModel.state.isLoading {
+                        ProgressView()
+                            .scaleEffect(0.62)
+                            .tint(CosmicTheme.terminalBlack)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 11, weight: .bold))
+                    }
+
+                    Text(historyActivationViewModel.state.actionTitle.uppercased())
+                        .font(TerminalFont.data(10, weight: .bold))
+                        .tracking(1)
+                }
+                .foregroundColor(CosmicTheme.terminalBlack)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(CosmicTheme.gold)
+            }
+            .buttonStyle(.plain)
+            .disabled(historyActivationViewModel.state.isLoading)
+            .opacity(historyActivationViewModel.state.isLoading ? 0.72 : 1)
+
+            Text("Historical context only. Not financial advice.")
+                .font(TerminalFont.data(8))
+                .foregroundColor(CosmicTheme.textMuted)
+        }
+        .padding(12)
+        .background(CosmicTheme.secondaryBackground.opacity(0.7))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(CosmicTheme.borderDim, lineWidth: 0.5)
+        )
+    }
+
+    private func refreshProviderHistory() async {
+        let didLoad = await historyActivationViewModel.refresh(
+            symbol: liveStock.symbol,
+            timeframe: selectedTimeframe
+        )
+
+        guard didLoad else { return }
+
+        chartReloadToken = UUID()
+        await loadTechnicalAnalysis()
+        await loadCosmicPatterns()
     }
 
     // MARK: - Key Stats Section
@@ -571,6 +798,47 @@ struct StockDetailView: View {
             .background(cardBackground)
             .opacity(appearAnimation ? 1 : 0)
             .offset(y: appearAnimation ? 0 : 20)
+    }
+
+    // MARK: - Technical Analysis Section
+
+    private var technicalAnalysisSection: some View {
+        StockTechnicalAnalysisView(
+            summary: technicalSummary,
+            isLoading: isLoadingTechnicalAnalysis,
+            refreshAction: {
+                Task {
+                    await loadTechnicalAnalysis()
+                }
+            }
+        )
+        .padding(16)
+        .background(cardBackground)
+        .opacity(appearAnimation ? 1 : 0)
+        .offset(y: appearAnimation ? 0 : 20)
+    }
+
+    private var astroTechnicalContextSection: some View {
+        StockAstroTechnicalContextView(
+            context: astroTechnicalContext,
+            isLoading: isLoadingTechnicalAnalysis
+        )
+        .padding(16)
+        .background(cardBackground)
+        .opacity(appearAnimation ? 1 : 0)
+        .offset(y: appearAnimation ? 0 : 20)
+    }
+
+    // MARK: - Upcoming Cosmic Events Section
+
+    private var upcomingCosmicEventsSection: some View {
+        StockUpcomingCosmicEventsView(
+            summary: StockUpcomingCosmicEventsService.shared.summary(for: liveStock)
+        )
+        .padding(16)
+        .background(cardBackground)
+        .opacity(appearAnimation ? 1 : 0)
+        .offset(y: appearAnimation ? 0 : 20)
     }
 
     // MARK: - Cosmic Signals Section

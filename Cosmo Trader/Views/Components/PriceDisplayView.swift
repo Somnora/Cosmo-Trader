@@ -100,6 +100,8 @@ struct PriceDisplayView: View {
                             .fill(changeColor.opacity(0.15))
                     )
             }
+            .lineLimit(1)
+            .minimumScaleFactor(0.65)
         }
     }
 
