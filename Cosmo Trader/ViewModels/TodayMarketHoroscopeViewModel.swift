@@ -63,9 +63,14 @@ final class TodayMarketHoroscopeViewModel {
             marketWeather = nil
         } else {
             let holdings = user?.portfolio.filter(\.isOwned) ?? []
-            portfolioSummaries = await loadPortfolioSummaries(holdings: holdings)
-            stockCandidate = await loadStockCandidate(for: user)
-            marketWeather = await marketWeatherService.loadSummary(filterState: filterState)
+            // The three context loads are independent; run them concurrently
+            // so Today paints after the slowest one instead of their sum.
+            async let portfolioTask = loadPortfolioSummaries(holdings: holdings)
+            async let stockTask = loadStockCandidate(for: user)
+            async let weatherTask = marketWeatherService.loadSummary(filterState: filterState)
+            portfolioSummaries = await portfolioTask
+            stockCandidate = await stockTask
+            marketWeather = await weatherTask
         }
 
         summary = composer.compose(

@@ -309,10 +309,16 @@ struct StockDetailView: View {
                     isLoadingPrice = false
                     isLoadingPatterns = false
                 } else {
-                    await fetchLivePrice()
-                    await fetchKeyStats()
-                    await loadTechnicalAnalysis()
-                    await loadCosmicPatterns()
+                    // Price and key stats are independent of each other;
+                    // technical and cosmic context read liveStock, so they
+                    // start once the quote has landed.
+                    async let priceTask: Void = fetchLivePrice()
+                    async let statsTask: Void = fetchKeyStats()
+                    _ = await (priceTask, statsTask)
+
+                    async let technicalTask: Void = loadTechnicalAnalysis()
+                    async let cosmicTask: Void = loadCosmicPatterns()
+                    _ = await (technicalTask, cosmicTask)
                 }
 
                 if AppState.shouldFocusAstroOverlayScreenshot {
