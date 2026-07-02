@@ -267,6 +267,20 @@ struct ImportReviewView: View {
 
     private var bottomActions: some View {
         VStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("CHOOSE HOW TO COMMIT")
+                    .font(TerminalFont.data(9, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .tracking(1)
+
+                Text("Append keeps current holdings and merges matching symbols. Replace clears current holdings after confirmation.")
+                    .font(TerminalFont.data(10))
+                    .foregroundColor(CosmicTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("importReview.commitModeGuide")
+
             Button(action: {
                 pendingCommitMode = .append
             }) {
