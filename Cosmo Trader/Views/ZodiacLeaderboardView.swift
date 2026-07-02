@@ -17,6 +17,7 @@ struct ZodiacLeaderboardView: View {
 
     @State private var selectedSign: ZodiacSign?
     @State private var showingSignDetail: Bool = false
+    @State private var isFetching: Bool = false
 
     // MARK: - Computed Properties
 
@@ -29,24 +30,46 @@ struct ZodiacLeaderboardView: View {
         user?.sunSign ?? .aries
     }
 
+    private var updatedStocks: [Stock] {
+        let cachedQuotes = StockAPIService.shared.getAllCachedQuotes()
+        return MockStockData.knownStocks.compactMap { stock in
+            if let cached = cachedQuotes[stock.symbol.uppercased()] {
+                return stock.withQuote(cached.quote)
+            }
+            return nil
+        }
+    }
+
     private var leaderboard: [(rank: Int, performance: ZodiacWeeklyPerformance)] {
-        []
+        guard !updatedStocks.isEmpty else { return [] }
+        return ZodiacPerformanceService.getLeaderboard(stocks: updatedStocks)
     }
 
     private var commentary: String {
-        "Weekly zodiac performance will appear when provider-backed stock returns are connected."
+        guard !updatedStocks.isEmpty else {
+            return "Weekly zodiac performance will appear when provider-backed stock returns are connected."
+        }
+        let performances = leaderboard.map(\.performance)
+        return ZodiacPerformanceService.generateWeeklyCommentary(performances: performances, userSign: safeUserSign)
     }
 
     private var userSignContext: (rank: Int, insight: String, isOutperforming: Bool) {
-        (rank: 0, insight: "No provider-backed weekly return data yet.", isOutperforming: false)
+        guard !updatedStocks.isEmpty else {
+            return (rank: 0, insight: "No provider-backed weekly return data yet.", isOutperforming: false)
+        }
+        let performances = leaderboard.map(\.performance)
+        return ZodiacPerformanceService.getUserSignContext(userSign: safeUserSign, performances: performances)
     }
 
     private var elementPerformance: [(element: ZodiacSign.Element, avgReturn: Double)] {
-        []
+        guard !updatedStocks.isEmpty else { return [] }
+        let performances = leaderboard.map(\.performance)
+        return ZodiacPerformanceService.calculateElementPerformance(from: performances)
     }
 
     private var streaks: [ZodiacStreak] {
-        []
+        guard !updatedStocks.isEmpty else { return [] }
+        return ZodiacPerformanceService.detectStreaks()
     }
 
     // MARK: - Body
@@ -111,7 +134,29 @@ struct ZodiacLeaderboardView: View {
             .sheet(item: $selectedSign) { sign in
                 SignDetailSheet(sign: sign, performance: leaderboard.first { $0.performance.sign == sign }?.performance)
             }
+            .task {
+                await fetchLeaderboardQuotes()
+            }
         }
+    }
+
+    private func fetchLeaderboardQuotes() async {
+        guard !isFetching else { return }
+        isFetching = true
+        let symbols = MockStockData.knownStocks.map(\.symbol)
+        let quotes = await StockAPIService.shared.getMultipleQuotes(symbols: symbols)
+        if !quotes.isEmpty {
+            let cached = StockAPIService.shared.getAllCachedQuotes()
+            let stocks = MockStockData.knownStocks.compactMap { stock -> Stock? in
+                if let cacheEntry = cached[stock.symbol.uppercased()] {
+                    return stock.withQuote(cacheEntry.quote)
+                }
+                return nil
+            }
+            let performances = ZodiacPerformanceService.calculateWeeklyPerformance(stocks: stocks)
+            ZodiacPerformanceService.saveWeeklySnapshot(performances: performances)
+        }
+        isFetching = false
     }
 
     // MARK: - Divider

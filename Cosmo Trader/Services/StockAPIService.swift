@@ -1428,7 +1428,8 @@ extension StockAPIService {
         guard let from = calendar.date(byAdding: .day, value: -30, to: to) else {
             throw NetworkError.unknown("Failed to calculate date range")
         }
-        return try await fetchCandles(symbol: symbol, resolution: "D", from: from, to: to)
+        // Use Yahoo Finance for historical candles (Finnhub free tier blocks /stock/candle)
+        return try await YahooFinanceService.shared.fetchCandles(symbol: symbol, resolution: "D", from: from, to: to)
     }
 }
 

@@ -99,10 +99,13 @@ struct StockChartView: View {
     // MARK: - State
 
     @State private var selectedPoint: PricePoint?
-    @State private var chartData: [OHLCData] = []
+    @State var chartData: [OHLCData] = []
     @State private var chartLoadState: ChartLoadState = .idle
+    @State var overlayEvents: [AstroOverlayEvent] = []
+    @State var reactions: [AstroEventPriceReaction] = []
+    @State var selectedAstroEvent: AstroOverlayEvent? = nil
 
-    private enum ChartLoadState: Equatable {
+    enum ChartLoadState: Equatable {
         case idle
         case loading
         case loaded(provenance: FinancialDataProvenance, completeness: HistoricalDatasetCompleteness)
@@ -111,7 +114,7 @@ struct StockChartView: View {
 
     // MARK: - Computed
 
-    private var pricePoints: [PricePoint] {
+    var pricePoints: [PricePoint] {
         chartData
             .map { PricePoint(date: $0.date, price: $0.close) }
             .filter { $0.price.isFinite && $0.price > 0 }
@@ -239,6 +242,9 @@ struct StockChartView: View {
 
             // Timeframe selector
             timeframeSelector
+
+            // Selected event details card below chart
+            selectedEventPanel
         }
         .task(id: "\(stock.symbol)-\(selectedTimeframe.rawValue)") {
             await loadChartData()
@@ -348,6 +354,26 @@ struct StockChartView: View {
 
     private var priceChart: some View {
         Chart {
+            // Range event bands (muted)
+            ForEach(overlayEvents.filter(\.isRange)) { event in
+                if let endDate = event.endDate {
+                    RectangleMark(
+                        xStart: .value("Start", event.startDate),
+                        xEnd: .value("End", endDate),
+                        yStart: .value("Low", priceRange.lowerBound),
+                        yEnd: .value("High", priceRange.upperBound)
+                    )
+                    .foregroundStyle(event.kind.overlayColor.opacity(selectedAstroEvent?.id == event.id ? 0.16 : 0.06))
+                }
+            }
+
+            // Selected event vertical line
+            if let selected = selectedAstroEvent {
+                RuleMark(x: .value("Selected Astro Event Date", selected.markerDate))
+                    .foregroundStyle(selected.kind.overlayColor.opacity(0.7))
+                    .lineStyle(StrokeStyle(lineWidth: 1.25, dash: [3, 3]))
+            }
+
             if effectiveDisplayMode == .candle {
                 ForEach(candleData) { candle in
                     RuleMark(
@@ -393,7 +419,24 @@ struct StockChartView: View {
                 }
             }
 
-            // Selected point indicator
+            // Primary moon and company anniversary markers on the price curve
+            ForEach(overlayEvents) { event in
+                if let emoji = emoji(for: event),
+                   let candle = nearestCandle(to: event.markerDate) {
+                    let isSelected = selectedAstroEvent?.id == event.id
+                    PointMark(
+                        x: .value("Astro Event Date", candle.date),
+                        y: .value("Price", candle.close)
+                    )
+                    .symbol {
+                        Text(emoji)
+                            .font(.system(size: isSelected ? 15 : 10))
+                    }
+                    .symbolSize(isSelected ? 150 : 90)
+                }
+            }
+
+            // Selected point indicator (drawn last so they sit on top)
             if let selected = selectedPoint {
                 PointMark(
                     x: .value("Time", selected.date),
@@ -438,7 +481,7 @@ struct StockChartView: View {
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { value in
-                                let x = value.location.x
+                                let x = max(0, min(value.location.x, geometry.size.width))
                                 if let date: Date = proxy.value(atX: x) {
                                     selectPoint(nearestTo: date)
                                 }
@@ -513,6 +556,9 @@ struct StockChartView: View {
         selectedPoint = nil
         chartData = []
         chartLoadState = .loading
+        overlayEvents = []
+        reactions = []
+        selectedAstroEvent = nil
 
         do {
             let result = try await HistoricalPriceService.shared.fetchHistoricalPriceResult(
@@ -526,25 +572,246 @@ struct StockChartView: View {
             guard candles.count >= 2 else {
                 chartData = []
                 chartLoadState = .unavailable("Chart will appear when provider data is available.")
+                overlayEvents = []
+                reactions = []
+                selectedAstroEvent = nil
                 return
             }
 
             withAnimation(.easeInOut(duration: 0.25)) {
                 chartData = candles
                 chartLoadState = .loaded(provenance: result.provenance, completeness: result.completeness)
+                
+                if let firstDate = candles.first?.date, let lastDate = candles.last?.date {
+                    let filters = AstroOverlayFilterState()
+                    let events = AstroOverlayEventService.shared.events(
+                        for: stock,
+                        from: firstDate,
+                        to: lastDate,
+                        filters: filters
+                    )
+                    self.overlayEvents = events
+                    self.reactions = AstroCorrelationService.shared.eventReactions(
+                        prices: candles,
+                        events: events,
+                        filterState: filters
+                    )
+                }
             }
         } catch {
             chartData = []
             chartLoadState = .unavailable("Chart will appear when provider data is available.")
+            overlayEvents = []
+            reactions = []
+            selectedAstroEvent = nil
         }
     }
 
     private func selectPoint(nearestTo date: Date) {
         let points = pricePoints
         guard !points.isEmpty else { return }
-        selectedPoint = points.min(by: {
+        
+        if let nearbyEvent = nearestEvent(to: date, within: 60 * 60 * 24 * 4) {
+            selectedAstroEvent = nearbyEvent
+            selectedPoint = points.min(by: {
+                abs($0.date.timeIntervalSince(nearbyEvent.markerDate)) < abs($1.date.timeIntervalSince(nearbyEvent.markerDate))
+            })
+        } else {
+            selectedAstroEvent = nil
+            selectedPoint = points.min(by: {
+                abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
+            })
+        }
+    }
+
+    func nearestCandle(to date: Date) -> OHLCData? {
+        nearestCandle(to: date, in: chartData)
+    }
+
+    func nearestCandle(to date: Date, in data: [OHLCData]) -> OHLCData? {
+        guard !data.isEmpty else { return nil }
+        return data.min(by: {
             abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
         })
+    }
+
+    func nearestEvent(to date: Date, within tolerance: TimeInterval) -> AstroOverlayEvent? {
+        nearestEvent(to: date, within: tolerance, in: overlayEvents)
+    }
+
+    func nearestEvent(to date: Date, within tolerance: TimeInterval, in events: [AstroOverlayEvent]) -> AstroOverlayEvent? {
+        guard !events.isEmpty else { return nil }
+        let scored = events.map { event -> (event: AstroOverlayEvent, distance: TimeInterval) in
+            (event, proximity(event, to: date))
+        }
+        guard let candidate = scored.min(by: { $0.distance < $1.distance }),
+              candidate.distance <= tolerance else {
+            return nil
+        }
+        return candidate.event
+    }
+
+    func proximity(_ event: AstroOverlayEvent, to date: Date) -> TimeInterval {
+        if event.isRange, let end = event.endDate {
+            if date >= event.startDate && date <= end { return 0 }
+            return min(abs(date.timeIntervalSince(event.startDate)),
+                       abs(date.timeIntervalSince(end)))
+        }
+        return abs(date.timeIntervalSince(event.markerDate))
+    }
+
+    func emoji(for event: AstroOverlayEvent) -> String? {
+        switch event.kind {
+        case .newMoon: return "🌑"
+        case .fullMoon: return "🌕"
+        case .firstQuarter: return "🌓"
+        case .lastQuarter: return "🌗"
+        case .mercuryRetrograde: return "☿"
+        case .companyFoundingAnniversary: return "🎂"
+        default: return nil
+        }
+    }
+
+    // MARK: - Selected Event Panel
+
+    var selectedReaction: AstroEventPriceReaction? {
+        selectedReaction(for: selectedAstroEvent, in: reactions)
+    }
+
+    func selectedReaction(for selectedEvent: AstroOverlayEvent?, in reactions: [AstroEventPriceReaction]) -> AstroEventPriceReaction? {
+        guard let selectedEvent else { return nil }
+        return reactions.first { $0.event.id == selectedEvent.id }
+    }
+
+    var selectedEventMetricUnavailableText: String {
+        switch chartProvenance {
+        case .sample?:
+            return "Sample chart mode is labeled for preview only; event-window metrics are hidden."
+        case .mixed?:
+            return "Mixed data freshness. Metric unavailable for this event."
+        case .unavailable?:
+            return "Provider-backed history is required before event-window metrics are shown."
+        default:
+            return "Not enough provider-backed price action for the selected window."
+        }
+    }
+
+    private func percent(_ value: Double) -> String {
+        let sign = value >= 0 ? "+" : ""
+        return String(format: "%@%.1f%%", sign, value)
+    }
+
+    private func eventDateLabel(for event: AstroOverlayEvent) -> String {
+        if event.isRange, let end = event.endDate,
+           !Calendar.current.isDate(end, inSameDayAs: event.startDate) {
+            return "\(DateFormatter.astroOverlayMonthDay.string(from: event.startDate)) to \(DateFormatter.astroOverlayMonthDay.string(from: end))"
+        }
+        return DateFormatter.astroOverlayShort.string(from: event.markerDate)
+    }
+
+    private func eventMetric(_ label: String, _ value: String, _ color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label.uppercased())
+                .font(TerminalFont.data(8))
+                .foregroundColor(CosmicTheme.textMuted)
+                .tracking(0.5)
+            Text(value)
+                .font(TerminalFont.price(13))
+                .foregroundColor(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var selectedEventPanel: some View {
+        if let event = selectedAstroEvent {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: 8) {
+                    Image(systemName: event.iconSystemName)
+                        .foregroundColor(event.kind.overlayColor)
+                    
+                    Text(event.title.uppercased())
+                        .font(TerminalFont.data(11, weight: .bold))
+                        .foregroundColor(CosmicTheme.textPrimary)
+                    
+                    if event.isEstimated {
+                        Text("EST.")
+                            .font(TerminalFont.data(8, weight: .bold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 2)
+                                    .stroke(CosmicTheme.borderDim, lineWidth: 0.5)
+                            )
+                    }
+                    
+                    Spacer()
+                    
+                    Text(eventDateLabel(for: event))
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    
+                    Button {
+                        selectedAstroEvent = nil
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .padding(4)
+                            .background(Color.clear)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close details")
+                }
+                
+                if let subtitle = event.subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                }
+                
+                if let reaction = selectedReaction {
+                    HStack(alignment: .top, spacing: 12) {
+                        eventMetric(
+                            "Window move",
+                            percent(reaction.returnPercent),
+                            reaction.returnPercent >= 0 ? CosmicTheme.positive : CosmicTheme.negative
+                        )
+                        eventMetric(
+                            "Volatility",
+                            percent(reaction.volatilityPercent),
+                            CosmicTheme.textPrimary
+                        )
+                        eventMetric(
+                            "Drawdown",
+                            percent(-abs(reaction.maxDrawdownPercent)),
+                            reaction.maxDrawdownPercent > 0 ? CosmicTheme.negative : CosmicTheme.textPrimary
+                        )
+                    }
+                } else {
+                    Text(selectedEventMetricUnavailableText)
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
+                
+                Text("Correlation view, not financial advice.")
+                    .font(TerminalFont.data(9))
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(CosmicTheme.terminalBlack)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
+            )
+            .accessibilityElement(children: .combine)
+        }
     }
 
     private func formatPrice(_ price: Double) -> String {
@@ -672,6 +939,7 @@ struct StockKeyStatsView: View {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview("Stock Chart") {
     ZStack {
         CosmicTheme.background.ignoresSafeArea()
@@ -692,3 +960,4 @@ struct StockKeyStatsView: View {
     }
     .preferredColorScheme(.dark)
 }
+#endif

@@ -23,6 +23,8 @@ struct PortfolioView: View {
     @State private var chartTimeframe: ChartTimeframe = .month
     @State private var showPerformanceChart: Bool = true
     @State private var portfolioCorrelationViewModel = PortfolioCorrelationViewModel()
+    @State private var showShareSheet: Bool = false
+    @State private var shareItems: [Any] = []
 
     // MARK: - Computed Properties
 
@@ -249,6 +251,12 @@ struct PortfolioView: View {
                             dividerLine
                         }
 
+                        // Portfolio Ascendant section
+                        if !holdings.isEmpty {
+                            portfolioAscendantSection
+                            dividerLine
+                        }
+
                         // Element allocation bar chart
                         if !holdings.isEmpty {
                             elementAllocationSection
@@ -323,6 +331,9 @@ struct PortfolioView: View {
             .sheet(isPresented: $showImportPortfolio) {
                 ImportPortfolioView()
                     .environment(appState)
+            }
+            .sheet(isPresented: $showShareSheet) {
+                ShareSheet(items: shareItems)
             }
         }
         .onAppear {
@@ -920,7 +931,54 @@ struct PortfolioView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 12)
+            
+            // Share Buttons
+            HStack(spacing: 12) {
+                Button(action: sharePNGAlignmentCard) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "square.and.arrow.up")
+                        Text("SHARE CARD")
+                    }
+                    .font(TerminalFont.data(10, weight: .bold))
+                    .foregroundColor(CosmicTheme.terminalBlack)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(CosmicTheme.gold)
+                }
+                .buttonStyle(.plain)
+
+                Button(action: exportSVGAlignmentCard) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "curlybraces")
+                        Text("EXPORT SVG")
+                    }
+                    .font(TerminalFont.data(10, weight: .bold))
+                    .foregroundColor(CosmicTheme.textPrimary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(CosmicTheme.cardBackground)
+                    .overlay(
+                        Rectangle()
+                            .stroke(CosmicTheme.border, lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 12)
             .padding(.bottom, 16)
+        }
+    }
+
+    private var portfolioAscendantSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("PORTFOLIO RISING")
+
+            PortfolioAscendantCard(
+                holdings: holdings,
+                userSign: safeUser.sunSign
+            )
+            .padding(.horizontal, 12)
+            .padding(.bottom, 8)
         }
     }
 
@@ -1081,6 +1139,16 @@ struct PortfolioView: View {
                 // Holdings rows
                 ForEach(holdings) { stock in
                     holdingRow(stock)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    appState.removeFromPortfolio(symbol: stock.symbol)
+                                }
+                            } label: {
+                                Label("Remove", systemImage: "trash")
+                            }
+                            .tint(CosmicTheme.negative)
+                        }
                     dividerLine
                 }
             }
@@ -1589,6 +1657,36 @@ struct PortfolioView: View {
         }
 
         isFetchingPrices = false
+
+        // Sync refreshed data to home screen widgets
+        WidgetBridge.shared.syncAllWidgetData()
+    }
+
+    @MainActor
+    private func sharePNGAlignmentCard() {
+        let shareView = PortfolioCompatibilityShareView(user: safeUser, result: portfolioCompatibility)
+        let renderer = ImageRenderer(content: shareView)
+        renderer.scale = 2.0
+        
+        if let image = renderer.uiImage {
+            let shareText = "Check out my zodiac portfolio alignment score on Cosmo Trader! #CosmoTrader"
+            shareItems = [shareText, image]
+            showShareSheet = true
+        }
+    }
+
+    private func exportSVGAlignmentCard() {
+        let svgString = CosmicSVGExporter.generateAlignmentSVG(user: safeUser, result: portfolioCompatibility)
+        let filename = "CosmoTrader_Alignment_\(safeUser.sunSign.displayName).svg"
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
+        
+        do {
+            try svgString.write(to: tempURL, atomically: true, encoding: .utf8)
+            shareItems = [tempURL]
+            showShareSheet = true
+        } catch {
+            Log.error("[PortfolioView] Failed to write SVG file for sharing: \(error)")
+        }
     }
 }
 

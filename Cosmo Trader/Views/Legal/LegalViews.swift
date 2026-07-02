@@ -18,7 +18,7 @@ struct PrivacyPolicyView: View {
                     // Header
                     LegalHeaderView(
                         title: "PRIVACY POLICY",
-                        subtitle: "Last updated: December 2024"
+                        subtitle: "Last updated: June 2026"
                     )
 
                     // Sections
@@ -67,7 +67,7 @@ struct PrivacyPolicyView: View {
                         • **Access & Export:** Use the "Export My Data" feature in your Profile to get a complete JSON file of your information.
                         • **Deletion:** Use the "Delete All Data" feature in your Profile to permanently erase your profile, portfolio, watchlist, preferences, and usage counters from this device. An anonymous sign-in session and an anonymous device identifier used for backend requests are not cleared by this action and remain until you delete the app.
 
-                        For data inquiries, contact: privacy@cosmotrader.app
+                        For data inquiries, contact: support@somnora.app
                         """
                     )
 
@@ -86,7 +86,7 @@ struct PrivacyPolicyView: View {
 
                     LegalSection(
                         title: "CHILDREN'S PRIVACY",
-                        content: "Cosmo Trader is not intended for users under 18 years of age. We do not knowingly collect personal information from children."
+                        content: "Cosmo Trader is not intended for users under 13 years of age. We do not knowingly collect personal information from children."
                     )
 
                     LegalSection(
@@ -99,7 +99,7 @@ struct PrivacyPolicyView: View {
                         content: """
                         Questions about this Privacy Policy?
 
-                        Email: privacy@cosmotrader.app
+                        Email: support@somnora.app
                         """
                     )
 
@@ -308,7 +308,7 @@ struct TermsOfServiceView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     LegalHeaderView(
                         title: "TERMS OF SERVICE",
-                        subtitle: "Last updated: December 2024"
+                        subtitle: "Last updated: June 2026"
                     )
 
                     LegalSection(
@@ -394,7 +394,7 @@ struct TermsOfServiceView: View {
                         content: """
                         Questions about these Terms of Service?
 
-                        Email: legal@cosmotrader.app
+                        Email: support@somnora.app
                         """
                     )
 
@@ -608,7 +608,7 @@ struct AboutView: View {
                             .fill(CosmicTheme.borderDim)
                             .frame(height: 1)
 
-                        Text("© 2024 Somnora. All rights reserved.")
+                        Text("© 2024–2026 Somnora. All rights reserved.")
                             .font(.system(size: 10, design: .monospaced))
                             .foregroundColor(CosmicTheme.textMuted)
 

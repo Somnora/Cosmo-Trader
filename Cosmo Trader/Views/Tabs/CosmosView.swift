@@ -138,6 +138,16 @@ struct CosmosView: View {
     @State private var starsVisible: Bool = false
     @State private var hasAppeared: Bool = false
 
+    /// Timestamp of last reading generation
+    @State private var readingGeneratedAt: Date = Date()
+
+    /// Formatted reading timestamp
+    private var readingTimestamp: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter.string(from: readingGeneratedAt)
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -167,6 +177,9 @@ struct CosmosView: View {
 
                             // 3a. Mercury Retrograde Countdown (always visible)
                             MercuryRetrogradeBanner()
+
+                            // Watchlist Correlation Alerts
+                            watchlistCorrelationSection
 
                             // 3b. Weekly Zodiac Performance Section
                             weeklyZodiacPerformanceSection
@@ -208,6 +221,12 @@ struct CosmosView: View {
                     .iPadReadableContent(maxWidth: 980)
                 }
                 .tabBarSafeBottomPadding(extra: AppLayout.bottomTabBarExtraClearance)
+                .refreshable {
+                    viewModel.regenerateHoroscope()
+                    readingGeneratedAt = Date()
+                    await loadMarketWeatherIfNeeded()
+                    AppReviewManager.shared.recordReadingGenerated()
+                }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -254,11 +273,16 @@ struct CosmosView: View {
             // Animate appearance
             animateAppearance()
             await loadMarketWeatherIfNeeded()
+            await EarningsService.shared.refresh()
 
             // Track horoscope viewed
             if let user = appState.currentUser {
                 AnalyticsService.shared.trackHoroscopeViewed(sunSign: user.sunSign.displayName)
             }
+
+            // App review gating
+            AppReviewManager.shared.recordAppOpened()
+            AppReviewManager.shared.recordReadingGenerated()
         }
     }
 
@@ -622,6 +646,15 @@ struct CosmosView: View {
                         .lineSpacing(6)
                         .fixedSize(horizontal: false, vertical: true)
                         .transition(.opacity.combined(with: .scale(scale: 0.98)))
+
+                    // Reading timestamp
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock")
+                            .font(.system(size: 9))
+                        Text("Generated \(readingTimestamp)")
+                            .font(TerminalFont.data(9))
+                    }
+                    .foregroundColor(CosmicTheme.textMuted)
                 }
             }
 
@@ -986,11 +1019,16 @@ struct CosmosView: View {
             HapticFeedback.medium()
             withAnimation(.spring(response: 0.4)) {
                 viewModel.regenerateHoroscope()
+                readingGeneratedAt = Date()
             }
             // Track horoscope refresh
             if let user = appState.currentUser {
                 AnalyticsService.shared.trackHoroscopeRefreshed(sunSign: user.sunSign.displayName)
             }
+
+            // Record reading and check if we should prompt for review
+            AppReviewManager.shared.recordReadingGenerated()
+            AppReviewManager.shared.requestReviewIfAppropriate()
         }) {
             HStack(spacing: 10) {
                 Image(systemName: "arrow.triangle.2.circlepath")
@@ -1014,6 +1052,22 @@ struct CosmosView: View {
     }
 
     // MARK: - Weekly Zodiac Performance Section
+
+    private var updatedLeaderboardStocks: [Stock] {
+        let cachedQuotes = StockAPIService.shared.getAllCachedQuotes()
+        return MockStockData.knownStocks.compactMap { stock in
+            if let cached = cachedQuotes[stock.symbol.uppercased()] {
+                return stock.withQuote(cached.quote)
+            }
+            return nil
+        }
+    }
+
+    private var topWeeklyPerformance: ZodiacWeeklyPerformance? {
+        let stocks = updatedLeaderboardStocks
+        guard !stocks.isEmpty else { return nil }
+        return ZodiacPerformanceService.calculateWeeklyPerformance(stocks: stocks).first
+    }
 
     private var weeklyZodiacPerformanceSection: some View {
         Button(action: { showZodiacLeaderboard = true }) {
@@ -1039,12 +1093,21 @@ struct CosmosView: View {
                     .foregroundColor(CosmicTheme.gold)
                 }
 
-                Text("Weekly zodiac performance needs provider-backed returns. Rankings are hidden until real performance data is available.")
-                    .font(.caption)
-                    .foregroundColor(CosmicTheme.textSecondary)
-                    .italic()
-                    .lineSpacing(2)
-                    .fixedSize(horizontal: false, vertical: true)
+                if let top = topWeeklyPerformance {
+                    HStack(spacing: 8) {
+                        ZodiacSymbolView(sign: top.sign, size: 18, color: top.sign.element.color)
+                        Text("\(top.sign.displayName) leads the market this week (\(top.formattedReturn))")
+                            .font(.subheadline)
+                            .foregroundColor(CosmicTheme.textPrimary)
+                    }
+                } else {
+                    Text("Weekly zodiac performance needs provider-backed returns. Rankings are hidden until real performance data is available.")
+                        .font(.caption)
+                        .foregroundColor(CosmicTheme.textSecondary)
+                        .italic()
+                        .lineSpacing(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .padding(16)
             .background(
@@ -1378,6 +1441,18 @@ struct CosmosView: View {
             cardOpacity = 1
             cardOffset = 0
         }
+    }
+
+    private var watchlistCorrelationSection: some View {
+        let watchlist = appState.currentUser?.watchlist ?? []
+        let events = astroService.allEvents
+        let earnings = EarningsService.shared.allEarningsEvents
+        let alerts = WatchlistCorrelationService.shared.generateAlerts(
+            watchlist: watchlist,
+            events: events,
+            earnings: earnings
+        )
+        return WatchlistCorrelationAlertsView(alerts: alerts)
     }
 }
 

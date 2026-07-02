@@ -133,7 +133,7 @@ struct DiscoverView: View {
                 await viewModel?.refreshProviderQuotesForDeck()
                 showProfileHintIfNeeded()
             }
-            .onChange(of: viewModel?.isDeckEmpty ?? true) { isEmpty in
+            .onChange(of: viewModel?.isDeckEmpty ?? true) { _, isEmpty in
                 if !isEmpty {
                     showProfileHintIfNeeded()
                 }
@@ -199,6 +199,7 @@ struct DiscoverView: View {
     }
 
     private func showWatchlistToast(for symbol: String) {
+        HapticFeedback.success()
         withAnimation(.spring(response: 0.3)) {
             watchlistToast = "\(symbol) added to watchlist"
         }

@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreImage.CIFilterBuiltins
 
 // MARK: - CosmicReportCard
 // ========================
@@ -236,15 +237,14 @@ struct CosmicReportCard: View {
 
     private var footerSection: some View {
         HStack(spacing: 16) {
-            // QR Code placeholder
+            // QR Code linking to app download
             VStack(spacing: 4) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.white)
                         .frame(width: 60, height: 60)
 
-                    // Placeholder QR pattern
-                    QRCodePlaceholder()
+                    QRCodeView(url: "https://somnora.app/cosmo-trader")
                         .frame(width: 52, height: 52)
                 }
 
@@ -516,36 +516,46 @@ struct CosmicDiagnosisGenerator {
     }
 }
 
-// MARK: - QR Code Placeholder
+// MARK: - QR Code View (CoreImage)
 
-struct QRCodePlaceholder: View {
+/// Generates a real, scannable QR code from a URL string using CoreImage.
+/// Falls back to a static pattern if generation fails.
+struct QRCodeView: View {
+    let url: String
+
     var body: some View {
-        Canvas { context, size in
-            let cellSize = size.width / 7
-            let pattern: [[Bool]] = [
-                [true, true, true, false, true, true, true],
-                [true, false, true, false, true, false, true],
-                [true, true, true, false, true, true, true],
-                [false, false, false, false, false, false, false],
-                [true, true, true, false, true, false, true],
-                [true, false, true, false, false, true, false],
-                [true, true, true, false, true, true, true]
-            ]
-
-            for (row, rowData) in pattern.enumerated() {
-                for (col, filled) in rowData.enumerated() {
-                    if filled {
-                        let rect = CGRect(
-                            x: CGFloat(col) * cellSize,
-                            y: CGFloat(row) * cellSize,
-                            width: cellSize,
-                            height: cellSize
-                        )
-                        context.fill(Path(rect), with: .color(.black))
-                    }
-                }
-            }
+        if let image = generateQRCode(from: url) {
+            Image(uiImage: image)
+                .interpolation(.none)
+                .resizable()
+                .scaledToFit()
+        } else {
+            // Graceful fallback — static pattern if CoreImage fails
+            Image(systemName: "qrcode")
+                .resizable()
+                .scaledToFit()
+                .foregroundColor(.black)
         }
+    }
+
+    /// Generate a QR code UIImage from a string using CIQRCodeGenerator.
+    private func generateQRCode(from string: String) -> UIImage? {
+        let context = CIContext()
+        let filter = CIFilter.qrCodeGenerator()
+        filter.message = Data(string.utf8)
+        filter.correctionLevel = "M"
+
+        guard let outputImage = filter.outputImage else { return nil }
+
+        // Scale up from the tiny CIImage to a crisp bitmap
+        let scale = 10.0
+        let scaledImage = outputImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+
+        guard let cgImage = context.createCGImage(scaledImage, from: scaledImage.extent) else {
+            return nil
+        }
+
+        return UIImage(cgImage: cgImage)
     }
 }
 

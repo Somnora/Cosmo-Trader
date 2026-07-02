@@ -71,12 +71,90 @@ final class AuthManager {
         #endif
     }
 
+    @MainActor
+    func signUpAndLink(email: String, password: String, appState: AppState) async throws {
+        #if canImport(FirebaseAuth) && canImport(FirebaseCore)
+        guard FirebaseConfigurator.isConfigured else {
+            throw AuthError.unavailable
+        }
+        await ensureSignedIn(appState: appState)
+        guard let user = Auth.auth().currentUser else {
+            throw AuthError.notSignedIn
+        }
+        let credential = EmailAuthProvider.credential(withEmail: email, password: password)
+        _ = try await linkUser(user, with: credential)
+        appState.currentUser?.email = email
+        appState.saveUserToStorage()
+        await appState.syncProfileToCloud()
+        #else
+        throw AuthError.unavailable
+        #endif
+    }
+
+    @MainActor
+    func signIn(email: String, password: String, appState: AppState) async throws {
+        #if canImport(FirebaseAuth) && canImport(FirebaseCore)
+        guard FirebaseConfigurator.isConfigured else {
+            throw AuthError.unavailable
+        }
+        let result = try await signInWithEmail(email: email, password: password)
+        appState.firebaseUID = result.user.uid
+        await appState.fetchProfileFromCloud()
+        appState.currentUser?.email = email
+        appState.saveUserToStorage()
+        #else
+        throw AuthError.unavailable
+        #endif
+    }
+
+    @MainActor
+    func signOut(appState: AppState) async throws {
+        #if canImport(FirebaseAuth) && canImport(FirebaseCore)
+        guard FirebaseConfigurator.isConfigured else {
+            throw AuthError.unavailable
+        }
+        try Auth.auth().signOut()
+        appState.deleteAllUserData()
+        await ensureSignedIn(appState: appState)
+        #else
+        throw AuthError.unavailable
+        #endif
+    }
+
     // MARK: - Private
 
     #if canImport(FirebaseAuth)
     private func signInAnonymously() async throws -> AuthDataResult {
         try await withCheckedThrowingContinuation { continuation in
             Auth.auth().signInAnonymously { result, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else if let result {
+                    continuation.resume(returning: result)
+                } else {
+                    continuation.resume(throwing: AuthError.unknown)
+                }
+            }
+        }
+    }
+
+    private func linkUser(_ user: User, with credential: AuthCredential) async throws -> AuthDataResult {
+        try await withCheckedThrowingContinuation { continuation in
+            user.link(with: credential) { result, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else if let result {
+                    continuation.resume(returning: result)
+                } else {
+                    continuation.resume(throwing: AuthError.unknown)
+                }
+            }
+        }
+    }
+
+    private func signInWithEmail(email: String, password: String) async throws -> AuthDataResult {
+        try await withCheckedThrowingContinuation { continuation in
+            Auth.auth().signIn(withEmail: email, password: password) { result, error in
                 if let error {
                     continuation.resume(throwing: error)
                 } else if let result {

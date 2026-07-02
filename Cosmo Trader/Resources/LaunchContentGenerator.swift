@@ -8,8 +8,8 @@ import SwiftUI
 struct LaunchContentGenerator {
 
     // MARK: - App Store Link (Update when live)
-    static let appStoreLink = "https://apps.apple.com/app/cosmo-trader/id[YOUR_APP_ID]"
-    static let placeholderLink = "[App Store Link]"
+    static let appStoreLink = "https://somnora.app/cosmo-trader"
+    static let placeholderLink = "https://somnora.app/cosmo-trader"
 
     // MARK: - Twitter/X Launch Thread
 
@@ -157,7 +157,7 @@ struct LaunchContentGenerator {
 
     Would love to hear what you think! Especially curious - does your portfolio vibe with your sign?
 
-    [App Store Link]
+    \(appStoreLink)
     """
 
     static let redditStocks = """
@@ -186,7 +186,7 @@ struct LaunchContentGenerator {
 
     Curious what this sub thinks. Is there room for "fun" in finance apps, or should portfolio trackers stay serious?
 
-    [App Store Link]
+    \(appStoreLink)
     """
 
     static let redditSideProject = """
@@ -236,7 +236,7 @@ struct LaunchContentGenerator {
 
     Would love feedback! And if you try it, let me know your sign and most compatible stock 😄
 
-    [App Store Link]
+    \(appStoreLink)
     """
 
     // MARK: - Product Hunt

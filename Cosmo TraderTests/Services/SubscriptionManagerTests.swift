@@ -348,12 +348,19 @@ struct DailyResetTests {
 
     @Test("Same day detection works")
     func sameDayDetectionWorks() {
-        let now = Date()
-        let earlierToday = now.addingTimeInterval(-3600) // 1 hour ago
-        let todayStart = Calendar.current.startOfDay(for: now)
-        let earlierStart = Calendar.current.startOfDay(for: earlierToday)
+        let calendar = Calendar.current
+        var comps = DateComponents()
+        comps.year = 2026
+        comps.month = 6
+        comps.day = 19
+        comps.hour = 12
+        
+        let noon = calendar.date(from: comps)!
+        let earlierToday = noon.addingTimeInterval(-3600) // 1 hour ago
+        let noonStart = calendar.startOfDay(for: noon)
+        let earlierStart = calendar.startOfDay(for: earlierToday)
 
-        let isSameDay = todayStart == earlierStart
+        let isSameDay = noonStart == earlierStart
 
         #expect(isSameDay == true)
     }

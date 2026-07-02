@@ -9,6 +9,9 @@
 /* Begin PBXBuildFile section */
 		238B45CD2F351E32008E3C08 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 238B45CC2F351E32008E3C08 /* FirebaseAuth */; };
 		238B45CF2F351E32008E3C08 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 238B45CE2F351E32008E3C08 /* FirebaseCore */; };
+		23E23B7B2FE5A6D60010D53E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23E23B4C2FE5A6950010D53E /* WidgetKit.framework */; };
+		23E23B7C2FE5A6D60010D53E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 23E23B4E2FE5A6950010D53E /* SwiftUI.framework */; };
+		23E23B8B2FE5A6D80010D53E /* Cosmo Trader WidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 23E23B7A2FE5A6D60010D53E /* Cosmo Trader WidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -26,12 +29,37 @@
 			remoteGlobalIDString = 23AC0A232EE875F90094CE44;
 			remoteInfo = "Cosmo Trader";
 		};
+		23E23B892FE5A6D80010D53E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 23AC0A1C2EE875F90094CE44 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 23E23B792FE5A6D60010D53E;
+			remoteInfo = "Cosmo Trader WidgetExtension";
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		23E23B662FE5A6970010D53E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				23E23B8B2FE5A6D80010D53E /* Cosmo Trader WidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		23AC0A242EE875F90094CE44 /* Cosmo Trader.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Cosmo Trader.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		23AC0A312EE875FC0094CE44 /* Cosmo TraderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Cosmo TraderTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		23AC0A3B2EE875FC0094CE44 /* Cosmo TraderUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Cosmo TraderUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		23E23B4C2FE5A6950010D53E /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		23E23B4E2FE5A6950010D53E /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		23E23B7A2FE5A6D60010D53E /* Cosmo Trader WidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Cosmo Trader WidgetExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		23E23BA22FE5A8300010D53E /* Cosmo Trader WidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Cosmo Trader WidgetExtension.entitlements"; sourceTree = "<group>"; };
 		23F8B1012F5A000100C0DE01 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
 		23F8B1022F5A000100C0DE01 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		23F8B1032F5A000100C0DE01 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
@@ -39,28 +67,35 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		23E23B902FE5A6D80010D53E /* Exceptions for "Cosmo Trader Widget" folder in "Cosmo Trader WidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 23E23B792FE5A6D60010D53E /* Cosmo Trader WidgetExtension */;
+		};
 		23E313342EEA907F0025F506 /* Exceptions for "Cosmo Trader" folder in "Cosmo Trader" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				AppStoreMetadata.md,
 				Configuration/Base.xcconfig,
 				Configuration/Debug.xcconfig,
 				Configuration/Release.xcconfig,
-				Configuration/Secrets.plist,
+				Configuration/Secrets.xcconfig,
 				Configuration/Secrets.xcconfig.sample,
 				Configuration/Staging.xcconfig,
-				AppStoreMetadata.md,
+				docs,
 				Docs,
 				Documentation,
+				embedded.mobileprovision,
 				ExportOptions.plist,
 				"GoogleService-Info.plist.sample",
 				README.md,
 				Screenshots.md,
+				SDKIntegration.md,
 				"Secrets-template.plist",
-				embedded.mobileprovision,
 				Services/PushTokenRegistrar.swift,
 				Services/PushTokenStorage.swift,
-				SDKIntegration.md,
-				docs,
 				Utils/WidgetDataManager.swift,
 			);
 			platformFiltersByRelativePath = {
@@ -124,6 +159,14 @@
 			path = "Cosmo TraderUITests";
 			sourceTree = "<group>";
 		};
+		23E23B7D2FE5A6D60010D53E /* Cosmo Trader Widget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				23E23B902FE5A6D80010D53E /* Exceptions for "Cosmo Trader Widget" folder in "Cosmo Trader WidgetExtension" target */,
+			);
+			path = "Cosmo Trader Widget";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -150,16 +193,28 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		23E23B772FE5A6D60010D53E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				23E23B7C2FE5A6D60010D53E /* SwiftUI.framework in Frameworks */,
+				23E23B7B2FE5A6D60010D53E /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		23AC0A1B2EE875F90094CE44 = {
 			isa = PBXGroup;
 			children = (
+				23E23BA22FE5A8300010D53E /* Cosmo Trader WidgetExtension.entitlements */,
 				23F8B1052F5A000100C0DE01 /* Build Configurations */,
 				23AC0A262EE875F90094CE44 /* Cosmo Trader */,
 				23AC0A342EE875FC0094CE44 /* Cosmo TraderTests */,
 				23AC0A3E2EE875FC0094CE44 /* Cosmo TraderUITests */,
+				23E23B7D2FE5A6D60010D53E /* Cosmo Trader Widget */,
+				23E23B4B2FE5A6950010D53E /* Frameworks */,
 				23AC0A252EE875F90094CE44 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -170,8 +225,18 @@
 				23AC0A242EE875F90094CE44 /* Cosmo Trader.app */,
 				23AC0A312EE875FC0094CE44 /* Cosmo TraderTests.xctest */,
 				23AC0A3B2EE875FC0094CE44 /* Cosmo TraderUITests.xctest */,
+				23E23B7A2FE5A6D60010D53E /* Cosmo Trader WidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		23E23B4B2FE5A6950010D53E /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				23E23B4C2FE5A6950010D53E /* WidgetKit.framework */,
+				23E23B4E2FE5A6950010D53E /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		23F8B1052F5A000100C0DE01 /* Build Configurations */ = {
@@ -198,10 +263,12 @@
 				23F8A1112F4B000100123456 /* Copy Firebase Plist (Release Required) */,
 				23AC0A222EE875F90094CE44 /* Resources */,
 				23F8A1122F4B000100123457 /* Verify No Secrets In Bundle (Release) */,
+				23E23B662FE5A6970010D53E /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				23E23B8A2FE5A6D80010D53E /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				23AC0A262EE875F90094CE44 /* Cosmo Trader */,
@@ -261,6 +328,28 @@
 			productReference = 23AC0A3B2EE875FC0094CE44 /* Cosmo TraderUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		23E23B792FE5A6D60010D53E /* Cosmo Trader WidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 23E23B8C2FE5A6D80010D53E /* Build configuration list for PBXNativeTarget "Cosmo Trader WidgetExtension" */;
+			buildPhases = (
+				23E23B762FE5A6D60010D53E /* Sources */,
+				23E23B772FE5A6D60010D53E /* Frameworks */,
+				23E23B782FE5A6D60010D53E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				23E23B7D2FE5A6D60010D53E /* Cosmo Trader Widget */,
+			);
+			name = "Cosmo Trader WidgetExtension";
+			packageProductDependencies = (
+			);
+			productName = "Cosmo Trader WidgetExtension";
+			productReference = 23E23B7A2FE5A6D60010D53E /* Cosmo Trader WidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -268,7 +357,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2620;
+				LastSwiftUpdateCheck = 2650;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
 					23AC0A232EE875F90094CE44 = {
@@ -281,6 +370,9 @@
 					23AC0A3A2EE875FC0094CE44 = {
 						CreatedOnToolsVersion = 26.2;
 						TestTargetID = 23AC0A232EE875F90094CE44;
+					};
+					23E23B792FE5A6D60010D53E = {
+						CreatedOnToolsVersion = 26.5;
 					};
 				};
 			};
@@ -306,6 +398,7 @@
 				23AC0A232EE875F90094CE44 /* Cosmo Trader */,
 				23AC0A302EE875FC0094CE44 /* Cosmo TraderTests */,
 				23AC0A3A2EE875FC0094CE44 /* Cosmo TraderUITests */,
+				23E23B792FE5A6D60010D53E /* Cosmo Trader WidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -332,6 +425,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		23E23B782FE5A6D60010D53E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
@@ -340,21 +440,21 @@
 			buildActionMask = 2147483647;
 			files = (
 			);
-				inputFileListPaths = (
-				);
-					inputPaths = (
-						"$(PROJECT_DIR)/GoogleService-Info.plist",
-						"$(PROJECT_DIR)/GoogleService-Info_CT.plist",
-					);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(PROJECT_DIR)/GoogleService-Info.plist",
+				"$(PROJECT_DIR)/GoogleService-Info_CT.plist",
+			);
 			name = "Copy Firebase Plist (Release Required)";
-				outputFileListPaths = (
-				);
-				outputPaths = (
-					"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist",
-				);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist",
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-					shellScript = "DEST_PLIST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\"\nSOURCE_PLIST=\"\"\n\nfor CANDIDATE_PLIST in \"${PROJECT_DIR}/GoogleService-Info.plist\" \"${PROJECT_DIR}/GoogleService-Info_CT.plist\"; do\n  if [ -f \"${CANDIDATE_PLIST}\" ]; then\n    SOURCE_PLIST=\"${CANDIDATE_PLIST}\"\n    break\n  fi\ndone\n\nif [ \"${CONFIGURATION}\" = \"Release\" ]; then\n  if [ -z \"${SOURCE_PLIST}\" ]; then\n    echo \"error: Missing Firebase GoogleService plist for Release build. Add GoogleService-Info.plist at project root.\" >&2\n    exit 1\n  fi\n  cp -f \"${SOURCE_PLIST}\" \"${DEST_PLIST}\"\nelse\n  if [ -n \"${SOURCE_PLIST}\" ]; then\n    cp -f \"${SOURCE_PLIST}\" \"${DEST_PLIST}\"\n  else\n    echo \"warning: Firebase GoogleService plist missing. Firebase is disabled for this Debug build. Add GoogleService-Info.plist at project root for device testing.\" >&2\n  fi\nfi\n";
+			shellScript = "DEST_PLIST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\"\nSOURCE_PLIST=\"\"\n\nfor CANDIDATE_PLIST in \"${PROJECT_DIR}/GoogleService-Info.plist\" \"${PROJECT_DIR}/GoogleService-Info_CT.plist\"; do\n  if [ -f \"${CANDIDATE_PLIST}\" ]; then\n    SOURCE_PLIST=\"${CANDIDATE_PLIST}\"\n    break\n  fi\ndone\n\nif [ \"${CONFIGURATION}\" = \"Release\" ]; then\n  if [ -z \"${SOURCE_PLIST}\" ]; then\n    echo \"error: Missing Firebase GoogleService plist for Release build. Add GoogleService-Info.plist at project root.\" >&2\n    exit 1\n  fi\n  cp -f \"${SOURCE_PLIST}\" \"${DEST_PLIST}\"\nelse\n  if [ -n \"${SOURCE_PLIST}\" ]; then\n    cp -f \"${SOURCE_PLIST}\" \"${DEST_PLIST}\"\n  else\n    echo \"warning: Firebase GoogleService plist missing. Firebase is disabled for this Debug build. Add GoogleService-Info.plist at project root for device testing.\" >&2\n  fi\nfi\n";
 		};
 		23F8A1122F4B000100123457 /* Verify No Secrets In Bundle (Release) */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -400,6 +500,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		23E23B762FE5A6D60010D53E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -412,6 +519,11 @@
 			isa = PBXTargetDependency;
 			target = 23AC0A232EE875F90094CE44 /* Cosmo Trader */;
 			targetProxy = 23AC0A3C2EE875FC0094CE44 /* PBXContainerItemProxy */;
+		};
+		23E23B8A2FE5A6D80010D53E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 23E23B792FE5A6D60010D53E /* Cosmo Trader WidgetExtension */;
+			targetProxy = 23E23B892FE5A6D80010D53E /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -543,6 +655,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Cosmo Trader/Cosmo_Trader.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = JGAJMMTQVS;
@@ -576,6 +689,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Cosmo Trader/Cosmo_Trader.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = JGAJMMTQVS;
@@ -655,7 +769,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = JGAJMMTQVS;
-					GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.Somnora.Cosmo-TraderUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -676,7 +790,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = JGAJMMTQVS;
-					GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.Somnora.Cosmo-TraderUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -689,6 +803,102 @@
 				TEST_TARGET_NAME = "Cosmo Trader";
 			};
 			name = Release;
+		};
+		23E23B8D2FE5A6D80010D53E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = "Cosmo Trader WidgetExtension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = JGAJMMTQVS;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Cosmo Trader Widget/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Cosmo Trader Widget";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.Somnora.Cosmo-Trader.Cosmo-Trader-Widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		23E23B8E2FE5A6D80010D53E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = "Cosmo Trader WidgetExtension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = JGAJMMTQVS;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Cosmo Trader Widget/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Cosmo Trader Widget";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.Somnora.Cosmo-Trader.Cosmo-Trader-Widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		23E23B8F2FE5A6D80010D53E /* Staging */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = "Cosmo Trader WidgetExtension.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = JGAJMMTQVS;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Cosmo Trader Widget/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Cosmo Trader Widget";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.Somnora.Cosmo-Trader.Cosmo-Trader-Widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Staging;
 		};
 		23F8B2012F5A000100C0DE01 /* Staging */ = {
 			isa = XCBuildConfiguration;
@@ -753,6 +963,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Cosmo Trader/Cosmo_Trader.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = JGAJMMTQVS;
@@ -862,6 +1073,16 @@
 				23AC0A4C2EE875FC0094CE44 /* Debug */,
 				23AC0A4D2EE875FC0094CE44 /* Release */,
 				23F8B2042F5A000100C0DE01 /* Staging */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		23E23B8C2FE5A6D80010D53E /* Build configuration list for PBXNativeTarget "Cosmo Trader WidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				23E23B8D2FE5A6D80010D53E /* Debug */,
+				23E23B8E2FE5A6D80010D53E /* Release */,
+				23E23B8F2FE5A6D80010D53E /* Staging */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

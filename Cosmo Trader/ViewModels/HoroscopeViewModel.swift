@@ -165,6 +165,16 @@ class HoroscopeViewModel {
             self.cosmicWeather = CosmicWeather.current
             self.planetaryEvents = PlanetaryEvent.featuredEvents
             self.isLoading = false
+
+            // Sync new reading to home screen widget
+            if let reading = self.horoscope?.reading {
+                WidgetBridge.shared.syncHoroscopeSnapshot(
+                    signName: user.sunSign.displayName,
+                    signSymbol: user.sunSign.textSymbol,
+                    signElement: user.sunSign.element.displayName,
+                    horoscopeText: reading
+                )
+            }
         }
     }
 

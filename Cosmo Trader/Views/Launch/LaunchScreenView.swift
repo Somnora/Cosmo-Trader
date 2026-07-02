@@ -83,7 +83,7 @@ struct LaunchScreenView: View {
                     .padding(.bottom, 24)
 
                 // Version
-                Text("v1.0")
+                Text(BuildInfo.fullVersion)
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundColor(Color(hex: "333333"))
                     .padding(.bottom, 40)

@@ -185,7 +185,7 @@ final class MercuryRetrogradeService {
     /// Historical/cosmic context for market surfaces. The property name is
     /// retained for compatibility with older callers, but the copy is not a
     /// trading instruction.
-    var tradingAdvice: String {
+    var context: String {
         switch status {
         case .active, .stormBeginning, .stormEnding:
             return "Retrograde context flag: communication and technology themes may be noisy. Review source labels and your own rules."

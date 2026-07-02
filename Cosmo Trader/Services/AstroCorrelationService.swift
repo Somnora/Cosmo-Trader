@@ -147,7 +147,7 @@ final class AstroCorrelationService {
         filterState: AstroOverlayFilterState,
         provenance: FinancialDataProvenance,
         completeness: HistoricalDatasetCompleteness = .complete,
-        minimumSampleSize: Int = 3
+        minimumSampleSize: Int = 10
     ) -> [StockCosmicCorrelationSummary] {
         let groupedEvents = Dictionary(grouping: events) { $0.kind }
         let sortedKinds = groupedEvents.keys.sorted { $0.displayName < $1.displayName }
@@ -261,7 +261,7 @@ final class AstroCorrelationService {
                     provenance: provenance,
                     confidence: .insufficient,
                     displayMode: .insufficientSample,
-                    disclaimer: "Not enough historical observations for this event. No return claim is shown."
+                    disclaimer: "Awaiting more historical data. (10 observations required; currently has \(kindReactions.count))."
                 )
             }
 

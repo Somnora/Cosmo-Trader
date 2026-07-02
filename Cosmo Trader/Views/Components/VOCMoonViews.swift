@@ -78,7 +78,7 @@ struct VOCMoonWarningBanner: View {
                             .clipShape(Capsule())
                     }
 
-                    Text("Avoid initiating new positions")
+                    Text("Historical period of drift")
                         .font(.caption)
                         .foregroundColor(CosmicTheme.textPrimary)
 
@@ -399,7 +399,7 @@ struct VOCMoonDetailSheet: View {
                 Spacer()
             }
 
-            Text("The Moon is making aspects and actively influencing. Traditional timing suggests this is favorable for initiating actions.")
+            Text("The Moon is making aspects and actively influencing. Traditional timing frames this as a period of integration and market activity.")
                 .font(.caption)
                 .foregroundColor(CosmicTheme.textSecondary)
 
@@ -557,15 +557,15 @@ struct VOCMoonDetailSheet: View {
                         .fontWeight(.semibold)
                         .foregroundColor(CosmicTheme.gold)
 
-                    Text("Actions initiated during VOC periods are said to \"come to nothing\" or not manifest as expected. This includes:")
+                    Text("Historically, VOC periods are viewed as times when momentum pauses or drifts. This context is often applied to:")
                         .font(.caption)
                         .foregroundColor(CosmicTheme.textSecondary)
 
                     VStack(alignment: .leading, spacing: 4) {
-                        bulletPoint("Starting new projects")
-                        bulletPoint("Making important decisions")
-                        bulletPoint("Signing contracts")
-                        bulletPoint("Opening new positions")
+                        bulletPoint("Observing rather than initiating")
+                        bulletPoint("Reviewing existing plans")
+                        bulletPoint("Allowing situations to settle")
+                        bulletPoint("Market drift and consolidation")
                     }
                 }
 
@@ -598,7 +598,7 @@ struct VOCMoonDetailSheet: View {
             sectionHeader(title: "Trading Wisdom", icon: "chart.line.uptrend.xyaxis")
 
             VStack(alignment: .leading, spacing: 12) {
-                Text("Some traders who follow financial astrology avoid initiating new positions during VOC periods. The theory suggests:")
+                Text("Some traders who follow financial astrology observe VOC periods as context for market drift. The theory suggests:")
                     .font(.caption)
                     .foregroundColor(CosmicTheme.textSecondary)
                     .lineSpacing(4)
@@ -606,14 +606,14 @@ struct VOCMoonDetailSheet: View {
                 VStack(alignment: .leading, spacing: 8) {
                     wisdomPoint(
                         icon: "arrow.up.right",
-                        title: "Entries",
-                        text: "New positions opened during VOC may not develop as expected"
+                        title: "Momentum",
+                        text: "Market momentum may pause or drift during VOC"
                     )
 
                     wisdomPoint(
                         icon: "arrow.down.right",
-                        title: "Exits",
-                        text: "Closing positions during VOC is considered acceptable"
+                        title: "Integration",
+                        text: "A period historically associated with consolidation"
                     )
 
                     wisdomPoint(

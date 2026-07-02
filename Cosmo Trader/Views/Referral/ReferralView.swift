@@ -371,7 +371,7 @@ struct ReferralView: View {
                 }
             } else if let error = referralService.leaderboardError {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Couldn't load leaderboard.")
+                    Text("Couldn't load leaderboard: \(error)")
                         .font(.caption)
                         .foregroundColor(.red)
                     Button("Retry") {

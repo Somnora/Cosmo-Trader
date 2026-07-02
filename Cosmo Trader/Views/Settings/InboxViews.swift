@@ -131,7 +131,7 @@ struct InboxListView: View {
         defer { isPublishingTestItem = false }
 
         do {
-            try await client.publishTestInboxItem()
+            _ = try await client.publishTestInboxItem()
             await loadInbox()
         } catch let error as CosmoAPIError {
             switch error {

@@ -44,6 +44,13 @@ require_absent "Cosmo Trader Widget/SharedWidgetData.swift" "Trim underperformer
 require_absent "Cosmo Trader/Utils/WidgetDataManager.swift" "Good for new positions"
 require_absent "Cosmo Trader/Utils/WidgetDataManager.swift" "Secure your gains"
 require_absent "Cosmo Trader/Utils/WidgetDataManager.swift" "Trim underperformers"
+require_absent "Cosmo Trader/Views/Components/VOCMoonViews.swift" "avoid initiating new positions"
+require_absent "Cosmo Trader/Views/Components/VOCMoonViews.swift" "Opening new positions"
+require_absent "Cosmo Trader/Views/Components/VOCMoonViews.swift" "Closing positions"
+require_absent "Cosmo Trader/Services/DailyBriefService.swift" "Review existing positions"
+require_absent "Cosmo Trader/Services/DailyBriefService.swift" "Avoid major new commitments"
+require_absent "Cosmo Trader/Services/DailyBriefService.swift" "Resume normal trading activity"
+require_absent "Cosmo Trader/Services/DailyBriefService.swift" "Review volatile exposure"
 
 if [[ "$failures" -gt 0 ]]; then
   echo "compliance_copy_guard: source scan failed with ${failures} issue(s)" >&2

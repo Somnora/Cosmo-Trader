@@ -207,7 +207,7 @@ final class DailyFinancialReadingService {
             case .balanced:
                 return "Market data is unavailable, so this is cosmic context only: the \(lunarData.phase.rawValue.lowercased()) moon in \(lunarData.moonSign.displayName) puts \(lunarData.activatedElement.displayName.lowercased()) names in focus. \(mercury.statusMessage) argues for patience."
             case .leanMystical, .mystical:
-                return "The \(lunarData.phase.rawValue.lowercased()) moon in \(lunarData.moonSign.displayName) activates \(lunarData.activatedElement.displayName.lowercased()) exposure. Provider-backed market mood is unavailable, so this stays cosmic context only. \(mercury.tradingAdvice)"
+                return "The \(lunarData.phase.rawValue.lowercased()) moon in \(lunarData.moonSign.displayName) activates \(lunarData.activatedElement.displayName.lowercased()) exposure. Provider-backed market mood is unavailable, so this stays cosmic context only. \(mercury.context)"
             }
         }
 
@@ -219,7 +219,7 @@ final class DailyFinancialReadingService {
         case .balanced:
             return "The tape is \(score.level.sentimentName.lowercased()) and the \(lunarData.phase.rawValue.lowercased()) moon in \(lunarData.moonSign.displayName) puts \(lunarData.activatedElement.displayName.lowercased()) names in focus. \(mercury.statusMessage) argues for quiet review and no theatrics."
         case .leanMystical, .mystical:
-            return "The \(lunarData.phase.rawValue.lowercased()) moon in \(lunarData.moonSign.displayName) activates \(lunarData.activatedElement.displayName.lowercased()) exposure while the market mood reads \(score.level.sentimentName.lowercased()). \(mercury.tradingAdvice)"
+            return "The \(lunarData.phase.rawValue.lowercased()) moon in \(lunarData.moonSign.displayName) activates \(lunarData.activatedElement.displayName.lowercased()) exposure while the market mood reads \(score.level.sentimentName.lowercased()). \(mercury.context)"
         }
     }
 

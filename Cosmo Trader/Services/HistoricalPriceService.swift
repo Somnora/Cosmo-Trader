@@ -58,7 +58,9 @@ final class HistoricalPriceService {
         cacheDuration: TimeInterval = 3600,
         nowProvider: @escaping () -> Date = Date.init,
         candleFetcher: @escaping CandleFetcher = { symbol, resolution, from, to in
-            try await StockAPIService.shared.fetchCandles(
+            // Use Yahoo Finance for historical candles (free, no API key required).
+            // Finnhub's free tier blocks /stock/candle.
+            try await YahooFinanceService.shared.fetchCandles(
                 symbol: symbol,
                 resolution: resolution,
                 from: from,

@@ -86,12 +86,38 @@ struct ContentView: View {
                 AnalyticsService.shared.refreshUserProperties(from: appState)
                 // Start ambient audio if enabled
                 audioService.startAmbientLoop()
+                // Sync widget data on app launch
+                WidgetBridge.shared.syncAllWidgetData()
             }
             .onChange(of: appState.selectedTab) { oldTab, newTab in
                 // Track tab switches
                 AnalyticsService.shared.trackTabSwitch(newTab.analyticsName)
                 // Play tab switch sound
                 audioService.playTabSwitch()
+            }
+            // MARK: - Notification Deep-Link Listeners
+            .onReceive(NotificationCenter.default.publisher(for: .openToday)) { _ in
+                appState.selectedTab = .today
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openPortfolio)) { _ in
+                appState.selectedTab = .portfolio
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openDiscover)) { _ in
+                appState.selectedTab = .discover
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openCosmos)) { _ in
+                appState.selectedTab = .cosmos
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openProfile)) { _ in
+                appState.selectedTab = .profile
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openStockDetail)) { notification in
+                // Navigate to portfolio first, then the stock detail can be handled by PortfolioView
+                appState.selectedTab = .portfolio
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openIPODetail)) { notification in
+                // Navigate to discover tab where IPOs are displayed
+                appState.selectedTab = .discover
             }
         }
     }

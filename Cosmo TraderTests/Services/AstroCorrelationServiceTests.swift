@@ -107,7 +107,8 @@ struct AstroCorrelationServiceTests {
                 pointEvent(on: "2025-01-06")
             ],
             filterState: AstroOverlayFilterState(eventWindowDays: 1),
-            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10"))
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10")),
+            minimumSampleSize: 3
         )
 
         let summary = summaries.first
@@ -139,7 +140,7 @@ struct AstroCorrelationServiceTests {
         #expect(summary?.medianReturn == nil)
         #expect(summary?.winRate == nil)
         #expect(summary?.baselineReturn == nil)
-        #expect(summary?.disclaimer.contains("No return claim") == true)
+        #expect(summary?.disclaimer.contains("Awaiting more historical data") == true)
     }
 
     @Test("Stock summaries with unavailable provenance do not expose numeric claims")

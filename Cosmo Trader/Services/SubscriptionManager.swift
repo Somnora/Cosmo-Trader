@@ -632,6 +632,16 @@ struct OracleTierBenefits {
             feature: .unlimitedRoasts,
             title: "Unlimited Roasts",
             description: "Generate a Cosmic Roast as often as you want"
+        ),
+        OracleBenefit(
+            feature: .ipoAlerts,
+            title: "Astro IPO Alerts",
+            description: "Get notified when compatible companies announce IPOs"
+        ),
+        OracleBenefit(
+            feature: .fearGreedIndex,
+            title: "Cosmic Mood Index",
+            description: "Access the real-time cosmic sentiment of the market"
         )
     ]
 }

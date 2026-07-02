@@ -138,16 +138,16 @@ enum MercuryStatus: String, CaseIterable {
         }
     }
 
-    var tradingAdvice: String {
+    var context: String {
         switch self {
         case .direct:
-            return "Communications clear. Good for new initiatives."
+            return "Communications clear. Historical context favors ongoing activity."
         case .retrograde:
-            return "Review existing positions. Avoid major new commitments."
+            return "Reviewing plans. Historical context suggests friction for new commitments."
         case .preShadow:
             return "Slowdown approaching. Finalize pending decisions."
         case .postShadow:
-            return "Clarity returning. Resume normal trading activity."
+            return "Clarity returning. Normal cosmic momentum resumes."
         }
     }
 }
@@ -157,13 +157,13 @@ enum MercuryStatus: String, CaseIterable {
 enum VolatilityTolerance: String, CaseIterable {
     case embrace = "Embrace"
     case neutral = "Neutral"
-    case avoid = "Avoid"
+    case observe = "Observe"
 
     var sfSymbol: String {
         switch self {
         case .embrace: return "waveform.path.ecg"
         case .neutral: return "minus"
-        case .avoid: return "hand.raised.fill"
+        case .observe: return "hand.raised.fill"
         }
     }
 
@@ -171,15 +171,15 @@ enum VolatilityTolerance: String, CaseIterable {
         switch self {
         case .embrace: return CosmicTheme.positive
         case .neutral: return CosmicTheme.textSecondary
-        case .avoid: return CosmicTheme.negative
+        case .observe: return CosmicTheme.negative
         }
     }
 
-    var advice: String {
+    var context: String {
         switch self {
         case .embrace: return "Volatility context unavailable"
         case .neutral: return "Normal market conditions expected"
-        case .avoid: return "Review volatile exposure through your own plan"
+        case .observe: return "Historical context suggests observing volatility"
         }
     }
 }
@@ -281,15 +281,15 @@ enum SuggestedAction: String, CaseIterable {
     var description: String {
         switch self {
         case .watch:
-            return "Observe market movements without acting. Let patterns emerge."
+            return "Observe market movements. Let patterns emerge."
         case .review:
-            return "Examine your positions. Assess alignment with your goals."
+            return "Examine your portfolio against your own goals."
         case .rest:
-            return "Step back from the markets. Your mind needs recovery."
+            return "Step back from the markets. Focus on learning."
         case .journal:
-            return "Document your observations and emotional state today."
+            return "Document your observations and historical context today."
         case .rebalance:
-            return "Look at your allocation against your own targets. The reading is context only."
+            return "Look at your allocation against your own targets. Context only."
         }
     }
 }
@@ -516,9 +516,9 @@ final class DailyBriefService {
             return .embrace
         }
 
-        // Mercury retrograde - avoid volatility
+        // Mercury retrograde - observe volatility
         if mercury == .retrograde {
-            return .avoid
+            return .observe
         }
 
         // New moon - neutral

@@ -158,7 +158,11 @@ enum AppEnvironment: String, CaseIterable {
 
     /// Whether to use mock data
     var useMockData: Bool {
+        #if DEBUG
         self == .development
+        #else
+        false
+        #endif
     }
 }
 

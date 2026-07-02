@@ -489,7 +489,7 @@ struct TodayMarketHoroscopeComposerTests {
             summary.dataCoverage.explainers.map(\.detail).joined(separator: "\n"),
             summary.disclaimer,
             MercuryRetrogradeService.shared.currentAdvice,
-            MercuryRetrogradeService.shared.tradingAdvice
+            MercuryRetrogradeService.shared.context
         ].joined(separator: "\n").lowercased()
 
         for banned in [
@@ -800,7 +800,8 @@ struct TodayMarketHoroscopeComposerTests {
             provenance: provenance,
             confidence: displayMode == .marketBackedResult ? .thin : .insufficient,
             displayMode: displayMode,
-            disclaimer: "Historical portfolio context only. Correlation does not imply causation and this is not financial advice."
+            disclaimer: "Historical portfolio context only. Correlation does not imply causation and this is not financial advice.",
+            dynamicCommentary: nil
         )
     }
 

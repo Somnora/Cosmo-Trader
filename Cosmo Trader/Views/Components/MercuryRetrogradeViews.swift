@@ -325,7 +325,7 @@ struct MercuryRetrogradeDetailSheet: View {
                 .foregroundColor(CosmicTheme.gold)
 
             VStack(alignment: .leading, spacing: 12) {
-                adviceRow(icon: "chart.line.uptrend.xyaxis", text: service.tradingAdvice)
+                adviceRow(icon: "chart.line.uptrend.xyaxis", text: service.context)
 
                 Divider()
                     .background(CosmicTheme.textMuted.opacity(0.4))

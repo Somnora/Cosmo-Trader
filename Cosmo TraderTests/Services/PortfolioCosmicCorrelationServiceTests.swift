@@ -270,7 +270,7 @@ struct PortfolioCosmicCorrelationServiceTests {
         #expect(isInsufficientSample(summary))
         #expect(summary?.sampleSize == 2)
         #expect(summary?.averagePortfolioReturn == nil)
-        #expect(summary?.disclaimer.contains("No return claim") == true)
+        #expect(summary?.disclaimer.contains("Awaiting more historical data") == true)
     }
 
     @Test("Portfolio correlation V1 only reports full moon, new moon, and Mercury retrograde")

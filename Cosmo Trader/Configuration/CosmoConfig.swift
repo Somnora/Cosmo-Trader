@@ -12,7 +12,13 @@ enum CosmoConfig {
                 return value
             }
 
+            // Check Secrets.plist bundled as an app resource (works on physical devices)
+            if let value = valueFromBundledSecretsPlist(for: key) {
+                return value
+            }
+
             #if DEBUG
+            // Fallback: source-tree Secrets.plist via #file (Simulator only)
             if let value = valueFromDebugSecretsPlist(for: key) {
                 return value
             }
@@ -28,6 +34,18 @@ enum CosmoConfig {
 
     nonisolated private static func valueFromInfoPlist(for key: String) -> String? {
         normalized(Bundle.main.object(forInfoDictionaryKey: key) as? String)
+    }
+
+    /// Read from Secrets.plist if it was added to "Copy Bundle Resources".
+    /// This works on both Simulator and physical devices.
+    nonisolated private static func valueFromBundledSecretsPlist(for key: String) -> String? {
+        guard let path = Bundle.main.path(forResource: "Secrets", ofType: "plist"),
+              let dict = NSDictionary(contentsOfFile: path) as? [String: Any],
+              let value = dict[key] as? String,
+              let normalizedValue = normalized(value) else {
+            return nil
+        }
+        return normalizedValue
     }
 
     #if DEBUG

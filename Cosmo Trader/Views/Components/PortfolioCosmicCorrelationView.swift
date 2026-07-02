@@ -138,6 +138,9 @@ struct PortfolioCosmicCorrelationView: View {
                 smallStat(label: "EVENTS", value: "\(summary.eventCount)")
                 smallStat(label: "SAMPLE", value: "\(summary.sampleSize)")
                 smallStat(label: "INCLUDED", value: percentRate(summary.includedPortfolioWeight))
+                if summary.excludedPortfolioWeight > 0 {
+                    smallStat(label: "EXCLUDED", value: percentRate(summary.excludedPortfolioWeight))
+                }
             }
 
             if summary.displayMode == .marketBackedResult {
@@ -152,6 +155,10 @@ struct PortfolioCosmicCorrelationView: View {
 
             if !summary.affectedHoldings.isEmpty {
                 affectedHoldingsRow(summary.affectedHoldings)
+            }
+
+            if !summary.unavailableHoldings.isEmpty {
+                excludedHoldingsRow(summary.unavailableHoldings)
             }
 
             HStack {
@@ -201,6 +208,15 @@ struct PortfolioCosmicCorrelationView: View {
                 smallStat(label: "MAX DD", value: percent(summary.maxDrawdown.map { -abs($0) }))
             }
 
+            if let insight = summary.dynamicCommentary {
+                Text(insight)
+                    .font(TerminalFont.data(10, weight: .medium))
+                    .foregroundColor(CosmicTheme.gold)
+                    .lineSpacing(3.5)
+                    .padding(.vertical, 4)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             Text(summary.disclaimer)
                 .font(TerminalFont.data(9))
                 .foregroundColor(CosmicTheme.textMuted)
@@ -220,6 +236,21 @@ struct PortfolioCosmicCorrelationView: View {
                 .foregroundColor(CosmicTheme.textMuted)
                 .tracking(0.5)
             Text(topHoldings)
+                .font(TerminalFont.data(9))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+        }
+    }
+
+    private func excludedHoldingsRow(_ symbols: [String]) -> some View {
+        let listText = symbols.prefix(4).joined(separator: "  ")
+        return HStack(alignment: .firstTextBaseline, spacing: 7) {
+            Text("EXCLUDED")
+                .font(TerminalFont.data(8, weight: .bold))
+                .foregroundColor(CosmicTheme.negative.opacity(0.8))
+                .tracking(0.5)
+            Text(listText)
                 .font(TerminalFont.data(9))
                 .foregroundColor(CosmicTheme.textSecondary)
                 .lineLimit(2)

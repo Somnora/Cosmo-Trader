@@ -16,8 +16,8 @@ import SwiftUI
 // TRADITIONAL MEANING:
 // - Actions initiated during VOC "come to nothing" or don't manifest as expected
 // - Best time for routine tasks, meditation, or rest
-// - Avoid: signing contracts, starting projects, making major purchases
-// - For traders: Traditional advice is to avoid initiating new positions
+// - Context: historically viewed as a period of integration rather than initiation
+// - For traders: Traditional astrology frames this as a period of market drift
 //
 // NOTE: This is for entertainment. There is no scientific evidence that
 // VOC periods affect trading outcomes.

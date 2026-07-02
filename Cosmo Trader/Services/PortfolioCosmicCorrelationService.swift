@@ -36,6 +36,7 @@ struct PortfolioCosmicCorrelationSummary: Identifiable, Equatable {
     let confidence: CorrelationConfidence
     let displayMode: CorrelationDisplayMode
     let disclaimer: String
+    let dynamicCommentary: String?
 }
 
 final class PortfolioCosmicCorrelationService {
@@ -50,7 +51,7 @@ final class PortfolioCosmicCorrelationService {
     private let calendar = Calendar.current
     private let minimumPortfolioCoverageForAnyContext = 0.5
     private let minimumPortfolioCoverageForNumericClaims = 0.7
-    private let minimumEventWeightCoverage = 0.5
+    private let minimumEventWeightCoverage = 0.7
 
     private init() {}
 
@@ -61,7 +62,7 @@ final class PortfolioCosmicCorrelationService {
         completenessBySymbol: [String: HistoricalDatasetCompleteness] = [:],
         events: [AstroOverlayEvent],
         filterState: AstroOverlayFilterState,
-        minimumSampleSize: Int = 3
+        minimumSampleSize: Int = 10
     ) -> [PortfolioCosmicCorrelationSummary] {
         let weightedHoldings = holdings
             .filter(\.isOwned)
@@ -199,7 +200,8 @@ final class PortfolioCosmicCorrelationService {
                     provenance: providerProvenance,
                     confidence: .insufficient,
                     displayMode: .insufficientSample,
-                    disclaimer: "No matching cosmic events were found in the provider-backed price range. No return claim is shown."
+                    disclaimer: "No matching cosmic events were found in the provider-backed price range. No return claim is shown.",
+                    dynamicCommentary: nil
                 )
             }
 
@@ -239,7 +241,8 @@ final class PortfolioCosmicCorrelationService {
                     provenance: providerProvenance,
                     confidence: .insufficient,
                     displayMode: .insufficientSample,
-                    disclaimer: "Not enough portfolio-level observations for this event. No return claim is shown."
+                    disclaimer: "Awaiting more historical data. (10 observations required; currently has \(portfolioReactions.count)).",
+                    dynamicCommentary: nil
                 )
             }
 
@@ -247,6 +250,17 @@ final class PortfolioCosmicCorrelationService {
             let eventVolatility = standardDeviation(returns)
             let baselineVolatility = baselinePortfolioVolatility(for: eligibleHoldings, includedValue: includedValue)
             let volatilityRatio = baselineVolatility > 0 ? eventVolatility / baselineVolatility : nil
+            let avgReturn = average(returns)
+            let winRateVal = winRate(returns)
+            
+            let dynamicCommentary = generateBacktestCommentary(
+                eventType: kind,
+                averageReturn: avgReturn,
+                winRate: winRateVal,
+                sampleSize: portfolioReactions.count,
+                eligibleHoldings: eligibleHoldings,
+                holdings: holdings
+            )
 
             return PortfolioCosmicCorrelationSummary(
                 id: kind.rawValue,
@@ -255,9 +269,9 @@ final class PortfolioCosmicCorrelationService {
                 eventCount: kindEvents.count,
                 sampleSize: portfolioReactions.count,
                 window: window,
-                averagePortfolioReturn: average(returns),
+                averagePortfolioReturn: avgReturn,
                 medianPortfolioReturn: median(returns),
-                winRate: winRate(returns),
+                winRate: winRateVal,
                 baselinePortfolioReturn: baselinePortfolioReturn(
                     for: eligibleHoldings,
                     includedValue: includedValue,
@@ -272,7 +286,8 @@ final class PortfolioCosmicCorrelationService {
                 provenance: providerProvenance,
                 confidence: confidence(for: portfolioReactions.count),
                 displayMode: .marketBackedResult,
-                disclaimer: "Historical portfolio context only. Correlation does not imply causation and this is not financial advice."
+                disclaimer: "Historical portfolio context only. Correlation does not imply causation and this is not financial advice.",
+                dynamicCommentary: dynamicCommentary
             )
         }
     }
@@ -330,7 +345,8 @@ final class PortfolioCosmicCorrelationService {
             provenance: .mixed(reason: reason),
             confidence: .insufficient,
             displayMode: displayMode,
-            disclaimer: "\(reason). No portfolio-level return claim is shown."
+            disclaimer: "\(reason). No portfolio-level return claim is shown.",
+            dynamicCommentary: nil
         )
     }
 
@@ -533,7 +549,8 @@ final class PortfolioCosmicCorrelationService {
             provenance: provenance,
             confidence: .unavailable,
             displayMode: displayMode,
-            disclaimer: disclaimer
+            disclaimer: disclaimer,
+            dynamicCommentary: nil
         )
     }
 
@@ -635,6 +652,52 @@ final class PortfolioCosmicCorrelationService {
     private func maxDate(_ lhs: Date?, _ rhs: Date) -> Date {
         guard let lhs else { return rhs }
         return max(lhs, rhs)
+    }
+
+    private func generateBacktestCommentary(
+        eventType: AstroOverlayEventKind,
+        averageReturn: Double?,
+        winRate: Double?,
+        sampleSize: Int,
+        eligibleHoldings: [EligibleHolding],
+        holdings: [Stock]
+    ) -> String? {
+        guard let averageReturn, let winRate else { return nil }
+
+        var elementValues: [ZodiacSign.Element: Double] = [:]
+        var sectorValues: [String: Double] = [:]
+        var totalValue = 0.0
+
+        for holding in eligibleHoldings {
+            guard let stock = holdings.first(where: { $0.symbol.uppercased() == holding.symbol }) else { continue }
+            let marketValue = holding.marketValue
+            totalValue += marketValue
+            if let sign = stock.foundedZodiacSign {
+                elementValues[sign.element, default: 0] += marketValue
+            }
+            sectorValues[stock.sector, default: 0] += marketValue
+        }
+
+        let dominantElement = elementValues.max(by: { $0.value < $1.value })?.key
+        let dominantSector = sectorValues.max(by: { $0.value < $1.value })?.key
+        
+        let elementText = dominantElement?.displayName ?? "diversified"
+        let isTechHeavy = (sectorValues["Technology"] ?? 0) / (totalValue > 0 ? totalValue : 1) > 0.3
+        
+        let portfolioDesc: String
+        if isTechHeavy {
+            portfolioDesc = "tech-heavy \(elementText)-sign portfolio"
+        } else if let sector = dominantSector {
+            portfolioDesc = "\(sector.lowercased())-heavy \(elementText)-sign portfolio"
+        } else {
+            portfolioDesc = "\(elementText)-sign portfolio"
+        }
+
+        let countText = "\(sampleSize) \(eventType.displayName)\(sampleSize == 1 ? "" : "s")"
+        let returnText = String(format: "%+.1f%%", averageReturn)
+        let winRateText = String(format: "%.0f%%", winRate * 100)
+        
+        return "How did your \(portfolioDesc) perform during the last \(countText)? It averaged a \(returnText) return with a \(winRateText) win rate."
     }
 }
 

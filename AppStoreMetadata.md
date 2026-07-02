@@ -210,13 +210,11 @@ Thank you for your time!
 
 ## 9. Support URL & Privacy Policy URL
 
-**Support URL:** REQUIRES FINAL URL BEFORE SUBMISSION
-Candidate: `https://cosmotrader.app/support`
+**Support URL:** `https://somnora.app/cosmo-trader/terms`
 
-**Privacy Policy URL:** REQUIRES FINAL URL BEFORE SUBMISSION
-Candidate: `https://cosmotrader.app/privacy`
+**Privacy Policy URL:** `https://somnora.app/cosmo-trader/privacy`
 
-Do not paste this section into App Store Connect until both URLs resolve to final public pages.
+The URLs above are finalized and ready for App Store Connect.
 
 ---
 
@@ -295,7 +293,7 @@ New: Share your Cosmic Roast — a shareable read of your portfolio personality,
 | Secondary Category | ✅ | Entertainment |
 | Age Rating | ✅ | 4+ or 9+ |
 | Review Notes | ✅ | Detailed explanation |
-| Support URL | ⬜ | REQUIRES FINAL URL BEFORE SUBMISSION |
-| Privacy Policy URL | ⬜ | REQUIRES FINAL URL BEFORE SUBMISSION |
+| Support URL | ✅ | https://somnora.app/cosmo-trader/terms |
+| Privacy Policy URL | ✅ | https://somnora.app/cosmo-trader/privacy |
 | Screenshots | ⬜ | Need to capture |
 | App Icon | ⬜ | Need to export from generator |

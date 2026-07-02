@@ -125,7 +125,7 @@ final class MarketWeatherService {
     func loadSummary(
         timeframe: ChartTimeframe = .year,
         filterState: AstroOverlayFilterState,
-        minimumSampleSize: Int = 3,
+        minimumSampleSize: Int = 10,
         staleAfter: TimeInterval = HistoricalPriceDataset.defaultStaleInterval
     ) async -> MarketWeatherSummary {
         let snapshot = await datasetStore.datasets(
@@ -134,7 +134,7 @@ final class MarketWeatherService {
         )
         let allDates = snapshot.priceHistoryBySymbol.values.flatMap { $0.map(\.date) }
         let events: [AstroOverlayEvent]
-
+        
         if let firstDate = allDates.min(), let lastDate = allDates.max() {
             events = overlayEventService.events(
                 for: Self.marketProxyStock,
@@ -162,7 +162,7 @@ final class MarketWeatherService {
         unavailableProvenanceBySymbol: [String: FinancialDataProvenance] = [:],
         events: [AstroOverlayEvent],
         filterState: AstroOverlayFilterState,
-        minimumSampleSize: Int = 3,
+        minimumSampleSize: Int = 10,
         staleAfter: TimeInterval = HistoricalPriceDataset.defaultStaleInterval
     ) -> MarketWeatherSummary {
         let normalizedDatasets = Dictionary(uniqueKeysWithValues: datasetsBySymbol.map { key, value in
@@ -346,7 +346,7 @@ final class MarketWeatherService {
                 coverage: coverage,
                 provenance: provenance,
                 displayMode: .insufficientSample,
-                disclaimer: "Not enough sector breadth observations for this event. No sector metric is shown."
+                disclaimer: "Awaiting more historical data. (10 observations required; currently has \(reactions.count))."
             )
         }
 
@@ -467,7 +467,7 @@ final class MarketWeatherService {
                 staleSymbols: staleSymbols,
                 provenance: provenance,
                 displayMode: .insufficientSample,
-                disclaimer: "Not enough market-level observations for this event. No return claim is shown."
+                disclaimer: "Awaiting more historical data. (10 observations required; currently has \(reactions.count))."
             )
         }
 
