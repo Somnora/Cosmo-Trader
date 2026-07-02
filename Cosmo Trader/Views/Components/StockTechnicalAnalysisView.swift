@@ -21,6 +21,7 @@ struct StockTechnicalAnalysisView: View {
                 .font(TerminalFont.data(8))
                 .foregroundColor(CosmicTheme.textMuted)
         }
+        .accessibilityIdentifier("stock.technicalAnalysis")
     }
 
     private var header: some View {
@@ -141,6 +142,7 @@ struct StockTechnicalAnalysisView: View {
                     .background(CosmicTheme.gold)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("stock.technicalAnalysis.refreshHistory")
             }
         }
     }
