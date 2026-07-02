@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct TodayMarketHoroscopeView: View {
     let viewModel: TodayMarketHoroscopeViewModel
@@ -10,6 +11,10 @@ struct TodayMarketHoroscopeView: View {
     let setupSkipAction: () -> Void
 
     @State private var isLabelGuideExpanded = false
+    @State private var isGeneratingShareCard = false
+    @State private var showShareSheet = false
+    @State private var shareImage: UIImage?
+    @State private var shareText = ""
 
     var body: some View {
         Group {
@@ -20,6 +25,13 @@ struct TodayMarketHoroscopeView: View {
             }
         }
         .accessibilityIdentifier("today.marketHoroscope")
+        .sheet(isPresented: $showShareSheet) {
+            if let shareImage {
+                ShareSheet(items: [shareText, shareImage])
+            } else {
+                ShareSheet(text: shareText)
+            }
+        }
     }
 
     private func summaryContent(_ summary: TodayMarketHoroscopeSummary) -> some View {
@@ -178,8 +190,44 @@ struct TodayMarketHoroscopeView: View {
 
             Spacer(minLength: 8)
 
+            shareButton(summary)
+
             DataSourceIndicator(provenance: summary.provenance, size: .compact)
         }
+    }
+
+    private func shareButton(_ summary: TodayMarketHoroscopeSummary) -> some View {
+        Button {
+            generateShareCard(summary)
+        } label: {
+            HStack(spacing: 5) {
+                if isGeneratingShareCard {
+                    ProgressView()
+                        .scaleEffect(0.68)
+                        .tint(CosmicTheme.gold)
+                } else {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 10, weight: .bold))
+                }
+
+                Text("SHARE")
+                    .font(TerminalFont.data(8, weight: .bold))
+                    .tracking(0.6)
+                    .lineLimit(1)
+            }
+            .foregroundColor(CosmicTheme.gold)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(CosmicTheme.gold.opacity(0.10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(CosmicTheme.gold.opacity(0.45), lineWidth: 0.75)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isGeneratingShareCard)
+        .accessibilityIdentifier("today.marketHoroscope.shareButton")
+        .accessibilityLabel("Share today's market horoscope")
     }
 
     @ViewBuilder
@@ -888,6 +936,7 @@ struct TodayMarketHoroscopeView: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("today.activation.\(accessibilityKey(for: title))")
     }
 
     private func actionIcon(for title: String) -> String {
@@ -935,6 +984,15 @@ struct TodayMarketHoroscopeView: View {
         case .reviewLabels:
             return "info.circle"
         }
+    }
+
+    private func accessibilityKey(for title: String) -> String {
+        title
+            .lowercased()
+            .replacingOccurrences(of: " / ", with: ".")
+            .replacingOccurrences(of: "/", with: ".")
+            .split { !$0.isLetter && !$0.isNumber }
+            .joined(separator: ".")
     }
 
     private func labelExplainerDisclosure(_ explainers: [TodayDataLabelExplainer]) -> some View {
@@ -1105,6 +1163,17 @@ struct TodayMarketHoroscopeView: View {
         let stock = summary.stockContext.map { snapshotValue(for: $0.displayMode).lowercased() } ?? "setup"
 
         return "Market \(market), portfolio \(portfolio), stock lens \(stock). \(summary.dataCoverage.headline)."
+    }
+
+    @MainActor
+    private func generateShareCard(_ summary: TodayMarketHoroscopeSummary) {
+        isGeneratingShareCard = true
+
+        let content = TodayMarketHoroscopeShareCardContent.make(from: summary)
+        shareText = content.shareText
+        shareImage = TodayMarketHoroscopeShareCardRenderer.render(summary: summary)
+        isGeneratingShareCard = false
+        showShareSheet = true
     }
 
     private func compactSymbolRow(label: String, symbols: [String], color: Color) -> some View {

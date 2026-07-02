@@ -52,6 +52,91 @@ nonisolated enum HistoricalDatasetFreshness: Equatable {
     }
 }
 
+nonisolated struct HistoricalChartDataQuality: Equatable {
+    let canRenderChart: Bool
+    let provenance: FinancialDataProvenance
+    let completeness: HistoricalDatasetCompleteness
+    let unavailableTitle: String
+    let unavailableMessage: String
+
+    static func evaluate(
+        dataset: HistoricalPriceDataset,
+        minimumCandles: Int = 2,
+        staleAfter staleInterval: TimeInterval = HistoricalPriceDataset.defaultStaleInterval
+    ) -> HistoricalChartDataQuality {
+        let provenance = dataset.correlationDisplayProvenance
+
+        guard dataset.provenance.isProviderBacked else {
+            return HistoricalChartDataQuality(
+                canRenderChart: false,
+                provenance: provenance,
+                completeness: dataset.completeness,
+                unavailableTitle: "Historical price data unavailable",
+                unavailableMessage: "Chart will appear when provider-backed history is available."
+            )
+        }
+
+        if dataset.provenance.isCachedStale(staleAfter: staleInterval) {
+            return HistoricalChartDataQuality(
+                canRenderChart: false,
+                provenance: dataset.provenance,
+                completeness: dataset.completeness,
+                unavailableTitle: "Cached history is stale",
+                unavailableMessage: "Refresh provider history before viewing chart context."
+            )
+        }
+
+        switch dataset.completeness {
+        case .complete:
+            break
+        case .partial(let reason):
+            return HistoricalChartDataQuality(
+                canRenderChart: false,
+                provenance: provenance,
+                completeness: dataset.completeness,
+                unavailableTitle: "Partial historical dataset",
+                unavailableMessage: "\(reason). Chart context will appear when the provider returns a complete range."
+            )
+        case .insufficient(let reason):
+            return HistoricalChartDataQuality(
+                canRenderChart: false,
+                provenance: provenance,
+                completeness: dataset.completeness,
+                unavailableTitle: "Insufficient historical data",
+                unavailableMessage: "\(reason). Chart context will appear when enough provider-backed candles are available."
+            )
+        }
+
+        guard dataset.candles.count >= minimumCandles else {
+            return HistoricalChartDataQuality(
+                canRenderChart: false,
+                provenance: .unavailable(reason: "Provider returned fewer than two historical candles"),
+                completeness: .insufficient(reason: "Provider returned fewer than two historical candles"),
+                unavailableTitle: "Insufficient historical data",
+                unavailableMessage: "Chart context will appear when enough provider-backed candles are available."
+            )
+        }
+
+        return HistoricalChartDataQuality(
+            canRenderChart: true,
+            provenance: dataset.provenance,
+            completeness: dataset.completeness,
+            unavailableTitle: "",
+            unavailableMessage: ""
+        )
+    }
+
+    static var unavailable: HistoricalChartDataQuality {
+        HistoricalChartDataQuality(
+            canRenderChart: false,
+            provenance: .unavailable(reason: "Historical price data unavailable"),
+            completeness: .insufficient(reason: "Historical price data unavailable"),
+            unavailableTitle: "Historical price data unavailable",
+            unavailableMessage: "Chart will appear when provider-backed history is available."
+        )
+    }
+}
+
 nonisolated struct HistoricalPricePoint: Codable, Equatable {
     let date: Date
     let open: Double

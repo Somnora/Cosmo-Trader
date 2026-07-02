@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 @testable import Cosmo_Trader
 
@@ -121,6 +122,37 @@ struct AstroCorrelationServiceTests {
         #expect(summary?.provenance.isProviderBacked == true)
     }
 
+    @Test("Stock summaries expose explainability fields for market-backed results")
+    func stockSummariesExposeExplainabilityFieldsForMarketBackedResults() {
+        let summaries = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: prices([100, 102, 101, 106, 104, 111, 109, 118, 115, 125, 122, 130]),
+            events: [
+                pointEvent(on: "2025-01-02"),
+                pointEvent(on: "2025-01-04"),
+                pointEvent(on: "2025-01-06"),
+                pointEvent(on: "2025-01-08")
+            ],
+            filterState: AstroOverlayFilterState(eventWindowDays: 1),
+            provenance: .cached(
+                provider: FinancialDataProvenance.finnhubProvider,
+                fetchedAt: date("2025-01-10"),
+                age: 60 * 30
+            ),
+            completeness: .complete
+        )
+
+        let summary = summaries.first
+        #expect(isMarketBacked(summary))
+        #expect(summary?.dataCompleteness == .complete)
+        #expect(summary?.bestHistoricalReturn != nil)
+        #expect(summary?.medianReturn != nil)
+        #expect(summary?.weakestHistoricalReturn != nil)
+        #expect((summary?.bestHistoricalReturn ?? 0) >= (summary?.weakestHistoricalReturn ?? 0))
+        #expect(summary?.baselineReturn != nil)
+        #expect(summary?.confidence != .unavailable)
+    }
+
     @Test("Stock summaries with thin event coverage withhold numeric claims")
     func stockSummariesWithThinEventCoverageWithholdNumericClaims() {
         let summaries = AstroCorrelationService.shared.stockSummaries(
@@ -140,6 +172,8 @@ struct AstroCorrelationServiceTests {
         #expect(summary?.winRate == nil)
         #expect(summary?.baselineReturn == nil)
         #expect(summary?.disclaimer.contains("No return claim") == true)
+        #expect(summary?.bestHistoricalReturn == nil)
+        #expect(summary?.weakestHistoricalReturn == nil)
     }
 
     @Test("Stock summaries with unavailable provenance do not expose numeric claims")
@@ -201,6 +235,9 @@ struct AstroCorrelationServiceTests {
         #expect(summary?.winRate == nil)
         #expect(summary?.disclaimer.contains("Partial historical dataset") == true)
         #expect(summary?.provenance.indicatorLabel == "Partial history")
+        #expect(summary?.dataCompleteness == .partial(reason: "Provider returned a limited portion of the requested range"))
+        #expect(summary?.bestHistoricalReturn == nil)
+        #expect(summary?.weakestHistoricalReturn == nil)
     }
 
     @Test("Stock summaries with insufficient dataset completeness do not expose numeric claims")
@@ -223,6 +260,43 @@ struct AstroCorrelationServiceTests {
         #expect(summary?.averageReturn == nil)
         #expect(summary?.winRate == nil)
         #expect(summary?.disclaimer.contains("Insufficient historical dataset") == true)
+        #expect(summary?.dataCompleteness == .insufficient(reason: "Provider returned fewer than two historical candles"))
+        #expect(summary?.bestHistoricalReturn == nil)
+        #expect(summary?.weakestHistoricalReturn == nil)
+    }
+
+    @MainActor
+    @Test("Correlation explainability disclosure view instantiates for available and unavailable states")
+    func correlationExplainabilityDisclosureViewInstantiates() {
+        let availableSummary = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: prices([100, 102, 101, 106, 104, 111, 109, 118, 115, 125, 122, 130]),
+            events: [
+                pointEvent(on: "2025-01-02"),
+                pointEvent(on: "2025-01-04"),
+                pointEvent(on: "2025-01-06"),
+                pointEvent(on: "2025-01-08")
+            ],
+            filterState: AstroOverlayFilterState(eventWindowDays: 1),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10"))
+        )
+
+        let unavailableSummary = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: prices([100, 102, 101, 106]),
+            events: [pointEvent(on: "2025-01-02")],
+            filterState: AstroOverlayFilterState(eventWindowDays: 1),
+            provenance: .sample(reason: "Preview fixture")
+        )
+
+        _ = AstroCorrelationSummaryView(
+            summaries: availableSummary + unavailableSummary,
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10")),
+            checkedEventKinds: [.fullMoon],
+            eventCount: 5,
+            windowLabel: CorrelationWindow(daysBefore: 1, daysAfter: 1).displayName,
+            hasHistoricalPrices: true
+        )
     }
 
     @Test("Historical dataset with empty candles is insufficient and unusable for chart claims")
