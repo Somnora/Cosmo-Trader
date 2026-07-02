@@ -62,6 +62,29 @@ struct ProductionMockGuardTests {
         #expect(summaries.first?.displayMode == .sampleOnly)
     }
 
+    @Test("Upcoming cosmic events do not use fake price or company metadata")
+    func upcomingCosmicEventsDoNotUseFakePriceOrCompanyMetadata() {
+        let unknownStock = Stock(
+            symbol: "NOH",
+            name: "No History Corp.",
+            currentPrice: 0,
+            priceChange: 0,
+            percentageChange: 0,
+            foundedDate: nil,
+            sector: "Unknown"
+        )
+        let summary = StockUpcomingCosmicEventsService.shared.summary(
+            for: unknownStock,
+            startDate: date("2026-06-14")
+        )
+
+        #expect(!summary.hasCompanySpecificMetadata)
+        #expect(!summary.events.isEmpty)
+        #expect(summary.events.allSatisfy { ![.moonInSign, .companyBirthMonth, .companyFoundingAnniversary].contains($0.kind) })
+        #expect(summary.events.allSatisfy { !$0.sourceLabel.localizedCaseInsensitiveContains("sample") })
+        #expect(summary.events.allSatisfy { !$0.whyText.localizedCaseInsensitiveContains("price") })
+    }
+
     @Test("Candle chart mode cannot render sample or synthetic close-only candles")
     func candleChartModeDoesNotUseSampleOrSyntheticCandles() {
         let validCandles = [
@@ -116,6 +139,89 @@ struct ProductionMockGuardTests {
         #expect(viewModel.state.contextRows.allSatisfy { !$0.status.localizedCaseInsensitiveContains("sample fallback") })
     }
 
+    @Test("Today share card does not convert sample or unavailable context into provider-backed claims")
+    func todayShareCardDoesNotConvertSampleOrUnavailableContextIntoProviderBackedClaims() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let summary = TodayMarketHoroscopeSummary(
+            date: now,
+            cosmicContext: TodayCosmicContext(
+                headline: "Cosmic context only",
+                detail: "Moon phase context without provider-backed market tone.",
+                lunarLabel: "New Moon / Aries",
+                mercuryLabel: "Mercury Direct",
+                marketToneLabel: "Market data unavailable",
+                activeEvents: [],
+                provenance: .unavailable(reason: "Provider-backed market tone unavailable")
+            ),
+            marketContext: TodayMarketContext(
+                headline: "Market Weather unavailable",
+                detail: "Provider-backed market ETF history unavailable.",
+                eventName: nil,
+                windowLabel: nil,
+                eventCount: 0,
+                sampleSize: 0,
+                includedSymbols: [],
+                excludedSymbols: ["SPY", "QQQ", "DIA", "IWM"],
+                staleSymbols: [],
+                coverage: 0,
+                metrics: [],
+                sectorBreadth: nil,
+                provenance: .unavailable(reason: "Provider-backed market ETF history unavailable"),
+                displayMode: .unavailable,
+                activation: nil
+            ),
+            portfolioContext: TodayPortfolioContext(
+                headline: "Sample portfolio context is labeled",
+                detail: "Demo context only.",
+                eventName: nil,
+                windowLabel: nil,
+                eventCount: 0,
+                sampleSize: 0,
+                includedPortfolioWeight: 0,
+                excludedPortfolioWeight: 1,
+                unavailableHoldings: [],
+                metrics: [],
+                provenance: .sample(reason: "Demo context only, not portfolio data"),
+                displayMode: .sampleOnly,
+                activation: nil
+            ),
+            stockContext: TodayStockContext(
+                symbol: "WATCH",
+                name: "Watchlist setup",
+                headline: "Stock lens needs a ticker",
+                detail: "Add a watchlist symbol.",
+                eventName: nil,
+                windowLabel: nil,
+                eventCount: 0,
+                sampleSize: 0,
+                metrics: [],
+                provenance: .unavailable(reason: "No portfolio or watchlist stock available"),
+                displayMode: .unavailable,
+                activation: nil
+            ),
+            dataCoverage: TodayDataCoverage(
+                headline: "Waiting on provider-backed history",
+                detail: "No provider-backed history is available yet.",
+                rows: [],
+                explainers: []
+            ),
+            primaryAction: nil,
+            provenance: .mixed(reason: "Today combines unavailable and sample-labeled datasets."),
+            disclaimer: "Historical context only. Correlation does not imply causation and this is not financial advice."
+        )
+
+        let card = TodayMarketHoroscopeShareCardContent.make(from: summary)
+
+        #expect(card.marketLine.metrics.isEmpty)
+        #expect(card.portfolioLine?.metrics.isEmpty == true)
+        #expect(card.stockLine?.metrics.isEmpty == true)
+        #expect(card.marketLine.provenance.indicatorLabel == "Unavailable")
+        #expect(card.portfolioLine?.provenance.indicatorLabel == "Sample data")
+        #expect(!card.searchableText.localizedCaseInsensitiveContains("Finnhub live"))
+        #expect(!card.searchableText.localizedCaseInsensitiveContains("provider-backed basket history cleared"))
+        #expect(!card.searchableText.localizedCaseInsensitiveContains("provider-backed holding history cleared"))
+    }
+
     @Test("Cosmic pattern interpreter does not create notes without provider candles")
     func cosmicPatternInterpreterDoesNotUseGeneratedCandles() {
         ChartPatternService.shared.clearCache()
@@ -145,6 +251,15 @@ struct ProductionMockGuardTests {
         #expect(service.getEarningsThisWeek().isEmpty)
         #expect(service.getNextEarnings(for: "AAPL") == nil)
         #expect(service.dataProvenance == .unavailable(reason: "Earnings calendar unavailable"))
+    }
+
+    private func date(_ value: String) -> Date {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: value) ?? Date(timeIntervalSince1970: 0)
     }
 
     @Test("Provider-dependent cosmic mood factors do not simulate market data")

@@ -65,10 +65,57 @@ struct StockCosmicCorrelationSummary: Identifiable, Equatable {
     let baselineReturn: Double?
     let volatilityRatio: Double?
     let maxDrawdown: Double?
+    let bestHistoricalReturn: Double?
+    let weakestHistoricalReturn: Double?
     let provenance: FinancialDataProvenance
+    let dataCompleteness: HistoricalDatasetCompleteness
     let confidence: CorrelationConfidence
     let displayMode: CorrelationDisplayMode
     let disclaimer: String
+
+    init(
+        id: String,
+        symbol: String,
+        eventName: String,
+        eventType: AstroOverlayEventKind,
+        eventCount: Int,
+        sampleSize: Int,
+        window: CorrelationWindow,
+        averageReturn: Double?,
+        medianReturn: Double?,
+        winRate: Double?,
+        baselineReturn: Double?,
+        volatilityRatio: Double?,
+        maxDrawdown: Double?,
+        bestHistoricalReturn: Double? = nil,
+        weakestHistoricalReturn: Double? = nil,
+        provenance: FinancialDataProvenance,
+        dataCompleteness: HistoricalDatasetCompleteness = .complete,
+        confidence: CorrelationConfidence,
+        displayMode: CorrelationDisplayMode,
+        disclaimer: String
+    ) {
+        self.id = id
+        self.symbol = symbol
+        self.eventName = eventName
+        self.eventType = eventType
+        self.eventCount = eventCount
+        self.sampleSize = sampleSize
+        self.window = window
+        self.averageReturn = averageReturn
+        self.medianReturn = medianReturn
+        self.winRate = winRate
+        self.baselineReturn = baselineReturn
+        self.volatilityRatio = volatilityRatio
+        self.maxDrawdown = maxDrawdown
+        self.bestHistoricalReturn = bestHistoricalReturn
+        self.weakestHistoricalReturn = weakestHistoricalReturn
+        self.provenance = provenance
+        self.dataCompleteness = dataCompleteness
+        self.confidence = confidence
+        self.displayMode = displayMode
+        self.disclaimer = disclaimer
+    }
 }
 
 struct AstroCorrelationSummary: Identifiable, Equatable {
@@ -180,6 +227,7 @@ final class AstroCorrelationService {
                     eventCount: groupedEvents[kind]?.count ?? 0,
                     window: window,
                     provenance: qualityProvenance,
+                    completeness: completeness,
                     confidence: .insufficient,
                     displayMode: mode,
                     disclaimer: disclaimer
@@ -209,6 +257,7 @@ final class AstroCorrelationService {
                     eventCount: groupedEvents[kind]?.count ?? 0,
                     window: window,
                     provenance: provenance,
+                    completeness: completeness,
                     confidence: confidence,
                     displayMode: mode,
                     disclaimer: disclaimer
@@ -228,6 +277,7 @@ final class AstroCorrelationService {
                     eventCount: groupedEvents[kind]?.count ?? 0,
                     window: window,
                     provenance: .unavailable(reason: "Provider-backed historical prices unavailable"),
+                    completeness: .insufficient(reason: "Provider returned fewer than two historical candles"),
                     confidence: .unavailable,
                     displayMode: .unavailable,
                     disclaimer: "Historical price data unavailable. Correlation context will appear when provider-backed history is available."
@@ -290,7 +340,10 @@ final class AstroCorrelationService {
                 baselineReturn: baselineReturn,
                 volatilityRatio: volatilityRatio,
                 maxDrawdown: kindReactions.map(\.maxDrawdownPercent).max(),
+                bestHistoricalReturn: returns.max(),
+                weakestHistoricalReturn: returns.min(),
                 provenance: provenance,
+                dataCompleteness: completeness,
                 confidence: confidence(for: kindReactions.count),
                 displayMode: .marketBackedResult,
                 disclaimer: "Historical context only. Correlation does not imply causation and this is not financial advice."
@@ -443,6 +496,7 @@ final class AstroCorrelationService {
         eventCount: Int,
         window: CorrelationWindow,
         provenance: FinancialDataProvenance,
+        completeness: HistoricalDatasetCompleteness = .complete,
         confidence: CorrelationConfidence,
         displayMode: CorrelationDisplayMode,
         disclaimer: String
@@ -462,6 +516,7 @@ final class AstroCorrelationService {
             volatilityRatio: nil,
             maxDrawdown: nil,
             provenance: provenance,
+            dataCompleteness: completeness,
             confidence: confidence,
             displayMode: displayMode,
             disclaimer: disclaimer

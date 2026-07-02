@@ -107,7 +107,24 @@ struct ComplianceCopyGuardTests {
             "Historical astro-technical context only. Not predictive and not financial advice.",
             "Combined context: Full Moon average window +1.2% vs baseline +0.4%.",
             "Technical and cosmic context are mixed. Review as historical context only.",
-            "Combined numeric context stays hidden until the cosmic sample and provenance gates pass."
+            "Combined numeric context stays hidden until the cosmic sample and provenance gates pass.",
+            "Upcoming cosmic events show calendar context only.",
+            "Company-specific events unavailable until verified founding metadata exists.",
+            "Calendar context only. Historical and entertainment lens, not predictive and not financial advice.",
+            "No market or return claims are shown here.",
+            "Portfolio correlation needs usable market value, provider-backed history, 70% usable coverage, and enough event samples before numeric metrics appear.",
+            "Cached provider-backed history is stale under the current freshness policy.",
+            "Provider returned some history, but the required range is incomplete.",
+            "Provider returned too little history for correlation context.",
+            "70% usable coverage is met. Portfolio correlation still depends on provider freshness and minimum event sample size.",
+            "Refresh history",
+            "Daily Market Horoscope",
+            "Historical context, source-labeled",
+            "Historical context only. No forecast. Not financial advice.",
+            "Market Weather unavailable",
+            "Portfolio setup needed",
+            "Watchlist setup needed",
+            "Demo context only, not market data."
         ]
 
         for example in safeExamples {
