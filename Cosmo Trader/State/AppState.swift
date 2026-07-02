@@ -130,10 +130,41 @@ class AppState {
         launchArguments.contains("--focus-astro-overlay")
     }
 
+    static var usesProviderBackedChartFixture: Bool {
+        #if DEBUG
+        ProviderBackedChartFixtureSeeder.shouldSeed(arguments: launchArguments)
+        #else
+        false
+        #endif
+    }
+
+    static var providerBackedChartFixtureTimeframe: ChartTimeframe? {
+        #if DEBUG
+        guard usesProviderBackedChartFixture else { return nil }
+        guard let rawValue = launchArguments.first(where: { $0.hasPrefix("--chart-timeframe=") })?
+            .replacingOccurrences(of: "--chart-timeframe=", with: "")
+            .uppercased()
+        else {
+            return nil
+        }
+        return ChartTimeframe(rawValue: rawValue)
+        #else
+        return nil
+        #endif
+    }
+
+    static var shouldOpenAutomationStockDetail: Bool {
+        isScreenshotMode || usesProviderBackedChartFixture
+    }
+
     @discardableResult
     private func configureForAutomationIfNeeded() -> Bool {
         let arguments = Self.launchArguments
         guard arguments.contains("--uitesting") || arguments.contains("--screenshot-mode") else { return false }
+
+        #if DEBUG
+        try? ProviderBackedChartFixtureSeeder.seedIfRequested(arguments: arguments)
+        #endif
 
         configureSubscriptionStateForAutomation(arguments: arguments)
 

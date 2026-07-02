@@ -364,7 +364,7 @@ struct PortfolioView: View {
     }
 
     private func openStockDetailForScreenshotIfNeeded() {
-        guard AppState.isScreenshotMode, selectedStock == nil else { return }
+        guard AppState.shouldOpenAutomationStockDetail, selectedStock == nil else { return }
         guard let symbol = AppState.screenshotStockDetailSymbol?.uppercased(), !symbol.isEmpty else { return }
 
         selectedStock = holdings.first { $0.symbol.uppercased() == symbol }

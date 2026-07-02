@@ -123,7 +123,7 @@ final class HistoricalAstroChartViewModel {
         errorMessage = nil
 
         #if DEBUG
-        if AppState.isScreenshotMode {
+        if AppState.isScreenshotMode && !AppState.usesProviderBackedChartFixture {
             let prices = Self.demoPrices(for: stock, timeframe: timeframe)
             historicalDatasetCompleteness = .complete
             historicalPriceProvenance = .sample(reason: "DEBUG screenshot fixture")
