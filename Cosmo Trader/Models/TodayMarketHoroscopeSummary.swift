@@ -6,10 +6,48 @@ struct TodayMarketHoroscopeSummary: Equatable {
     let marketContext: TodayMarketContext
     let portfolioContext: TodayPortfolioContext
     let stockContext: TodayStockContext?
+    let firstRunSetup: TodayFirstRunSetupState
     let dataCoverage: TodayDataCoverage
     let primaryAction: TodayActivationPrompt?
     let provenance: FinancialDataProvenance
     let disclaimer: String
+}
+
+struct TodayFirstRunSetupState: Equatable {
+    let isSkipped: Bool
+    let steps: [TodayFirstRunSetupStep]
+
+    var isComplete: Bool {
+        !steps.isEmpty && steps.allSatisfy(\.isComplete)
+    }
+
+    var nextStep: TodayFirstRunSetupStep? {
+        steps.first { !$0.isComplete }
+    }
+}
+
+struct TodayFirstRunSetupStep: Equatable, Identifiable {
+    let id: TodayFirstRunSetupStepID
+    let title: String
+    let detail: String
+    let isComplete: Bool
+    let actionTitle: String?
+    let action: TodayFirstRunSetupAction?
+}
+
+enum TodayFirstRunSetupStepID: String, Equatable, Hashable {
+    case watchlist
+    case portfolio
+    case providerHistory
+    case labels
+}
+
+enum TodayFirstRunSetupAction: String, Equatable {
+    case addWatchlist
+    case addHolding
+    case importPortfolio
+    case loadProviderHistory
+    case reviewLabels
 }
 
 struct TodayCosmicContext: Equatable {

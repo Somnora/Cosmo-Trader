@@ -78,6 +78,66 @@ struct ComplianceCopyGuardTests {
             #expect(ComplianceCopyScanner.violations(in: example).isEmpty, "Scanner rejected safe disclaimer: \(example)")
         }
     }
+
+    @Test("Chart and astro overlay copy snippets stay compliance safe")
+    func chartAndAstroOverlayCopySnippetsAreComplianceSafe() {
+        let safeExamples = [
+            "Loading provider chart data",
+            "Historical price data unavailable",
+            "Chart will appear when provider data is available.",
+            "Refresh provider history before viewing chart context.",
+            "Chart context will appear when enough provider-backed candles are available.",
+            "Chart context will appear when the provider returns a complete range.",
+            "Provider-backed history is required before event-window metrics are shown.",
+            "Mixed data freshness. Metric unavailable for this event.",
+            "Historical overlay only. Correlation view, not financial advice.",
+            "Overlay moon phases, Mercury retrograde, and company birth cycles against historical price action. Explore historical context, including when no pattern appears.",
+            "Sample chart mode is labeled for preview only; event-window metrics are hidden.",
+            "Historical price view",
+            "Provider-backed candles",
+            "Line chart with selected astrological overlays",
+            "Candle chart with selected astrological overlays",
+            "Chart context only. Not a prediction.",
+            "Technical lens uses provider-backed historical candles only. Read this as historical context, not financial advice.",
+            "Provider-backed complete candles are required before this technical context can show metrics.",
+            "Cached candles are stale under the current policy. Refresh provider history to recheck.",
+            "Technical lens: above 50D average, RSI balanced.",
+            "Load provider-backed history to unlock chart, technical, and cosmic context when enough data is available.",
+            "Provider-backed historical prices unavailable. Try again later.",
+            "Historical context only. Not financial advice.",
+            "Numeric claims remain gated",
+            "Needs complete fresh history",
+            "Historical astro-technical context only. Not predictive and not financial advice.",
+            "Combined context: Full Moon average window +1.2% vs baseline +0.4%.",
+            "Technical and cosmic context are mixed. Review as historical context only.",
+            "Combined numeric context stays hidden until the cosmic sample and provenance gates pass.",
+            "Upcoming cosmic events show calendar context only.",
+            "Company-specific events unavailable until verified founding metadata exists.",
+            "Calendar context only. Historical and entertainment lens, not predictive and not financial advice.",
+            "No market or return claims are shown here.",
+            "Portfolio correlation needs usable market value, provider-backed history, 70% usable coverage, and enough event samples before numeric metrics appear.",
+            "Cached provider-backed history is stale under the current freshness policy.",
+            "Provider returned some history, but the required range is incomplete.",
+            "Provider returned too little history for correlation context.",
+            "70% usable coverage is met. Portfolio correlation still depends on provider freshness and minimum event sample size.",
+            "Refresh history",
+            "Daily Market Horoscope",
+            "Historical context, source-labeled",
+            "Historical context only. No forecast. Not financial advice.",
+            "Market Weather unavailable",
+            "Portfolio setup needed",
+            "Watchlist setup needed",
+            "Demo context only, not market data."
+        ]
+
+        for example in safeExamples {
+            let violations = ComplianceCopyScanner.violations(in: example)
+            if !violations.isEmpty {
+                Issue.record("Chart copy violation for '\(example)': \(violations.map { $0.label }.joined(separator: ", "))")
+            }
+            #expect(violations.isEmpty)
+        }
+    }
 }
 
 private enum ComplianceCopyScanner {

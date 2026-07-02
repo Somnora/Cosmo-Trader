@@ -25,6 +25,28 @@ struct AstroOverlayEventServiceTests {
         #expect(events.contains { $0.kind == .fullMoon })
     }
 
+    @Test("Overlay event feed includes chart marker kinds with visible icon metadata")
+    func overlayEventFeedIncludesChartMarkerKindsWithIconMetadata() {
+        let stock = makeStock()
+        let filters = AstroOverlayFilterState(
+            enabledKinds: [.newMoon, .fullMoon, .mercuryRetrograde],
+            showEstimatedEvents: true,
+            eventWindowDays: 3
+        )
+
+        let events = AstroOverlayEventService.shared.events(
+            for: stock,
+            from: date("2025-01-01"),
+            to: date("2025-12-31"),
+            filters: filters
+        )
+
+        #expect(events.contains { $0.kind == .newMoon })
+        #expect(events.contains { $0.kind == .fullMoon })
+        #expect(events.contains { $0.kind == .mercuryRetrograde })
+        #expect(events.allSatisfy { !$0.iconSystemName.isEmpty })
+    }
+
     @Test("Company birth month repeats once per year in the selected range")
     func companyBirthMonthRepeatsOncePerYear() {
         let stock = makeStock()
@@ -321,6 +343,200 @@ struct HistoricalAstroChartViewModelHelperTests {
         #expect(AstroOverlayEventKind.fullMoon.overlayColor != AstroOverlayEventKind.newMoon.overlayColor)
     }
 
+    @Test("Candle mode requires complete provider backed OHLC candles")
+    func candleModeRequiresCompleteProviderBackedOHLC() {
+        let valid = candles(on: ["2025-01-10", "2025-01-15", "2025-01-20"])
+        let fetchedAt = date("2025-01-21")
+
+        #expect(StockChartCandleEligibility.canRenderCandles(
+            candles: valid,
+            provenance: .live(provider: "Unit Test Provider", fetchedAt: fetchedAt),
+            completeness: .complete
+        ))
+
+        #expect(StockChartCandleEligibility.canRenderCandles(
+            candles: valid,
+            provenance: .cached(provider: "Unit Test Provider", fetchedAt: fetchedAt, age: 60 * 60),
+            completeness: .complete
+        ))
+
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: valid,
+            provenance: .cached(
+                provider: "Unit Test Provider",
+                fetchedAt: fetchedAt,
+                age: FinancialDataProvenance.defaultCachedStaleInterval + 60
+            ),
+            completeness: .complete
+        ))
+
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: valid,
+            provenance: .sample(reason: "Preview-only chart fixture"),
+            completeness: .complete
+        ))
+
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: valid,
+            provenance: .mixed(reason: "Partial historical dataset. Provider returned a limited range."),
+            completeness: .partial(reason: "Provider returned a limited range")
+        ))
+
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: valid,
+            provenance: .unavailable(reason: "Historical price data unavailable"),
+            completeness: .insufficient(reason: "Provider returned fewer than two candles")
+        ))
+    }
+
+    @Test("Candle mode does not synthesize candles from close only data")
+    func candleModeRejectsCloseOnlySyntheticCandles() {
+        let closeOnly = [
+            OHLCData(date: date("2025-01-10"), open: 100, high: 100, low: 100, close: 100, volume: 1_000),
+            OHLCData(date: date("2025-01-11"), open: 101, high: 101, low: 101, close: 101, volume: 1_000)
+        ]
+
+        #expect(StockChartCandleEligibility.validCandles(from: closeOnly).isEmpty)
+        #expect(!StockChartCandleEligibility.canRenderCandles(
+            candles: closeOnly,
+            provenance: .live(provider: "Unit Test Provider", fetchedAt: date("2025-01-12")),
+            completeness: .complete
+        ))
+    }
+
+    @Test("Astro overlay marker helpers stay independent of chart display mode")
+    func astroOverlayMarkerHelpersStayIndependentOfChartMode() {
+        let viewModel = HistoricalAstroChartViewModel()
+        viewModel.ohlcData = candles(on: ["2025-01-10", "2025-01-15", "2025-01-20"])
+        viewModel.overlayEvents = [
+            pointEvent(on: "2025-01-15"),
+            rangeEvent(start: "2025-01-12", end: "2025-01-18")
+        ]
+
+        #expect(StockChartDisplayMode.candle.accessibilityLabel == "Candle chart")
+        #expect(viewModel.nearestCandle(to: date("2025-01-16"))?.date == date("2025-01-15"))
+        #expect(viewModel.nearestEvent(to: date("2025-01-14"), within: 60 * 60 * 24 * 5)?.kind == .mercuryRetrograde)
+    }
+
+    @Test("stock detail chart timeframes use historical ranges only")
+    func stockDetailChartTimeframesUseHistoricalRangesOnly() {
+        #expect(ChartTimeframe.stockDetailHistoricalCases == [.month, .threeMonth, .sixMonth, .year, .twoYear])
+        #expect(!ChartTimeframe.stockDetailHistoricalCases.contains(.day))
+        #expect(!ChartTimeframe.stockDetailHistoricalCases.contains(.week))
+        #expect(!ChartTimeframe.stockDetailHistoricalCases.contains(.all))
+    }
+
+    @Test("complete provider-backed candles can render chart context")
+    func completeProviderBackedCandlesCanRenderChartContext() {
+        let dataset = providerDataset(
+            candles: candles(on: ["2025-01-01", "2025-01-06", "2025-01-11"]),
+            requestedStart: "2025-01-01",
+            requestedEnd: "2025-01-11",
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-11"))
+        )
+
+        let quality = HistoricalChartDataQuality.evaluate(dataset: dataset)
+
+        #expect(quality.canRenderChart)
+        #expect(quality.provenance.isProviderBacked)
+        #expect(quality.completeness == .complete)
+    }
+
+    @Test("fresh cached candles can render chart context")
+    func freshCachedCandlesCanRenderChartContext() {
+        let dataset = providerDataset(
+            candles: candles(on: ["2025-01-01", "2025-01-06", "2025-01-11"]),
+            requestedStart: "2025-01-01",
+            requestedEnd: "2025-01-11",
+            provenance: .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-11"), age: 60)
+        )
+
+        let quality = HistoricalChartDataQuality.evaluate(dataset: dataset)
+
+        #expect(quality.canRenderChart)
+        #expect(quality.provenance.isProviderBacked)
+    }
+
+    @Test("stale cached candles cannot render chart context")
+    func staleCachedCandlesCannotRenderChartContext() {
+        let dataset = providerDataset(
+            candles: candles(on: ["2025-01-01", "2025-01-06", "2025-01-11"]),
+            requestedStart: "2025-01-01",
+            requestedEnd: "2025-01-11",
+            provenance: .cached(
+                provider: FinancialDataProvenance.finnhubProvider,
+                fetchedAt: date("2025-01-11"),
+                age: FinancialDataProvenance.defaultCachedStaleInterval + 1
+            )
+        )
+
+        let quality = HistoricalChartDataQuality.evaluate(dataset: dataset)
+
+        #expect(!quality.canRenderChart)
+        #expect(quality.unavailableTitle == "Cached history is stale")
+        #expect(quality.provenance.isCachedStale())
+    }
+
+    @Test("partial and insufficient candles cannot render chart context")
+    func partialAndInsufficientCandlesCannotRenderChartContext() {
+        let partial = providerDataset(
+            candles: candles(on: ["2025-01-10", "2025-01-11"]),
+            requestedStart: "2025-01-01",
+            requestedEnd: "2025-01-11",
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-11"))
+        )
+        let insufficient = providerDataset(
+            candles: candles(on: ["2025-01-11"]),
+            requestedStart: "2025-01-01",
+            requestedEnd: "2025-01-11",
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-11"))
+        )
+
+        #expect(!HistoricalChartDataQuality.evaluate(dataset: partial).canRenderChart)
+        #expect(!HistoricalChartDataQuality.evaluate(dataset: insufficient).canRenderChart)
+    }
+
+    @Test("sample chart provenance cannot render production chart context")
+    func sampleChartProvenanceCannotRenderProductionChartContext() {
+        let sample = providerDataset(
+            candles: candles(on: ["2025-01-01", "2025-01-06", "2025-01-11"]),
+            requestedStart: "2025-01-01",
+            requestedEnd: "2025-01-11",
+            provenance: .sample(reason: "Preview fixture")
+        )
+
+        let quality = HistoricalChartDataQuality.evaluate(dataset: sample)
+
+        #expect(!quality.canRenderChart)
+        #expect(!quality.provenance.isProviderBacked)
+    }
+
+    @Test("visible legend kinds prioritize moon and Mercury markers")
+    func visibleLegendKindsPrioritizeMoonAndMercuryMarkers() {
+        let viewModel = HistoricalAstroChartViewModel()
+        viewModel.overlayEvents = [
+            pointEvent(on: "2025-01-05"),
+            rangeEvent(start: "2025-01-10", end: "2025-01-20"),
+            AstroOverlayEvent(
+                id: "new-moon",
+                kind: .newMoon,
+                title: "New Moon",
+                subtitle: nil,
+                startDate: date("2025-01-29"),
+                endDate: nil,
+                markerDate: date("2025-01-29"),
+                intensity: .high,
+                affectedElements: [],
+                affectedSectors: [],
+                iconSystemName: "moonphase.new.moon",
+                source: .calculatedMoonPhase,
+                isEstimated: false
+            )
+        ]
+
+        #expect(viewModel.visibleLegendKinds.prefix(3).map(\.self) == [.fullMoon, .newMoon, .mercuryRetrograde])
+    }
+
     // MARK: - Helpers
 
     private func candles(on values: [String]) -> [OHLCData] {
@@ -371,6 +587,22 @@ struct HistoricalAstroChartViewModelHelperTests {
             iconSystemName: "arrow.uturn.backward.circle.fill",
             source: .curatedDataset,
             isEstimated: true
+        )
+    }
+
+    private func providerDataset(
+        candles: [OHLCData],
+        requestedStart: String,
+        requestedEnd: String,
+        provenance: FinancialDataProvenance
+    ) -> HistoricalPriceDataset {
+        HistoricalPriceDataset.providerBacked(
+            symbol: "AAPL",
+            candles: candles,
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: date(requestedEnd),
+            requestedRange: DateInterval(start: date(requestedStart), end: date(requestedEnd)),
+            provenance: provenance
         )
     }
 
