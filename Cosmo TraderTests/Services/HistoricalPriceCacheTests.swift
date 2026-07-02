@@ -65,6 +65,7 @@ struct HistoricalPriceCacheTests {
         let service = HistoricalPriceService.testingInstance(
             historicalPriceCache: cache,
             nowProvider: { now },
+            providerName: "UnitTestProvider",
             candleFetcher: { _, _, _, _ in
                 fetchCount += 1
                 return candleResponse(closes: [100, 105, 110])
@@ -75,11 +76,24 @@ struct HistoricalPriceCacheTests {
 
         #expect(fetchCount == 1)
         #expect(result.source == .provider)
-        #expect(result.provenance == .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: now))
+        // The provenance label must follow the injected provider, not a
+        // hardcoded provider name, so the label can never contradict where
+        // the candles actually came from.
+        #expect(result.provenance == .live(provider: "UnitTestProvider", fetchedAt: now))
         #expect(result.dataset.completeness.isUsableForCorrelation)
 
         let cached = try #require(cache.dataset(symbol: "AAPL", timeframe: .month, resolution: "D", now: now))
         #expect(cached.ohlcData.map(\.close) == [100, 105, 110])
+        #expect(cached.provider == "UnitTestProvider")
+    }
+
+    @MainActor
+    @Test("Default historical price provider label matches the Yahoo candle source")
+    func defaultHistoricalPriceProviderLabelMatchesYahooCandleSource() {
+        // The production candle fetcher uses Yahoo Finance (Finnhub's free
+        // tier blocks /stock/candle), so the default provider label must say
+        // Yahoo — not Finnhub — on every chart and provenance indicator.
+        #expect(HistoricalPriceService.shared.providerName == FinancialDataProvenance.yahooProvider)
     }
 
     @Test("Historical datasets expose partial quality as non-numeric correlation input")

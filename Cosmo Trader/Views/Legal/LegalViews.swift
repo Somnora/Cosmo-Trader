@@ -51,7 +51,7 @@ struct PrivacyPolicyView: View {
                         content: """
                         We use the following third-party services:
 
-                        • **Stock Market APIs (Finnhub):** To fetch stock price data. Only stock symbols are sent.
+                        • **Stock Market APIs (Finnhub, Yahoo Finance):** To fetch live quotes (Finnhub) and historical price data (Yahoo Finance). Only stock symbols are sent.
                         • **Firebase Authentication (Google):** To sign you in anonymously so the app can talk to our backend.
                         • **Apple App Store:** For subscription management.
 
@@ -565,9 +565,9 @@ struct AboutView: View {
                     LegalSection(
                         title: "DATA ATTRIBUTION",
                         content: """
-                        Stock market data provided by Finnhub.io
+                        Stock market data provided by Finnhub.io and Yahoo Finance
 
-                        Finnhub provides the market data, company information, and financial metrics used throughout this application.
+                        Finnhub provides live quotes, company information, and financial metrics. Yahoo Finance provides the historical price data used for charts and correlation context.
 
                         Data may be delayed up to 15 minutes.
 

@@ -8,6 +8,7 @@ nonisolated enum FinancialDataProvenance: Equatable, Codable {
     case sample(reason: String)
 
     static let finnhubProvider = "Finnhub"
+    static let yahooProvider = "Yahoo Finance"
     static let defaultCachedStaleInterval: TimeInterval = 60 * 60 * 24
 
     var fetchedAt: Date? {

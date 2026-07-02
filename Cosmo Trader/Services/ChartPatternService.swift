@@ -567,7 +567,9 @@ class ChartPatternService {
                 return getCachedOrFallback(for: symbol, days: days)
             }
 
-            let candles = try await StockAPIService.shared.fetchCandles(
+            // Yahoo Finance serves historical candles; Finnhub's free tier
+            // blocks /stock/candle.
+            let candles = try await YahooFinanceService.shared.fetchCandles(
                 symbol: symbol,
                 resolution: "D",
                 from: from,
