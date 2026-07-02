@@ -199,6 +199,7 @@ struct ProductionMockGuardTests {
                 displayMode: .unavailable,
                 activation: nil
             ),
+            firstRunSetup: TodayFirstRunSetupState(isSkipped: false, steps: []),
             dataCoverage: TodayDataCoverage(
                 headline: "Waiting on provider-backed history",
                 detail: "No provider-backed history is available yet.",

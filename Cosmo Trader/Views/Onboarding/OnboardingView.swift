@@ -84,7 +84,7 @@ struct OnboardingView: View {
         case .element:
             return true
         case .stockMatch:
-            return selectedStock != nil
+            return true
         case .complete:
             return true
         }
@@ -790,12 +790,12 @@ struct OnboardingView: View {
                     .font(.system(size: 36))
                     .foregroundStyle(CosmicTheme.goldGradient)
 
-                Text("Your First Cosmic Matches")
+                Text("Your First Watchlist Seeds")
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundColor(CosmicTheme.textPrimary)
 
-                Text("These stocks align with your \(previewSign.displayName) profile")
+                Text("Pick a ticker to start your watchlist, or skip and add one later")
                     .font(.subheadline)
                     .foregroundColor(CosmicTheme.textSecondary)
             }
@@ -818,7 +818,7 @@ struct OnboardingView: View {
 
             // Selection prompt
             if selectedStock == nil {
-                Text("Tap a stock to add it to your starter portfolio")
+                Text("Tap a stock to add it to your starter watchlist")
                     .font(.caption)
                     .foregroundColor(CosmicTheme.textMuted)
             } else {
@@ -869,14 +869,14 @@ struct OnboardingView: View {
                     .foregroundColor(CosmicTheme.gold)
 
                 if let stock = selectedStock {
-                    Text("\(stock.symbol) added to portfolio")
+                    Text("\(stock.symbol) queued for watchlist")
                         .font(.system(size: 13, design: .monospaced))
                         .foregroundColor(CosmicTheme.textSecondary)
                 }
             }
 
             // Status message
-            Text("Your \(previewSign.displayName) trading profile is ready.")
+            Text("Your \(previewSign.displayName) profile is ready. Today will guide real data setup next.")
                 .font(.system(size: 13, design: .monospaced))
                 .foregroundColor(CosmicTheme.textMuted)
                 .multilineTextAlignment(.center)
@@ -936,7 +936,7 @@ struct OnboardingView: View {
         case .birthTime: return "Continue"
         case .name: return "Continue"
         case .element: return "Find My First Match"
-        case .stockMatch: return "Complete Setup"
+        case .stockMatch: return selectedStock == nil ? "Skip Watchlist" : "Save Watchlist Seed"
         case .complete: return "Enter the Cosmos"
         }
     }
@@ -995,21 +995,19 @@ struct OnboardingView: View {
         // Determine time of birth (nil if user doesn't know)
         let timeOfBirth: Date? = knowsBirthTime ? birthTime : nil
 
-        // Add selected stock to portfolio if chosen
         appState.completeOnboarding(
             name: userName.trimmingCharacters(in: .whitespaces),
             birthDate: birthDate,
             timeOfBirth: timeOfBirth
         )
 
-        // Add the selected stock after user is created
+        // Add the selected stock symbol to the watchlist after user is created.
+        // This does not create holdings, prices, or historical data.
         if let stock = selectedStock {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                appState.addToPortfolio(stock, shares: 1)
-                // Track first stock added
-                AnalyticsService.shared.trackStockAddedToPortfolio(
+                appState.addToWatchlist(stock.symbol)
+                AnalyticsService.shared.trackWatchlistAdded(
                     symbol: stock.symbol,
-                    zodiacSign: stock.zodiacSign?.displayName ?? "Unknown",
                     source: "onboarding"
                 )
             }
@@ -1018,7 +1016,7 @@ struct OnboardingView: View {
         // Update user properties
         AnalyticsService.shared.setUserProperties(
             sunSign: previewSign.displayName,
-            portfolioSize: selectedStock != nil ? 1 : 0,
+            portfolioSize: 0,
             accountAgeDays: 0,
             isPremium: false
         )
