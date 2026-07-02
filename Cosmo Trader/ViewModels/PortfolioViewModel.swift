@@ -223,12 +223,12 @@ class PortfolioViewModel {
 
         if quotes.isEmpty {
             // API failed entirely - check if we have cached data
-            let cached = StockAPIService.shared.getCachedQuotes(for: symbols)
+            let cached = await StockAPIService.shared.getCachedQuotes(for: symbols)
             if !cached.isEmpty {
                 // Update with cached prices
                 updatePortfolioPrices(with: cached)
                 isUsingCachedPrices = true
-                lastRefreshed = StockAPIService.shared.oldestCacheTimestamp(for: symbols)
+                lastRefreshed = await StockAPIService.shared.oldestCacheTimestamp(for: symbols)
             } else {
                 // No data at all - keep existing prices
                 errorMessage = "Unable to fetch prices. Showing last known values."

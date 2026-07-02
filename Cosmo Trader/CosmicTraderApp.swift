@@ -35,7 +35,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         #endif
 
         // Clear API caches
-        StockAPIService.shared.clearCache()
+        Task { await StockAPIService.shared.clearCache() }
         VolumeService.shared.clearCache()
     }
 

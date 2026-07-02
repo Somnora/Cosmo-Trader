@@ -7,7 +7,7 @@ final class DailyFinancialReadingService {
 
     private init() {}
 
-    func compose(for user: UserProfile?, backendBrief: DailyBriefResponse? = nil) -> DailyFinancialReading {
+    func compose(for user: UserProfile?, backendBrief: DailyBriefResponse? = nil) async -> DailyFinancialReading {
         guard let user else {
             return emptyReading(
                 headline: "Portfolio setup needed for a real reading",
@@ -99,7 +99,7 @@ final class DailyFinancialReadingService {
             marketToneProvenance: mood.provenance,
             activeEvents: events.prefix(3).map { $0.title },
             needsPortfolioSetup: false,
-            financialProvenance: portfolioFinancialProvenance(for: holdings)
+            financialProvenance: await portfolioFinancialProvenance(for: holdings)
         )
     }
 
@@ -139,9 +139,9 @@ final class DailyFinancialReadingService {
         )
     }
 
-    private func portfolioFinancialProvenance(for holdings: [Stock]) -> FinancialDataProvenance {
+    private func portfolioFinancialProvenance(for holdings: [Stock]) async -> FinancialDataProvenance {
         let symbols = Set(holdings.map { $0.symbol.uppercased() })
-        let cachedQuotes = StockAPIService.shared.getAllCachedQuotes()
+        let cachedQuotes = await StockAPIService.shared.getAllCachedQuotes()
         let matchingQuotes = symbols.compactMap { cachedQuotes[$0] }
 
         if let newestFetch = matchingQuotes.map(\.timestamp).max() {

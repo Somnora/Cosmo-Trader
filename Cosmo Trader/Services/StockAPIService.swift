@@ -1,5 +1,5 @@
-import Foundation
 import Combine
+import Foundation
 
 // MARK: - StockQuote
 
@@ -189,10 +189,16 @@ private struct CachedBasicFinancials {
 ///
 /// ## Rate Limiting
 ///
-/// The service enforces Finnhub's free tier limit of 60 requests per minute:
-/// - Requests are tracked with timestamps
-/// - A minimum 1-second delay is enforced between requests
-/// - ``NetworkError/rateLimited`` is thrown if limit is exceeded
+/// The service enforces Finnhub's free tier limit of 60 requests per minute
+/// with a sliding-window limiter:
+/// - A request slot is reserved before each network call
+/// - When the window is full, callers wait for the next free slot instead of failing
+/// - Bursts run at full speed as long as the 60/min budget allows
+///
+/// ## Request Coalescing
+///
+/// Concurrent callers asking for the same symbol share a single in-flight
+/// network request instead of each hitting the API.
 ///
 /// ## Caching
 ///
@@ -203,8 +209,8 @@ private struct CachedBasicFinancials {
 ///
 /// ## Thread Safety
 ///
-/// This service is `@MainActor` isolated and uses locks for thread-safe cache access.
-/// All published properties update on the main thread.
+/// This service is an `actor`: all state (caches, rate-limit window, in-flight
+/// requests) is isolated, and callers interact with it via `await`.
 ///
 /// ## Error Handling
 ///
@@ -215,8 +221,7 @@ private struct CachedBasicFinancials {
 /// - ``NetworkError/apiKeyMissing``: API key not configured
 ///
 /// - Note: This service requires a valid Finnhub API key configured in ``APIConfig``.
-@MainActor
-final class StockAPIService: ObservableObject {
+actor StockAPIService {
 
     // MARK: - Singleton
 
@@ -231,16 +236,6 @@ final class StockAPIService: ObservableObject {
     /// Maximum requests per minute (Finnhub free tier)
     static let maxRequestsPerMinute = 60
 
-    /// Minimum delay between requests (in seconds)
-    static let minRequestDelay: TimeInterval = 1.0
-
-    // MARK: - Published State
-
-    @Published var isLoading: Bool = false
-    @Published var lastError: NetworkError?
-    @Published var lastUpdateTime: Date?
-    @Published var isOfflineMode: Bool = false
-
     // MARK: - Private State
 
     /// In-memory cache for quotes
@@ -252,14 +247,37 @@ final class StockAPIService: ObservableObject {
     /// Basic financials change slowly; keep provider snapshots for one day.
     private let basicFinancialsCacheDuration: TimeInterval = 86_400
 
-    /// Timestamps of recent requests for throttling
+    /// In-flight quote fetches, keyed by symbol, so concurrent callers for the
+    /// same symbol share one network request instead of issuing duplicates.
+    private var inFlightQuotes: [String: Task<StockQuote, Error>] = [:]
+
+    /// Timestamps of requests made in the current rate-limit window.
     private var requestTimestamps: [Date] = []
 
     /// URLSession for API calls
     private let session: URLSession
 
-    /// Lock for thread-safe cache access
-    private let cacheLock = NSLock()
+    // MARK: - Freshness Signal
+
+    /// Holds the timestamp of the most recent successful provider response.
+    /// Nonisolated so main-actor observers (e.g. ``DataSourceMonitor``) can
+    /// read and subscribe without hopping onto the actor; Combine subjects
+    /// are thread-safe.
+    private nonisolated let lastUpdateTimeSubject = CurrentValueSubject<Date?, Never>(nil)
+
+    /// Timestamp of the most recent successful provider response, if any.
+    nonisolated var lastUpdateTime: Date? {
+        lastUpdateTimeSubject.value
+    }
+
+    /// Publisher for the most recent successful provider response timestamp.
+    nonisolated var lastUpdateTimePublisher: AnyPublisher<Date?, Never> {
+        lastUpdateTimeSubject.eraseToAnyPublisher()
+    }
+
+    private func recordSuccessfulResponse() {
+        lastUpdateTimeSubject.send(Date())
+    }
 
     // MARK: - Init
 
@@ -273,35 +291,62 @@ final class StockAPIService: ObservableObject {
     // MARK: - Public API
 
     /// Fetch a single stock quote
+    ///
+    /// Concurrent calls for the same symbol are coalesced: the first caller
+    /// starts the network request and later callers await the same result.
     /// - Parameter symbol: Stock ticker symbol (e.g., "AAPL")
     /// - Returns: StockQuote with current price data
     func getQuote(symbol: String) async throws -> StockQuote {
         let upperSymbol = symbol.uppercased()
 
         // Check cache first (fresh cache always preferred)
-        if let cached = getCachedQuote(for: upperSymbol), !cached.isExpired {
+        if let cached = quoteCache[upperSymbol], !cached.isExpired {
             log("📦 Cache hit for \(upperSymbol) (age: \(cached.formattedAge))")
             return cached.quote
         }
 
+        // Join an in-flight request for the same symbol instead of duplicating it
+        if let inFlight = inFlightQuotes[upperSymbol] {
+            log("🔗 Joining in-flight request for \(upperSymbol)")
+            return try await inFlight.value
+        }
+
         // Check network connectivity
-        guard NetworkMonitor.shared.isConnected else {
+        guard await NetworkMonitor.shared.isConnected else {
             // Offline - try to return stale cache if available
-            if let staleCache = getCachedQuote(for: upperSymbol) {
+            if let staleCache = quoteCache[upperSymbol] {
                 log("📦 Offline - returning stale cache for \(upperSymbol) (age: \(staleCache.formattedAge))")
-                isOfflineMode = true
                 return staleCache.quote
             }
             // No cache available
-            isOfflineMode = true
             throw NetworkError.noConnection
         }
 
         // Ensure API key is configured
         try requireFinnhubConfiguration()
 
-        // Throttle requests
-        try await throttleIfNeeded()
+        // Re-check for an in-flight request: the connectivity check above
+        // suspends, so another caller may have started a fetch meanwhile.
+        // No suspension between this check and the registration below, which
+        // is what makes the join-or-register step atomic on the actor.
+        if let inFlight = inFlightQuotes[upperSymbol] {
+            log("🔗 Joining in-flight request for \(upperSymbol)")
+            return try await inFlight.value
+        }
+
+        let task = Task<StockQuote, Error> {
+            defer { inFlightQuotes[upperSymbol] = nil }
+            return try await fetchQuoteFromNetwork(symbol: upperSymbol)
+        }
+        inFlightQuotes[upperSymbol] = task
+        return try await task.value
+    }
+
+    /// Perform the actual network fetch for a quote. Callers must go through
+    /// ``getQuote(symbol:)`` so requests are coalesced and rate limited.
+    private func fetchQuoteFromNetwork(symbol upperSymbol: String) async throws -> StockQuote {
+        // Wait for a slot in the rate-limit window
+        try await waitForRequestSlot()
 
         // Build URL
         guard let url = APIConfig.finnhubURL(endpoint: "quote", params: ["symbol": upperSymbol]) else {
@@ -318,9 +363,6 @@ final class StockAPIService: ObservableObject {
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw NetworkError.invalidResponse
             }
-
-            // Record request timestamp for throttling
-            recordRequest()
 
             // Handle HTTP errors
             switch httpResponse.statusCode {
@@ -351,19 +393,15 @@ final class StockAPIService: ObservableObject {
 
             log("✅ Got quote for \(upperSymbol): \(quote.formattedPrice) (\(quote.formattedPercentage))")
 
-            lastUpdateTime = Date()
-            lastError = nil
-            isOfflineMode = false
+            recordSuccessfulResponse()
 
             return quote
 
         } catch let error as NetworkError {
-            lastError = error
             logNetworkErrorIfNeeded(error, context: "API Error for \(upperSymbol)")
             throw error
         } catch {
             let networkError = mapError(error)
-            lastError = networkError
             logNetworkErrorIfNeeded(networkError, context: "Network Error for \(upperSymbol)")
             throw networkError
         }
@@ -378,22 +416,15 @@ final class StockAPIService: ObservableObject {
                 key: "FINNHUB_API_KEY_MISSING",
                 message: "Finnhub API key missing. Stock requests will use cached or placeholder data."
             )
-            lastError = .apiKeyMissing
-            let cachedQuotes = getCachedQuotes(for: symbols)
-            if !cachedQuotes.isEmpty {
-                isOfflineMode = true
-            }
-            return cachedQuotes
+            return getCachedQuotes(for: symbols)
         }
 
         var results: [String: StockQuote] = [:]
 
-        isLoading = true
-        defer { isLoading = false }
-
-        // Use TaskGroup for parallel fetching with concurrency limit
+        // Use TaskGroup for parallel fetching with a small concurrency window.
+        // The rate limiter paces the overall request budget; this just avoids
+        // opening dozens of simultaneous connections.
         await withTaskGroup(of: (String, StockQuote?).self) { group in
-            // Limit concurrency to avoid hitting rate limits too fast
             let maxConcurrent = 5
             var activeTasks = 0
 
@@ -409,10 +440,6 @@ final class StockAPIService: ObservableObject {
 
                 activeTasks += 1
                 group.addTask {
-                    // Slight random jitter to prevent thundering herd on API
-                    // Reduced for better responsiveness (5-20ms)
-                    try? await Task.sleep(nanoseconds: UInt64.random(in: 5_000_000...20_000_000))
-
                     do {
                         let quote = try await self.getQuote(symbol: symbol)
                         return (symbol.uppercased(), quote)
@@ -436,9 +463,7 @@ final class StockAPIService: ObservableObject {
 
     /// Get cached quote if available (even if expired)
     func getCachedQuote(for symbol: String) -> CachedQuote? {
-        cacheLock.lock()
-        defer { cacheLock.unlock() }
-        return quoteCache[symbol.uppercased()]
+        quoteCache[symbol.uppercased()]
     }
 
     /// Get quote with explicit field-level provenance.
@@ -453,7 +478,7 @@ final class StockAPIService: ObservableObject {
             )
         }
 
-        guard NetworkMonitor.shared.isConnected else {
+        guard await NetworkMonitor.shared.isConnected else {
             if let cached = getCachedQuote(for: upperSymbol) {
                 return StockQuoteResult(
                     quote: cached.quote,
@@ -471,7 +496,6 @@ final class StockAPIService: ObservableObject {
 
         guard APIConfig.isFinnhubConfigured else {
             let error = NetworkError.apiKeyMissing
-            lastError = error
             ConfigWarnings.warnOnce(
                 key: "FINNHUB_API_KEY_MISSING",
                 message: "Finnhub API key missing. Stock requests will use cached or unavailable states."
@@ -553,16 +577,11 @@ final class StockAPIService: ObservableObject {
     /// Get all cached quotes (for offline mode)
     /// Returns quotes even if expired, for offline viewing
     func getAllCachedQuotes() -> [String: CachedQuote] {
-        cacheLock.lock()
-        defer { cacheLock.unlock() }
         return quoteCache
     }
 
     /// Get cached quotes for specific symbols (for offline portfolio)
     func getCachedQuotes(for symbols: [String]) -> [String: StockQuote] {
-        cacheLock.lock()
-        defer { cacheLock.unlock() }
-
         var results: [String: StockQuote] = [:]
         for symbol in symbols {
             if let cached = quoteCache[symbol.uppercased()] {
@@ -574,16 +593,11 @@ final class StockAPIService: ObservableObject {
 
     /// Check if we have cached data for a symbol
     func hasCachedData(for symbol: String) -> Bool {
-        cacheLock.lock()
-        defer { cacheLock.unlock() }
         return quoteCache[symbol.uppercased()] != nil
     }
 
     /// Get the oldest cache timestamp (for "data as of" display)
     func oldestCacheTimestamp(for symbols: [String]) -> Date? {
-        cacheLock.lock()
-        defer { cacheLock.unlock() }
-
         var oldest: Date?
         for symbol in symbols {
             if let cached = quoteCache[symbol.uppercased()] {
@@ -597,8 +611,6 @@ final class StockAPIService: ObservableObject {
 
     /// Clear all cached quotes
     func clearCache() {
-        cacheLock.lock()
-        defer { cacheLock.unlock() }
         quoteCache.removeAll()
         log("🗑️ Cache cleared")
     }
@@ -616,9 +628,6 @@ final class StockAPIService: ObservableObject {
     // MARK: - Cache Management
 
     private func cacheQuote(_ quote: StockQuote, for symbol: String) {
-        cacheLock.lock()
-        defer { cacheLock.unlock() }
-
         quoteCache[symbol] = CachedQuote(
             quote: quote,
             timestamp: Date(),
@@ -626,36 +635,36 @@ final class StockAPIService: ObservableObject {
         )
     }
 
-    // MARK: - Throttling
+    // MARK: - Rate Limiting
 
-    private func throttleIfNeeded() async throws {
-        // Remove old timestamps (older than 1 minute)
-        let oneMinuteAgo = Date().addingTimeInterval(-60)
-        requestTimestamps.removeAll { $0 < oneMinuteAgo }
+    /// Reserve a slot in the sliding 60-requests-per-minute window, waiting
+    /// for the next free slot when the window is full instead of failing.
+    ///
+    /// The slot is reserved before the request is sent, so the window can
+    /// never overshoot the provider's limit. Waiting callers are woken in
+    /// whatever order the actor resumes them; each re-checks the window.
+    private func waitForRequestSlot() async throws {
+        while true {
+            try Task.checkCancellation()
 
-        // Check if we're at the rate limit
-        if requestTimestamps.count >= Self.maxRequestsPerMinute {
-            log("⏳ Rate limit approaching, waiting...")
-            throw NetworkError.rateLimited
-        }
+            let now = Date()
+            requestTimestamps.removeAll { now.timeIntervalSince($0) >= 60 }
 
-        // Ensure minimum delay between requests
-        if let lastRequest = requestTimestamps.last {
-            let timeSinceLastRequest = Date().timeIntervalSince(lastRequest)
-            if timeSinceLastRequest < Self.minRequestDelay {
-                let waitTime = Self.minRequestDelay - timeSinceLastRequest
-                try await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
+            if requestTimestamps.count < Self.maxRequestsPerMinute {
+                requestTimestamps.append(now)
+                return
             }
-        }
-    }
 
-    private func recordRequest() {
-        requestTimestamps.append(Date())
+            // Window is full: sleep until the oldest request ages out
+            let oldest = requestTimestamps[0]
+            let waitSeconds = max(60 - now.timeIntervalSince(oldest), 0.05)
+            log("⏳ Rate limit window full; waiting \(String(format: "%.1f", waitSeconds))s for a slot...")
+            try await Task.sleep(nanoseconds: UInt64(waitSeconds * 1_000_000_000))
+        }
     }
 
     private func requireFinnhubConfiguration() throws {
         guard APIConfig.isFinnhubConfigured else {
-            lastError = .apiKeyMissing
             ConfigWarnings.warnOnce(
                 key: "FINNHUB_API_KEY_MISSING",
                 message: "Finnhub API key missing. Stock requests will use cached or placeholder data."
@@ -809,6 +818,9 @@ extension StockAPIService {
         // Ensure API key is configured
         try requireFinnhubConfiguration()
 
+        // Wait for a slot in the rate-limit window
+        try await waitForRequestSlot()
+
         // Build URL for symbol search
         guard let url = APIConfig.finnhubURL(endpoint: "search", params: ["q": trimmedQuery]) else {
             throw NetworkError.invalidResponse
@@ -825,8 +837,6 @@ extension StockAPIService {
                 throw NetworkError.invalidResponse
             }
 
-            // Record request timestamp for throttling
-            recordRequest()
 
             // Handle HTTP errors
             switch httpResponse.statusCode {
@@ -879,7 +889,7 @@ extension StockAPIService {
             )
         }
 
-        guard NetworkMonitor.shared.isConnected else {
+        guard await NetworkMonitor.shared.isConnected else {
             if let cached = basicFinancialsCache[upperSymbol] {
                 return BasicFinancialsResult(
                     metrics: cached.metrics,
@@ -890,7 +900,7 @@ extension StockAPIService {
         }
 
         try requireFinnhubConfiguration()
-        try await throttleIfNeeded()
+        try await waitForRequestSlot()
 
         guard let url = APIConfig.finnhubURL(
             endpoint: "stock/metric",
@@ -909,7 +919,6 @@ extension StockAPIService {
                 throw NetworkError.invalidResponse
             }
 
-            recordRequest()
 
             switch httpResponse.statusCode {
             case 200:
@@ -937,16 +946,13 @@ extension StockAPIService {
                 timestamp: fetchedAt
             )
 
-            lastUpdateTime = fetchedAt
-            lastError = nil
-            isOfflineMode = false
+            recordSuccessfulResponse()
 
             return BasicFinancialsResult(
                 metrics: decoded.metric,
                 provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
             )
         } catch let error as NetworkError {
-            lastError = error
             if let cached = basicFinancialsCache[upperSymbol] {
                 return BasicFinancialsResult(
                     metrics: cached.metrics,
@@ -965,7 +971,6 @@ extension StockAPIService {
             throw NetworkError.decodingError
         } catch {
             let networkError = mapError(error)
-            lastError = networkError
             if let cached = basicFinancialsCache[upperSymbol] {
                 return BasicFinancialsResult(
                     metrics: cached.metrics,
@@ -1107,15 +1112,15 @@ extension StockAPIService {
     /// - Returns: Array of FinnhubIPO objects
     func fetchIPOCalendar(from: Date, to: Date) async throws -> [FinnhubIPO] {
         // Check network connectivity
-        guard NetworkMonitor.shared.isConnected else {
+        guard await NetworkMonitor.shared.isConnected else {
             throw NetworkError.noConnection
         }
 
         // Ensure API key is configured
         try requireFinnhubConfiguration()
 
-        // Throttle requests
-        try await throttleIfNeeded()
+        // Wait for a slot in the rate-limit window
+        try await waitForRequestSlot()
 
         // Format dates
         let dateFormatter = DateFormatter()
@@ -1142,8 +1147,6 @@ extension StockAPIService {
                 throw NetworkError.invalidResponse
             }
 
-            // Record request timestamp for throttling
-            recordRequest()
 
             // Handle HTTP errors
             switch httpResponse.statusCode {
@@ -1164,14 +1167,11 @@ extension StockAPIService {
 
             log("✅ Fetched \(ipoResponse.ipoCalendar.count) IPOs")
 
-            lastUpdateTime = Date()
-            lastError = nil
-            isOfflineMode = false
+            recordSuccessfulResponse()
 
             return ipoResponse.ipoCalendar
 
         } catch let error as NetworkError {
-            lastError = error
             logNetworkErrorIfNeeded(error, context: "IPO Calendar Error")
             throw error
         } catch let error as DecodingError {
@@ -1179,7 +1179,6 @@ extension StockAPIService {
             throw NetworkError.unknown("Failed to decode IPO data")
         } catch {
             let networkError = mapError(error)
-            lastError = networkError
             log("❌ IPO Calendar Network Error: \(networkError.cosmicMessage)")
             throw networkError
         }
@@ -1219,15 +1218,15 @@ extension StockAPIService {
     /// - Returns: Array of FinnhubEarnings objects
     func fetchEarningsCalendar(from: Date, to: Date) async throws -> [FinnhubEarnings] {
         // Check network connectivity
-        guard NetworkMonitor.shared.isConnected else {
+        guard await NetworkMonitor.shared.isConnected else {
             throw NetworkError.noConnection
         }
 
         // Ensure API key is configured
         try requireFinnhubConfiguration()
 
-        // Throttle requests
-        try await throttleIfNeeded()
+        // Wait for a slot in the rate-limit window
+        try await waitForRequestSlot()
 
         // Format dates
         let dateFormatter = DateFormatter()
@@ -1254,8 +1253,6 @@ extension StockAPIService {
                 throw NetworkError.invalidResponse
             }
 
-            // Record request timestamp for throttling
-            recordRequest()
 
             // Handle HTTP errors
             switch httpResponse.statusCode {
@@ -1276,14 +1273,11 @@ extension StockAPIService {
 
             log("✅ Fetched \(earningsResponse.earningsCalendar.count) earnings events")
 
-            lastUpdateTime = Date()
-            lastError = nil
-            isOfflineMode = false
+            recordSuccessfulResponse()
 
             return earningsResponse.earningsCalendar
 
         } catch let error as NetworkError {
-            lastError = error
             logNetworkErrorIfNeeded(error, context: "Earnings Calendar Error")
             throw error
         } catch let error as DecodingError {
@@ -1291,7 +1285,6 @@ extension StockAPIService {
             throw NetworkError.unknown("Failed to decode earnings data")
         } catch {
             let networkError = mapError(error)
-            lastError = networkError
             log("❌ Earnings Calendar Network Error: \(networkError.cosmicMessage)")
             throw networkError
         }
@@ -1334,15 +1327,15 @@ extension StockAPIService {
     /// - Returns: FinnhubCandleResponse with OHLCV data
     func fetchCandles(symbol: String, resolution: String, from: Date, to: Date) async throws -> FinnhubCandleResponse {
         // Check network connectivity
-        guard NetworkMonitor.shared.isConnected else {
+        guard await NetworkMonitor.shared.isConnected else {
             throw NetworkError.noConnection
         }
 
         // Ensure API key is configured
         try requireFinnhubConfiguration()
 
-        // Throttle requests
-        try await throttleIfNeeded()
+        // Wait for a slot in the rate-limit window
+        try await waitForRequestSlot()
 
         // Convert dates to timestamps
         let fromTimestamp = Int(from.timeIntervalSince1970)
@@ -1372,8 +1365,6 @@ extension StockAPIService {
                 throw NetworkError.invalidResponse
             }
 
-            // Record request timestamp for throttling
-            recordRequest()
 
             // Handle HTTP errors
             switch httpResponse.statusCode {
@@ -1398,14 +1389,11 @@ extension StockAPIService {
                 log("✅ Fetched \(candleResponse.v?.count ?? 0) candles for \(symbol)")
             }
 
-            lastUpdateTime = Date()
-            lastError = nil
-            isOfflineMode = false
+            recordSuccessfulResponse()
 
             return candleResponse
 
         } catch let error as NetworkError {
-            lastError = error
             logNetworkErrorIfNeeded(error, context: "Candles Error for \(symbol)")
             throw error
         } catch let error as DecodingError {
@@ -1413,7 +1401,6 @@ extension StockAPIService {
             throw NetworkError.unknown("Failed to decode candle data")
         } catch {
             let networkError = mapError(error)
-            lastError = networkError
             log("❌ Candles Network Error: \(networkError.cosmicMessage)")
             throw networkError
         }
