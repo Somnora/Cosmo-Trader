@@ -197,6 +197,7 @@ struct ProductionMockGuardTests {
                 metrics: [],
                 provenance: .unavailable(reason: "No portfolio or watchlist stock available"),
                 displayMode: .unavailable,
+                source: nil,
                 activation: nil
             ),
             firstRunSetup: TodayFirstRunSetupState(isSkipped: false, steps: []),

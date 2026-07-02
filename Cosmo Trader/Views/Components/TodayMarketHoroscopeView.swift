@@ -288,7 +288,7 @@ struct TodayMarketHoroscopeView: View {
 
             if let stockContext = summary.stockContext {
                 snapshotCard(
-                    label: "STOCK",
+                    label: stockContext.source == .watchlist ? "WATCH" : "STOCK",
                     value: stockContext.symbol,
                     detail: snapshotValue(for: stockContext.displayMode),
                     provenance: stockContext.provenance
@@ -506,6 +506,13 @@ struct TodayMarketHoroscopeView: View {
                         .foregroundColor(CosmicTheme.gold)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
+
+                    if let source = context.source {
+                        Text(source == .watchlist ? "WATCHLIST LENS" : "PORTFOLIO LENS")
+                            .font(TerminalFont.data(8, weight: .bold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .tracking(0.6)
+                    }
 
                     Text(context.headline)
                         .font(TerminalFont.data(15, weight: .semibold))

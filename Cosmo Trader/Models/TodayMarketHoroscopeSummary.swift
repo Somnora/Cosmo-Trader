@@ -148,6 +148,7 @@ struct TodayStockContext: Equatable {
     let metrics: [TodayMetric]
     let provenance: FinancialDataProvenance
     let displayMode: DisplayMode
+    let source: TodayStockCandidateSource?
     let activation: TodayActivationPrompt?
 }
 
@@ -221,9 +222,38 @@ struct TodayDataLabelExplainer: Equatable, Identifiable {
     }
 }
 
+enum TodayStockCandidateSource: Equatable {
+    case watchlist
+    case portfolio
+
+    var displayName: String {
+        switch self {
+        case .watchlist:
+            return "Watchlist"
+        case .portfolio:
+            return "Portfolio"
+        }
+    }
+}
+
 struct TodayStockCandidate: Equatable {
     let stock: Stock
     let summaries: [StockCosmicCorrelationSummary]
     let provenance: FinancialDataProvenance
     let completeness: HistoricalDatasetCompleteness
+    let source: TodayStockCandidateSource
+
+    init(
+        stock: Stock,
+        summaries: [StockCosmicCorrelationSummary],
+        provenance: FinancialDataProvenance,
+        completeness: HistoricalDatasetCompleteness,
+        source: TodayStockCandidateSource = .portfolio
+    ) {
+        self.stock = stock
+        self.summaries = summaries
+        self.provenance = provenance
+        self.completeness = completeness
+        self.source = source
+    }
 }

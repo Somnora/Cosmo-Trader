@@ -90,6 +90,22 @@ struct DiscoverView: View {
                     }
                 }
 
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(action: {
+                        showSearch = true
+                    }) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.caption)
+                            .foregroundColor(CosmicTheme.gold)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                Circle()
+                                    .fill(CosmicTheme.cardBackground)
+                            )
+                    }
+                    .accessibilityLabel("Search symbols to add to watchlist")
+                }
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: {
                         appState.selectedTab = .portfolio
@@ -273,9 +289,18 @@ struct DiscoverView: View {
     /// can claim that space.
     private var discoverContextCaption: some View {
         let holdingsCount = appState.currentUser?.portfolio.filter(\.isOwned).count ?? 0
-        let holdingsLabel = holdingsCount > 0
-            ? "\(holdingsCount) holdings shape the reading"
-            : "Add holdings to sharpen context"
+        let watchlistCount = appState.currentUser?.watchlist.count ?? 0
+        let holdingsLabel: String = {
+            if watchlistCount > 0 {
+                return "\(watchlistCount) watchlist symbols feed Today"
+            }
+
+            if holdingsCount > 0 {
+                return "\(holdingsCount) holdings shape the reading"
+            }
+
+            return "Search a ticker or swipe right to build a watchlist"
+        }()
 
         // One Text composed via concatenation so the bullet stays on
         // the same line as the surrounding fragments (multiple Text
@@ -810,46 +835,68 @@ struct DiscoverView: View {
                     .font(.system(size: 18, weight: .bold, design: .monospaced))
                     .foregroundColor(CosmicTheme.textPrimary)
 
-                Text("You've seen all available stocks.\nCheck back tomorrow for new candidates.")
+                Text("Search a ticker to add it directly, or reset skipped names to rebuild the swipe deck.")
                     .font(.system(size: 13, design: .monospaced))
                     .foregroundColor(CosmicTheme.textSecondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
             }
 
-            HStack(spacing: 16) {
-                Button(action: {
-                    HapticFeedback.light()
-                    withAnimation {
-                        viewModel?.clearFilters()
-                    }
-                }) {
-                    Text("Clear Filters")
-                        .font(.system(size: 13, weight: .medium, design: .monospaced))
-                        .foregroundColor(CosmicTheme.textSecondary)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
-                        .background(
-                            Capsule()
-                                .stroke(CosmicTheme.textMuted, lineWidth: 1)
-                        )
-                }
-
+            VStack(spacing: 12) {
                 Button(action: {
                     HapticFeedback.medium()
-                    withAnimation {
-                        viewModel?.resetSkipped()
-                    }
+                    showSearch = true
                 }) {
-                    Text("Reset Skipped")
-                        .font(.system(size: 13, weight: .medium, design: .monospaced))
-                        .foregroundColor(CosmicTheme.background)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
-                        .background(
-                            Capsule()
-                                .fill(CosmicTheme.gold)
-                        )
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                        Text("Search Symbols")
+                    }
+                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .foregroundColor(CosmicTheme.background)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        Capsule()
+                            .fill(CosmicTheme.gold)
+                    )
+                }
+                .accessibilityLabel("Search symbols to add to watchlist")
+
+                HStack(spacing: 12) {
+                    Button(action: {
+                        HapticFeedback.light()
+                        withAnimation {
+                            viewModel?.clearFilters()
+                        }
+                    }) {
+                        Text("Clear Filters")
+                            .font(.system(size: 13, weight: .medium, design: .monospaced))
+                            .foregroundColor(CosmicTheme.textSecondary)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 12)
+                            .background(
+                                Capsule()
+                                    .stroke(CosmicTheme.textMuted, lineWidth: 1)
+                            )
+                    }
+
+                    Button(action: {
+                        HapticFeedback.medium()
+                        withAnimation {
+                            viewModel?.resetSkipped()
+                        }
+                    }) {
+                        Text("Reset Skipped")
+                            .font(.system(size: 13, weight: .medium, design: .monospaced))
+                            .foregroundColor(CosmicTheme.gold)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 12)
+                            .background(
+                                Capsule()
+                                    .stroke(CosmicTheme.gold, lineWidth: 1)
+                            )
+                    }
                 }
             }
         }

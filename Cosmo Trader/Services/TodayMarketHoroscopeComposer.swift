@@ -268,7 +268,7 @@ final class TodayMarketHoroscopeComposer {
                 symbol: stock.symbol.uppercased(),
                 name: stock.name,
                 headline: "\(stock.symbol.uppercased()) historical context pending",
-                detail: "Historical price data unavailable. Stock correlation context will appear when provider-backed history is available.",
+                detail: stockPendingDetail(for: stock, source: candidate.source),
                 eventName: nil,
                 windowLabel: nil,
                 eventCount: 0,
@@ -276,6 +276,7 @@ final class TodayMarketHoroscopeComposer {
                 metrics: [],
                 provenance: candidate.provenance,
                 displayMode: displayMode,
+                source: candidate.source,
                 activation: stockActivation(for: displayMode, hasCandidate: true)
             )
         }
@@ -295,6 +296,7 @@ final class TodayMarketHoroscopeComposer {
             metrics: metrics,
             provenance: summary.provenance,
             displayMode: displayMode,
+            source: candidate.source,
             activation: stockActivation(for: displayMode, hasCandidate: true)
         )
     }
@@ -439,6 +441,7 @@ final class TodayMarketHoroscopeComposer {
             metrics: [],
             provenance: .unavailable(reason: "No portfolio or watchlist stock available"),
             displayMode: .unavailable,
+            source: nil,
             activation: stockActivation(for: .unavailable, hasCandidate: false)
         )
     }
@@ -693,6 +696,19 @@ final class TodayMarketHoroscopeComposer {
             return "Provider-backed history found \(summary.sampleSize) observations for \(summary.eventName) using the \(summary.window.displayName) window."
         case .partialDataset, .insufficientDataset, .insufficientSample, .sampleOnly, .unavailable:
             return summary.disclaimer
+        }
+    }
+
+    private func stockPendingDetail(
+        for stock: Stock,
+        source: TodayStockCandidateSource
+    ) -> String {
+        let symbol = stock.symbol.uppercased()
+        switch source {
+        case .watchlist:
+            return "\(symbol) is on your watchlist. Provider-backed history is required before Today shows stock-level patterns."
+        case .portfolio:
+            return "Historical price data unavailable. Stock correlation context will appear when provider-backed history is available."
         }
     }
 
