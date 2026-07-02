@@ -41,6 +41,40 @@ final class HistoricalAstroChartViewModel {
             && historicalDatasetCompleteness.allowsNumericCorrelationClaims
     }
 
+    var shouldShowHistoryActivation: Bool {
+        guard !isLoading else { return false }
+        if ohlcData.isEmpty { return true }
+        if historicalPriceProvenance.isCachedStale() { return true }
+        if !historicalDatasetCompleteness.allowsNumericCorrelationClaims { return true }
+        if case .sample = historicalPriceProvenance { return true }
+        if case .mixed = historicalPriceProvenance { return true }
+        if case .unavailable = historicalPriceProvenance { return true }
+        return false
+    }
+
+    var historyActivationTitle: String {
+        if ohlcData.isEmpty { return "Load provider history" }
+        if historicalPriceProvenance.isCachedStale() { return "Refresh stale history" }
+        if !historicalDatasetCompleteness.allowsNumericCorrelationClaims { return "Refresh history range" }
+        return "Refresh provider history"
+    }
+
+    var historyActivationDetail: String {
+        if ohlcData.isEmpty {
+            return "Chart, technical context, and cosmic correlation unlock after provider-backed historical prices are available."
+        }
+        if historicalPriceProvenance.isCachedStale() {
+            return "Cached provider history is stale. Refresh checks the provider/cache path again."
+        }
+        if !historicalDatasetCompleteness.allowsNumericCorrelationClaims {
+            return "Provider history exists, but the dataset is partial or insufficient for numeric context."
+        }
+        if case .sample = historicalPriceProvenance {
+            return "Sample chart context is preview-only. Refresh uses provider-backed history only."
+        }
+        return "Refresh checks provider-backed history without creating sample candles."
+    }
+
     var checkedEventKinds: [AstroOverlayEventKind] {
         let orderedKinds = AstroOverlayFilterState.defaultKinds + AstroOverlayFilterState.optionalKinds
         return orderedKinds.filter { filterState.enabledKinds.contains($0) }
@@ -92,6 +126,11 @@ final class HistoricalAstroChartViewModel {
         }
 
         isLoading = false
+    }
+
+    func reload() async {
+        guard let loadedStock, let loadedTimeframe else { return }
+        await load(stock: loadedStock, timeframe: loadedTimeframe)
     }
 
     func toggleKinds(_ kinds: Set<AstroOverlayEventKind>) {
