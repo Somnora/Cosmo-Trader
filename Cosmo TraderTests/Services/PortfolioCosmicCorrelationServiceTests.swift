@@ -416,6 +416,148 @@ struct PortfolioCosmicCorrelationServiceTests {
         #expect(summary.historyUnlockText.contains("headline portfolio correlation metrics"))
     }
 
+    @MainActor
+    @Test("Portfolio history status uses provider datasets without sample candles")
+    func portfolioHistoryStatusUsesProviderDatasetsWithoutSampleCandles() {
+        let live = stock(symbol: "LIVE", currentPrice: 70, sharesOwned: 10)
+        let missing = stock(symbol: "MISS", currentPrice: 30, sharesOwned: 10)
+        let snapshot = CorrelationHistoricalDatasetSnapshot(
+            datasetsBySymbol: [
+                "LIVE": completeDataset(symbol: "LIVE")
+            ],
+            unavailableProvenanceBySymbol: [
+                "MISS": .unavailable(reason: "Provider-backed historical prices unavailable")
+            ]
+        )
+
+        let statuses = PortfolioCorrelationViewModel.makeHistoryStatuses(
+            holdings: [live, missing],
+            snapshot: snapshot
+        )
+
+        let liveStatus = statuses.first { $0.symbol == "LIVE" }
+        let missingStatus = statuses.first { $0.symbol == "MISS" }
+        #expect(liveStatus?.state == .live)
+        #expect(liveStatus?.isUsableForPortfolioCorrelation == true)
+        #expect(isClose(liveStatus?.portfolioWeight ?? 0, 0.70))
+        #expect(missingStatus?.state == .unavailable)
+        #expect(missingStatus?.isUsableForPortfolioCorrelation == false)
+        #expect(statuses.allSatisfy { status in
+            if case .sample = status.provenance { return false }
+            return true
+        })
+    }
+
+    @MainActor
+    @Test("Partial and insufficient history statuses do not count as usable portfolio history")
+    func partialAndInsufficientHistoryStatusesDoNotCountAsUsablePortfolioHistory() {
+        let partial = stock(symbol: "PART", currentPrice: 60, sharesOwned: 10)
+        let insufficient = stock(symbol: "THIN", currentPrice: 40, sharesOwned: 10)
+        let snapshot = CorrelationHistoricalDatasetSnapshot(
+            datasetsBySymbol: [
+                "PART": partialDataset(symbol: "PART"),
+                "THIN": insufficientDataset(symbol: "THIN")
+            ],
+            unavailableProvenanceBySymbol: [:]
+        )
+
+        let statuses = PortfolioCorrelationViewModel.makeHistoryStatuses(
+            holdings: [partial, insufficient],
+            snapshot: snapshot
+        )
+
+        #expect(statuses.first { $0.symbol == "PART" }?.state == .partial)
+        #expect(statuses.first { $0.symbol == "PART" }?.provenance.indicatorLabel == "Partial history")
+        #expect(statuses.first { $0.symbol == "PART" }?.isUsableForPortfolioCorrelation == false)
+        let thinStatus = statuses.first { $0.symbol == "THIN" }
+        #expect(thinStatus?.state == .insufficient)
+        #expect(thinStatus?.label == "Insufficient")
+        #expect(thinStatus?.provenance.isProviderBacked == false)
+        #expect(thinStatus?.isUsableForPortfolioCorrelation == false)
+    }
+
+    @MainActor
+    @Test("Stale history status remains provider-backed but labeled stale")
+    func staleHistoryStatusRemainsProviderBackedButLabeledStale() {
+        let holding = stock(symbol: "AAPL", currentPrice: 100, sharesOwned: 1)
+        let staleProvenance: FinancialDataProvenance = .cached(
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: date("2025-01-01"),
+            age: FinancialDataProvenance.defaultCachedStaleInterval + 1
+        )
+        let snapshot = CorrelationHistoricalDatasetSnapshot(
+            datasetsBySymbol: [
+                "AAPL": completeDataset(symbol: "AAPL").withProvenance(staleProvenance)
+            ],
+            unavailableProvenanceBySymbol: [:]
+        )
+
+        let statuses = PortfolioCorrelationViewModel.makeHistoryStatuses(
+            holdings: [holding],
+            snapshot: snapshot
+        )
+
+        let status = statuses.first
+        #expect(status?.state == .cachedStale)
+        #expect(status?.provenance.isProviderBacked == true)
+        #expect(status?.provenance.indicatorLabel.contains("stale") == true)
+        #expect(status?.isUsableForPortfolioCorrelation == true)
+    }
+
+    @MainActor
+    @Test("Portfolio history reload requests provider-backed history and updates coverage")
+    func portfolioHistoryReloadRequestsProviderBackedHistoryAndUpdatesCoverage() async throws {
+        let cacheURL = temporaryCacheURL()
+        let cache = HistoricalPriceCache(directoryURL: cacheURL)
+        defer { try? cache.removeAll() }
+        var requestedSymbols: [String] = []
+        let service = HistoricalPriceService.testingInstance(
+            historicalPriceCache: cache,
+            candleFetcher: { symbol, _, from, to in
+                requestedSymbols.append(symbol)
+                return candleResponse(from: from, to: to, closes: [100, 103, 106])
+            }
+        )
+        let store = CorrelationDatasetStore(historicalPriceService: service)
+        let viewModel = PortfolioCorrelationViewModel(datasetStore: store)
+
+        await viewModel.reload(holdings: [stock(symbol: "AAPL", currentPrice: 100, sharesOwned: 2)])
+
+        #expect(requestedSymbols == ["AAPL"])
+        #expect(viewModel.historySymbolStatuses.first?.state == .live)
+        #expect(viewModel.providerBackedHistoryWeight == 1)
+        #expect(viewModel.unavailableHoldings.isEmpty)
+        #expect(viewModel.historicalPriceProvenance.isProviderBacked)
+        #expect(viewModel.historySymbolStatuses.allSatisfy { status in
+            if case .sample = status.provenance { return false }
+            return true
+        })
+    }
+
+    @MainActor
+    @Test("Stock detail history activation distinguishes unavailable stale and insufficient states")
+    func stockDetailHistoryActivationDistinguishesUnavailableStaleAndInsufficientStates() {
+        let viewModel = HistoricalAstroChartViewModel()
+        #expect(viewModel.shouldShowHistoryActivation)
+        #expect(viewModel.historyActivationTitle == "Load provider history")
+
+        viewModel.ohlcData = prices([100, 101, 102])
+        viewModel.historicalDatasetCompleteness = .complete
+        viewModel.historicalPriceProvenance = .cached(
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: date("2025-01-01"),
+            age: FinancialDataProvenance.defaultCachedStaleInterval + 1
+        )
+        #expect(viewModel.shouldShowHistoryActivation)
+        #expect(viewModel.historyActivationTitle == "Refresh stale history")
+        #expect(viewModel.historyActivationDetail.contains("provider/cache path"))
+
+        viewModel.historicalPriceProvenance = .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10"))
+        viewModel.historicalDatasetCompleteness = .insufficient(reason: "Provider returned too little history")
+        #expect(viewModel.shouldShowHistoryActivation)
+        #expect(viewModel.historyActivationTitle == "Refresh history range")
+    }
+
     @Test("Portfolio intelligence copy is context-only and avoids trading instructions")
     func portfolioIntelligenceCopyIsComplianceSafe() {
         let holding = stock(symbol: "AAPL", currentPrice: 100, sharesOwned: 1)
@@ -720,6 +862,61 @@ struct PortfolioCosmicCorrelationServiceTests {
         symbols.reduce(into: [:]) { partialResult, symbol in
             partialResult[symbol] = .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10"))
         }
+    }
+
+    private func completeDataset(symbol: String) -> HistoricalPriceDataset {
+        HistoricalPriceDataset.providerBacked(
+            symbol: symbol,
+            candles: prices([100, 101, 102, 103, 104, 105, 106, 107, 108, 109]),
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: date("2025-01-10"),
+            requestedRange: DateInterval(start: date("2025-01-01"), end: date("2025-01-10")),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10"))
+        )
+    }
+
+    private func partialDataset(symbol: String) -> HistoricalPriceDataset {
+        HistoricalPriceDataset.providerBacked(
+            symbol: symbol,
+            candles: prices([100, 101, 102]),
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: date("2025-01-10"),
+            requestedRange: DateInterval(start: date("2025-01-01"), end: date("2025-01-20")),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10"))
+        )
+    }
+
+    private func insufficientDataset(symbol: String) -> HistoricalPriceDataset {
+        HistoricalPriceDataset.providerBacked(
+            symbol: symbol,
+            candles: prices([100]),
+            provider: FinancialDataProvenance.finnhubProvider,
+            fetchedAt: date("2025-01-10"),
+            requestedRange: DateInterval(start: date("2025-01-01"), end: date("2025-01-10")),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-10"))
+        )
+    }
+
+    private func candleResponse(from: Date, to: Date, closes: [Double]) -> FinnhubCandleResponse {
+        let duration = max(1, to.timeIntervalSince(from))
+        let timestamps = closes.indices.map { index in
+            let fraction = closes.count == 1 ? 0 : Double(index) / Double(closes.count - 1)
+            return Int(from.addingTimeInterval(duration * fraction).timeIntervalSince1970)
+        }
+        return FinnhubCandleResponse(
+            s: "ok",
+            t: timestamps,
+            o: closes,
+            h: closes.map { $0 + 1 },
+            l: closes.map { max(0.01, $0 - 1) },
+            c: closes,
+            v: closes.map { _ in 1_000 }
+        )
+    }
+
+    private func temporaryCacheURL() -> URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("cosmo-portfolio-history-activation-tests-\(UUID().uuidString)", isDirectory: true)
     }
 
     private func date(_ value: String) -> Date {

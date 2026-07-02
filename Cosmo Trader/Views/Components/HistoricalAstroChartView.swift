@@ -51,6 +51,9 @@ struct HistoricalAstroChartView: View {
                 }
             }
             chartReadout
+            if viewModel.shouldShowHistoryActivation {
+                historyActivationCard
+            }
             content
             timeframeSelector
             if !viewModel.ohlcData.isEmpty {
@@ -196,6 +199,60 @@ struct HistoricalAstroChartView: View {
         }
         .frame(height: 42)
         .animation(.easeOut(duration: 0.12), value: scrubDate)
+    }
+
+    private var historyActivationCard: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "arrow.down.circle")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(CosmicTheme.gold)
+                .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(viewModel.historyActivationTitle.uppercased())
+                    .font(TerminalFont.data(9, weight: .bold))
+                    .foregroundColor(CosmicTheme.textPrimary)
+                    .tracking(0.7)
+
+                Text(viewModel.historyActivationDetail)
+                    .font(TerminalFont.data(9))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 8)
+
+            Button {
+                Task {
+                    scrubDate = nil
+                    await viewModel.reload()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 10, weight: .semibold))
+
+                    Text("LOAD HISTORY")
+                        .font(TerminalFont.data(8, weight: .bold))
+                        .tracking(0.45)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                .foregroundColor(CosmicTheme.background)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 7)
+                .background(CosmicTheme.gold)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("stockDetail.loadProviderHistory")
+        }
+        .padding(10)
+        .background(CosmicTheme.cardBackground.opacity(0.65))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(CosmicTheme.gold.opacity(0.24), lineWidth: 0.75)
+        )
     }
 
     // MARK: - Chart Content

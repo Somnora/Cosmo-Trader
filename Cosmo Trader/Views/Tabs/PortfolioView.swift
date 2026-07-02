@@ -75,7 +75,7 @@ struct PortfolioView: View {
         PortfolioIntelligenceSummary.make(
             holdings: holdings,
             quoteProvenanceBySymbol: quoteProvenanceBySymbol,
-            historicalIncludedWeight: portfolioCorrelationViewModel.includedPortfolioWeight,
+            historicalIncludedWeight: portfolioCorrelationViewModel.providerBackedHistoryWeight,
             historicalProvenance: portfolioCorrelationViewModel.historicalPriceProvenance,
             unavailableHistorySymbols: portfolioCorrelationViewModel.unavailableHoldings
         )
@@ -536,6 +536,7 @@ struct PortfolioView: View {
             }
 
             portfolioHistoryUnlockRow(summary)
+            portfolioHistoryStatusRows
 
             if !summary.topHoldings.isEmpty {
                 portfolioExposureRows(
@@ -596,35 +597,77 @@ struct PortfolioView: View {
     }
 
     private func portfolioHistoryUnlockRow(_ summary: PortfolioIntelligenceSummary) -> some View {
-        HStack(alignment: .top, spacing: 9) {
-            Image(systemName: summary.isPortfolioCorrelationUnlocked ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(summary.isPortfolioCorrelationUnlocked ? CosmicTheme.positive : CosmicTheme.gold)
-                .frame(width: 16)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 9) {
+                Image(systemName: summary.isPortfolioCorrelationUnlocked ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(summary.isPortfolioCorrelationUnlocked ? CosmicTheme.positive : CosmicTheme.gold)
+                    .frame(width: 16)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(summary.isPortfolioCorrelationUnlocked ? "CORRELATION READY" : "CORRELATION UNLOCK")
-                    .font(TerminalFont.data(9, weight: .bold))
-                    .foregroundColor(CosmicTheme.textPrimary)
-                    .tracking(0.8)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(summary.isPortfolioCorrelationUnlocked ? "CORRELATION READY" : "CORRELATION UNLOCK")
+                        .font(TerminalFont.data(9, weight: .bold))
+                        .foregroundColor(CosmicTheme.textPrimary)
+                        .tracking(0.8)
 
-                Text(summary.historyUnlockText)
-                    .font(TerminalFont.data(10))
-                    .foregroundColor(CosmicTheme.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    Text(summary.historyUnlockText)
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
 
-                if !summary.historyUnavailableSymbols.isEmpty {
-                    Text("History needed: \(summary.historyUnavailableSymbols.prefix(5).joined(separator: ", "))")
-                        .font(TerminalFont.data(8))
-                        .foregroundColor(CosmicTheme.textMuted)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.75)
+                    if !summary.historyUnavailableSymbols.isEmpty {
+                        Text("History needed: \(summary.historyUnavailableSymbols.prefix(5).joined(separator: ", "))")
+                            .font(TerminalFont.data(8))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.75)
+                    }
                 }
+
+                Spacer(minLength: 8)
+
+                DataSourceIndicator(provenance: summary.historyProvenance, size: .compact)
             }
 
-            Spacer(minLength: 8)
+            HStack(alignment: .center, spacing: 8) {
+                Button {
+                    Task {
+                        await refreshProviderHistory()
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        if portfolioCorrelationViewModel.isLoading {
+                            ProgressView()
+                                .tint(CosmicTheme.background)
+                                .scaleEffect(0.72)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
 
-            DataSourceIndicator(provenance: summary.historyProvenance, size: .compact)
+                        Text(portfolioCorrelationViewModel.historyActivationTitle.uppercased())
+                            .font(TerminalFont.data(9, weight: .bold))
+                            .tracking(0.45)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                    }
+                    .foregroundColor(CosmicTheme.background)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity)
+                    .background(CosmicTheme.gold)
+                }
+                .buttonStyle(.plain)
+                .disabled(portfolioCorrelationViewModel.isLoading)
+                .accessibilityIdentifier("portfolio.loadProviderHistory")
+
+                Text(portfolioCorrelationViewModel.historyActivationDetail)
+                    .font(TerminalFont.data(8))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.75)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(10)
         .background(CosmicTheme.gold.opacity(0.06))
@@ -844,6 +887,71 @@ struct PortfolioView: View {
         case .unavailable:
             return CosmicTheme.negative
         }
+    }
+
+    private var portfolioHistoryStatusRows: some View {
+        let statuses = portfolioCorrelationViewModel.historySymbolStatuses
+
+        return VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("HISTORY STATUS")
+                    .font(TerminalFont.data(9, weight: .bold))
+                    .foregroundColor(CosmicTheme.textPrimary)
+                    .tracking(0.8)
+
+                Spacer()
+
+                Text("\(percentRate(portfolioCorrelationViewModel.providerBackedHistoryWeight)) usable")
+                    .font(TerminalFont.data(8, weight: .semibold))
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+
+            if statuses.isEmpty {
+                Text("Load provider-backed holding history to see symbol-level history status.")
+                    .font(TerminalFont.data(9))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                ForEach(statuses.prefix(5)) { status in
+                    portfolioHistoryStatusRow(status)
+                }
+
+                if statuses.count > 5 {
+                    Text("+ \(statuses.count - 5) more holdings")
+                        .font(TerminalFont.data(8))
+                        .foregroundColor(CosmicTheme.textMuted)
+                }
+            }
+        }
+    }
+
+    private func portfolioHistoryStatusRow(_ status: PortfolioHistorySymbolStatus) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            Text(status.symbol)
+                .font(TerminalFont.data(10, weight: .semibold))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .frame(width: 48, alignment: .leading)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(status.detail)
+                    .font(TerminalFont.data(8))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.75)
+
+                Text("\(percentRate(status.portfolioWeight)) portfolio weight")
+                    .font(TerminalFont.data(7))
+                    .foregroundColor(CosmicTheme.textMuted.opacity(0.8))
+            }
+
+            Spacer(minLength: 6)
+
+            DataSourceIndicator(provenance: status.provenance, size: .compact)
+        }
+        .padding(.vertical, 2)
     }
 
     private func portfolioExposureRows(
@@ -1805,6 +1913,15 @@ struct PortfolioView: View {
         }
 
         isFetchingPrices = false
+    }
+
+    private func refreshProviderHistory() async {
+        await portfolioCorrelationViewModel.reload(holdings: holdings)
+    }
+
+    private func percentRate(_ value: Double?) -> String {
+        guard let value, value.isFinite else { return "N/A" }
+        return String(format: "%.0f%%", value * 100)
     }
 }
 
