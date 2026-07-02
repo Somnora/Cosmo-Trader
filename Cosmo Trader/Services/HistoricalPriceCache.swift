@@ -230,6 +230,8 @@ nonisolated enum ProviderBackedChartFixtureSeeder {
             return ("D", calendar.date(byAdding: .day, value: -180, to: now) ?? now, now)
         case .year:
             return ("D", calendar.date(byAdding: .day, value: -365, to: now) ?? now, now)
+        case .twoYear:
+            return ("D", calendar.date(byAdding: .year, value: -2, to: now) ?? now, now)
         case .all:
             return ("W", calendar.date(byAdding: .year, value: -5, to: now) ?? now, now)
         }
@@ -284,6 +286,8 @@ nonisolated enum ProviderBackedChartFixtureSeeder {
             return 184
         case .year:
             return 252
+        case .twoYear:
+            return 256
         case .all:
             return 260
         }

@@ -716,16 +716,16 @@ final class TodayMarketHoroscopeComposer {
             )
         case .partialContext, .insufficientCoverage, .insufficientSample, .unavailable:
             return TodayActivationPrompt(
-                title: "Refresh portfolio history",
+                title: "Load holding history",
                 detail: "Portfolio context unlocks when provider-backed holding history clears coverage, completeness, freshness, and sample-size gates.",
                 actionItems: [
-                    "Add holding manually",
-                    "Import portfolio",
-                    "Add watchlist symbols"
+                    "Refresh provider-backed holding history",
+                    "Show symbols that still need data",
+                    "Never create sample candles"
                 ],
-                primaryActionTitle: "ADD HOLDING",
-                secondaryActionTitle: "IMPORT PORTFOLIO",
-                tertiaryActionTitle: "ADD WATCHLIST SYMBOLS"
+                primaryActionTitle: "REFRESH HOLDING HISTORY",
+                secondaryActionTitle: "ADD HOLDING",
+                tertiaryActionTitle: "IMPORT PORTFOLIO"
             )
         case .sampleOnly:
             return TodayActivationPrompt(
@@ -752,7 +752,7 @@ final class TodayMarketHoroscopeComposer {
             return nil
         case .partialDataset, .insufficientDataset, .insufficientSample, .unavailable:
             return TodayActivationPrompt(
-                title: hasCandidate ? "Refresh stock history" : "Add a stock to watch",
+                title: hasCandidate ? "Load stock history" : "Add a stock to watch",
                 detail: hasCandidate
                     ? "Stock context appears after provider-backed history clears completeness and sample-size gates."
                     : "Add watchlist symbols or holdings. Today will use provider-backed history before showing stock-level patterns.",
@@ -767,7 +767,7 @@ final class TodayMarketHoroscopeComposer {
                         "Open Discover/Search",
                         "Provider-backed stock history unlocks this lens"
                     ],
-                primaryActionTitle: hasCandidate ? "REFRESH TODAY CONTEXT" : "ADD WATCHLIST SYMBOLS",
+                primaryActionTitle: hasCandidate ? "REFRESH STOCK HISTORY" : "ADD WATCHLIST SYMBOLS",
                 secondaryActionTitle: hasCandidate ? "OPEN DISCOVER / SEARCH" : "OPEN DISCOVER / SEARCH"
             )
         case .sampleOnly:
