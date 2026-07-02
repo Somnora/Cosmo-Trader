@@ -53,12 +53,20 @@ final class HistoricalPriceService {
     private let nowProvider: () -> Date
     private let candleFetcher: CandleFetcher
 
+    /// Provider label stamped on every dataset this service produces.
+    /// Must always describe where `candleFetcher` actually gets its data,
+    /// so the two are only ever set together.
+    let providerName: String
+
     private init(
         historicalPriceCache: HistoricalPriceCache = .shared,
         cacheDuration: TimeInterval = 3600,
         nowProvider: @escaping () -> Date = Date.init,
+        providerName: String = FinancialDataProvenance.yahooProvider,
         candleFetcher: @escaping CandleFetcher = { symbol, resolution, from, to in
-            try await StockAPIService.shared.fetchCandles(
+            // Yahoo Finance serves historical candles (free, no API key);
+            // Finnhub's free tier blocks /stock/candle.
+            try await YahooFinanceService.shared.fetchCandles(
                 symbol: symbol,
                 resolution: resolution,
                 from: from,
@@ -69,6 +77,7 @@ final class HistoricalPriceService {
         self.historicalPriceCache = historicalPriceCache
         self.cacheDuration = cacheDuration
         self.nowProvider = nowProvider
+        self.providerName = providerName
         self.candleFetcher = candleFetcher
     }
 
@@ -76,12 +85,14 @@ final class HistoricalPriceService {
         historicalPriceCache: HistoricalPriceCache,
         cacheDuration: TimeInterval = 3600,
         nowProvider: @escaping () -> Date = Date.init,
+        providerName: String = FinancialDataProvenance.yahooProvider,
         candleFetcher: @escaping CandleFetcher
     ) -> HistoricalPriceService {
         HistoricalPriceService(
             historicalPriceCache: historicalPriceCache,
             cacheDuration: cacheDuration,
             nowProvider: nowProvider,
+            providerName: providerName,
             candleFetcher: candleFetcher
         )
     }
@@ -155,10 +166,10 @@ final class HistoricalPriceService {
             let dataset = HistoricalPriceDataset.providerBacked(
                 symbol: normalizedSymbol,
                 candles: data,
-                provider: FinancialDataProvenance.finnhubProvider,
+                provider: providerName,
                 fetchedAt: fetchedAt,
                 requestedRange: requestedRange,
-                provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: fetchedAt)
+                provenance: .live(provider: providerName, fetchedAt: fetchedAt)
             )
 
             memoryCache[key] = dataset

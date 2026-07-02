@@ -246,9 +246,19 @@ class VolumeService {
             return cached
         }
 
-        // Fetch from API
+        // Fetch from API (Yahoo serves candles; Finnhub's free tier blocks
+        // /stock/candle)
         do {
-            let candles = try await StockAPIService.shared.fetchRecentCandles(symbol: symbol)
+            let to = Date()
+            guard let from = Calendar.current.date(byAdding: .day, value: -30, to: to) else {
+                return volumeCache[symbol]
+            }
+            let candles = try await YahooFinanceService.shared.fetchCandles(
+                symbol: symbol,
+                resolution: "D",
+                from: from,
+                to: to
+            )
 
             guard candles.hasValidVolumeData,
                   let latestVolume = candles.latestVolume,
