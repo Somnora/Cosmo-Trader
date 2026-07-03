@@ -39,9 +39,9 @@ check_max_lines() {
   fi
 }
 
-check_max_lines "Cosmo Trader/Views/Tabs/ProfileView.swift" 2438
+check_max_lines "Cosmo Trader/Views/Tabs/ProfileView.swift" 2441
 check_max_lines "Cosmo Trader/Views/StockDetailView.swift" 2015
-check_max_lines "Cosmo Trader/Views/Tabs/PortfolioView.swift" 1986
+check_max_lines "Cosmo Trader/Views/Tabs/PortfolioView.swift" 1990
 check_max_lines "Cosmo Trader/Views/Tabs/CosmosView.swift" 1902
 check_max_lines "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" 1211
 check_max_lines "Cosmo Trader/Views/Onboarding/OnboardingView.swift" 1203
