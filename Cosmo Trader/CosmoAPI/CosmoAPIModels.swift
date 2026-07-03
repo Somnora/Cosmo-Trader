@@ -147,6 +147,8 @@ struct BackendUserProfile: Codable {
     let riskLevel: Int?
     let notificationsEnabled: Bool?
     let lastSeenAt: String?
+    let portfolio: [Stock]?
+    let watchlist: [String]?
 
     enum CodingKeys: String, CodingKey {
         case uid
@@ -156,6 +158,8 @@ struct BackendUserProfile: Codable {
         case riskLevel = "risk_level"
         case notificationsEnabled = "notifications_enabled"
         case lastSeenAt = "last_seen_at"
+        case portfolio
+        case watchlist
     }
 }
 
@@ -163,11 +167,29 @@ struct UpdateUserProfileRequest: Codable {
     let zodiacSign: String?
     let riskLevel: Int?
     let notificationsEnabled: Bool?
+    let portfolio: [Stock]?
+    let watchlist: [String]?
+
+    init(
+        zodiacSign: String? = nil,
+        riskLevel: Int? = nil,
+        notificationsEnabled: Bool? = nil,
+        portfolio: [Stock]? = nil,
+        watchlist: [String]? = nil
+    ) {
+        self.zodiacSign = zodiacSign
+        self.riskLevel = riskLevel
+        self.notificationsEnabled = notificationsEnabled
+        self.portfolio = portfolio
+        self.watchlist = watchlist
+    }
 
     enum CodingKeys: String, CodingKey {
         case zodiacSign = "zodiac_sign"
         case riskLevel = "risk_level"
         case notificationsEnabled = "notifications_enabled"
+        case portfolio
+        case watchlist
     }
 }
 

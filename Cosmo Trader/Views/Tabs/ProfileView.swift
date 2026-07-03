@@ -700,6 +700,9 @@ struct ProfileView: View {
 
                 // Lunar Alerts (quick toggles - synced with NotificationService)
                 lunarAlertsSection
+
+                // Cosmic Cloud Sync
+                CosmicCloudSyncSection()
             }
 
             // Appearance
