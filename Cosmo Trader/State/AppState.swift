@@ -603,6 +603,11 @@ class AppState {
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastSaveKey)
 
             lastSaveTimestamp = Date()
+
+            // Sync to cloud asynchronously
+            Task {
+                await syncProfileToCloud()
+            }
         } catch {
             #if DEBUG
             print("Failed to save user profile: \(error)")
@@ -826,6 +831,83 @@ class AppState {
         hasCompletedFirstRunDataSetup = false
 
         Log.debug("[AppState] All user data has been deleted")
+    }
+
+    // MARK: - Cloud Sync
+
+    /// Synchronize the local user profile (zodiac sign, portfolio, watchlist) with the backend
+    func syncProfileToCloud() async {
+        guard firebaseUID != nil, !isOfflineMode else { return }
+        guard FirebaseConfigurator.isConfigured else { return }
+        guard let user = currentUser else { return }
+
+        do {
+            let client = CosmoAPIClient()
+            let request = UpdateUserProfileRequest(
+                zodiacSign: user.sunSign.rawValue,
+                riskLevel: nil,
+                notificationsEnabled: nil,
+                portfolio: user.portfolio,
+                watchlist: user.watchlist
+            )
+            _ = try await client.updateMe(request: request)
+            #if DEBUG
+            print("[AppState] Successfully synced profile to cloud.")
+            #endif
+        } catch {
+            Log.error("[AppState] Failed to sync profile to cloud: \(error)")
+        }
+    }
+
+    /// Load the user's profile, portfolio, and watchlist from the cloud
+    func fetchProfileFromCloud() async {
+        guard firebaseUID != nil, !isOfflineMode else { return }
+        guard FirebaseConfigurator.isConfigured else { return }
+
+        do {
+            let client = CosmoAPIClient()
+            let backendProfile = try await client.fetchMe()
+
+            await MainActor.run {
+                guard var localUser = self.currentUser else {
+                    // Reconstruct UserProfile if local is nil (e.g. fresh login on new device)
+                    if let signStr = backendProfile.zodiacSign,
+                       let sign = ZodiacSign(rawValue: signStr) {
+                        let mockDate = self.date(for: sign)
+                        let newUser = UserProfile(
+                            displayName: "Cloud User",
+                            email: "cloud@cosmictrader.com",
+                            birthDate: mockDate,
+                            portfolio: backendProfile.portfolio ?? [],
+                            watchlist: backendProfile.watchlist ?? []
+                        )
+                        self.currentUser = newUser
+                        self.saveUserToStorage()
+                    }
+                    return
+                }
+
+                // If localUser exists, merge
+                if let cloudPortfolio = backendProfile.portfolio {
+                    localUser.portfolio = cloudPortfolio
+                }
+                if let cloudWatchlist = backendProfile.watchlist {
+                    localUser.watchlist = cloudWatchlist
+                }
+                self.currentUser = localUser
+                self.saveUserToStorage()
+            }
+        } catch {
+            Log.error("[AppState] Failed to fetch profile from cloud: \(error)")
+        }
+    }
+
+    private func date(for sign: ZodiacSign) -> Date {
+        var comps = DateComponents()
+        comps.year = 1990
+        comps.month = sign.startDate.month
+        comps.day = sign.startDate.day
+        return Calendar.current.date(from: comps) ?? Date()
     }
 }
 
