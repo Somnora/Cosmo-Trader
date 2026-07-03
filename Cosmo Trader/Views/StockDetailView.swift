@@ -86,14 +86,18 @@ struct StockDetailView: View {
     @State private var showAddedConfirmation: Bool = false
     @State private var confirmationMessage: String = ""
 
-    /// Live price data
-    @State private var liveStock: Stock
-    @State private var isLoadingPrice: Bool = false
-    @State private var lastPriceUpdate: Date?
-    @State private var priceError: NetworkError?
-    @State private var priceProvenance: FinancialDataProvenance = .sample(reason: "Stored local price until provider quote loads")
-    @State private var keyStats: StockKeyStats?
-    @State private var keyStatsProvenance: FinancialDataProvenance = .unavailable(reason: "Provider fundamentals unavailable")
+    /// Provider-backed data loading lives in the view model; the view only
+    /// renders its state (see AGENTS.md: "Views render, view models load").
+    @State private var viewModel: StockDetailViewModel
+
+    /// Live price data (rendered from the view model)
+    private var liveStock: Stock { viewModel.liveStock }
+    private var isLoadingPrice: Bool { viewModel.isLoadingPrice }
+    private var lastPriceUpdate: Date? { viewModel.lastPriceUpdate }
+    private var priceError: NetworkError? { viewModel.priceError }
+    private var priceProvenance: FinancialDataProvenance { viewModel.priceProvenance }
+    private var keyStats: StockKeyStats? { viewModel.keyStats }
+    private var keyStatsProvenance: FinancialDataProvenance { viewModel.keyStatsProvenance }
 
     /// Chart state
     @State private var selectedTimeframe: ChartTimeframe = {
@@ -117,14 +121,14 @@ struct StockDetailView: View {
     @State private var chartReloadToken = UUID()
     @State private var historyActivationViewModel = StockDetailHistoryActivationViewModel()
 
-    /// Provider-backed technical context state
-    @State private var technicalSummary: StockTechnicalSummary
-    @State private var astroTechnicalContext: StockAstroTechnicalContext
-    @State private var isLoadingTechnicalAnalysis: Bool = !AppState.isScreenshotMode
+    /// Provider-backed technical context state (rendered from the view model)
+    private var technicalSummary: StockTechnicalSummary { viewModel.technicalSummary }
+    private var astroTechnicalContext: StockAstroTechnicalContext { viewModel.astroTechnicalContext }
+    private var isLoadingTechnicalAnalysis: Bool { viewModel.isLoadingTechnicalAnalysis }
 
-    /// Cosmic pattern state
-    @State private var cosmicInsights: [CosmicPatternInsight] = []
-    @State private var isLoadingPatterns: Bool = !AppState.isScreenshotMode
+    /// Cosmic pattern state (rendered from the view model)
+    private var cosmicInsights: [CosmicPatternInsight] { viewModel.cosmicInsights }
+    private var isLoadingPatterns: Bool { viewModel.isLoadingPatterns }
 
     /// Per-stock framing override (premium feature)
     @State private var showFramingOverrideSheet: Bool = false
@@ -199,15 +203,7 @@ struct StockDetailView: View {
 
     init(stock: Stock) {
         self.stock = stock
-        self._liveStock = State(initialValue: stock)
-        self._technicalSummary = State(initialValue: StockTechnicalAnalysisService.shared.unavailableSummary(
-            symbol: stock.symbol,
-            reason: "Provider-backed historical candles not loaded"
-        ))
-        self._astroTechnicalContext = State(initialValue: StockAstroTechnicalContextService.shared.unavailableContext(
-            symbol: stock.symbol,
-            reason: "Provider-backed historical candles not loaded"
-        ))
+        self._viewModel = State(initialValue: StockDetailViewModel(stock: stock))
     }
 
     // MARK: - Body
@@ -305,21 +301,10 @@ struct StockDetailView: View {
                 }
             }
             .task {
-                if AppState.isScreenshotMode {
-                    isLoadingPrice = false
-                    isLoadingPatterns = false
-                } else {
-                    // Price and key stats are independent of each other;
-                    // technical and cosmic context read liveStock, so they
-                    // start once the quote has landed.
-                    async let priceTask: Void = fetchLivePrice()
-                    async let statsTask: Void = fetchKeyStats()
-                    _ = await (priceTask, statsTask)
-
-                    async let technicalTask: Void = loadTechnicalAnalysis()
-                    async let cosmicTask: Void = loadCosmicPatterns()
-                    _ = await (technicalTask, cosmicTask)
-                }
+                await viewModel.loadInitialContent(
+                    companySign: companyZodiacSign,
+                    userSign: user?.sunSign ?? .aries
+                )
 
                 if AppState.shouldFocusAstroOverlayScreenshot {
                     try? await Task.sleep(nanoseconds: 600_000_000)
@@ -331,101 +316,6 @@ struct StockDetailView: View {
             }
             .sheet(isPresented: $showFramingOverrideSheet) {
                 framingOverrideSheet
-            }
-        }
-    }
-
-    // MARK: - Live Price Fetch
-
-    private func fetchLivePrice() async {
-        isLoadingPrice = true
-        priceError = nil
-
-        let result = await StockAPIService.shared.getQuoteWithProvenance(symbol: stock.symbol)
-
-        await MainActor.run {
-            if let quote = result.quote {
-                liveStock = stock.withQuote(quote)
-                lastPriceUpdate = result.provenance.fetchedAt ?? Date()
-                priceProvenance = result.provenance
-            } else {
-                priceProvenance = .sample(reason: "Stored local price; provider quote unavailable")
-            }
-            if let error = result.error {
-                priceError = error
-            }
-            isLoadingPrice = false
-        }
-    }
-
-    private func fetchKeyStats() async {
-        let result = await StockAPIService.shared.fetchKeyStatsResult(symbol: stock.symbol)
-
-        await MainActor.run {
-            keyStats = result.value
-            keyStatsProvenance = result.provenance
-        }
-    }
-
-    private func loadTechnicalAnalysis() async {
-        isLoadingTechnicalAnalysis = true
-
-        do {
-            let result = try await HistoricalPriceService.shared.fetchHistoricalPriceResult(
-                symbol: liveStock.symbol,
-                timeframe: .year
-            )
-            let summary = StockTechnicalAnalysisService.shared.summary(for: result.dataset)
-            let filters = AstroOverlayFilterState()
-            let prices = result.dataset.ohlcData
-            let events: [AstroOverlayEvent]
-            if let firstDate = prices.first?.date,
-               let lastDate = prices.last?.date {
-                events = AstroOverlayEventService.shared.events(
-                    for: liveStock,
-                    from: firstDate,
-                    to: lastDate,
-                    filters: filters
-                )
-            } else {
-                events = []
-            }
-            let cosmicProvenance = result.dataset.correlationDisplayProvenance
-            let cosmicSummaries = AstroCorrelationService.shared.stockSummaries(
-                symbol: liveStock.symbol,
-                prices: prices,
-                events: events,
-                filterState: filters,
-                provenance: cosmicProvenance,
-                completeness: result.dataset.completeness
-            )
-            let combinedContext = StockAstroTechnicalContextService.shared.context(
-                symbol: liveStock.symbol,
-                technicalSummary: summary,
-                cosmicSummaries: cosmicSummaries,
-                cosmicProvenance: cosmicProvenance,
-                cosmicCompleteness: result.dataset.completeness
-            )
-
-            await MainActor.run {
-                technicalSummary = summary
-                astroTechnicalContext = combinedContext
-                isLoadingTechnicalAnalysis = false
-            }
-        } catch {
-            let summary = StockTechnicalAnalysisService.shared.unavailableSummary(
-                symbol: liveStock.symbol,
-                reason: "Provider-backed historical candles unavailable"
-            )
-            let combinedContext = StockAstroTechnicalContextService.shared.unavailableContext(
-                symbol: liveStock.symbol,
-                reason: "Provider-backed historical candles unavailable"
-            )
-
-            await MainActor.run {
-                technicalSummary = summary
-                astroTechnicalContext = combinedContext
-                isLoadingTechnicalAnalysis = false
             }
         }
     }
@@ -792,8 +682,11 @@ struct StockDetailView: View {
         guard didLoad else { return }
 
         chartReloadToken = UUID()
-        await loadTechnicalAnalysis()
-        await loadCosmicPatterns()
+        await viewModel.loadTechnicalAnalysis()
+        await viewModel.loadCosmicPatterns(
+            companySign: companyZodiacSign,
+            userSign: user?.sunSign ?? .aries
+        )
     }
 
     // MARK: - Key Stats Section
@@ -814,7 +707,7 @@ struct StockDetailView: View {
             isLoading: isLoadingTechnicalAnalysis,
             refreshAction: {
                 Task {
-                    await loadTechnicalAnalysis()
+                    await viewModel.loadTechnicalAnalysis()
                 }
             }
         )
@@ -858,29 +751,6 @@ struct StockDetailView: View {
         .background(cardBackground)
         .opacity(appearAnimation ? 1 : 0)
         .offset(y: appearAnimation ? 0 : 20)
-    }
-
-    private func loadCosmicPatterns() async {
-        guard companyZodiacSign != nil else {
-            await MainActor.run {
-                cosmicInsights = []
-                isLoadingPatterns = false
-            }
-            return
-        }
-
-        isLoadingPatterns = true
-
-        let interpreter = CosmicPatternInterpreter.shared
-        let insights = await interpreter.getProviderBackedInsights(
-            for: liveStock,
-            userSign: user?.sunSign ?? .aries
-        )
-
-        await MainActor.run {
-            cosmicInsights = insights
-            isLoadingPatterns = false
-        }
     }
 
     private var unknownCompanyAstroSection: some View {

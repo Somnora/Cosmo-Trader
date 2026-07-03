@@ -27,6 +27,9 @@ jobs:
       - name: Compliance copy guard
         run: bash Scripts/compliance_copy_guard.sh
 
+      - name: View size ratchet
+        run: bash Scripts/view_size_ratchet.sh
+
       - name: Focused compliance tests
         run: |
           xcodebuild test \
