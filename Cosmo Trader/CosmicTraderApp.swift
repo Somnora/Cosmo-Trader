@@ -63,35 +63,47 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         if let type = userInfo["type"] as? String {
             switch type {
             case "confluence":
-                // Navigate to stock detail
+                // Navigate to stock detail in portfolio
                 if let symbol = userInfo["symbol"] as? String {
                     NotificationCenter.default.post(
                         name: .openStockDetail,
                         object: nil,
                         userInfo: ["symbol": symbol]
                     )
+                } else {
+                    NotificationCenter.default.post(name: .openPortfolio, object: nil)
                 }
 
             case "ipo":
-                // Navigate to IPO list
+                // Navigate to discover tab (IPOs live here)
                 if let ticker = userInfo["ticker"] as? String {
                     NotificationCenter.default.post(
                         name: .openIPODetail,
                         object: nil,
                         userInfo: ["ticker": ticker]
                     )
+                } else {
+                    NotificationCenter.default.post(name: .openDiscover, object: nil)
                 }
 
-            case "portfolio_move":
-                // Navigate to portfolio
+            case "portfolio_move", "portfolio_milestone":
+                // Navigate to portfolio tab
                 NotificationCenter.default.post(name: .openPortfolio, object: nil)
 
-            case "signSeason":
+            case "daily_horoscope", "weekly_summary":
+                // Navigate to today tab (daily brief)
+                NotificationCenter.default.post(name: .openToday, object: nil)
+
+            case "moon_phase", "mercury_retrograde", "signSeason":
                 // Navigate to cosmos tab
                 NotificationCenter.default.post(name: .openCosmos, object: nil)
 
+            case "cosmic_roast":
+                // Navigate to profile tab (social features)
+                NotificationCenter.default.post(name: .openProfile, object: nil)
+
             default:
-                // Default: open cosmos tab for horoscope-related notifications
+                // Default: open cosmos tab for unrecognized types
                 NotificationCenter.default.post(name: .openCosmos, object: nil)
             }
         } else {
@@ -99,8 +111,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             NotificationCenter.default.post(name: .openCosmos, object: nil)
         }
 
-        // Track notification opened
-        AnalyticsService.shared.track(.notificationOpened)
+        // Track notification opened with type for analytics
+        let notifType = userInfo["type"] as? String ?? "unknown"
+        AnalyticsService.shared.track(.notificationOpened, params: AnalyticsParameters(["type": notifType]))
 
         completionHandler()
     }
@@ -111,8 +124,11 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 extension Notification.Name {
     static let openStockDetail = Notification.Name("openStockDetail")
     static let openIPODetail = Notification.Name("openIPODetail")
+    static let openToday = Notification.Name("openToday")
     static let openPortfolio = Notification.Name("openPortfolio")
+    static let openDiscover = Notification.Name("openDiscover")
     static let openCosmos = Notification.Name("openCosmos")
+    static let openProfile = Notification.Name("openProfile")
 }
 
 /// CosmicTraderApp
@@ -265,6 +281,7 @@ struct RootView: View {
             hasAttemptedAuthBootstrap = true
             guard FirebaseConfigurator.isConfigured else { return }
             await AuthManager.shared.ensureSignedIn(appState: appState)
+            await appState.fetchProfileFromCloud()
         }
         .onChange(of: scenePhase) { oldPhase, newPhase in
             switch newPhase {

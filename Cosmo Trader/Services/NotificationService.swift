@@ -261,6 +261,7 @@ final class NotificationService {
         content.body = randomHoroscopeMessage()
         content.sound = .default
         content.badge = 1
+        content.userInfo = ["type": "daily_horoscope"]
 
         // Extract hour and minute from preferred time
         let components = Calendar.current.dateComponents([.hour, .minute], from: dailyHoroscopeTime)
@@ -319,7 +320,8 @@ final class NotificationService {
                         body: "Full Moon overnight - a calendar marker, not a market call.",
                         date: dayBefore,
                         hour: 18,
-                        minute: 0
+                        minute: 0,
+                        userInfo: ["type": "moon_phase", "phase": "full"]
                     )
                 }
             }
@@ -332,7 +334,8 @@ final class NotificationService {
                     body: "New Moon today - a quiet marker in the lunar calendar.",
                     date: date,
                     hour: 8,
-                    minute: 0
+                    minute: 0,
+                    userInfo: ["type": "moon_phase", "phase": "new"]
                 )
             }
         }
@@ -388,6 +391,7 @@ final class NotificationService {
         content.title = "Your Weekly Portfolio Read"
         content.body = "Your portfolio summary is ready. Tap to review this week's market astrology reading."
         content.sound = .default
+        content.userInfo = ["type": "weekly_summary"]
 
         // Sunday at 6:00 PM
         var components = DateComponents()
@@ -419,6 +423,7 @@ final class NotificationService {
         content.title = "Time for Your Roast"
         content.body = "Ready for the cosmos to humble you? Your weekly roast awaits."
         content.sound = .default
+        content.userInfo = ["type": "cosmic_roast"]
 
         // Wednesday at 12:00 PM (midweek pick-me-up)
         var components = DateComponents()
@@ -720,11 +725,14 @@ final class NotificationService {
 
     // MARK: - Helper Methods
 
-    private func scheduleNotification(id: String, title: String, body: String, date: Date, hour: Int, minute: Int) async {
+    private func scheduleNotification(id: String, title: String, body: String, date: Date, hour: Int, minute: Int, userInfo: [String: Any]? = nil) async {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = .default
+        if let userInfo = userInfo {
+            content.userInfo = userInfo
+        }
 
         var components = Calendar.current.dateComponents([.year, .month, .day], from: date)
         components.hour = hour
