@@ -884,7 +884,7 @@ struct ProfileView: View {
                     .padding(.vertical, 12)
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier("profile.backendStatusLink")
+                .accessibilityIdentifier("profile.exportDataButton")
 
                 Divider()
                     .background(CosmicTheme.textMuted.opacity(0.3))
@@ -1091,6 +1091,7 @@ struct ProfileView: View {
                     .padding(.vertical, 12)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("profile.backendStatusLink")
 
                 Divider()
                     .background(CosmicTheme.textMuted.opacity(0.3))
