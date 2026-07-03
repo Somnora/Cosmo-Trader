@@ -7,52 +7,46 @@ import SwiftUI
 // "AAPL +1.2% | TSLA -0.4% | MOON IN SCORPIO | GOOGL +0.8% | VOC ENDS 2PM"
 //
 // WHY IT WORKS: Bloomberg meets mysticism. Constantly engaging. Premium feel.
+//
+// Animation model: no Timer instances. The tape scroll is a single
+// repeat-forever linear animation that runs on the render server (zero
+// per-frame SwiftUI updates); the rotating variants derive their current
+// item from a periodic TimelineView, which pauses automatically when the
+// view is off screen. Each visible ticker view owns the service refresh
+// lifecycle, so the 30s data refresh only runs while a ticker is on screen.
 
 // MARK: - Cosmic Ticker Tape (Main Component)
 
 struct CosmicTickerTape: View {
     @State private var service = CosmicTickerService.shared
-    @State private var offset: CGFloat = 0
     @State private var contentWidth: CGFloat = 0
+    @State private var isScrolling = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Speed of ticker scroll (points per second)
     private let scrollSpeed: CGFloat = 40
 
-    /// Timer for animation
-    @State private var animationTimer: Timer?
-
     var body: some View {
-        GeometryReader { geometry in
-            let viewWidth = geometry.size.width
+        HStack(spacing: 0) {
+            // First copy of ticker items
+            tickerContent
+                .background(
+                    GeometryReader { contentGeo in
+                        Color.clear
+                            .onAppear {
+                                contentWidth = contentGeo.size.width
+                            }
+                            .onChange(of: contentGeo.size.width) { _, newWidth in
+                                contentWidth = newWidth
+                            }
+                    }
+                )
 
-            HStack(spacing: 0) {
-                // First copy of ticker items
-                tickerContent
-                    .background(
-                        GeometryReader { contentGeo in
-                            Color.clear
-                                .onAppear {
-                                    contentWidth = contentGeo.size.width
-                                }
-                        }
-                    )
-
-                // Second copy for seamless looping
-                tickerContent
-            }
-            .offset(x: offset)
-            .onAppear {
-                startAnimation(viewWidth: viewWidth)
-            }
-            .onDisappear {
-                animationTimer?.invalidate()
-            }
-            .onChange(of: service.tickerItems) { _, _ in
-                // Reset animation when items change
-                offset = 0
-                startAnimation(viewWidth: viewWidth)
-            }
+            // Second copy for seamless looping
+            tickerContent
         }
+        .offset(x: isScrolling ? -contentWidth : 0)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .frame(height: 32)
         .background(CosmicTheme.background.opacity(0.95))
         .overlay(
@@ -76,6 +70,20 @@ struct CosmicTickerTape: View {
             }
         )
         .clipped()
+        .onAppear {
+            service.refreshTicker()
+            service.startRefreshTimer()
+            restartScrolling()
+        }
+        .onDisappear {
+            service.stopRefreshTimer()
+        }
+        .onChange(of: contentWidth) { _, _ in
+            restartScrolling()
+        }
+        .onChange(of: service.tickerItems) { _, _ in
+            restartScrolling()
+        }
     }
 
     private var tickerContent: some View {
@@ -100,67 +108,82 @@ struct CosmicTickerTape: View {
         .padding(.horizontal, 12)
     }
 
-    private func startAnimation(viewWidth: CGFloat) {
-        animationTimer?.invalidate()
+    /// Hand the scroll to the render server: snap back to the start without
+    /// animating, then attach one repeating linear animation. The two-step
+    /// dance runs across two main-actor turns so SwiftUI doesn't coalesce
+    /// the reset and the restart into a no-op.
+    private func restartScrolling() {
+        guard !reduceMotion, contentWidth > 0 else {
+            isScrolling = false
+            return
+        }
 
-        guard contentWidth > 0 else { return }
+        var reset = Transaction()
+        reset.disablesAnimations = true
+        withTransaction(reset) {
+            isScrolling = false
+        }
 
-        // Reset to start
-        offset = 0
-
-        // Create smooth animation timer
-        animationTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { _ in
-            Task { @MainActor in
-                offset -= scrollSpeed / 60.0
-
-                // Reset when first copy has scrolled off
-                if abs(offset) >= contentWidth {
-                    offset = 0
-                }
+        let duration = contentWidth / scrollSpeed
+        Task { @MainActor in
+            withAnimation(.linear(duration: duration).repeatForever(autoreverses: false)) {
+                isScrolling = true
             }
         }
     }
 }
 
-// MARK: - Compact Ticker (Single Line, No Animation)
+// MARK: - Rotation Index
+
+/// Index of the item to show at a given instant for a rotating ticker.
+/// Derived purely from the clock so rotating views need no timer state.
+private func tickerRotationIndex(at date: Date, every interval: TimeInterval, count: Int) -> Int {
+    guard count > 0 else { return 0 }
+    let ticks = Int(date.timeIntervalSinceReferenceDate / interval)
+    return ((ticks % count) + count) % count
+}
+
+// MARK: - Compact Ticker (Single Line, Rotating)
 
 struct CosmicTickerCompact: View {
     @State private var service = CosmicTickerService.shared
-    @State private var currentIndex: Int = 0
-    @State private var fadeIn: Bool = true
-
-    /// Auto-rotate timer
-    @State private var rotateTimer: Timer?
 
     var body: some View {
-        Group {
-            if let item = service.tickerItems[safe: currentIndex] {
-                HStack(spacing: 8) {
-                    // Ticker icon
-                    Image(systemName: "chart.line.uptrend.xyaxis")
-                        .font(.caption2)
-                        .foregroundColor(CosmicTheme.gold)
+        TimelineView(.periodic(from: .now, by: 4)) { context in
+            let items = service.tickerItems
+            let currentIndex = tickerRotationIndex(at: context.date, every: 4, count: items.count)
 
-                    Text(item.text)
-                        .font(TerminalFont.caption(11, weight: .medium))
-                        .foregroundColor(item.color)
-                        .lineLimit(1)
+            ZStack {
+                if let item = items[safe: currentIndex] {
+                    HStack(spacing: 8) {
+                        // Ticker icon
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.caption2)
+                            .foregroundColor(CosmicTheme.gold)
 
-                    Spacer()
+                        Text(item.text)
+                            .font(TerminalFont.caption(11, weight: .medium))
+                            .foregroundColor(item.color)
+                            .lineLimit(1)
 
-                    // Indicator dots
-                    HStack(spacing: 3) {
-                        ForEach(0..<min(5, service.tickerItems.count), id: \.self) { index in
-                            Circle()
-                                .fill(index == currentIndex % min(5, service.tickerItems.count)
-                                    ? CosmicTheme.gold
-                                    : CosmicTheme.textMuted.opacity(0.4))
-                                .frame(width: 4, height: 4)
+                        Spacer()
+
+                        // Indicator dots
+                        HStack(spacing: 3) {
+                            ForEach(0..<min(5, items.count), id: \.self) { index in
+                                Circle()
+                                    .fill(index == currentIndex % min(5, items.count)
+                                        ? CosmicTheme.gold
+                                        : CosmicTheme.textMuted.opacity(0.4))
+                                    .frame(width: 4, height: 4)
+                            }
                         }
                     }
+                    .id(currentIndex)
+                    .transition(.opacity)
                 }
-                .opacity(fadeIn ? 1 : 0)
             }
+            .animation(.easeInOut(duration: 0.3), value: currentIndex)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -169,33 +192,11 @@ struct CosmicTickerCompact: View {
                 .fill(CosmicTheme.cardBackground)
         )
         .onAppear {
-            startRotation()
+            service.refreshTicker()
+            service.startRefreshTimer()
         }
         .onDisappear {
-            rotateTimer?.invalidate()
-        }
-    }
-
-    private func startRotation() {
-        rotateTimer?.invalidate()
-
-        rotateTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { _ in
-            Task { @MainActor in
-                // Fade out
-                withAnimation(.easeOut(duration: 0.3)) {
-                    fadeIn = false
-                }
-
-                // Wait and change
-                try? await Task.sleep(nanoseconds: 300_000_000)
-
-                currentIndex = (currentIndex + 1) % max(1, service.tickerItems.count)
-
-                // Fade in
-                withAnimation(.easeIn(duration: 0.3)) {
-                    fadeIn = true
-                }
-            }
+            service.stopRefreshTimer()
         }
     }
 }
@@ -294,30 +295,29 @@ struct CosmicTickerCard: View {
 
 struct CosmicTickerStrip: View {
     @State private var service = CosmicTickerService.shared
-    @State private var currentIndex: Int = 0
 
     var body: some View {
-        Group {
-            if let item = service.tickerItems[safe: currentIndex] {
-                Text(item.text)
-                    .font(TerminalFont.caption(9, weight: .medium))
-                    .foregroundColor(item.color)
-                    .lineLimit(1)
-                    .contentTransition(.numericText())
-            }
-        }
-        .onAppear {
-            startRotation()
-        }
-    }
+        TimelineView(.periodic(from: .now, by: 3)) { context in
+            let items = service.tickerItems
+            let currentIndex = tickerRotationIndex(at: context.date, every: 3, count: items.count)
 
-    private func startRotation() {
-        Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { _ in
-            Task { @MainActor in
-                withAnimation(.easeInOut(duration: 0.5)) {
-                    currentIndex = (currentIndex + 1) % max(1, service.tickerItems.count)
+            Group {
+                if let item = items[safe: currentIndex] {
+                    Text(item.text)
+                        .font(TerminalFont.caption(9, weight: .medium))
+                        .foregroundColor(item.color)
+                        .lineLimit(1)
+                        .contentTransition(.numericText())
                 }
             }
+            .animation(.easeInOut(duration: 0.5), value: currentIndex)
+        }
+        .onAppear {
+            service.refreshTicker()
+            service.startRefreshTimer()
+        }
+        .onDisappear {
+            service.stopRefreshTimer()
         }
     }
 }

@@ -7,32 +7,28 @@ import SwiftUI
 struct VOCMoonWarningBanner: View {
     @State private var vocService = VoidOfCourseMoonService.shared
     @State private var showDetail = false
-    @State private var timeRemaining: TimeInterval = 0
-    @State private var timer: Timer?
+    @State private var isPulsing = false
 
     var onDismiss: (() -> Void)? = nil
 
     var body: some View {
-        let status = vocService.getCurrentStatus()
-
-        Group {
-            switch status {
-            case .inVOC(let period):
-                activeVOCBanner(period: period)
-            case .approaching(let period):
-                approachingVOCBanner(period: period)
-            case .clear, .unknown:
-                EmptyView()
+        // Re-evaluate once per second while visible so the countdown stays
+        // live and the banner switches when a VOC window starts or ends.
+        // TimelineView pauses off screen, unlike the Timer it replaces.
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            Group {
+                switch vocService.getCurrentStatus() {
+                case .inVOC(let period):
+                    activeVOCBanner(period: period)
+                case .approaching(let period):
+                    approachingVOCBanner(period: period)
+                case .clear, .unknown:
+                    EmptyView()
+                }
             }
         }
         .sheet(isPresented: $showDetail) {
             VOCMoonDetailSheet()
-        }
-        .onAppear {
-            startTimer()
-        }
-        .onDisappear {
-            stopTimer()
         }
     }
 
@@ -53,8 +49,8 @@ struct VOCMoonWarningBanner: View {
                     Circle()
                         .fill(Color.orange.opacity(0.1))
                         .frame(width: 56, height: 56)
-                        .scaleEffect(timeRemaining.truncatingRemainder(dividingBy: 2) < 1 ? 1.1 : 1.0)
-                        .animation(.easeInOut(duration: 1).repeatForever(autoreverses: true), value: timeRemaining)
+                        .scaleEffect(isPulsing ? 1.1 : 1.0)
+                        .animation(.easeInOut(duration: 1).repeatForever(autoreverses: true), value: isPulsing)
 
                     Image(systemName: "moon.haze.fill")
                         .font(.title2)
@@ -113,6 +109,8 @@ struct VOCMoonWarningBanner: View {
             )
         }
         .buttonStyle(.plain)
+        .onAppear { isPulsing = true }
+        .onDisappear { isPulsing = false }
     }
 
     // MARK: - Approaching VOC Banner
@@ -163,24 +161,6 @@ struct VOCMoonWarningBanner: View {
             )
         }
         .buttonStyle(.plain)
-    }
-
-    // MARK: - Timer
-
-    private func startTimer() {
-        let service = vocService
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [self] _ in
-            Task { @MainActor in
-                if let remaining = service.getTimeRemainingInVOC() {
-                    timeRemaining = remaining
-                }
-            }
-        }
-    }
-
-    private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
     }
 }
 

@@ -269,12 +269,12 @@ struct RootView: View {
         .onChange(of: scenePhase) { oldPhase, newPhase in
             switch newPhase {
             case .active:
-                // Start service timers
-                CosmicTickerService.shared.startRefreshTimer()
+                // Mercury status is consumed app-wide; the ticker refresh is
+                // owned by the ticker views themselves (start on appear,
+                // stop on disappear), so it no longer runs unconditionally.
                 MercuryRetrogradeService.shared.startRefreshTimer()
             case .background, .inactive:
                 // Stop service timers to save battery
-                CosmicTickerService.shared.stopRefreshTimer()
                 MercuryRetrogradeService.shared.stopRefreshTimer()
             @unknown default:
                 break

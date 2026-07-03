@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 
 /// MarketStatusIndicator
 /// --------------------
@@ -61,29 +60,24 @@ struct MarketStatusIndicator: View {
     /// Size preset
     var size: MarketIndicatorSize = .medium
 
-    /// Timer to update every minute
-    @State private var now = Date()
-    private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
-
     /// Pulsing animation for open status
     @State private var isPulsing = false
 
-    private var effectiveDate: Date {
-        currentDate ?? now
-    }
-
-    private var status: MarketStatus {
-        MarketTimeHelper.status(for: effectiveDate)
-    }
-
-    private var easternTime: String {
-        MarketTimeHelper.easternTimeString(for: effectiveDate)
-    }
-
     var body: some View {
-        HStack(spacing: size.spacing) {
+        // Re-evaluates once per wall-clock minute while visible and pauses
+        // off screen; the per-instance Timer publisher it replaces fired for
+        // as long as the view existed anywhere in the hierarchy.
+        TimelineView(.everyMinute) { context in
+            content(for: currentDate ?? context.date)
+        }
+    }
+
+    private func content(for date: Date) -> some View {
+        let status = MarketTimeHelper.status(for: date)
+
+        return HStack(spacing: size.spacing) {
             // Status dot
-            statusDot
+            statusDot(status: status)
 
             // Status text
             VStack(alignment: .leading, spacing: 2) {
@@ -92,23 +86,18 @@ struct MarketStatusIndicator: View {
                     .foregroundColor(status.color)
 
                 if showDetails {
-                    Text(easternTime + " ET")
+                    Text(MarketTimeHelper.easternTimeString(for: date) + " ET")
                         .font(TerminalFont.data(size.timeSize))
                         .foregroundColor(CosmicTheme.textMuted)
                 }
             }
 
-            if showDetails, let countdown = countdownText {
+            if showDetails, let countdown = countdownText(for: date, status: status) {
                 Spacer()
 
                 Text(countdown)
                     .font(TerminalFont.data(size.timeSize))
                     .foregroundColor(CosmicTheme.textSecondary)
-            }
-        }
-        .onReceive(timer) { _ in
-            if currentDate == nil {
-                now = Date()
             }
         }
         .onAppear {
@@ -131,7 +120,7 @@ struct MarketStatusIndicator: View {
 
     // MARK: - Status Dot
 
-    private var statusDot: some View {
+    private func statusDot(status: MarketStatus) -> some View {
         ZStack {
             // Outer glow for open status
             if status == .open {
@@ -162,16 +151,16 @@ struct MarketStatusIndicator: View {
 
     // MARK: - Countdown
 
-    private var countdownText: String? {
+    private func countdownText(for date: Date, status: MarketStatus) -> String? {
         switch status {
         case .open:
-            if let closeTime = MarketTimeHelper.nextClose(from: effectiveDate) {
-                let remaining = closeTime.timeIntervalSince(effectiveDate)
+            if let closeTime = MarketTimeHelper.nextClose(from: date) {
+                let remaining = closeTime.timeIntervalSince(date)
                 return "Closes in \(formatDuration(remaining))"
             }
         case .closed, .preMarket, .afterHours:
-            if let openTime = MarketTimeHelper.nextOpen(from: effectiveDate) {
-                let remaining = openTime.timeIntervalSince(effectiveDate)
+            if let openTime = MarketTimeHelper.nextOpen(from: date) {
+                let remaining = openTime.timeIntervalSince(date)
                 return "Opens in \(formatDuration(remaining))"
             }
         }
@@ -236,37 +225,26 @@ enum MarketIndicatorSize {
 struct MarketStatusBadge: View {
 
     var currentDate: Date?
-    @State private var now = Date()
-    private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
-
-    private var effectiveDate: Date {
-        currentDate ?? now
-    }
-
-    private var status: MarketStatus {
-        MarketTimeHelper.status(for: effectiveDate)
-    }
 
     var body: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(status.color)
-                .frame(width: 6, height: 6)
+        TimelineView(.everyMinute) { context in
+            let status = MarketTimeHelper.status(for: currentDate ?? context.date)
 
-            Text(status.displayName)
-                .font(TerminalFont.data(9, weight: .semibold))
-                .foregroundColor(status.color)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            Capsule()
-                .fill(status.color.opacity(0.15))
-        )
-        .onReceive(timer) { _ in
-            if currentDate == nil {
-                now = Date()
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(status.color)
+                    .frame(width: 6, height: 6)
+
+                Text(status.displayName)
+                    .font(TerminalFont.data(9, weight: .semibold))
+                    .foregroundColor(status.color)
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(status.color.opacity(0.15))
+            )
         }
     }
 }
@@ -389,19 +367,17 @@ struct MarketTimeHelper {
 struct MarketStatusPanel: View {
 
     var currentDate: Date?
-    @State private var now = Date()
-    private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
-
-    private var effectiveDate: Date {
-        currentDate ?? now
-    }
-
-    private var status: MarketStatus {
-        MarketTimeHelper.status(for: effectiveDate)
-    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        TimelineView(.everyMinute) { context in
+            content(for: currentDate ?? context.date)
+        }
+    }
+
+    private func content(for date: Date) -> some View {
+        let status = MarketTimeHelper.status(for: date)
+
+        return VStack(alignment: .leading, spacing: 12) {
             // Header
             HStack {
                 Text("MARKET STATUS")
@@ -410,7 +386,7 @@ struct MarketStatusPanel: View {
 
                 Spacer()
 
-                Text(MarketTimeHelper.easternTimeString(for: effectiveDate) + " ET")
+                Text(MarketTimeHelper.easternTimeString(for: date) + " ET")
                     .font(TerminalFont.data(12))
                     .foregroundColor(CosmicTheme.textMuted)
             }
@@ -462,11 +438,6 @@ struct MarketStatusPanel: View {
             Rectangle()
                 .stroke(CosmicTheme.border, lineWidth: 0.5)
         )
-        .onReceive(timer) { _ in
-            if currentDate == nil {
-                now = Date()
-            }
-        }
     }
 
     private func sessionBlock(label: String, time: String, isActive: Bool) -> some View {
