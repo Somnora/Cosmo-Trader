@@ -86,6 +86,8 @@ struct ContentView: View {
                 AnalyticsService.shared.refreshUserProperties(from: appState)
                 // Start ambient audio if enabled
                 audioService.startAmbientLoop()
+                // Sync widget data on app launch
+                WidgetBridge.shared.syncAllWidgetData()
             }
             // MARK: - Notification Deep-Link Listeners
             .onReceive(NotificationCenter.default.publisher(for: .openToday)) { _ in
