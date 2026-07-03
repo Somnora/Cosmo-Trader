@@ -2,8 +2,9 @@
 //  WidgetDataManager.swift
 //  Cosmo Trader
 //
-//  Future-scope widget data sharing for a deferred widget extension.
-//  This file is intentionally excluded from v1 app target membership.
+//  DEPRECATED: This file is excluded from the app target build phase.
+//  Widget data syncing is now handled by Services/WidgetBridge.swift,
+//  which imports WidgetKit and calls WidgetCenter.shared.reloadAllTimelines().
 //
 
 import Foundation

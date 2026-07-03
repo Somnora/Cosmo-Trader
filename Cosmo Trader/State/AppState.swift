@@ -604,6 +604,9 @@ class AppState {
 
             lastSaveTimestamp = Date()
 
+            // Notify widgets of portfolio changes
+            WidgetBridge.shared.syncAllWidgetData()
+
             // Sync to cloud asynchronously
             Task {
                 await syncProfileToCloud()

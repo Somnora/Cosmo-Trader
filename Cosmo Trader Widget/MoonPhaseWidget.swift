@@ -81,7 +81,7 @@ struct MoonPhaseTimelineProvider: TimelineProvider {
         return WidgetLunarData(
             date: date,
             phaseName: phase.name,
-            phaseEmoji: phase.sfSymbol,
+            phaseEmoji: phase.emoji,
             illumination: illumination,
             isWaxing: age < 14.76,
             daysUntilFullMoon: calculateDaysUntilFull(age: age),
