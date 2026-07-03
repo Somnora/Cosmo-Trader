@@ -632,6 +632,31 @@ struct OracleTierBenefits {
             feature: .unlimitedRoasts,
             title: "Unlimited Roasts",
             description: "Generate a Cosmic Roast as often as you want"
+        ),
+        OracleBenefit(
+            feature: .realTimeData,
+            title: "Live Quotes",
+            description: "Real-time provider quotes instead of end-of-day prices"
+        ),
+        OracleBenefit(
+            feature: .moonNotifications,
+            title: "Moon Phase Notifications",
+            description: "Local alerts when the moon enters a new phase"
+        ),
+        OracleBenefit(
+            feature: .ipoAlerts,
+            title: "IPO Compatibility Alerts",
+            description: "A heads-up when an upcoming IPO matches your sign"
+        ),
+        OracleBenefit(
+            feature: .fearGreedIndex,
+            title: "Cosmic Mood Index",
+            description: "Market-backed cosmic mood readings, updated daily"
+        ),
+        OracleBenefit(
+            feature: .adFree,
+            title: "Clean Experience",
+            description: "A distraction-free terminal, nothing in the way"
         )
     ]
 }

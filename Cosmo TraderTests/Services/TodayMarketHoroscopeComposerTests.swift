@@ -548,7 +548,10 @@ struct TodayMarketHoroscopeComposerTests {
         #expect(summary.stockContext?.metrics.isEmpty == true)
         #expect(summary.stockContext?.detail.contains("watchlist") == true)
         #expect(summary.stockContext?.detail.contains("Provider-backed history is required") == true)
-        #expect(summary.stockContext?.activation?.primaryActionTitle == "REFRESH TODAY CONTEXT")
+        // The stock-context activation loads provider history for the
+        // watchlist symbol, so the action title names that directly (this
+        // copy superseded the older "REFRESH TODAY CONTEXT" wording).
+        #expect(summary.stockContext?.activation?.primaryActionTitle == "REFRESH STOCK HISTORY")
         #expect(summary.stockContext?.activation?.secondaryActionTitle == "OPEN DISCOVER / SEARCH")
     }
 

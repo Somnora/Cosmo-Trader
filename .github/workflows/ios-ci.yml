@@ -30,7 +30,7 @@ jobs:
       - name: View size ratchet
         run: bash Scripts/view_size_ratchet.sh
 
-      - name: Focused compliance tests
+      - name: Unit tests (full bundle)
         run: |
           xcodebuild test \
             -project "Cosmo Trader.xcodeproj" \
@@ -38,7 +38,7 @@ jobs:
             -destination "platform=iOS Simulator,name=iPhone 17 Pro" \
             -parallel-testing-enabled NO \
             -maximum-concurrent-test-simulator-destinations 1 \
-            -only-testing:"Cosmo TraderTests/ComplianceCopyGuardTests"
+            -only-testing:"Cosmo TraderTests"
 
       - name: Clean Debug build
         run: |
