@@ -1292,7 +1292,11 @@ struct PortfolioView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 12)
-            .padding(.bottom, 16)
+
+            // Share / export the alignment card (component owns the logic)
+            PortfolioAlignmentShareButtons(user: safeUser, result: portfolioCompatibility)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 16)
         }
     }
 

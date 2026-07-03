@@ -1729,6 +1729,9 @@ struct ProfileView: View {
             // THE COSMIC ROAST - Viral share feature
             CosmicRoastCard(user: safeUser)
 
+            // COSMIC REPORT CARD - Shareable report card view
+            ShareReportCardButton(user: safeUser)
+
             // Karmic Ledger - Track losses as cosmic lessons
             KarmicLedgerCard()
 
