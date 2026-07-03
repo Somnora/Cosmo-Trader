@@ -87,6 +87,30 @@ struct ContentView: View {
                 // Start ambient audio if enabled
                 audioService.startAmbientLoop()
             }
+            // MARK: - Notification Deep-Link Listeners
+            .onReceive(NotificationCenter.default.publisher(for: .openToday)) { _ in
+                appState.selectedTab = .today
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openPortfolio)) { _ in
+                appState.selectedTab = .portfolio
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openDiscover)) { _ in
+                appState.selectedTab = .discover
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openCosmos)) { _ in
+                appState.selectedTab = .cosmos
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openProfile)) { _ in
+                appState.selectedTab = .profile
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openStockDetail)) { _ in
+                // Portfolio hosts the stock detail flow for tapped symbols
+                appState.selectedTab = .portfolio
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openIPODetail)) { _ in
+                // Discover hosts the IPO surfaces
+                appState.selectedTab = .discover
+            }
             .onChange(of: appState.selectedTab) { oldTab, newTab in
                 // Track tab switches
                 AnalyticsService.shared.trackTabSwitch(newTab.analyticsName)
