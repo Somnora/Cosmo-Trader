@@ -74,6 +74,7 @@ struct BackendStatusView: View {
 
                 ForEach(results) { result in
                     BackendCheckCard(result: result)
+                        .accessibilityIdentifier("backendStatus.result.\(result.name.replacingOccurrences(of: " ", with: ""))")
                 }
             }
             .padding(.horizontal, 16)

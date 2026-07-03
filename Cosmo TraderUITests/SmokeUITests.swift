@@ -74,8 +74,13 @@ final class SmokeUITests: XCTestCase {
         scrollToElement(backendStatusLink, maxSwipes: 8)
         tapWhenReady(backendStatusLink)
 
-        XCTAssertTrue(app.otherElements["backendStatus.screen"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.otherElements["backendStatus.result.UITestingFallback"].waitForExistence(timeout: 5))
+        // Match by identifier regardless of element type: the screen id sits
+        // on a ScrollView since the backend-status rework, and the result id
+        // lives on the check card.
+        let screen = app.descendants(matching: .any)["backendStatus.screen"]
+        XCTAssertTrue(screen.waitForExistence(timeout: 10))
+        let fallbackResult = app.descendants(matching: .any)["backendStatus.result.UITestingFallback"]
+        XCTAssertTrue(fallbackResult.waitForExistence(timeout: 10))
     }
 
     private func launchApp(arguments: [String]) {
