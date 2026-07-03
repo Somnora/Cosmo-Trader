@@ -266,6 +266,10 @@ struct CosmosView: View {
             if let user = appState.currentUser {
                 AnalyticsService.shared.trackHoroscopeViewed(sunSign: user.sunSign.displayName)
             }
+
+            // App review gating
+            AppReviewManager.shared.recordAppOpened()
+            AppReviewManager.shared.recordReadingGenerated()
         }
     }
 
@@ -998,6 +1002,10 @@ struct CosmosView: View {
             if let user = appState.currentUser {
                 AnalyticsService.shared.trackHoroscopeRefreshed(sunSign: user.sunSign.displayName)
             }
+
+            // Record reading and check if we should prompt for review
+            AppReviewManager.shared.recordReadingGenerated()
+            AppReviewManager.shared.requestReviewIfAppropriate()
         }) {
             HStack(spacing: 10) {
                 Image(systemName: "arrow.triangle.2.circlepath")
