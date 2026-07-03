@@ -244,7 +244,7 @@ struct CosmicReportCard: View {
                         .fill(Color.white)
                         .frame(width: 60, height: 60)
 
-                    QRCodeView(url: "https://somnora.app/cosmo-trader")
+                    QRCodeView(url: "https://somnora.app/")
                         .frame(width: 52, height: 52)
                 }
 
