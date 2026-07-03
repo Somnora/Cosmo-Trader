@@ -168,6 +168,13 @@ struct CosmosView: View {
                             // 3a. Mercury Retrograde Countdown (always visible)
                             MercuryRetrogradeBanner()
 
+                            // Watchlist Correlation Alerts
+                            WatchlistCorrelationAlertsView(
+                                watchlist: appState.currentUser?.watchlist ?? [],
+                                events: astroService.allEvents,
+                                earnings: EarningsService.shared.allEarningsEvents
+                            )
+
                             // 3b. Weekly Zodiac Performance Section
                             weeklyZodiacPerformanceSection
 
