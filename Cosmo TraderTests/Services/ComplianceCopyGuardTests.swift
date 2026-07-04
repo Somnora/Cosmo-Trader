@@ -138,6 +138,58 @@ struct ComplianceCopyGuardTests {
             #expect(violations.isEmpty)
         }
     }
+
+    @Test("Cosmic scorecard copy snippets stay compliance safe")
+    func cosmicScorecardCopySnippetsAreComplianceSafe() {
+        // Every user-facing string on the prediction-ledger surfaces
+        // (TodayPredictionCard, CosmicScorecardView) plus the dynamic
+        // templates they render. Scored-entertainment framing only: the
+        // cosmos "leans", calls are "scored", and nothing instructs.
+        let safeExamples = [
+            "COSMIC SCORECARD",
+            "TODAY'S COSMIC CALL",
+            "COSMOS VS. THE CLOSE",
+            "LEANS BULLISH",
+            "LEANS BEARISH",
+            "READS NEUTRAL",
+            "HIT",
+            "MISS",
+            "PUSH",
+            "UNSCORED",
+            "MKT CLOSED",
+            "MARKET (SPY)",
+            "PORTFOLIO",
+            "COSMOS 7/12",
+            "COIN FLIP BASELINE: 50%",
+            "SCORED",
+            "HITS",
+            "PUSHES",
+            "STREAK",
+            "BY COSMIC DRIVER",
+            "CALL HISTORY",
+            "FULL SCORECARD",
+            "LAST SCORED CLOSE · JUL 6",
+            "AFTER CLOSE — NOT SCORED",
+            "PENDING",
+            "The cosmos abstained today. No market-backed cosmic pattern was active at reading time.",
+            "Abstained — no market-backed cosmic pattern was active.",
+            "Your first cosmic call records with today's reading. Scores land after the market close.",
+            "Recorded after the close — kept for the record, never scored.",
+            "No calls recorded yet. The ledger starts with your next Today reading.",
+            "Early days — 8 scored calls is too small a sample to mean anything. That is the first lesson of the scorecard.",
+            "Full Moon · 62% of past windows up · edge +0.40%",
+            "Scored record of past cosmic calls against index closes. Entertainment context only — not predictive and not financial advice.",
+            "Scored record of past cosmic calls against index closes. Correlation does not imply causation. Entertainment context only — not predictive and not financial advice."
+        ]
+
+        for example in safeExamples {
+            let violations = ComplianceCopyScanner.violations(in: example)
+            if !violations.isEmpty {
+                Issue.record("Scorecard copy violation for '\(example)': \(violations.map { $0.label }.joined(separator: ", "))")
+            }
+            #expect(violations.isEmpty)
+        }
+    }
 }
 
 private enum ComplianceCopyScanner {

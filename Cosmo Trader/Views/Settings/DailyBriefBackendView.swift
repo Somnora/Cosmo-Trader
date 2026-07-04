@@ -16,6 +16,7 @@ struct DailyBriefBackendView: View {
     @State private var diagnosticsURL: String?
     @State private var diagnosticsStatusCode: Int?
     @State private var todayViewModel = TodayMarketHoroscopeViewModel()
+    @State private var predictionLedgerViewModel = PredictionLedgerViewModel()
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -46,6 +47,10 @@ struct DailyBriefBackendView: View {
                         }
                     }
                 )
+
+                if !AppState.isScreenshotMode {
+                    TodayPredictionCard(viewModel: predictionLedgerViewModel)
+                }
 
                 if shouldShowBriefStatus {
                     statusCard
@@ -96,6 +101,11 @@ struct DailyBriefBackendView: View {
             firstRunSetupSkipped: appState.hasSkippedFirstRunDataSetup
         )
         appState.updateFirstRunDataSetupCompletion(todayViewModel.summary?.firstRunSetup.isComplete == true)
+        // After the Today load: today's call is recorded, so the scorecard
+        // card can read it and resolve earlier days.
+        if !AppState.isScreenshotMode {
+            await predictionLedgerViewModel.load()
+        }
     }
 
     private func reloadTodayContext() async {
@@ -104,6 +114,9 @@ struct DailyBriefBackendView: View {
             firstRunSetupSkipped: appState.hasSkippedFirstRunDataSetup
         )
         appState.updateFirstRunDataSetupCompletion(todayViewModel.summary?.firstRunSetup.isComplete == true)
+        if !AppState.isScreenshotMode {
+            await predictionLedgerViewModel.load()
+        }
     }
 
     private var statusCard: some View {
