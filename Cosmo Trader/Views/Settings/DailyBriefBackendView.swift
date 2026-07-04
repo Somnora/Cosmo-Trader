@@ -17,8 +17,25 @@ struct DailyBriefBackendView: View {
     @State private var diagnosticsStatusCode: Int?
     @State private var todayViewModel = TodayMarketHoroscopeViewModel()
     @State private var predictionLedgerViewModel = PredictionLedgerViewModel()
+    @State private var tickerQuotesViewModel = CosmicTickerQuotesViewModel()
 
     var body: some View {
+        VStack(spacing: 0) {
+            // Bloomberg-style cosmic tape, pinned above the scroll like a
+            // terminal status strip. Stock items appear only when
+            // CosmicTickerQuotesViewModel supplies provider-backed quotes;
+            // otherwise the tape runs cosmic-only content.
+            CosmicTickerTape()
+                .accessibilityIdentifier("today.cosmicTicker")
+
+            Divider()
+                .background(CosmicTheme.borderDim)
+
+            scrollContent
+        }
+    }
+
+    private var scrollContent: some View {
         ScrollView(showsIndicators: false) {
             LazyVStack(spacing: AppLayout.sectionSpacing) {
                 TodayMarketHoroscopeView(
@@ -105,6 +122,7 @@ struct DailyBriefBackendView: View {
         // card can read it and resolve earlier days.
         if !AppState.isScreenshotMode {
             await predictionLedgerViewModel.load()
+            await tickerQuotesViewModel.load(user: appState.currentUser)
         }
     }
 
@@ -116,6 +134,7 @@ struct DailyBriefBackendView: View {
         appState.updateFirstRunDataSetupCompletion(todayViewModel.summary?.firstRunSetup.isComplete == true)
         if !AppState.isScreenshotMode {
             await predictionLedgerViewModel.load()
+            await tickerQuotesViewModel.load(user: appState.currentUser)
         }
     }
 
