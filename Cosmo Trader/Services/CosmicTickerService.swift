@@ -30,6 +30,12 @@ final class CosmicTickerService {
     /// Current ticker items
     private(set) var tickerItems: [TickerItem] = []
 
+    /// Stocks supplied by a caller that fetched provider-backed quotes.
+    /// The ticker never invents stock data (see production_mock_guard);
+    /// this is the only path by which price items appear, and the 30s
+    /// cosmic refresh preserves it.
+    private var providerBackedStocks: [Stock] = []
+
     /// Refresh timer
     @ObservationIgnored
     private var refreshTimer: Timer?
@@ -58,7 +64,16 @@ final class CosmicTickerService {
 
     /// Refresh ticker with current data
     func refreshTicker() {
-        tickerItems = generateTickerItems()
+        tickerItems = generateTickerItems(for: providerBackedStocks.isEmpty ? nil : providerBackedStocks)
+    }
+
+    /// Supply stocks whose quote fields were just refreshed from a
+    /// provider-backed source. Pass an empty array to drop stock items
+    /// (e.g. quotes became unavailable) — the tape falls back to
+    /// cosmic-only content with its data-unavailable quips.
+    func updateProviderBackedStocks(_ stocks: [Stock]) {
+        providerBackedStocks = stocks
+        refreshTicker()
     }
 
     /// Generate ticker items for specific stocks
@@ -69,6 +84,15 @@ final class CosmicTickerService {
         // or explicitly labeled data. Falling back to MockStockData here made
         // sample price movement look live in production.
         let stocksToShow = stocks ?? []
+
+        // Cosmic-only tape: no provider-backed quotes were supplied, so run
+        // the full cosmic set and always disclose that market data is
+        // absent. The disclosure is deterministic, never a random quip.
+        if stocksToShow.isEmpty {
+            var items = generateCosmicMessages()
+            items.append(TickerItem(type: .cosmic(.quip), text: "MARKET DATA UNAVAILABLE", color: .cyan))
+            return items
+        }
 
         // Build ticker with interspersed cosmic items
         var cosmicItemsAdded = 0
@@ -255,12 +279,11 @@ final class CosmicTickerService {
             break
         }
 
-        // General cosmic wisdom
-        quips.append(contentsOf: [
-            TickerItem(type: .cosmic(.quip), text: "COSMIC CONTEXT ONLY", color: CosmicTheme.gold),
-            TickerItem(type: .cosmic(.quip), text: "WAIT FOR REAL DATA", color: CosmicTheme.accentBlue),
-            TickerItem(type: .cosmic(.quip), text: "MARKET DATA UNAVAILABLE", color: .cyan),
-        ])
+        // General cosmic wisdom. Data-availability quips deliberately do not
+        // live in this random pool: the cosmic-only branch of
+        // generateTickerItems discloses unavailability deterministically, and
+        // an unavailability quip must never scroll next to live quotes.
+        quips.append(TickerItem(type: .cosmic(.quip), text: "COSMIC CONTEXT ONLY", color: CosmicTheme.gold))
 
         return quips
     }

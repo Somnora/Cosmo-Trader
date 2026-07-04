@@ -230,6 +230,13 @@ require_absent "Cosmo Trader/Services/CosmicTickerService.swift" "FULL MOON: VOL
 require_absent "Cosmo Trader/Services/CosmicTickerService.swift" "WANING MOON: DE-RISKING WINDOW"
 require_absent "Cosmo Trader/Services/CosmicTickerService.swift" "SIGNAL CONFIRMED"
 require_present "Cosmo Trader/Services/CosmicTickerService.swift" "MARKET DATA UNAVAILABLE"
+# Ticker on Today: stock items only from provider-backed quotes; the
+# data-unavailable quips must vanish when live quotes are on the tape.
+require_present "Cosmo Trader/Services/CosmicTickerService.swift" "if stocksToShow.isEmpty {"
+require_present "Cosmo Trader/ViewModels/CosmicTickerQuotesViewModel.swift" "guard result.provenance.isProviderBacked, let quote = result.quote else {"
+require_present "Cosmo Trader/Views/Settings/DailyBriefBackendView.swift" "CosmicTickerTape()"
+require_present "Cosmo TraderTests/Services/CosmicTickerQuotesTests.swift" "Only provider-backed quotes reach the tape"
+require_present "Cosmo TraderTests/Services/CosmicTickerQuotesTests.swift" "unavailable quips vanish"
 
 require_absent "Cosmo Trader/Views/Components/VolumeLeadersView.swift" "from: MockStockData.knownStocks"
 require_present "Cosmo Trader/Views/Components/VolumeLeadersView.swift" "Volume leaders unavailable"
