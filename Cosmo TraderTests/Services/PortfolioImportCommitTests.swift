@@ -2,6 +2,11 @@ import Foundation
 import Testing
 @testable import Cosmo_Trader
 
+// Serialized: these tests share the real UserDefaults profile key through
+// AppState persistence, and `relaunchLoadRestoresImportedHoldings` reads it
+// back to simulate a relaunch. Parallel siblings saving their own users
+// between its commit and reload made it flaky.
+@Suite(.serialized)
 struct PortfolioImportCommitTests {
 
     @Test("Replace import commits reviewed holdings and persists")
