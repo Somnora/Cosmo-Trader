@@ -123,7 +123,7 @@
 				ViewModels/ProfileViewModel.swift = (ios, );
 				Views/Components/AstroAlertBanner.swift = (ios, );
 				Views/Components/CosmicBalanceCard.swift = (ios, );
-				Views/Components/CosmicErrorView.swift = (ios, );
+				Views/Components/CosmicEmptyStateView.swift = (ios, );
 				Views/Components/HoldingRow.swift = (ios, );
 				Views/Components/PortfolioHeaderView.swift = (ios, );
 				Views/Components/StockCardView.swift = (ios, );
