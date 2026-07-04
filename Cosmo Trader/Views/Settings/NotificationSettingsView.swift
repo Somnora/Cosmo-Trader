@@ -591,3 +591,82 @@ struct NotificationSettingsCard: View {
     .background(CosmicTheme.background)
     .preferredColorScheme(.dark)
 }
+
+// MARK: - Service-backed toggles
+// Moved from VOCMoonViews/SignSeasonViews when their unrendered feature
+// views were deleted; the underlying services and alerts remain live.
+
+struct VOCWarningsToggle: View {
+    @State private var vocService = VoidOfCourseMoonService.shared
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Icon
+            ZStack {
+                Circle()
+                    .fill(Color.orange.opacity(0.2))
+                    .frame(width: 36, height: 36)
+
+                Image(systemName: "moon.haze.fill")
+                    .font(.body)
+                    .foregroundColor(.orange)
+            }
+
+            // Labels
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Void of Course Warnings")
+                    .font(.subheadline)
+                    .foregroundColor(CosmicTheme.textPrimary)
+
+                Text("Alert when Moon is VOC")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+
+            Spacer()
+
+            // Toggle
+            Toggle("", isOn: $vocService.vocWarningsEnabled)
+                .tint(CosmicTheme.gold)
+                .labelsHidden()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+}
+
+struct SignSeasonToggle: View {
+    @State private var seasonService = SignSeasonService.shared
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(CosmicTheme.gold.opacity(0.2))
+                    .frame(width: 40, height: 40)
+
+                Image(systemName: "sun.max.fill")
+                    .font(.system(size: 18))
+                    .foregroundColor(CosmicTheme.gold)
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Sign Season Alerts")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(CosmicTheme.textPrimary)
+
+                Text("When sun enters new zodiac sign")
+                    .font(.caption)
+                    .foregroundColor(CosmicTheme.textMuted)
+            }
+
+            Spacer()
+
+            Toggle("", isOn: $seasonService.signSeasonAlertsEnabled)
+                .labelsHidden()
+                .tint(CosmicTheme.gold)
+        }
+        .padding(.vertical, 4)
+    }
+}
