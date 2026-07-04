@@ -151,7 +151,6 @@ struct LaunchContentGenerator {
     - Moon phase tracker (does the moon affect markets? no. but it looks cool)
     - Daily horoscopes that reference your actual holdings
     - "Cosmic Roast" - get roasted based on your sign and trading behavior
-    - IPO calendar with "birth chart predictions" for new companies
 
     **Important disclaimer:** This is 100% for entertainment. I'm not claiming astrology predicts markets. It's just a fun lens to view your portfolio through.
 
@@ -212,7 +211,6 @@ struct LaunchContentGenerator {
     - Compatibility scores (your sign vs stock's sign)
     - "Cosmic Roast" - shareable roasts based on your sign/trading
     - Moon phase tracker
-    - IPO calendar with "birth charts"
 
     **Monetization:**
     - Free tier with daily limits
@@ -266,8 +264,6 @@ struct LaunchContentGenerator {
 
     📈 **Real Portfolio Tracking** - Actual market data, real P&L, proper charts
 
-    🚀 **IPO Calendar** - Upcoming IPOs with "birth chart" predictions
-
     **Is this financial advice?**
 
     Absolutely not. Zero percent. The app has more disclaimers than a pharmaceutical commercial. Astrology doesn't predict markets. We know this. You know this.
@@ -307,7 +303,7 @@ struct LaunchContentGenerator {
     static let pressPitchAstrology = """
     **PRESS PITCH - Astrology/Lifestyle**
 
-    Your Co-Star notifications now have competition—from Wall Street. Cosmo Trader is a new app that brings astrology to investing, calculating zodiac signs for publicly traded companies based on their founding dates. Tesla, founded July 1, 2003? Cancer. Apple, founded April 1, 1976? Aries. Users can track their portfolios while seeing cosmic compatibility scores, get daily horoscopes that reference their actual holdings, and share brutally honest "Cosmic Roasts" based on their sign and trading behavior. The app tracks moon phases (for "market vibes"), offers IPO predictions based on upcoming companies' birth charts, and maintains a dark, premium aesthetic that feels like a Bloomberg terminal designed by an astrologer. It's explicitly entertainment—packed with disclaimers—but for anyone who's ever blamed Mercury retrograde for a red portfolio day, it's also kind of perfect.
+    Your Co-Star notifications now have competition—from Wall Street. Cosmo Trader is a new app that brings astrology to investing, calculating zodiac signs for publicly traded companies based on their founding dates. Tesla, founded July 1, 2003? Cancer. Apple, founded April 1, 1976? Aries. Users can track their portfolios while seeing cosmic compatibility scores, get daily horoscopes that reference their actual holdings, and share brutally honest "Cosmic Roasts" based on their sign and trading behavior. The app tracks moon phases (for "market vibes") and maintains a dark, premium aesthetic that feels like a Bloomberg terminal designed by an astrologer. It's explicitly entertainment—packed with disclaimers—but for anyone who's ever blamed Mercury retrograde for a red portfolio day, it's also kind of perfect.
     """
 }
 

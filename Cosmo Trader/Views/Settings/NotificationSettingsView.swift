@@ -315,19 +315,6 @@ struct NotificationSettingsView: View {
                 isEnabled: $notificationService.weeklySummaryEnabled
             )
 
-            Divider()
-                .background(CosmicTheme.textMuted.opacity(0.3))
-                .padding(.leading, 56)
-
-            // IPO Alerts
-            NotificationToggleRow(
-                icon: "star.fill",
-                iconColor: CosmicTheme.accentBlue,
-                title: "Compatible IPO Reminders",
-                subtitle: "Local reminders for matching IPOs",
-                isEnabled: $notificationService.ipoAlertsEnabled,
-                defaultOff: true
-            )
         }
     }
 
@@ -567,7 +554,6 @@ struct NotificationSettingsCard: View {
                 notificationService.mercuryRetrogradeEnabled,
                 notificationService.portfolioAlertsEnabled,
                 notificationService.weeklySummaryEnabled,
-                notificationService.ipoAlertsEnabled,
                 notificationService.cosmicRoastReminderEnabled
             ].filter { $0 }.count
 

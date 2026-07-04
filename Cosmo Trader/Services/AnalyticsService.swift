@@ -84,11 +84,6 @@ enum AnalyticsEvent: String {
     case reportCardGenerated = "report_card_generated"
     case reportCardShared = "report_card_shared"
 
-    // MARK: IPO
-    case ipoListViewed = "ipo_list_viewed"
-    case ipoDetailViewed = "ipo_detail_viewed"
-    case ipoCompatibilityViewed = "ipo_compatibility_viewed"
-
     // MARK: Subscription
     case paywallViewed = "paywall_viewed"
     case paywallDismissed = "paywall_dismissed"
@@ -637,19 +632,6 @@ extension AnalyticsService {
     func trackMoonPhaseViewed(phase: String) {
         track(.moonPhaseViewed, params: AnalyticsParameters([
             "moon_phase": phase
-        ]))
-    }
-
-    // MARK: - IPO Tracking
-
-    func trackIPOListViewed() {
-        track(.ipoListViewed)
-    }
-
-    func trackIPODetailViewed(ticker: String, zodiacSign: String) {
-        track(.ipoDetailViewed, params: AnalyticsParameters([
-            "ipo_ticker": ticker,
-            "ipo_zodiac_sign": zodiacSign
         ]))
     }
 

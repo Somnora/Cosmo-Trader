@@ -236,16 +236,6 @@ struct ProductionMockGuardTests {
         #expect(insights.isEmpty)
     }
 
-    @Test("IPO service empty state does not load fictional IPOs")
-    func ipoServiceDoesNotUseMockFallback() {
-        let service = IPOService.testingInstance(loadCache: false)
-
-        #expect(service.getUpcomingIPOs().isEmpty)
-        #expect(service.getFeaturedIPOs().isEmpty)
-        #expect(service.availableSectors.isEmpty)
-        #expect(service.dataProvenance == .unavailable(reason: "IPO calendar unavailable"))
-    }
-
     @Test("Earnings service empty state does not load fake earnings")
     func earningsServiceDoesNotUseMockFallback() {
         let service = EarningsService.testingInstance(loadCache: false)

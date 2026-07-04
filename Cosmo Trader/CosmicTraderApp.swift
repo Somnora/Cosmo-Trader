@@ -74,18 +74,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                     NotificationCenter.default.post(name: .openPortfolio, object: nil)
                 }
 
-            case "ipo":
-                // Navigate to discover tab (IPOs live here)
-                if let ticker = userInfo["ticker"] as? String {
-                    NotificationCenter.default.post(
-                        name: .openIPODetail,
-                        object: nil,
-                        userInfo: ["ticker": ticker]
-                    )
-                } else {
-                    NotificationCenter.default.post(name: .openDiscover, object: nil)
-                }
-
             case "portfolio_move", "portfolio_milestone":
                 // Navigate to portfolio tab
                 NotificationCenter.default.post(name: .openPortfolio, object: nil)
@@ -123,7 +111,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
 extension Notification.Name {
     static let openStockDetail = Notification.Name("openStockDetail")
-    static let openIPODetail = Notification.Name("openIPODetail")
     static let openToday = Notification.Name("openToday")
     static let openPortfolio = Notification.Name("openPortfolio")
     static let openDiscover = Notification.Name("openDiscover")
