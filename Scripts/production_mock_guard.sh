@@ -565,6 +565,18 @@ require_absent "Cosmo Trader Widget/MoonPhaseWidget.swift" "Take Profit"
 require_absent "Cosmo Trader Widget/MoonPhaseWidget.swift" "Build Position"
 require_present "Cosmo TraderTests/Services/ComplianceCopyGuardTests.swift" "Scanner catches known trading-instruction phrases"
 
+# Prediction ledger integrity (specs/prediction-ledger-mvp.md): only
+# market-backed summaries may become scored predictions, recorded claims are
+# immutable (an outcome is set exactly once, nothing else changes), and
+# after-close records are flagged so they can never predict the past.
+require_present "Cosmo Trader/Services/PredictionExtractor.swift" "guard event.displayMode == .marketBackedResult,"
+require_present "Cosmo Trader/Services/PredictionExtractor.swift" "guard summary.displayMode == .marketBackedResult,"
+require_present "Cosmo Trader/Services/PredictionLedgerStore.swift" "records[recordIndex].claims[claimIndex].outcome == nil else {"
+require_present "Cosmo Trader/Services/PredictionLedgerStore.swift" "guard records[existingIndex].isNoCall, !record.isNoCall else {"
+require_present "Cosmo Trader/Models/PredictionLedger.swift" "let recordedAfterClose: Bool"
+require_present "Cosmo TraderTests/Services/PredictionExtractorTests.swift" "Non-market-backed weather summaries never create claims"
+require_present "Cosmo TraderTests/Services/PredictionLedgerStoreTests.swift" "Outcome applies exactly once and alters nothing else"
+
 if [[ "$failures" -gt 0 ]]; then
   echo "production_mock_guard: failed with $failures issue(s)"
   exit 1
