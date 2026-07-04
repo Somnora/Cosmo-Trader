@@ -577,6 +577,17 @@ require_present "Cosmo Trader/Models/PredictionLedger.swift" "let recordedAfterC
 require_present "Cosmo TraderTests/Services/PredictionExtractorTests.swift" "Non-market-backed weather summaries never create claims"
 require_present "Cosmo TraderTests/Services/PredictionLedgerStoreTests.swift" "Outcome applies exactly once and alters nothing else"
 
+# Prediction scoring (phase B): outcomes come only from provider-backed
+# candles, absent data resolves unresolved instead of guessing, and accuracy
+# stats exclude pushes and after-close records.
+require_present "Cosmo Trader/Services/PredictionScoringService.swift" "if dataset.provenance.isProviderBacked {"
+require_present "Cosmo Trader/Services/PredictionScoringService.swift" "static let flatDeadbandPercent = 0.10"
+require_present "Cosmo Trader/Services/PredictionScoringService.swift" "static let minimumPortfolioWeightCoverage = 0.70"
+require_present "Cosmo Trader/Services/PredictionScoringService.swift" "let weights = claim.portfolioWeights ?? [:]"
+require_present "Cosmo Trader/Models/PredictionScorecard.swift" ".filter { !\$0.recordedAfterClose }"
+require_present "Cosmo TraderTests/Services/PredictionScoringServiceTests.swift" "Sample-provenance datasets are treated as unavailable, never scored"
+require_present "Cosmo TraderTests/Services/PredictionScorecardTests.swift" "After-close records never enter accuracy stats"
+
 if [[ "$failures" -gt 0 ]]; then
   echo "production_mock_guard: failed with $failures issue(s)"
   exit 1
