@@ -13,6 +13,8 @@ final class TodayMarketHoroscopeViewModel {
     private let astroCorrelationService: AstroCorrelationService
     private let marketWeatherService: MarketWeatherService
     private let overlayEventService: AstroOverlayEventService
+    private let predictionExtractor: PredictionExtractor
+    private let predictionLedgerStore: PredictionLedgerStore
     private let filterState = AstroOverlayFilterState(
         enabledKinds: [.fullMoon, .newMoon, .mercuryRetrograde],
         showEstimatedEvents: true,
@@ -27,7 +29,9 @@ final class TodayMarketHoroscopeViewModel {
         portfolioCorrelationService: PortfolioCosmicCorrelationService? = nil,
         astroCorrelationService: AstroCorrelationService? = nil,
         marketWeatherService: MarketWeatherService? = nil,
-        overlayEventService: AstroOverlayEventService? = nil
+        overlayEventService: AstroOverlayEventService? = nil,
+        predictionExtractor: PredictionExtractor = PredictionExtractor(),
+        predictionLedgerStore: PredictionLedgerStore? = nil
     ) {
         self.composer = composer ?? TodayMarketHoroscopeComposer.shared
         self.datasetStore = datasetStore ?? CorrelationDatasetStore.shared
@@ -35,6 +39,8 @@ final class TodayMarketHoroscopeViewModel {
         self.astroCorrelationService = astroCorrelationService ?? AstroCorrelationService.shared
         self.marketWeatherService = marketWeatherService ?? MarketWeatherService.shared
         self.overlayEventService = overlayEventService ?? AstroOverlayEventService.shared
+        self.predictionExtractor = predictionExtractor
+        self.predictionLedgerStore = predictionLedgerStore ?? PredictionLedgerStore.shared
     }
 
     func load(user: UserProfile?, firstRunSetupSkipped: Bool = false) async {
@@ -85,7 +91,35 @@ final class TodayMarketHoroscopeViewModel {
             firstRunSetupSkipped: firstRunSetupSkipped
         )
 
+        if !AppState.isScreenshotMode {
+            recordDailyPrediction(
+                user: user,
+                marketWeather: marketWeather,
+                portfolioSummaries: portfolioSummaries,
+                stockCandidate: stockCandidate
+            )
+        }
+
         isLoading = false
+    }
+
+    /// Silently records today's market-backed claims as an immutable
+    /// prediction (specs/prediction-ledger-mvp.md). The store keeps at most
+    /// one record per ET trading day, so repeated loads are no-ops.
+    private func recordDailyPrediction(
+        user: UserProfile?,
+        marketWeather: MarketWeatherSummary?,
+        portfolioSummaries: [PortfolioCosmicCorrelationSummary],
+        stockCandidate: TodayStockCandidate?
+    ) {
+        let record = predictionExtractor.makeRecord(
+            date: Date(),
+            marketWeather: marketWeather,
+            portfolioSummaries: portfolioSummaries,
+            portfolioHoldings: user?.portfolio.filter(\.isOwned) ?? [],
+            stockCandidate: stockCandidate
+        )
+        predictionLedgerStore.insert(record)
     }
 
     func reload(user: UserProfile?, firstRunSetupSkipped: Bool = false) async {

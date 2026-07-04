@@ -18,7 +18,7 @@ struct CorrelationWindow: Equatable {
     }
 }
 
-enum CorrelationConfidence: String, Equatable {
+nonisolated enum CorrelationConfidence: String, Equatable {
     case strong
     case moderate
     case thin
