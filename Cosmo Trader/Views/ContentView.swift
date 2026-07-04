@@ -109,10 +109,6 @@ struct ContentView: View {
                 // Portfolio hosts the stock detail flow for tapped symbols
                 appState.selectedTab = .portfolio
             }
-            .onReceive(NotificationCenter.default.publisher(for: .openIPODetail)) { _ in
-                // Discover hosts the IPO surfaces
-                appState.selectedTab = .discover
-            }
             .onChange(of: appState.selectedTab) { oldTab, newTab in
                 // Track tab switches
                 AnalyticsService.shared.trackTabSwitch(newTab.analyticsName)

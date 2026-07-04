@@ -26,7 +26,6 @@ final class NotificationService {
         static let moonPhaseEnabled = "notifications_moonPhase"
         static let mercuryRetrogradeEnabled = "notifications_mercuryRetrograde"
         static let portfolioAlertsEnabled = "notifications_portfolioAlerts"
-        static let ipoAlertsEnabled = "notifications_ipoAlerts"
         static let cosmicRoastReminderEnabled = "notifications_cosmicRoast"
         static let weeklySummaryEnabled = "notifications_weeklySummary"
         static let signSeasonEnabled = "notifications_signSeason"
@@ -100,14 +99,6 @@ final class NotificationService {
         }
     }
 
-    /// IPO alerts for compatible signs (default: OFF)
-    var ipoAlertsEnabled: Bool = false {
-        didSet {
-            savePreferences()
-            scheduleAllNotifications()
-        }
-    }
-
     /// Cosmic roast reminder (default: OFF)
     var cosmicRoastReminderEnabled: Bool = false {
         didSet {
@@ -132,7 +123,6 @@ final class NotificationService {
         static let mercuryRetrogradePrefix = "cosmo.mercury."
         static let portfolioBigMove = "cosmo.portfolio.bigmove"
         static let weeklySummary = "cosmo.weekly.summary"
-        static let ipoAlertPrefix = "cosmo.ipo."
         static let cosmicRoast = "cosmo.roast.reminder"
         static let signSeasonPrefix = "cosmo.season."
     }
@@ -242,7 +232,6 @@ final class NotificationService {
                 await scheduleSignSeasonAlerts()
             }
 
-            // IPO alerts are scheduled dynamically when new IPOs are added
             // Portfolio alerts are triggered by price changes (handled elsewhere)
         }
     }
@@ -629,42 +618,6 @@ final class NotificationService {
 
     // MARK: - Dynamic Notifications
 
-    /// Schedule an IPO alert for a compatible zodiac sign
-    func scheduleIPOAlert(ticker: String, companyName: String, ipoDate: Date, zodiacSign: ZodiacSign) async {
-        guard isAuthorized && ipoAlertsEnabled else { return }
-
-        let content = UNMutableNotificationContent()
-        content.title = "Compatible IPO Alert"
-        content.body = "A fellow \(zodiacSign.displayName) enters the market: \(companyName) (\(ticker))"
-        content.sound = .default
-        content.userInfo = ["ticker": ticker, "type": "ipo"]
-
-        // Alert day before IPO
-        let calendar = Calendar.current
-        guard let alertDate = calendar.date(byAdding: .day, value: -1, to: ipoDate) else { return }
-
-        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: alertDate)
-        var triggerComponents = components
-        triggerComponents.hour = 10
-        triggerComponents.minute = 0
-
-        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: false)
-
-        let request = UNNotificationRequest(
-            identifier: "\(NotificationID.ipoAlertPrefix)\(ticker)",
-            content: content,
-            trigger: trigger
-        )
-
-        do {
-            try await UNUserNotificationCenter.current().add(request)
-        } catch {
-            #if DEBUG
-            print("Failed to schedule IPO alert: \(error)")
-            #endif
-        }
-    }
-
     /// Trigger a portfolio big move notification immediately
     func sendPortfolioBigMoveAlert(changePercent: Double) async {
         guard isAuthorized && portfolioAlertsEnabled else { return }
@@ -765,7 +718,6 @@ final class NotificationService {
         defaults.set(mercuryRetrogradeEnabled, forKey: StorageKeys.mercuryRetrogradeEnabled)
         defaults.set(portfolioAlertsEnabled, forKey: StorageKeys.portfolioAlertsEnabled)
         defaults.set(weeklySummaryEnabled, forKey: StorageKeys.weeklySummaryEnabled)
-        defaults.set(ipoAlertsEnabled, forKey: StorageKeys.ipoAlertsEnabled)
         defaults.set(cosmicRoastReminderEnabled, forKey: StorageKeys.cosmicRoastReminderEnabled)
         defaults.set(signSeasonEnabled, forKey: StorageKeys.signSeasonEnabled)
     }
@@ -781,7 +733,6 @@ final class NotificationService {
         mercuryRetrogradeEnabled = defaults.object(forKey: StorageKeys.mercuryRetrogradeEnabled) as? Bool ?? true
         portfolioAlertsEnabled = defaults.object(forKey: StorageKeys.portfolioAlertsEnabled) as? Bool ?? true
         weeklySummaryEnabled = defaults.object(forKey: StorageKeys.weeklySummaryEnabled) as? Bool ?? true
-        ipoAlertsEnabled = defaults.object(forKey: StorageKeys.ipoAlertsEnabled) as? Bool ?? false
         cosmicRoastReminderEnabled = defaults.object(forKey: StorageKeys.cosmicRoastReminderEnabled) as? Bool ?? false
         signSeasonEnabled = defaults.object(forKey: StorageKeys.signSeasonEnabled) as? Bool ?? true
 

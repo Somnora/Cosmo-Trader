@@ -150,10 +150,6 @@ require_present "Cosmo TraderTests/Services/StockAstroTechnicalContextServiceTes
 require_present "Cosmo TraderTests/Services/StockAstroTechnicalContextServiceTests.swift" "Mixed provenance does not produce confident combined claims"
 require_present "Cosmo TraderTests/Services/StockAstroTechnicalContextServiceTests.swift" "Stale-beyond-policy data does not produce confident combined claims"
 
-require_absent "Cosmo Trader/Services/IPOService.swift" "MockIPOData"
-require_absent "Cosmo Trader/Services/IPOService.swift" "loadMockData"
-require_present "Cosmo Trader/Services/IPOService.swift" "dataProvenance"
-require_present "Cosmo Trader/Views/IPO/IPOListView.swift" "DataSourceIndicator(provenance: ipoService.dataProvenance"
 
 require_absent "Cosmo Trader/Services/EarningsService.swift" "generateMockEarningsData"
 require_absent "Cosmo Trader/Services/EarningsService.swift" "Double.random"

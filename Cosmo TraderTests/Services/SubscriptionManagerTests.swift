@@ -68,7 +68,6 @@ struct PremiumFeatureTests {
             .moonNotifications,
             .moonSignAlerts,
             .unlimitedRoasts,
-            .ipoAlerts,
             .fearGreedIndex,
             .adFree
         ]

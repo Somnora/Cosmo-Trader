@@ -469,23 +469,6 @@ enum L10n {
         static let compatibilityDescription = LocalizedStringKey("widget.compatibility.description")
     }
 
-    // MARK: - IPO
-
-    /// Localized strings for IPO calendar.
-    enum IPO {
-        static let title = LocalizedStringKey("ipo.title")
-        static let upcoming = LocalizedStringKey("ipo.upcoming")
-        static let thisWeek = LocalizedStringKey("ipo.thisWeek")
-        static let nextWeek = LocalizedStringKey("ipo.nextWeek")
-        static let priced = LocalizedStringKey("ipo.priced")
-
-        static let date = LocalizedStringKey("ipo.date")
-        static let priceRange = LocalizedStringKey("ipo.price.range")
-        static let shares = LocalizedStringKey("ipo.shares")
-        static let exchange = LocalizedStringKey("ipo.exchange")
-        static let underwriters = LocalizedStringKey("ipo.underwriters")
-    }
-
     // MARK: - Referral
 
     /// Localized strings for referral system.

@@ -109,10 +109,8 @@ struct FinancialDataProvenanceTests {
     @MainActor
     @Test("Calendar services start as unavailable instead of sample data")
     func calendarServicesStartUnavailableWithoutCache() {
-        let ipoService = IPOService.testingInstance(loadCache: false)
         let earningsService = EarningsService.testingInstance(loadCache: false)
 
-        #expect(ipoService.dataProvenance == .unavailable(reason: "IPO calendar unavailable"))
         #expect(earningsService.dataProvenance == .unavailable(reason: "Earnings calendar unavailable"))
     }
 

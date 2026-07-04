@@ -45,12 +45,6 @@ struct NotificationPreferencesTests {
         #expect(defaultValue == true)
     }
 
-    @Test("IPO alerts default is disabled")
-    func ipoAlertsDefaultDisabled() {
-        let defaultValue = false
-        #expect(defaultValue == false)
-    }
-
     @Test("Cosmic roast reminder default is disabled")
     func cosmicRoastReminderDefaultDisabled() {
         let defaultValue = false
@@ -371,30 +365,6 @@ struct ConfluenceAlertContentTests {
         #expect(body.contains(cosmicEvent))
         #expect(body.contains("85%"))
         #expect(body.contains("Leo"))
-    }
-}
-
-// MARK: - IPO Alert Schedule Tests
-
-struct IPOAlertScheduleTests {
-
-    @Test("IPO alert day before IPO")
-    func ipoAlertDayBeforeIPO() {
-        let ipoDate = Date().addingTimeInterval(7 * 24 * 60 * 60) // 7 days from now
-        let alertDate = Calendar.current.date(byAdding: .day, value: -1, to: ipoDate)!
-
-        let daysDiff = Calendar.current.dateComponents([.day], from: alertDate, to: ipoDate).day!
-
-        #expect(daysDiff == 1)
-    }
-
-    @Test("IPO alert at 10 AM")
-    func ipoAlertAt10AM() {
-        let scheduledHour = 10
-        let scheduledMinute = 0
-
-        #expect(scheduledHour == 10)
-        #expect(scheduledMinute == 0)
     }
 }
 

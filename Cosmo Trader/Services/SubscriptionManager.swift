@@ -516,9 +516,6 @@ enum PremiumFeature: String, CaseIterable {
     case unlimitedRoasts = "Unlimited Cosmic Roasts"
     case limitedRoasts = "1 Cosmic Roast per day"
 
-    // IPO
-    case ipoAlerts = "IPO compatibility alerts"
-
     // Analytics
     case fearGreedIndex = "Cosmic Mood Index"
     case historicalAstroOverlay = "Historical astro overlays"
@@ -556,8 +553,6 @@ enum PremiumFeature: String, CaseIterable {
             return "moon.fill"
         case .unlimitedRoasts, .limitedRoasts:
             return "flame.fill"
-        case .ipoAlerts:
-            return "bell.badge.fill"
         case .fearGreedIndex:
             return "gauge.with.needle.fill"
         case .historicalAstroOverlay:
@@ -584,8 +579,6 @@ enum PremiumFeature: String, CaseIterable {
             return "Moon sign alerts require Oracle Tier"
         case .unlimitedRoasts:
             return "Unlimited roasts with Oracle Tier"
-        case .ipoAlerts:
-            return "IPO alerts require Oracle Tier"
         case .fearGreedIndex:
             return "The Cosmic Mood Index is part of Oracle Tier"
         case .historicalAstroOverlay:
@@ -642,11 +635,6 @@ struct OracleTierBenefits {
             feature: .moonNotifications,
             title: "Moon Phase Notifications",
             description: "Local alerts when the moon enters a new phase"
-        ),
-        OracleBenefit(
-            feature: .ipoAlerts,
-            title: "IPO Compatibility Alerts",
-            description: "A heads-up when an upcoming IPO matches your sign"
         ),
         OracleBenefit(
             feature: .fearGreedIndex,
