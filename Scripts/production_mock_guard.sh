@@ -588,6 +588,19 @@ require_present "Cosmo Trader/Models/PredictionScorecard.swift" ".filter { !\$0.
 require_present "Cosmo TraderTests/Services/PredictionScoringServiceTests.swift" "Sample-provenance datasets are treated as unavailable, never scored"
 require_present "Cosmo TraderTests/Services/PredictionScorecardTests.swift" "After-close records never enter accuracy stats"
 
+# Prediction ledger surfaces (phase C): the scorecard card renders on Today
+# with provenance indicators and compliance-gated copy; abstain and
+# after-close states render honestly.
+require_present "Cosmo Trader/Views/Settings/DailyBriefBackendView.swift" "TodayPredictionCard(viewModel: predictionLedgerViewModel)"
+require_present "Cosmo Trader/Views/Settings/DailyBriefBackendView.swift" "await predictionLedgerViewModel.load()"
+require_present "Cosmo Trader/Views/Components/TodayPredictionCard.swift" "DataSourceIndicator(provenance: viewModel.scorecard.provenance"
+require_present "Cosmo Trader/Views/Components/TodayPredictionCard.swift" "The cosmos abstained today."
+require_present "Cosmo Trader/Views/Components/TodayPredictionCard.swift" "not predictive and not financial advice"
+require_present "Cosmo Trader/Views/Today/CosmicScorecardView.swift" "COIN FLIP BASELINE: 50%"
+require_present "Cosmo Trader/Views/Today/CosmicScorecardView.swift" "AFTER CLOSE — NOT SCORED"
+require_present "Cosmo Trader/Views/Today/CosmicScorecardView.swift" "Correlation does not imply causation"
+require_present "Cosmo TraderTests/Services/ComplianceCopyGuardTests.swift" "Cosmic scorecard copy snippets stay compliance safe"
+
 if [[ "$failures" -gt 0 ]]; then
   echo "production_mock_guard: failed with $failures issue(s)"
   exit 1

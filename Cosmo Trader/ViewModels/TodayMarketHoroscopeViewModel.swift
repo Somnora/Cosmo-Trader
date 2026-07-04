@@ -15,7 +15,6 @@ final class TodayMarketHoroscopeViewModel {
     private let overlayEventService: AstroOverlayEventService
     private let predictionExtractor: PredictionExtractor
     private let predictionLedgerStore: PredictionLedgerStore
-    private let predictionScoringService: PredictionScoringService
     private let filterState = AstroOverlayFilterState(
         enabledKinds: [.fullMoon, .newMoon, .mercuryRetrograde],
         showEstimatedEvents: true,
@@ -32,8 +31,7 @@ final class TodayMarketHoroscopeViewModel {
         marketWeatherService: MarketWeatherService? = nil,
         overlayEventService: AstroOverlayEventService? = nil,
         predictionExtractor: PredictionExtractor = PredictionExtractor(),
-        predictionLedgerStore: PredictionLedgerStore? = nil,
-        predictionScoringService: PredictionScoringService? = nil
+        predictionLedgerStore: PredictionLedgerStore? = nil
     ) {
         self.composer = composer ?? TodayMarketHoroscopeComposer.shared
         self.datasetStore = datasetStore ?? CorrelationDatasetStore.shared
@@ -43,7 +41,6 @@ final class TodayMarketHoroscopeViewModel {
         self.overlayEventService = overlayEventService ?? AstroOverlayEventService.shared
         self.predictionExtractor = predictionExtractor
         self.predictionLedgerStore = predictionLedgerStore ?? PredictionLedgerStore.shared
-        self.predictionScoringService = predictionScoringService ?? PredictionScoringService.shared
     }
 
     func load(user: UserProfile?, firstRunSetupSkipped: Bool = false) async {
@@ -101,13 +98,8 @@ final class TodayMarketHoroscopeViewModel {
                 portfolioSummaries: portfolioSummaries,
                 stockCandidate: stockCandidate
             )
-            // Score earlier days off the critical paint path: Today is
-            // already rendered, and unresolved records simply retry on the
-            // next load.
-            let scoringService = predictionScoringService
-            Task {
-                await scoringService.resolvePending()
-            }
+            // Resolution of earlier days lives in PredictionLedgerViewModel,
+            // which loads after this summary is composed.
         }
 
         isLoading = false
