@@ -347,12 +347,16 @@ struct DailyResetTests {
 
     @Test("Same day detection works")
     func sameDayDetectionWorks() {
-        let now = Date()
-        let earlierToday = now.addingTimeInterval(-3600) // 1 hour ago
-        let todayStart = Calendar.current.startOfDay(for: now)
-        let earlierStart = Calendar.current.startOfDay(for: earlierToday)
+        // Fixed times, not Date(): "now minus an hour" crosses midnight when
+        // the suite runs in the first hour of a day (a guaranteed CI failure
+        // in the first hour after UTC midnight).
+        var components = DateComponents(year: 2026, month: 7, day: 4, hour: 15, minute: 30)
+        components.calendar = Calendar.current
+        let afternoon = components.date!
+        let earlierSameDay = afternoon.addingTimeInterval(-3600)
 
-        let isSameDay = todayStart == earlierStart
+        let isSameDay = Calendar.current.startOfDay(for: afternoon)
+            == Calendar.current.startOfDay(for: earlierSameDay)
 
         #expect(isSameDay == true)
     }
