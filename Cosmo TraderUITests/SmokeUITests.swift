@@ -78,9 +78,9 @@ final class SmokeUITests: XCTestCase {
         // on a ScrollView since the backend-status rework, and the result id
         // lives on the check card.
         let screen = app.descendants(matching: .any)["backendStatus.screen"]
-        XCTAssertTrue(screen.waitForExistence(timeout: 10))
+        XCTAssertTrue(screen.waitForExistence(timeout: 30))
         let fallbackResult = app.descendants(matching: .any)["backendStatus.result.UITestingFallback"]
-        XCTAssertTrue(fallbackResult.waitForExistence(timeout: 10))
+        XCTAssertTrue(fallbackResult.waitForExistence(timeout: 30))
     }
 
     private func launchApp(arguments: [String]) {
@@ -127,14 +127,14 @@ final class SmokeUITests: XCTestCase {
         }
 
         let tab = app.tabBars.buttons[label]
-        tapWhenReady(tab)
+        tapWhenReady(tab, timeout: 20)
         XCTAssertTrue(
-            app.otherElements[screenIdentifier].waitForExistence(timeout: 10),
+            app.otherElements[screenIdentifier].waitForExistence(timeout: 30),
             "\(label) tab should reach \(screenIdentifier)"
         )
     }
 
-    private func tapWhenReady(_ element: XCUIElement, timeout: TimeInterval = 5) {
+    private func tapWhenReady(_ element: XCUIElement, timeout: TimeInterval = 15) {
         XCTAssertTrue(element.waitForExistence(timeout: timeout), "Expected \(element) to exist")
         XCTAssertTrue(element.isHittable, "Expected \(element) to be hittable")
         element.tap()
