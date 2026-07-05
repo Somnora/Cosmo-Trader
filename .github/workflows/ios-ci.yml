@@ -40,6 +40,29 @@ jobs:
             -maximum-concurrent-test-simulator-destinations 1 \
             -only-testing:"Cosmo TraderTests"
 
+      # Smoke-only UI pass: launch, tab navigation, onboarding test-safe
+      # path, and the offline backend-status fallback. The suite is fully
+      # network-free (--uitesting --disable-firebase) so it is CI-safe;
+      # the broader UI test classes stay local-only for now. Retries absorb
+      # UI-timing noise on slow runners: a real break still fails all three
+      # attempts.
+      - name: Smoke UI tests
+        env:
+          # Prefixed vars pass into the test-runner process environment.
+          # The backend-status journey is skipped on the CI device class;
+          # see the XCTSkipIf note in SmokeUITests.
+          TEST_RUNNER_SMOKE_SKIP_BACKEND_STATUS_JOURNEY: "1"
+        run: |
+          xcodebuild test \
+            -project "Cosmo Trader.xcodeproj" \
+            -scheme "Cosmo Trader" \
+            -destination "platform=iOS Simulator,name=iPhone 17 Pro" \
+            -parallel-testing-enabled NO \
+            -maximum-concurrent-test-simulator-destinations 1 \
+            -retry-tests-on-failure \
+            -test-iterations 3 \
+            -only-testing:"Cosmo TraderUITests/SmokeUITests"
+
       - name: Clean Debug build
         run: |
           xcodebuild \

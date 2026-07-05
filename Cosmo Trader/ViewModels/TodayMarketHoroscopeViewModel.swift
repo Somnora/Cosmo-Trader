@@ -63,7 +63,11 @@ final class TodayMarketHoroscopeViewModel {
         let stockCandidate: TodayStockCandidate?
         let marketWeather: MarketWeatherSummary?
 
-        if AppState.isScreenshotMode {
+        // Screenshot mode renders staged content; UI-test mode must not
+        // depend on third-party providers (smoke tests run network-free on
+        // CI). Both skip the provider loads — the composer renders its
+        // honest unavailable states instead.
+        if AppState.isScreenshotMode || AppState.isUITesting {
             portfolioSummaries = []
             stockCandidate = nil
             marketWeather = nil
@@ -91,7 +95,7 @@ final class TodayMarketHoroscopeViewModel {
             firstRunSetupSkipped: firstRunSetupSkipped
         )
 
-        if !AppState.isScreenshotMode {
+        if !AppState.isScreenshotMode && !AppState.isUITesting {
             recordDailyPrediction(
                 user: user,
                 marketWeather: marketWeather,

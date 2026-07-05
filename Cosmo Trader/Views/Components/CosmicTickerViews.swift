@@ -92,6 +92,10 @@ struct CosmicTickerTape: View {
                 tickerItemView(item)
             }
         }
+        // Keep natural width: without this the two tape copies compress to
+        // fit the screen and every item squeezes to ~1pt. The marquee needs
+        // the true content width to scroll through.
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private func tickerItemView(_ item: TickerItem) -> some View {
@@ -112,8 +116,12 @@ struct CosmicTickerTape: View {
     /// animating, then attach one repeating linear animation. The two-step
     /// dance runs across two main-actor turns so SwiftUI doesn't coalesce
     /// the reset and the restart into a no-op.
+    ///
+    /// The tape holds still under UI testing for the same reason it honors
+    /// Reduce Motion: a repeat-forever animation keeps XCUITest's app-idle
+    /// detection from ever settling, which turns every tap into a stall.
     private func restartScrolling() {
-        guard !reduceMotion, contentWidth > 0 else {
+        guard !reduceMotion, !AppState.isUITesting, contentWidth > 0 else {
             isScrolling = false
             return
         }
