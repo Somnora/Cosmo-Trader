@@ -112,6 +112,8 @@ struct DailyBriefBackendView: View {
                 showLocalFallbackIfNeeded()
                 return
             }
+            // UI-test launches stay network-free: no backend brief fetch.
+            if AppState.isUITesting { return }
             loadCachedBrief()
             await refreshBrief()
         }
