@@ -40,6 +40,20 @@ jobs:
             -maximum-concurrent-test-simulator-destinations 1 \
             -only-testing:"Cosmo TraderTests"
 
+      # Smoke-only UI pass: launch, tab navigation, onboarding test-safe
+      # path, and the offline backend-status fallback. The suite is fully
+      # network-free (--uitesting --disable-firebase) so it is CI-safe;
+      # the broader UI test classes stay local-only for now.
+      - name: Smoke UI tests
+        run: |
+          xcodebuild test \
+            -project "Cosmo Trader.xcodeproj" \
+            -scheme "Cosmo Trader" \
+            -destination "platform=iOS Simulator,name=iPhone 17 Pro" \
+            -parallel-testing-enabled NO \
+            -maximum-concurrent-test-simulator-destinations 1 \
+            -only-testing:"Cosmo TraderUITests/SmokeUITests"
+
       - name: Clean Debug build
         run: |
           xcodebuild \

@@ -24,12 +24,17 @@ struct DailyBriefBackendView: View {
             // Bloomberg-style cosmic tape, pinned above the scroll like a
             // terminal status strip. Stock items appear only when
             // CosmicTickerQuotesViewModel supplies provider-backed quotes;
-            // otherwise the tape runs cosmic-only content.
-            CosmicTickerTape()
-                .accessibilityIdentifier("today.cosmicTicker")
+            // otherwise the tape runs cosmic-only content. Hidden under
+            // functional UI testing (tap-driven flows need XCUITest's
+            // app-idle detection to settle) but kept for screenshot mode,
+            // where the tape renders frozen and no taps are synthesized.
+            if !AppState.isUITesting || AppState.isScreenshotMode {
+                CosmicTickerTape()
+                    .accessibilityIdentifier("today.cosmicTicker")
 
-            Divider()
-                .background(CosmicTheme.borderDim)
+                Divider()
+                    .background(CosmicTheme.borderDim)
+            }
 
             scrollContent
         }
@@ -119,8 +124,10 @@ struct DailyBriefBackendView: View {
         )
         appState.updateFirstRunDataSetupCompletion(todayViewModel.summary?.firstRunSetup.isComplete == true)
         // After the Today load: today's call is recorded, so the scorecard
-        // card can read it and resolve earlier days.
-        if !AppState.isScreenshotMode {
+        // card can read it and resolve earlier days. Skipped in screenshot
+        // mode AND UI testing: automation must never depend on third-party
+        // APIs, and the ticker degrades honestly to cosmic-only content.
+        if !AppState.isScreenshotMode && !AppState.isUITesting {
             await predictionLedgerViewModel.load()
             await tickerQuotesViewModel.load(user: appState.currentUser)
         }
@@ -132,7 +139,7 @@ struct DailyBriefBackendView: View {
             firstRunSetupSkipped: appState.hasSkippedFirstRunDataSetup
         )
         appState.updateFirstRunDataSetupCompletion(todayViewModel.summary?.firstRunSetup.isComplete == true)
-        if !AppState.isScreenshotMode {
+        if !AppState.isScreenshotMode && !AppState.isUITesting {
             await predictionLedgerViewModel.load()
             await tickerQuotesViewModel.load(user: appState.currentUser)
         }
