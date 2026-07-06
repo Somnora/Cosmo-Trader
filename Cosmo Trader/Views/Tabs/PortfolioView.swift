@@ -137,6 +137,9 @@ struct PortfolioView: View {
     @State private var showSearch: Bool = false
     @State private var showImportPortfolio: Bool = false
 
+    /// Holding being edited via the shares editor (long-press on a row)
+    @State private var sharesEditorStock: Stock?
+
     // MARK: - Framing
 
     /// User's signal framing level
@@ -331,6 +334,22 @@ struct PortfolioView: View {
                 ImportPortfolioView()
                     .environment(appState)
             }
+            .sheet(item: $sharesEditorStock) { stock in
+                HoldingSharesEditorView(
+                    symbol: stock.symbol,
+                    name: stock.name,
+                    currentShares: stock.sharesOwned,
+                    currentCostBasis: stock.purchasePrice,
+                    onSave: { shares, costBasis in
+                        appState.updateHolding(symbol: stock.symbol, shares: shares, costBasisPerShare: costBasis)
+                    },
+                    onRemove: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            appState.removeFromPortfolio(symbol: stock.symbol)
+                        }
+                    }
+                )
+            }
         }
         .onAppear {
             consumeNavigationIntentIfNeeded()
@@ -339,7 +358,7 @@ struct PortfolioView: View {
             consumeNavigationIntentIfNeeded()
         }
         .overlay(alignment: .top) {
-            importFeedbackOverlay
+            PortfolioImportFeedbackOverlay()
         }
         .task {
             openStockDetailForScreenshotIfNeeded()
@@ -363,51 +382,6 @@ struct PortfolioView: View {
             appState.pendingNavigationIntent = nil
         case .discoverSearch:
             break
-        }
-    }
-
-    @ViewBuilder
-    private var importFeedbackOverlay: some View {
-        if let feedback = appState.portfolioImportFeedback {
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.caption)
-                    .foregroundColor(CosmicTheme.positive)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(feedback.title.uppercased())
-                        .font(TerminalFont.data(10, weight: .semibold))
-                        .foregroundColor(CosmicTheme.textPrimary)
-                        .tracking(1)
-
-                    Text(feedback.detail)
-                        .font(TerminalFont.data(10))
-                        .foregroundColor(CosmicTheme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 8)
-
-                Button {
-                    appState.portfolioImportFeedback = nil
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.caption2)
-                        .foregroundColor(CosmicTheme.textMuted)
-                        .frame(width: 24, height: 24)
-                }
-                .accessibilityLabel("Dismiss portfolio import confirmation")
-            }
-            .padding(12)
-            .background(CosmicTheme.cardBackground.opacity(0.96))
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(CosmicTheme.positive.opacity(0.45), lineWidth: 1)
-            )
-            .padding(.horizontal, AppLayout.screenHorizontalPadding)
-            .padding(.top, 8)
-            .transition(.move(edge: .top).combined(with: .opacity))
-            .accessibilityIdentifier("portfolio.importConfirmation")
         }
     }
 
@@ -1454,11 +1428,31 @@ struct PortfolioView: View {
                 tableHeader
                 dividerLine
 
-                // Holdings rows
+                // Holdings rows (long-press to edit shares or remove)
                 ForEach(holdings) { stock in
                     holdingRow(stock)
+                        .accessibilityIdentifier("portfolio.holdingRow.\(stock.symbol)")
+                        .contextMenu {
+                            Button {
+                                sharesEditorStock = stock
+                            } label: {
+                                Label("Edit Shares", systemImage: "pencil")
+                            }
+                        }
                     dividerLine
                 }
+
+                // Hint text
+                HStack(spacing: 4) {
+                    Image(systemName: "hand.tap")
+                        .font(.system(size: 8))
+                    Text("Long-press a holding to edit shares")
+                        .font(TerminalFont.data(9))
+                }
+                .foregroundColor(CosmicTheme.textMuted.opacity(0.6))
+                .padding(.horizontal, 12)
+                .padding(.top, 4)
+                .padding(.bottom, 8)
             }
         }
     }
@@ -1483,51 +1477,55 @@ struct PortfolioView: View {
         .background(CosmicTheme.cardBackground)
     }
 
+    // Tap gesture instead of Button: the long-press context menu on these
+    // rows never presents when the row is a Button (the button gesture
+    // swallows the press), so tap-to-detail lives on a plain view.
     private func holdingRow(_ stock: Stock) -> some View {
-        Button(action: { selectedStock = stock }) {
-            HStack(spacing: 0) {
-                // Symbol with zodiac glyph
-                HStack(spacing: 4) {
-                    if let foundedZodiacSign = stock.foundedZodiacSign {
-                        ZodiacSymbolView(
-                            sign: foundedZodiacSign,
-                            size: 10,
-                            color: CosmicTheme.gold.opacity(0.7)
-                        )
-                    } else {
-                        Text("?")
-                            .font(TerminalFont.data(10, weight: .semibold))
-                            .foregroundColor(CosmicTheme.textMuted)
-                    }
-                    Text(stock.symbol)
-                        .font(TerminalFont.ticker(11))
-                        .foregroundColor(CosmicTheme.textPrimary)
+        HStack(spacing: 0) {
+            // Symbol with zodiac glyph
+            HStack(spacing: 4) {
+                if let foundedZodiacSign = stock.foundedZodiacSign {
+                    ZodiacSymbolView(
+                        sign: foundedZodiacSign,
+                        size: 10,
+                        color: CosmicTheme.gold.opacity(0.7)
+                    )
+                } else {
+                    Text("?")
+                        .font(TerminalFont.data(10, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textMuted)
                 }
-                .frame(width: 60, alignment: .leading)
-
-                // Name
-                Text(stock.name)
-                    .font(TerminalFont.data(11))
-                    .foregroundColor(CosmicTheme.textSecondary)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                // Price
-                priceCell(for: stock, fallbackReason: "Stored portfolio price; provider quote unavailable")
-                    .frame(width: 70, alignment: .trailing)
-
-                // Change %
-                changeCell(for: stock, fallbackReason: "Stored portfolio change; provider quote unavailable")
-                    .frame(width: 60, alignment: .trailing)
-
-                // Allocation bar
-                allocationBar(for: stock)
-                    .frame(width: 50)
+                Text(stock.symbol)
+                    .font(TerminalFont.ticker(11))
+                    .foregroundColor(CosmicTheme.textPrimary)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .frame(width: 60, alignment: .leading)
+
+            // Name
+            Text(stock.name)
+                .font(TerminalFont.data(11))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Price
+            priceCell(for: stock, fallbackReason: "Stored portfolio price; provider quote unavailable")
+                .frame(width: 70, alignment: .trailing)
+
+            // Change %
+            changeCell(for: stock, fallbackReason: "Stored portfolio change; provider quote unavailable")
+                .frame(width: 60, alignment: .trailing)
+
+            // Allocation bar
+            allocationBar(for: stock)
+                .frame(width: 50)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+        .onTapGesture { selectedStock = stock }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
     }
 
     private func allocationBar(for stock: Stock) -> some View {
@@ -1773,27 +1771,27 @@ struct PortfolioView: View {
             watchlistTableHeader
             dividerLine
 
-            // Watchlist rows with swipe to remove
+            // Watchlist rows (long-press to remove; swipeActions is a no-op
+            // outside List, so the old swipe affordance never worked here)
             ForEach(watchlistStocks) { stock in
                 watchlistRow(stock)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    .contextMenu {
                         Button(role: .destructive) {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 appState.removeFromWatchlist(stock.symbol)
                             }
                         } label: {
-                            Label("Remove", systemImage: "eye.slash")
+                            Label("Remove from Watchlist", systemImage: "eye.slash")
                         }
-                        .tint(CosmicTheme.negative)
                     }
                 dividerLine
             }
 
             // Hint text
             HStack(spacing: 4) {
-                Image(systemName: "arrow.left")
+                Image(systemName: "hand.tap")
                     .font(.system(size: 8))
-                Text("Swipe left to remove from watchlist")
+                Text("Long-press a row to remove from watchlist")
                     .font(TerminalFont.data(9))
             }
             .foregroundColor(CosmicTheme.textMuted.opacity(0.6))
@@ -1823,53 +1821,56 @@ struct PortfolioView: View {
         .background(CosmicTheme.cardBackground.opacity(0.5))
     }
 
+    // Plain view + tap gesture for the same reason as holdingRow: the
+    // remove context menu must survive the long press.
     private func watchlistRow(_ stock: Stock) -> some View {
         let compatibility = safeUser.compatibility(with: stock)
 
-        return Button(action: { selectedStock = stock }) {
-            HStack(spacing: 0) {
-                // Symbol with zodiac glyph
-                HStack(spacing: 4) {
-                    if let foundedZodiacSign = stock.foundedZodiacSign {
-                        ZodiacSymbolView(
-                            sign: foundedZodiacSign,
-                            size: 10,
-                            color: CosmicTheme.gold.opacity(0.7)
-                        )
-                    } else {
-                        Text("?")
-                            .font(TerminalFont.data(10, weight: .semibold))
-                            .foregroundColor(CosmicTheme.textMuted)
-                    }
-                    Text(stock.symbol)
-                        .font(TerminalFont.ticker(11))
-                        .foregroundColor(CosmicTheme.textPrimary)
+        return HStack(spacing: 0) {
+            // Symbol with zodiac glyph
+            HStack(spacing: 4) {
+                if let foundedZodiacSign = stock.foundedZodiacSign {
+                    ZodiacSymbolView(
+                        sign: foundedZodiacSign,
+                        size: 10,
+                        color: CosmicTheme.gold.opacity(0.7)
+                    )
+                } else {
+                    Text("?")
+                        .font(TerminalFont.data(10, weight: .semibold))
+                        .foregroundColor(CosmicTheme.textMuted)
                 }
-                .frame(width: 60, alignment: .leading)
-
-                // Name
-                Text(stock.name)
-                    .font(TerminalFont.data(11))
-                    .foregroundColor(CosmicTheme.textSecondary)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                // Price
-                priceCell(for: stock, fallbackReason: "Curated sample price; provider quote unavailable")
-                    .frame(width: 70, alignment: .trailing)
-
-                // Change %
-                changeCell(for: stock, fallbackReason: "Curated sample change; provider quote unavailable")
-                    .frame(width: 60, alignment: .trailing)
-
-                // Compatibility score
-                compatibilityBadge(score: compatibility.score)
-                    .frame(width: 50, alignment: .trailing)
+                Text(stock.symbol)
+                    .font(TerminalFont.ticker(11))
+                    .foregroundColor(CosmicTheme.textPrimary)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .frame(width: 60, alignment: .leading)
+
+            // Name
+            Text(stock.name)
+                .font(TerminalFont.data(11))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Price
+            priceCell(for: stock, fallbackReason: "Curated sample price; provider quote unavailable")
+                .frame(width: 70, alignment: .trailing)
+
+            // Change %
+            changeCell(for: stock, fallbackReason: "Curated sample change; provider quote unavailable")
+                .frame(width: 60, alignment: .trailing)
+
+            // Compatibility score
+            compatibilityBadge(score: compatibility.score)
+                .frame(width: 50, alignment: .trailing)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+        .onTapGesture { selectedStock = stock }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
     }
 
     private func compatibilityBadge(score: Int) -> some View {

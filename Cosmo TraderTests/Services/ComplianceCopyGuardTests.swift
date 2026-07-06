@@ -190,6 +190,47 @@ struct ComplianceCopyGuardTests {
             #expect(violations.isEmpty)
         }
     }
+
+    @Test("Shares editor copy snippets stay compliance safe")
+    func sharesEditorCopySnippetsAreComplianceSafe() {
+        // Every user-facing string on the manual holdings editor
+        // (HoldingSharesEditorView) and the row affordances that open it.
+        // Bookkeeping language only: shares, cost basis, remove — nothing
+        // that reads as trading instruction.
+        let safeExamples = [
+            "Edit Shares",
+            "Add Holding",
+            "SHARES OWNED",
+            "COST BASIS / SHARE (OPTIONAL)",
+            "10 or 2.5",
+            "What you paid per share",
+            "Enter a share count above zero.",
+            "Enter a dollar amount, or leave this empty.",
+            "Fractional shares are fine. Cosmo weights your readings by what you own. If you skip cost basis, P/L shows as unavailable instead of guessing.",
+            "Remove from Portfolio",
+            "Remove AAPL from your portfolio?",
+            "Readings weighted by your holdings stop counting AAPL. You can add it back anytime.",
+            "Save",
+            "Add",
+            "Cancel",
+            "Add to Portfolio",
+            "12.5 Shares — Edit",
+            "AAPL updated: 12.5 shares",
+            "AAPL added to your portfolio!",
+            "AAPL removed from portfolio",
+            "Long-press a holding to edit shares",
+            "Long-press a row to remove from watchlist",
+            "Remove from Watchlist"
+        ]
+
+        for example in safeExamples {
+            let violations = ComplianceCopyScanner.violations(in: example)
+            if !violations.isEmpty {
+                Issue.record("Shares editor copy violation for '\(example)': \(violations.map { $0.label }.joined(separator: ", "))")
+            }
+            #expect(violations.isEmpty)
+        }
+    }
 }
 
 private enum ComplianceCopyScanner {

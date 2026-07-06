@@ -287,7 +287,8 @@ require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "consumeNavigation
 require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "showImportPortfolio = true"
 require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "portfolio.empty.importPortfolio"
 require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "portfolio.empty.addHolding"
-require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "portfolio.importConfirmation"
+require_present "Cosmo Trader/Views/Components/PortfolioImportFeedbackOverlay.swift" "portfolio.importConfirmation"
+require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "PortfolioImportFeedbackOverlay()"
 require_present "Cosmo Trader/State/AppState.swift" "struct PortfolioImportFeedback"
 require_present "Cosmo Trader/Services/PortfolioImportService.swift" "appState.selectedTab = .portfolio"
 require_present "Cosmo Trader/Services/PortfolioImportService.swift" "appState.portfolioImportFeedback = PortfolioImportFeedback"
@@ -323,7 +324,7 @@ require_present "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" "
 require_present "Cosmo Trader/Views/Tabs/DiscoverView.swift" "Search symbols to add to watchlist"
 require_present "Cosmo Trader/Views/Tabs/DiscoverView.swift" "Search a ticker or swipe right to build a watchlist"
 require_present "Cosmo Trader/Views/Tabs/DiscoverView.swift" "Search Symbols"
-require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "Swipe left to remove from watchlist"
+require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "Long-press a row to remove from watchlist"
 require_present "Cosmo Trader/Services/TodayMarketHoroscopeComposer.swift" "Fetch SPY / QQQ / DIA / IWM history"
 require_present "Cosmo Trader/Services/TodayMarketHoroscopeComposer.swift" "Do not create sample market data"
 require_present "Cosmo Trader/Services/TodayMarketHoroscopeComposer.swift" "REFRESH HOLDING HISTORY"
@@ -603,6 +604,17 @@ require_present "Cosmo Trader/Views/Today/CosmicScorecardView.swift" "COIN FLIP 
 require_present "Cosmo Trader/Views/Today/CosmicScorecardView.swift" "AFTER CLOSE — NOT SCORED"
 require_present "Cosmo Trader/Views/Today/CosmicScorecardView.swift" "Correlation does not imply causation"
 require_present "Cosmo TraderTests/Services/ComplianceCopyGuardTests.swift" "Cosmic scorecard copy snippets stay compliance safe"
+
+# Manual holdings editing: adds go through the shares editor (no hardcoded
+# 1-share adds), cost basis is user-entered or honestly absent (nil), and
+# validation stays in the testable HoldingSharesInput rules.
+require_present "Cosmo Trader/Views/Components/HoldingSharesEditor.swift" "static func parseShares"
+require_present "Cosmo Trader/Views/Components/HoldingSharesEditor.swift" "case unknown"
+require_present "Cosmo Trader/State/AppState.swift" "func updateHolding(symbol: String, shares: Double, costBasisPerShare: Double?)"
+require_absent "Cosmo Trader/Views/StockDetailView.swift" "shares: 1)"
+require_present "Cosmo Trader/Views/StockDetailView.swift" "HoldingSharesEditorView("
+require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "HoldingSharesEditorView("
+require_present "Cosmo TraderTests/Services/ComplianceCopyGuardTests.swift" "Shares editor copy snippets stay compliance safe"
 
 if [[ "$failures" -gt 0 ]]; then
   echo "production_mock_guard: failed with $failures issue(s)"

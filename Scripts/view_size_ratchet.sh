@@ -40,8 +40,11 @@ check_max_lines() {
 }
 
 check_max_lines "Cosmo Trader/Views/Tabs/ProfileView.swift" 2442
-check_max_lines "Cosmo Trader/Views/StockDetailView.swift" 2015
-check_max_lines "Cosmo Trader/Views/Tabs/PortfolioView.swift" 1990
+check_max_lines "Cosmo Trader/Views/StockDetailView.swift" 1900
+# PortfolioView baseline raised 1983→1991 for pure view code: the holding
+# and watchlist rows swapped Button wrappers for tap gestures (context-menu
+# fix) which costs a few lines of accessibility modifiers.
+check_max_lines "Cosmo Trader/Views/Tabs/PortfolioView.swift" 1991
 check_max_lines "Cosmo Trader/Views/Tabs/CosmosView.swift" 1902
 check_max_lines "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" 1211
 check_max_lines "Cosmo Trader/Views/Onboarding/OnboardingView.swift" 1203
