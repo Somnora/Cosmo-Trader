@@ -435,7 +435,7 @@ struct CosmosView: View {
 
             HStack(spacing: 8) {
                 marketWeatherPill(label: "COVERAGE", value: percentRate(coverage))
-                marketWeatherPill(label: "EVENT", value: event?.eventName ?? "Pending")
+                marketWeatherPill(label: "ANALOG", value: event?.eventName ?? "Pending")
                 marketWeatherPill(label: "SAMPLE", value: "\(event?.sampleSize ?? 0)")
             }
 
@@ -1313,7 +1313,7 @@ struct CosmosView: View {
 
         switch event.displayMode {
         case .marketBackedResult:
-            return "The broad market lens uses SPY, QQQ, DIA, and IWM with the \(event.window.displayName) event window. Historical context only, not a prediction."
+            return "Anchored to the \(event.eventName) — the astro event with the most historical market observations, not today's moon phase. The broad market lens uses SPY, QQQ, DIA, and IWM over the \(event.window.displayName) window. Historical context only, not a prediction."
         case .partialCoverage, .partialDataset:
             return "Fresh provider-backed market coverage is \(percentRate(coverage)). Full fresh coverage is required before headline market metrics appear."
         case .insufficientSample:
