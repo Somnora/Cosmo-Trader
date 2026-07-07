@@ -16,8 +16,7 @@ struct PortfolioChartView: View {
 
     // MARK: - State
 
-    @State private var portfolioData: [PortfolioPoint] = []
-    @State private var benchmarkData: [PortfolioPoint] = []
+    @State private var viewModel = PortfolioPerformanceViewModel()
     @State private var selectedPoint: PortfolioPoint?
 
     // MARK: - Computed
@@ -27,17 +26,17 @@ struct PortfolioChartView: View {
     }
 
     private var hasProviderBackedHistory: Bool {
-        portfolioData.count >= 2 && benchmarkData.count >= 2
+        viewModel.hasProviderBackedHistory
     }
 
     private var portfolioReturn: Double {
-        guard let first = portfolioData.first, first.value > 0 else { return 0 }
-        return ((portfolioData.last?.value ?? 0) - first.value) / first.value * 100
+        guard let first = viewModel.portfolioData.first, first.value > 0 else { return 0 }
+        return ((viewModel.portfolioData.last?.value ?? 0) - first.value) / first.value * 100
     }
 
     private var benchmarkReturn: Double {
-        guard let first = benchmarkData.first, first.value > 0 else { return 0 }
-        return ((benchmarkData.last?.value ?? 0) - first.value) / first.value * 100
+        guard let first = viewModel.benchmarkData.first, first.value > 0 else { return 0 }
+        return ((viewModel.benchmarkData.last?.value ?? 0) - first.value) / first.value * 100
     }
 
     private var outperformance: Double {
@@ -57,7 +56,7 @@ struct PortfolioChartView: View {
     /// keeps tightly-clustered values from collapsing all axis labels
     /// onto a single integer thousand.
     private var chartYDomain: ClosedRange<Double> {
-        let allValues = portfolioData.map(\.value) + benchmarkData.map(\.value)
+        let allValues = viewModel.portfolioData.map(\.value) + viewModel.benchmarkData.map(\.value)
         guard let lo = allValues.min(), let hi = allValues.max(), hi > lo else {
             let fallback = max(currentValue, 1)
             return (fallback * 0.95)...(fallback * 1.05)
@@ -86,20 +85,28 @@ struct PortfolioChartView: View {
             // Chart
             chartBody
 
+            // Partial-coverage honesty
+            excludedHoldingsNote
+
             // Timeframe selector
             timeframeSelector
 
             // Cosmic insight
             cosmicInsight
         }
-        .onAppear {
-            loadData()
+        .task(id: loadKey) {
+            selectedPoint = nil
+            await viewModel.load(holdings: portfolio, timeframe: selectedTimeframe)
         }
-        .onChange(of: selectedTimeframe) { _, _ in
-            withAnimation(.easeInOut(duration: 0.3)) {
-                loadData()
-            }
-        }
+    }
+
+    /// Reloads the chart whenever the timeframe or the holdings (symbols or
+    /// share counts) change.
+    private var loadKey: String {
+        let holdingsFingerprint = portfolio
+            .map { "\($0.symbol):\($0.sharesOwned)" }
+            .joined(separator: ",")
+        return "\(selectedTimeframe.rawValue)|\(holdingsFingerprint)"
     }
 
     // MARK: - Header
@@ -131,6 +138,9 @@ struct PortfolioChartView: View {
                                 .font(TerminalFont.data(11))
                                 .foregroundColor(CosmicTheme.textMuted)
                         }
+
+                        DataSourceIndicator(provenance: viewModel.provenance, size: .compact)
+                            .padding(.top, 1)
                     } else {
                         Text(formatCurrency(currentValue))
                             .font(TerminalFont.price(24, weight: .semibold))
@@ -232,7 +242,7 @@ struct PortfolioChartView: View {
     private var portfolioChart: some View {
         Chart {
             // Benchmark line (subtle)
-            ForEach(benchmarkData) { point in
+            ForEach(viewModel.benchmarkData) { point in
                 LineMark(
                     x: .value("Time", point.date),
                     y: .value("Value", point.value),
@@ -244,7 +254,7 @@ struct PortfolioChartView: View {
             }
 
             // Portfolio area
-            ForEach(portfolioData) { point in
+            ForEach(viewModel.portfolioData) { point in
                 AreaMark(
                     x: .value("Time", point.date),
                     yStart: .value("Baseline", chartYDomain.lowerBound),
@@ -261,7 +271,7 @@ struct PortfolioChartView: View {
             }
 
             // Portfolio line
-            ForEach(portfolioData) { point in
+            ForEach(viewModel.portfolioData) { point in
                 LineMark(
                     x: .value("Time", point.date),
                     y: .value("Value", point.value),
@@ -361,6 +371,31 @@ struct PortfolioChartView: View {
         )
     }
 
+    // MARK: - Excluded Holdings Note
+
+    /// When some holdings lack provider-backed history for the selected range,
+    /// the line reflects only the covered holdings — say so rather than imply
+    /// the whole portfolio is charted.
+    @ViewBuilder
+    private var excludedHoldingsNote: some View {
+        if hasProviderBackedHistory, !viewModel.excludedSymbols.isEmpty {
+            let shown = viewModel.excludedSymbols.prefix(4).joined(separator: ", ")
+            let suffix = viewModel.excludedSymbols.count > 4 ? " +\(viewModel.excludedSymbols.count - 4)" : ""
+            HStack(spacing: 6) {
+                Image(systemName: "info.circle")
+                    .font(.caption2)
+                    .foregroundColor(CosmicTheme.textMuted)
+
+                Text("Line covers holdings with provider-backed history. Excluded: \(shown)\(suffix).")
+                    .font(TerminalFont.data(9))
+                    .foregroundColor(CosmicTheme.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
     // MARK: - Timeframe Selector
 
     private var timeframeSelector: some View {
@@ -418,15 +453,9 @@ struct PortfolioChartView: View {
 
     // MARK: - Helpers
 
-    private func loadData() {
-        selectedPoint = nil
-        portfolioData = []
-        benchmarkData = []
-    }
-
     private func selectPoint(nearestTo date: Date) {
-        guard !portfolioData.isEmpty else { return }
-        selectedPoint = portfolioData.min(by: {
+        guard !viewModel.portfolioData.isEmpty else { return }
+        selectedPoint = viewModel.portfolioData.min(by: {
             abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
         })
     }
