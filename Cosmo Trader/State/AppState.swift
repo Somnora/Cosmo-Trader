@@ -478,12 +478,14 @@ class AppState {
 
     // MARK: - Portfolio Management
 
-    /// Add a stock to the portfolio
-    func addToPortfolio(_ stock: Stock, shares: Double = 1) {
+    /// Add a stock to the portfolio. Cost basis is user-entered only; nil
+    /// keeps P/L honest ("unavailable") instead of inheriting sample data.
+    func addToPortfolio(_ stock: Stock, shares: Double = 1, costBasisPerShare: Double? = nil) {
         guard var user = currentUser else { return }
 
         var stockWithShares = stock
         stockWithShares.sharesOwned = shares
+        stockWithShares.purchasePrice = costBasisPerShare
         user.addStock(stockWithShares)
 
         currentUser = user
@@ -499,11 +501,15 @@ class AppState {
         saveUserToStorage()
     }
 
-    /// Update shares for a stock
-    func updateShares(symbol: String, shares: Double) {
-        guard var user = currentUser else { return }
+    /// Update share count and cost basis for an existing holding (manual
+    /// shares-editor path). A nil cost basis clears the stored value so
+    /// P/L reads unavailable instead of stale.
+    func updateHolding(symbol: String, shares: Double, costBasisPerShare: Double?) {
+        guard var user = currentUser,
+              let index = user.portfolio.firstIndex(where: { $0.symbol == symbol }) else { return }
 
-        user.updateShares(symbol: symbol, newAmount: shares)
+        user.portfolio[index].sharesOwned = shares
+        user.portfolio[index].purchasePrice = costBasisPerShare
         currentUser = user
         saveUserToStorage()
     }

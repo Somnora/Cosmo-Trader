@@ -70,9 +70,14 @@ struct StockDetailView: View {
         )
     }
 
+    /// The user's live holding of this stock (nil when not in portfolio)
+    private var ownedHolding: Stock? {
+        user?.portfolio.first { $0.symbol == stock.symbol && $0.sharesOwned > 0 }
+    }
+
     /// Check if stock is already in portfolio
     private var isInPortfolio: Bool {
-        user?.portfolio.contains { $0.symbol == stock.symbol && $0.sharesOwned > 0 } ?? false
+        ownedHolding != nil
     }
 
     /// Check if stock is in watchlist
@@ -132,6 +137,7 @@ struct StockDetailView: View {
 
     /// Per-stock framing override (premium feature)
     @State private var showFramingOverrideSheet: Bool = false
+    @State private var showSharesEditor: Bool = false
 
     /// Current effective framing level for this stock
     private var effectiveFramingLevel: SignalFramingLevel {
@@ -315,7 +321,24 @@ struct StockDetailView: View {
                 shareSheet
             }
             .sheet(isPresented: $showFramingOverrideSheet) {
-                framingOverrideSheet
+                StockFramingOverrideSheet(
+                    stock: stock,
+                    companyZodiacSign: companyZodiacSign,
+                    elementColor: elementColor
+                )
+                .environment(appState)
+            }
+            .sheet(isPresented: $showSharesEditor) {
+                HoldingSharesEditorView(
+                    symbol: stock.symbol,
+                    name: stock.name,
+                    currentShares: ownedHolding?.sharesOwned,
+                    currentCostBasis: ownedHolding?.purchasePrice,
+                    onSave: { shares, costBasis in
+                        commitHolding(shares: shares, costBasisPerShare: costBasis)
+                    },
+                    onRemove: ownedHolding == nil ? nil : { removeFromPortfolio() }
+                )
             }
         }
     }
@@ -1415,147 +1438,6 @@ struct StockDetailView: View {
         )
     }
 
-    // MARK: - Framing Override Sheet
-
-    private var framingOverrideSheet: some View {
-        NavigationStack {
-            ZStack {
-                CosmicTheme.background.ignoresSafeArea()
-
-                VStack(spacing: 24) {
-                    // Stock info header
-                    HStack(spacing: 12) {
-                        if let companyZodiacSign {
-                            ZodiacSymbolView(sign: companyZodiacSign, size: 40, color: elementColor)
-                        } else {
-                            Image(systemName: "questionmark.circle")
-                                .font(.title2)
-                                .foregroundColor(CosmicTheme.textMuted)
-                                .frame(width: 40, height: 40)
-                        }
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(stock.symbol)
-                                .font(TerminalFont.headline(18))
-                                .foregroundColor(CosmicTheme.textPrimary)
-
-                            Text("Reading Framing Override")
-                                .font(TerminalFont.data(12))
-                                .foregroundColor(CosmicTheme.textSecondary)
-                        }
-
-                        Spacer()
-                    }
-                    .padding(20)
-                    .background(CosmicTheme.cardBackground)
-
-                    // Option to use global or custom
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("FRAMING PREFERENCE")
-                            .font(TerminalFont.data(10, weight: .semibold))
-                            .foregroundColor(CosmicTheme.textMuted)
-                            .tracking(1)
-
-                        // Use global toggle
-                        Button(action: { removeFramingOverride() }) {
-                            HStack {
-                                Image(systemName: hasFramingOverride ? "circle" : "checkmark.circle.fill")
-                                    .foregroundColor(hasFramingOverride ? CosmicTheme.textMuted : CosmicTheme.gold)
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Use Global Setting")
-                                        .font(TerminalFont.data(14, weight: .semibold))
-                                        .foregroundColor(CosmicTheme.textPrimary)
-
-                                    if let globalLevel = user?.signalFramingLevel {
-                                        Text("Currently: \(globalLevel.displayName)")
-                                            .font(TerminalFont.data(11))
-                                            .foregroundColor(CosmicTheme.textSecondary)
-                                    }
-                                }
-
-                                Spacer()
-                            }
-                            .padding(16)
-                            .background(CosmicTheme.cardBackground)
-                        }
-                        .buttonStyle(.plain)
-
-                        // Custom framing slider
-                        VStack(alignment: .leading, spacing: 16) {
-                            Button(action: { enableCustomFraming() }) {
-                                HStack {
-                                    Image(systemName: hasFramingOverride ? "checkmark.circle.fill" : "circle")
-                                        .foregroundColor(hasFramingOverride ? CosmicTheme.gold : CosmicTheme.textMuted)
-
-                                    Text("Custom for \(stock.symbol)")
-                                        .font(TerminalFont.data(14, weight: .semibold))
-                                        .foregroundColor(CosmicTheme.textPrimary)
-
-                                    Spacer()
-                                }
-                            }
-                            .buttonStyle(.plain)
-
-                            if hasFramingOverride {
-                                SignalFramingSlider(level: stockFramingBinding)
-                                    .padding(.horizontal, 4)
-                            }
-                        }
-                        .padding(16)
-                        .background(CosmicTheme.cardBackground)
-                    }
-                    .padding(.horizontal, 20)
-
-                    Spacer()
-
-                    // Info text
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "info.circle")
-                            .font(.caption)
-                            .foregroundColor(CosmicTheme.textMuted)
-
-                        Text("Custom framing lets you view this stock's readings differently from your global setting. Useful if you prefer more rational analysis for some stocks and cosmic framing for others.")
-                            .font(TerminalFont.data(11))
-                            .foregroundColor(CosmicTheme.textMuted)
-                    }
-                    .padding(20)
-                }
-            }
-            .navigationTitle("Reading Framing")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
-                        showFramingOverrideSheet = false
-                    }
-                    .foregroundColor(CosmicTheme.gold)
-                }
-            }
-            .toolbarBackground(CosmicTheme.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-        }
-        .presentationDetents([.medium])
-    }
-
-    /// Binding for the stock-specific framing level (persisted via AppState)
-    private var stockFramingBinding: Binding<SignalFramingLevel> {
-        Binding(
-            get: { appState.framingLevel(for: stock.symbol) },
-            set: { appState.setStockFramingOverride(symbol: stock.symbol, level: $0) }
-        )
-    }
-
-    private func removeFramingOverride() {
-        appState.setStockFramingOverride(symbol: stock.symbol, level: nil)
-    }
-
-    private func enableCustomFraming() {
-        // Initialize with global setting
-        let globalLevel = user?.signalFramingLevel ?? .balanced
-        appState.setStockFramingOverride(symbol: stock.symbol, level: globalLevel)
-    }
-
     // MARK: - Financial Stats Section
 
     private var financialStatsSection: some View {
@@ -1643,12 +1525,12 @@ struct StockDetailView: View {
 
     private var actionButtons: some View {
         VStack(spacing: 12) {
-            // Add to Portfolio button
-            Button(action: addToPortfolio) {
+            // Add to Portfolio / Edit Shares button (opens the shares editor)
+            Button(action: { showSharesEditor = true }) {
                 HStack {
-                    Image(systemName: isInPortfolio ? "checkmark.circle.fill" : "plus.circle.fill")
+                    Image(systemName: isInPortfolio ? "pencil.circle.fill" : "plus.circle.fill")
 
-                    Text(isInPortfolio ? "In Portfolio" : "Add to Portfolio")
+                    Text(portfolioButtonTitle)
                         .fontWeight(.semibold)
                 }
                 .foregroundColor(isInPortfolio ? CosmicTheme.positive : CosmicTheme.background)
@@ -1662,8 +1544,8 @@ struct StockDetailView: View {
                         .stroke(isInPortfolio ? CosmicTheme.positive : Color.clear, lineWidth: 2)
                 )
             }
-            .disabled(isInPortfolio)
-            .accessibilityLabel(isInPortfolio ? "\(stock.symbol) is in your portfolio" : "Add \(stock.symbol) to portfolio")
+            .accessibilityLabel(isInPortfolio ? "Edit your \(stock.symbol) shares" : "Add \(stock.symbol) to portfolio")
+            .accessibilityIdentifier("stockDetail.portfolioButton")
 
             HStack(spacing: 12) {
                 // Add to Watchlist - terminal style
@@ -1738,45 +1620,48 @@ struct StockDetailView: View {
             : .gold("Match", "\(safeCompatibility.score)%")
     }
 
+    private var portfolioButtonTitle: String {
+        guard let holding = ownedHolding else { return "Add to Portfolio" }
+        return "\(HoldingSharesInput.displayShares(holding.sharesOwned)) Shares — Edit"
+    }
+
     // MARK: - Actions
 
-    private func addToPortfolio() {
-        guard !isInPortfolio else { return }
-
+    private func commitHolding(shares: Double, costBasisPerShare: Double?) {
         HapticFeedback.success()
-        appState.addToPortfolio(stock, shares: 1)
-
-        confirmationMessage = "\(stock.symbol) added to your portfolio!"
-        withAnimation(.spring(response: 0.4)) {
-            showAddedConfirmation = true
+        if isInPortfolio {
+            appState.updateHolding(symbol: stock.symbol, shares: shares, costBasisPerShare: costBasisPerShare)
+            confirm("\(stock.symbol) updated: \(HoldingSharesInput.displayShares(shares)) shares")
+        } else {
+            appState.addToPortfolio(stock, shares: shares, costBasisPerShare: costBasisPerShare)
+            confirm("\(stock.symbol) added to your portfolio!")
         }
+    }
 
-        // Hide confirmation after delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-            withAnimation(.easeOut) {
-                showAddedConfirmation = false
-            }
-        }
+    private func removeFromPortfolio() {
+        HapticFeedback.medium()
+        appState.removeFromPortfolio(symbol: stock.symbol)
+        confirm("\(stock.symbol) removed from portfolio")
     }
 
     private func addToWatchlist() {
         HapticFeedback.medium()
         if isInWatchlist {
-            // Remove from watchlist
             appState.removeFromWatchlist(stock.symbol)
-            confirmationMessage = "\(stock.symbol) removed from watchlist"
+            confirm("\(stock.symbol) removed from watchlist")
         } else {
-            // Add to watchlist
             appState.addToWatchlist(stock.symbol)
-            confirmationMessage = "\(stock.symbol) added to watchlist!"
+            confirm("\(stock.symbol) added to watchlist!")
         }
+    }
 
+    /// Flashes the inline confirmation banner under the action buttons.
+    private func confirm(_ message: String) {
+        confirmationMessage = message
         withAnimation(.spring(response: 0.4)) {
             showAddedConfirmation = true
         }
-
-        // Hide confirmation after delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
             withAnimation(.easeOut) {
                 showAddedConfirmation = false
             }
