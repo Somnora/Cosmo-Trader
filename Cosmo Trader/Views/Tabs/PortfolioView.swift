@@ -1949,11 +1949,7 @@ struct PortfolioView: View {
     // MARK: - Actions
 
     private func fetchLivePrices() async {
-        // UI/screenshot runs must not touch the network (smoke tests are
-        // network-free; screenshots render staged content). Before the
-        // Finnhub key was wired this was a no-op under --uitesting because
-        // every quote failed with apiKeyMissing; now that quotes resolve,
-        // the gate has to be explicit — matching Today's provider loads.
+        // Network-free under UI/screenshot runs (see DiscoverViewModel).
         guard !AppState.isUITesting, !AppState.isScreenshotMode else { return }
 
         let symbols = Array(Set((holdings + watchlistStocks).map { $0.symbol.uppercased() }))
