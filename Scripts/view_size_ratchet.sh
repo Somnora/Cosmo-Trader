@@ -47,8 +47,10 @@ check_max_lines "Cosmo Trader/Views/StockDetailView.swift" 1914
 # PortfolioView baseline raised 1983→1991 for the tap-gesture context-menu
 # fix, →2002 for the extracted PortfolioAllTimePLRow render + summary
 # assembly, then →2005 for the network-free guard on fetchLivePrices (a
-# view-owned .task fetch that cannot move to a view model).
-check_max_lines "Cosmo Trader/Views/Tabs/PortfolioView.swift" 2005
+# view-owned .task fetch that cannot move to a view model). Lowered →1972
+# in the positions-first reorg: removed the duplicate HISTORY STATUS list
+# (its two now-dead helpers deleted) and collapsed the diagnostics grid.
+check_max_lines "Cosmo Trader/Views/Tabs/PortfolioView.swift" 1972
 check_max_lines "Cosmo Trader/Views/Tabs/CosmosView.swift" 1902
 check_max_lines "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" 1211
 check_max_lines "Cosmo Trader/Views/Onboarding/OnboardingView.swift" 1203

@@ -20,6 +20,7 @@ struct PortfolioView: View {
     @State private var watchlistQuoteOverrides: [String: Stock] = [:]
     private let stockAPI = StockAPIService.shared
     @State private var showRebalancingSuggestions: Bool = false
+    @State private var showCoverageDiagnostics: Bool = false
     @State private var chartTimeframe: ChartTimeframe = .month
     @State private var showPerformanceChart: Bool = true
     @State private var portfolioCorrelationViewModel = PortfolioCorrelationViewModel()
@@ -235,7 +236,13 @@ struct PortfolioView: View {
 
                         dividerLine
 
+                        // Holdings first: "what do I own" is the reason to open
+                        // this screen, so it leads. The analytics/diagnostics
+                        // stack follows for anyone who wants to go deeper.
+                        holdingsSection
+
                         if !holdings.isEmpty {
+                            dividerLine
                             portfolioIntelligenceSection
                             dividerLine
                             portfolioHistoryCoverageSection
@@ -276,9 +283,6 @@ struct PortfolioView: View {
                             rebalancingSection
                             dividerLine
                         }
-
-                        // Holdings table
-                        holdingsSection
 
                         // Watchlist section
                         if !watchlistStocks.isEmpty {
@@ -569,7 +573,6 @@ struct PortfolioView: View {
             }
 
             portfolioHistoryUnlockRow(summary)
-            portfolioHistoryStatusRows
 
             if !summary.topHoldings.isEmpty {
                 portfolioExposureRows(
@@ -719,7 +722,7 @@ struct PortfolioView: View {
                     .font(.caption)
                     .foregroundColor(CosmicTheme.gold.opacity(0.82))
 
-                Text("HISTORY COVERAGE DIAGNOSTICS")
+                Text("HISTORY COVERAGE")
                     .font(TerminalFont.data(10, weight: .semibold))
                     .foregroundColor(CosmicTheme.gold)
                     .tracking(1)
@@ -727,27 +730,6 @@ struct PortfolioView: View {
                 Spacer()
 
                 DataSourceIndicator(provenance: portfolioCorrelationViewModel.historicalPriceProvenance, size: .compact)
-            }
-
-            Text("Portfolio correlation needs usable market value, provider-backed history, 70% usable coverage, and enough event samples before numeric metrics appear.")
-                .font(TerminalFont.data(10))
-                .foregroundColor(CosmicTheme.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), spacing: 8),
-                    GridItem(.flexible(), spacing: 8),
-                    GridItem(.flexible(), spacing: 8)
-                ],
-                spacing: 8
-            ) {
-                portfolioHistoryStatusPill(label: "TOTAL", value: "\(diagnostics.totalHoldings)", status: .usable)
-                portfolioHistoryStatusPill(label: "USABLE", value: diagnostics.formattedUsableCoverage, status: .usable)
-                portfolioHistoryStatusPill(label: "STALE", value: "\(diagnostics.staleHoldingsCount)", status: .stale)
-                portfolioHistoryStatusPill(label: "PARTIAL", value: "\(diagnostics.partialHoldingsCount)", status: .partial)
-                portfolioHistoryStatusPill(label: "INSUFF.", value: "\(diagnostics.insufficientHoldingsCount)", status: .insufficient)
-                portfolioHistoryStatusPill(label: "UNAVAIL.", value: "\(diagnostics.unavailableHoldingsCount)", status: .unavailable)
             }
 
             HStack(alignment: .top, spacing: 9) {
@@ -786,6 +768,56 @@ struct PortfolioView: View {
             VStack(spacing: 6) {
                 ForEach(diagnostics.rows.prefix(8)) { row in
                     portfolioHistoryCoverageRow(row)
+                }
+            }
+
+            // The count breakdown (stale/partial/insufficient/unavailable) and
+            // the gating explainer are diagnostic detail — useful when coverage
+            // is short, noise when it isn't. Collapse them by default so the
+            // section leads with the answer and the per-holding list.
+            VStack(alignment: .leading, spacing: 12) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showCoverageDiagnostics.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text("DIAGNOSTICS")
+                            .font(TerminalFont.data(9, weight: .bold))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .tracking(0.8)
+
+                        Image(systemName: showCoverageDiagnostics ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(CosmicTheme.textMuted)
+
+                        Spacer()
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("portfolio.historyCoverage.diagnosticsToggle")
+
+                if showCoverageDiagnostics {
+                    Text("Portfolio correlation needs usable market value, provider-backed history, 70% usable coverage, and enough event samples before numeric metrics appear.")
+                        .font(TerminalFont.data(10))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    LazyVGrid(
+                        columns: [
+                            GridItem(.flexible(), spacing: 8),
+                            GridItem(.flexible(), spacing: 8),
+                            GridItem(.flexible(), spacing: 8)
+                        ],
+                        spacing: 8
+                    ) {
+                        portfolioHistoryStatusPill(label: "TOTAL", value: "\(diagnostics.totalHoldings)", status: .usable)
+                        portfolioHistoryStatusPill(label: "USABLE", value: diagnostics.formattedUsableCoverage, status: .usable)
+                        portfolioHistoryStatusPill(label: "STALE", value: "\(diagnostics.staleHoldingsCount)", status: .stale)
+                        portfolioHistoryStatusPill(label: "PARTIAL", value: "\(diagnostics.partialHoldingsCount)", status: .partial)
+                        portfolioHistoryStatusPill(label: "INSUFF.", value: "\(diagnostics.insufficientHoldingsCount)", status: .insufficient)
+                        portfolioHistoryStatusPill(label: "UNAVAIL.", value: "\(diagnostics.unavailableHoldingsCount)", status: .unavailable)
+                    }
                 }
             }
 
@@ -920,71 +952,6 @@ struct PortfolioView: View {
         case .unavailable:
             return CosmicTheme.negative
         }
-    }
-
-    private var portfolioHistoryStatusRows: some View {
-        let statuses = portfolioCorrelationViewModel.historySymbolStatuses
-
-        return VStack(alignment: .leading, spacing: 7) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("HISTORY STATUS")
-                    .font(TerminalFont.data(9, weight: .bold))
-                    .foregroundColor(CosmicTheme.textPrimary)
-                    .tracking(0.8)
-
-                Spacer()
-
-                Text("\(percentRate(portfolioCorrelationViewModel.providerBackedHistoryWeight)) usable")
-                    .font(TerminalFont.data(8, weight: .semibold))
-                    .foregroundColor(CosmicTheme.textMuted)
-            }
-
-            if statuses.isEmpty {
-                Text("Load provider-backed holding history to see symbol-level history status.")
-                    .font(TerminalFont.data(9))
-                    .foregroundColor(CosmicTheme.textMuted)
-                    .lineSpacing(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                ForEach(statuses.prefix(5)) { status in
-                    portfolioHistoryStatusRow(status)
-                }
-
-                if statuses.count > 5 {
-                    Text("+ \(statuses.count - 5) more holdings")
-                        .font(TerminalFont.data(8))
-                        .foregroundColor(CosmicTheme.textMuted)
-                }
-            }
-        }
-    }
-
-    private func portfolioHistoryStatusRow(_ status: PortfolioHistorySymbolStatus) -> some View {
-        HStack(alignment: .center, spacing: 8) {
-            Text(status.symbol)
-                .font(TerminalFont.data(10, weight: .semibold))
-                .foregroundColor(CosmicTheme.textSecondary)
-                .frame(width: 48, alignment: .leading)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(status.detail)
-                    .font(TerminalFont.data(8))
-                    .foregroundColor(CosmicTheme.textMuted)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.75)
-
-                Text("\(percentRate(status.portfolioWeight)) portfolio weight")
-                    .font(TerminalFont.data(7))
-                    .foregroundColor(CosmicTheme.textMuted.opacity(0.8))
-            }
-
-            Spacer(minLength: 6)
-
-            DataSourceIndicator(provenance: status.provenance, size: .compact)
-        }
-        .padding(.vertical, 2)
     }
 
     private func portfolioExposureRows(
