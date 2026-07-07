@@ -212,7 +212,10 @@ require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "portfolioIntellig
 require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "PORTFOLIO INTELLIGENCE"
 require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "portfolio.intelligenceDashboard"
 require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "portfolioHistoryCoverageSection"
-require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "HISTORY COVERAGE DIAGNOSTICS"
+# Diagnostics (the stale/partial/insufficient/unavailable count grid) moved
+# behind this disclosure in the positions-first reorg; pin the toggle so the
+# honest breakdown stays reachable rather than the old always-visible title.
+require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "portfolio.historyCoverage.diagnosticsToggle"
 require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "REFRESH HISTORY"
 require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "portfolio.historyCoverageDiagnostics"
 require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "portfolio.historyCoverage.refreshHistory"
@@ -523,7 +526,10 @@ require_present "Cosmo Trader/Views/Components/PortfolioCosmicCorrelationView.sw
 require_present "Cosmo Trader/Views/Components/PortfolioCosmicCorrelationView.swift" "displayMode == .marketBackedResult"
 require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "PortfolioCosmicCorrelationView"
 require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "portfolio.loadProviderHistory"
-require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "portfolioHistoryStatusRows"
+# The duplicate HISTORY STATUS list was merged into the coverage section in
+# the positions-first reorg; the surviving per-holding list carries the same
+# provenance invariant via this row helper.
+require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "portfolioHistoryCoverageRow"
 require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "await portfolioCorrelationViewModel.reload(holdings: holdings)"
 require_present "Cosmo TraderTests/Services/PortfolioCosmicCorrelationServiceTests.swift" "Portfolio correlation is weighted by market value"
 require_present "Cosmo TraderTests/Services/PortfolioCosmicCorrelationServiceTests.swift" "Portfolio history reload requests provider-backed history and updates coverage"
