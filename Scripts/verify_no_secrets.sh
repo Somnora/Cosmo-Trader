@@ -113,9 +113,14 @@ echo "verify_no_secrets: provisioning policy allows only app-root embedded.mobil
 ISSUES=0
 
 # Filenames that must never ship inside the bundle, anywhere in the tree.
+# NOTE: Secrets.plist is intentionally NOT here. The app calls Finnhub
+# directly from the client, so its client API key is inherently shipped in
+# the bundle and is read at runtime from the bundled Secrets.plist
+# (CosmoConfig). check_bundled_secrets_plist below allows that file ONLY if
+# it contains solely client-safe runtime keys — any server credential still
+# fails the build.
 FORBIDDEN_NAMES=(
     ".DS_Store"
-    "Secrets.plist"
     "Secrets-template.plist"
     "Secrets.xcconfig"
     "Secrets.xcconfig.sample"
@@ -160,6 +165,42 @@ check_find_expr "private key/certificate file(s)" -type f \( -name "*.p8" -o -na
 check_find_expr "documentation directory" -type d \( -name "Documentation" -o -name "Docs" -o -name "docs" \)
 check_find_expr "__MACOSX directory" -type d -name "__MACOSX"
 
+# A client Finnhub key must ship (direct client API calls), so the bundled
+# Secrets.plist is allowed — but ONLY if every key it carries is on the
+# client-safe allowlist. A server credential (e.g. a backend API key) added
+# to Secrets.plist must never reach a shipped bundle. Prints key NAMES only,
+# never values.
+check_bundled_secrets_plist() {
+    plist=$(find "$APP_PATH" -name "Secrets.plist" -type f -print 2>/dev/null | head -n 1)
+    if [ -z "$plist" ]; then
+        return
+    fi
+
+    allowed_keys=" FINNHUB_API_KEY BACKEND_BASE_URL "
+    keys=$(/usr/libexec/PlistBuddy -c "Print" "$plist" 2>/dev/null \
+        | sed -nE 's/^    ([A-Za-z_][A-Za-z0-9_]*) = .*/\1/p')
+
+    bad_keys=""
+    while IFS= read -r k; do
+        [ -z "$k" ] && continue
+        case "$allowed_keys" in
+            *" $k "*) ;;
+            *) bad_keys="${bad_keys}${k} " ;;
+        esac
+    done <<EOF
+$keys
+EOF
+
+    if [ -n "$bad_keys" ]; then
+        echo "FAILED: bundled Secrets.plist carries non-allowlisted key(s): ${bad_keys}"
+        echo "  Only client-safe runtime keys may ship in Secrets.plist:${allowed_keys}"
+        echo "  A server credential must never be bundled. Remove it or move it server-side."
+        ISSUES=1
+    else
+        echo "OK: bundled Secrets.plist carries only client-safe runtime keys."
+    fi
+}
+
 check_provisioning_profiles() {
     allowed_profile="${APP_PATH%/}/embedded.mobileprovision"
     matches=$(find "$SCAN_ROOT" -type f \( -name "*.mobileprovision" -o -name "*.provisionprofile" \) -print 2>/dev/null)
@@ -189,6 +230,7 @@ EOF
 }
 
 check_provisioning_profiles
+check_bundled_secrets_plist
 
 if [ "$ISSUES" -eq 0 ]; then
     echo "OK: no forbidden secrets/config/sample/docs found in bundle."
