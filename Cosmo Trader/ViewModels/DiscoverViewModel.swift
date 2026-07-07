@@ -229,6 +229,11 @@ class DiscoverViewModel {
     /// Enrich the visible discovery universe with provider-backed quotes where available.
     @MainActor
     func refreshProviderQuotesForDeck(limit: Int = 8) async {
+        // Network-free under UI/screenshot runs (smoke tests must not touch
+        // providers; now that the Finnhub key resolves, this needs to be
+        // explicit rather than relying on quotes failing).
+        guard !AppState.isUITesting, !AppState.isScreenshotMode else { return }
+
         let symbols = Array(Set(filteredStocks.prefix(limit).map { $0.symbol.uppercased() }))
         guard !symbols.isEmpty else { return }
 

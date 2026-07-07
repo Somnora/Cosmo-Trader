@@ -30,7 +30,9 @@ INFOPLIST_PREPROCESS = YES
 INFOPLIST_PREFIX_HEADER =
 
 // MARK: - API Keys (to be overridden by environment configs)
-// These are placeholders - actual values come from Secrets.xcconfig
+// These are placeholders - actual values come from Secrets.xcconfig.
+// The runtime Finnhub key is delivered to the app via the bundled
+// Secrets.plist resource, read by CosmoConfig (see CosmoConfig.swift).
 FINNHUB_API_KEY =
 BACKEND_BASE_URL =
 APP_ENVIRONMENT = development

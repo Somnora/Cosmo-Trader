@@ -636,6 +636,18 @@ require_present "Cosmo Trader/State/AppState.swift" "CloudProfileMerge.merge("
 require_absent "Cosmo Trader/State/AppState.swift" "localUser.portfolio = cloudPortfolio"
 require_present "Cosmo Trader/Services/CloudProfileMerge.swift" "never"
 
+# Finnhub key delivery: the app calls Finnhub directly from the client, so
+# its key ships in the bundled Secrets.plist and CosmoConfig must read that
+# resource (GENERATE_INFOPLIST_FILE drops custom Info.plist keys, so the
+# xcconfig value cannot reach Info.plist). Without this read,
+# isFinnhubConfigured is false in every build and all quotes (daily/all-time
+# P/L, portfolio) go dark. The Release secret scanner allows Secrets.plist
+# only when it carries client-safe keys.
+require_present "Cosmo Trader/Configuration/CosmoConfig.swift" "valueFromBundledSecretsPlist"
+require_present "Cosmo Trader/Configuration/CosmoConfig.swift" "forResource: \"Secrets\", withExtension: \"plist\""
+require_present "Scripts/verify_no_secrets.sh" "check_bundled_secrets_plist"
+require_present "Scripts/verify_no_secrets.sh" "carries non-allowlisted key"
+
 if [[ "$failures" -gt 0 ]]; then
   echo "production_mock_guard: failed with $failures issue(s)"
   exit 1

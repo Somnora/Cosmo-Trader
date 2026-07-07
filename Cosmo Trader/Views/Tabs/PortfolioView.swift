@@ -1949,6 +1949,9 @@ struct PortfolioView: View {
     // MARK: - Actions
 
     private func fetchLivePrices() async {
+        // Network-free under UI/screenshot runs (see DiscoverViewModel).
+        guard !AppState.isUITesting, !AppState.isScreenshotMode else { return }
+
         let symbols = Array(Set((holdings + watchlistStocks).map { $0.symbol.uppercased() }))
         guard !symbols.isEmpty else { return }
         isFetchingPrices = true
