@@ -177,8 +177,13 @@ check_bundled_secrets_plist() {
     fi
 
     allowed_keys=" FINNHUB_API_KEY BACKEND_BASE_URL "
-    keys=$(/usr/libexec/PlistBuddy -c "Print" "$plist" 2>/dev/null \
-        | sed -nE 's/^    ([A-Za-z_][A-Za-z0-9_]*) = .*/\1/p')
+    # Depth-agnostic: plutil -p prints every dictionary key at every nesting
+    # level as "KeyName" => …, so a server secret hidden inside a nested
+    # dict is still caught (a top-level-only scan would miss it). Fails
+    # closed — any key not on the allowlist, at any depth, blocks the build.
+    keys=$(plutil -p "$plist" 2>/dev/null \
+        | grep -oE '"[A-Za-z_][A-Za-z0-9_]*" =>' \
+        | sed -E 's/" =>$//; s/^"//')
 
     bad_keys=""
     while IFS= read -r k; do
