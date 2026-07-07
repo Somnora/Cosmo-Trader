@@ -71,6 +71,13 @@ struct PortfolioView: View {
         portfolioDailyPLProvenance.isProviderBacked
     }
 
+    private var allTimePLSummary: PortfolioAllTimePLSummary {
+        PortfolioAllTimePLSummary.make(
+            holdings: holdings,
+            quoteProvenanceBySymbol: quoteProvenanceBySymbol
+        )
+    }
+
     private var portfolioIntelligenceSummary: PortfolioIntelligenceSummary {
         PortfolioIntelligenceSummary.make(
             holdings: holdings,
@@ -221,6 +228,10 @@ struct PortfolioView: View {
                     LazyVStack(spacing: 0) {
                         // Portfolio value header
                         portfolioHeader
+
+                        if !holdings.isEmpty {
+                            PortfolioAllTimePLRow(summary: allTimePLSummary)
+                        }
 
                         dividerLine
 

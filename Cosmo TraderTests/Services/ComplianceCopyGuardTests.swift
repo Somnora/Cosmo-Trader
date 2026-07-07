@@ -231,6 +231,36 @@ struct ComplianceCopyGuardTests {
             #expect(violations.isEmpty)
         }
     }
+
+    @Test("All-time P/L copy snippets stay compliance safe")
+    func allTimePLCopySnippetsAreComplianceSafe() {
+        // Every user-facing string on the all-time P/L surfaces
+        // (PortfolioAllTimePLRow, StockPositionSummaryView). Bookkeeping
+        // facts only — what you own, what you paid, where it stands.
+        let safeExamples = [
+            "ALL-TIME P/L",
+            "4 OF 6 HOLDINGS",
+            "Add holdings to track all-time P/L.",
+            "Add cost basis to your holdings to unlock all-time P/L.",
+            "Waiting on provider quotes for holdings with cost basis.",
+            "YOUR POSITION",
+            "SHARES",
+            "COST BASIS",
+            "UNREALIZED P/L",
+            "+$500.00 (+33.3%)",
+            "-$100.00 (-4.2%)",
+            "Add cost basis via the shares editor to unlock unrealized P/L.",
+            "Unrealized P/L appears once a provider-backed quote loads."
+        ]
+
+        for example in safeExamples {
+            let violations = ComplianceCopyScanner.violations(in: example)
+            if !violations.isEmpty {
+                Issue.record("All-time P/L copy violation for '\(example)': \(violations.map { $0.label }.joined(separator: ", "))")
+            }
+            #expect(violations.isEmpty)
+        }
+    }
 }
 
 private enum ComplianceCopyScanner {
