@@ -471,9 +471,19 @@ actor StockAPIService {
         let upperSymbol = symbol.uppercased()
 
         if let cached = getCachedQuote(for: upperSymbol), !cached.isExpired {
+            // A non-expired quote cache hit is at most cacheExpirationSeconds
+            // (60s) old — fresh by the app's own bar — so it reads as live, not
+            // a cautionary yellow "cached" pill. Without this, a symbol kept
+            // warm across screens (ticker + Today snapshot + Portfolio all
+            // fetch the same holdings) perpetually showed "cached" for
+            // seconds-fresh data, while a first-seen symbol on Discover showed
+            // "live". The yellow "cached" state is reserved for genuinely stale
+            // fallbacks below (offline / API error serving an expired entry).
+            // NOTE: quotes only. Fundamentals (fetchBasicFinancialsResult) keep
+            // a 24h cache, where a hit really is day-old and stays "cached".
             return StockQuoteResult(
                 quote: cached.quote,
-                provenance: .cached(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: cached.timestamp),
+                provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: cached.timestamp),
                 error: nil
             )
         }
