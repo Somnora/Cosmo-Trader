@@ -27,49 +27,60 @@ struct CosmicTickerTape: View {
     private let scrollSpeed: CGFloat = 40
 
     var body: some View {
-        HStack(spacing: 0) {
-            // First copy of ticker items
-            tickerContent
-                .background(
-                    GeometryReader { contentGeo in
-                        Color.clear
-                            .onAppear {
-                                contentWidth = contentGeo.size.width
+        // The two tape copies are laid at their true (huge) content width so
+        // the marquee has room to scroll (see tickerContent's fixedSize). That
+        // width must never drive layout: hosted directly in a stack it leaks
+        // up through the parent and shoves sibling content off-screen (the
+        // Today brief rendered clipped for exactly this reason). Hosting the
+        // marquee as an overlay over a bounded Color.clear keeps this view's
+        // reported size at screen-width × 32 — an overlay never resizes its
+        // parent — while the tape still scrolls its full width beneath the clip.
+        Color.clear
+            .frame(maxWidth: .infinity)
+            .frame(height: 32)
+            .overlay(alignment: .leading) {
+                HStack(spacing: 0) {
+                    // First copy of ticker items
+                    tickerContent
+                        .background(
+                            GeometryReader { contentGeo in
+                                Color.clear
+                                    .onAppear {
+                                        contentWidth = contentGeo.size.width
+                                    }
+                                    .onChange(of: contentGeo.size.width) { _, newWidth in
+                                        contentWidth = newWidth
+                                    }
                             }
-                            .onChange(of: contentGeo.size.width) { _, newWidth in
-                                contentWidth = newWidth
-                            }
-                    }
-                )
+                        )
 
-            // Second copy for seamless looping
-            tickerContent
-        }
-        .offset(x: isScrolling ? -contentWidth : 0)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .frame(height: 32)
-        .background(CosmicTheme.background.opacity(0.95))
-        .overlay(
-            // Fade edges
-            HStack(spacing: 0) {
-                LinearGradient(
-                    colors: [CosmicTheme.background, .clear],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(width: 20)
-
-                Spacer()
-
-                LinearGradient(
-                    colors: [.clear, CosmicTheme.background],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(width: 20)
+                    // Second copy for seamless looping
+                    tickerContent
+                }
+                .offset(x: isScrolling ? -contentWidth : 0)
             }
-        )
-        .clipped()
+            .background(CosmicTheme.background.opacity(0.95))
+            .overlay(
+                // Fade edges
+                HStack(spacing: 0) {
+                    LinearGradient(
+                        colors: [CosmicTheme.background, .clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: 20)
+
+                    Spacer()
+
+                    LinearGradient(
+                        colors: [.clear, CosmicTheme.background],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: 20)
+                }
+            )
+            .clipped()
         .onAppear {
             service.refreshTicker()
             service.startRefreshTimer()
