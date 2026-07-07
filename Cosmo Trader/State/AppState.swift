@@ -896,13 +896,21 @@ class AppState {
                     return
                 }
 
-                // If localUser exists, merge
-                if let cloudPortfolio = backendProfile.portfolio {
-                    localUser.portfolio = cloudPortfolio
-                }
-                if let cloudWatchlist = backendProfile.watchlist {
-                    localUser.watchlist = cloudWatchlist
-                }
+                // If localUser exists, merge. The device is the source of
+                // truth (every save pushes via syncProfileToCloud); the
+                // cloud copy only fills in when local is empty. A stale or
+                // empty cloud profile must never delete local holdings —
+                // the pre-fix blind replace wiped on-device portfolios
+                // whenever the backend was behind (fresh anonymous UID,
+                // failed sync, reinstall).
+                let merged = CloudProfileMerge.merge(
+                    localPortfolio: localUser.portfolio,
+                    localWatchlist: localUser.watchlist,
+                    cloudPortfolio: backendProfile.portfolio,
+                    cloudWatchlist: backendProfile.watchlist
+                )
+                localUser.portfolio = merged.portfolio
+                localUser.watchlist = merged.watchlist
                 self.currentUser = localUser
                 self.saveUserToStorage()
             }

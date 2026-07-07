@@ -272,6 +272,20 @@ struct StockDetailView: View {
                     // 7. Financial Stats
                     financialStatsSection
 
+                    // 8. Your Position (owned stocks: shares, cost basis,
+                    //    provider-gated unrealized P/L)
+                    if let ownedHolding {
+                        StockPositionSummaryView(
+                            holding: ownedHolding,
+                            livePrice: liveStock.currentPrice,
+                            priceProvenance: priceProvenance
+                        )
+                        .background(cardBackground)
+                        .opacity(appearAnimation ? 1 : 0)
+                        .offset(y: appearAnimation ? 0 : 20)
+                        .animation(.easeOut(duration: 0.5).delay(0.35), value: appearAnimation)
+                    }
+
                     // 5. Action Buttons
                     actionButtons
                 }

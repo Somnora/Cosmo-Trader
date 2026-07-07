@@ -255,19 +255,8 @@ class ProfileViewModel {
         })
     }
 
-    /// All-time gain/loss - HIDDEN until cost basis tracking is implemented
-    /// This property returns mock data and should NOT be displayed to users.
-    /// TODO: Implement real calculation from cost basis when we track purchase prices
-    private var allTimeGainLoss: Double {
-        // Placeholder - returns 0 until we have real cost basis data
-        return 0
-    }
-
-    /// Formatted all-time gain/loss - HIDDEN until cost basis tracking is implemented
-    private var formattedAllTimeGainLoss: String {
-        let sign = allTimeGainLoss >= 0 ? "+" : ""
-        return sign + formatCurrency(allTimeGainLoss)
-    }
+    // All-time P/L lives on the Portfolio tab (PortfolioAllTimePLSummary),
+    // where per-symbol quote provenance exists to gate it honestly.
 
     // MARK: - Actions
 

@@ -616,6 +616,26 @@ require_present "Cosmo Trader/Views/StockDetailView.swift" "HoldingSharesEditorV
 require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "HoldingSharesEditorView("
 require_present "Cosmo TraderTests/Services/ComplianceCopyGuardTests.swift" "Shares editor copy snippets stay compliance safe"
 
+# All-time P/L: both legs must be honest — cost basis is user/import data
+# (excluded when absent, never guessed) and the current leg needs a
+# provider-backed quote. Partial coverage is labeled, and the old Profile
+# placeholder stays deleted.
+require_present "Cosmo Trader/Models/PortfolioAllTimePLSummary.swift" "quoteProvenance.isProviderBacked"
+require_present "Cosmo Trader/Models/PortfolioAllTimePLSummary.swift" "missingCostBasisSymbols"
+require_present "Cosmo Trader/Views/Components/PortfolioAllTimePLRow.swift" "summary.coverageLabel"
+require_present "Cosmo Trader/Views/Tabs/PortfolioView.swift" "PortfolioAllTimePLRow(summary: allTimePLSummary)"
+require_present "Cosmo Trader/Views/Components/StockPositionSummaryView.swift" "priceProvenance.isProviderBacked"
+require_present "Cosmo Trader/Views/StockDetailView.swift" "StockPositionSummaryView("
+require_absent "Cosmo Trader/ViewModels/ProfileViewModel.swift" "allTimeGainLoss"
+require_present "Cosmo TraderTests/Services/ComplianceCopyGuardTests.swift" "All-time P/L copy snippets stay compliance safe"
+
+# Cloud profile pull must never delete local data: the launch-time fetch
+# merges through CloudProfileMerge (fill-when-empty only). The pre-fix
+# blind replace wiped on-device portfolios when the backend was behind.
+require_present "Cosmo Trader/State/AppState.swift" "CloudProfileMerge.merge("
+require_absent "Cosmo Trader/State/AppState.swift" "localUser.portfolio = cloudPortfolio"
+require_present "Cosmo Trader/Services/CloudProfileMerge.swift" "never"
+
 if [[ "$failures" -gt 0 ]]; then
   echo "production_mock_guard: failed with $failures issue(s)"
   exit 1
