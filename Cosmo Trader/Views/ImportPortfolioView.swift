@@ -107,17 +107,19 @@ struct ImportPortfolioView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             // Formats with dedicated parsers or verified generic support
-            HStack(spacing: 8) {
-                ForEach(["Schwab", "thinkorswim", "Fidelity", "E*TRADE"], id: \.self) { name in
-                    Text(name)
-                        .font(TerminalFont.data(9))
-                        .foregroundColor(CosmicTheme.textMuted)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(CosmicTheme.cardBackground)
-                        .clipShape(Capsule())
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    ForEach(["Schwab", "thinkorswim", "Fidelity", "E*TRADE"], id: \.self) { name in
+                        Text(name)
+                            .font(TerminalFont.data(9))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(CosmicTheme.cardBackground)
+                            .clipShape(Capsule())
+                    }
                 }
-                Text("+ any positions CSV")
+                Text("+ any positions CSV with Symbol and Quantity columns")
                     .font(TerminalFont.data(9))
                     .foregroundColor(CosmicTheme.gold)
             }
@@ -152,6 +154,7 @@ struct ImportPortfolioView: View {
                         Text("Most brokers. Review rows, then append or replace")
                             .font(TerminalFont.data(10))
                             .opacity(0.7)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
 
                     Spacer()
