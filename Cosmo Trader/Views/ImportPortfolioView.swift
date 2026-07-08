@@ -3,8 +3,12 @@ import UniformTypeIdentifiers
 
 // MARK: - ImportPortfolioView
 // ============================
-// Terminal-style view for importing portfolio holdings from CSV files.
-// Supports multiple broker export formats with step-by-step guidance.
+// Terminal-style view for importing portfolio holdings from broker
+// positions files. CSV import accepts any positions export with Symbol
+// and Quantity columns (specialized parsers cover thinkorswim and Schwab
+// web formats); screenshot import currently parses Schwab mobile
+// positions screens. Every parse routes through ImportReviewView for
+// row-by-row review before anything is committed.
 
 struct ImportPortfolioView: View {
 
@@ -15,17 +19,14 @@ struct ImportPortfolioView: View {
 
     // MARK: - State
 
-    @State private var importResult: PortfolioImportResult?
     @State private var isShowingFilePicker = false
     @State private var isShowingError = false
     @State private var errorMessage = ""
     @State private var isImporting = false
-    @State private var replaceExisting = false
-    @State private var showSuccess = false
-    @State private var expandedFormat: CSVFormat?
     @State private var isShowingScreenshotImport = false
     @State private var parsedPortfolio: ParsedPortfolio?
     @State private var isShowingImportReview = false
+    @State private var expandedGuideID: String?
 
     // MARK: - Body
 
@@ -37,8 +38,8 @@ struct ImportPortfolioView: View {
                 ScrollView {
                     VStack(spacing: 20) {
                         instructionsSection
-                        brokerInstructions
-                        importButton
+                        importButtons
+                        brokerGuides
                     }
                     .padding()
                 }
@@ -64,15 +65,6 @@ struct ImportPortfolioView: View {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text(errorMessage)
-            }
-            .alert("Portfolio Imported!", isPresented: $showSuccess) {
-                Button("Done") {
-                    dismiss()
-                }
-            } message: {
-                if let result = importResult {
-                    Text("Successfully imported \(result.holdings.count) holdings to your portfolio.")
-                }
             }
             .sheet(isPresented: $isShowingScreenshotImport) {
                 ScreenshotImportView()
@@ -109,23 +101,25 @@ struct ImportPortfolioView: View {
                     .tracking(1)
             }
 
-            Text("Import holdings to make Today operational. Screenshot import is fastest; CSV is available when you want a cleaner position file.")
+            Text("Import holdings to make Today operational. Any positions CSV with Symbol and Quantity columns will import; you review every row before it commits.")
                 .font(TerminalFont.data(12))
                 .foregroundColor(CosmicTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            // Supported formats
-            HStack(spacing: 8) {
-                ForEach(["Robinhood", "Fidelity", "Schwab"], id: \.self) { name in
-                    Text(name)
-                        .font(TerminalFont.data(9))
-                        .foregroundColor(CosmicTheme.textMuted)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(CosmicTheme.cardBackground)
-                        .clipShape(Capsule())
+            // Formats with dedicated parsers or verified generic support
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    ForEach(["Schwab", "thinkorswim", "Fidelity", "E*TRADE"], id: \.self) { name in
+                        Text(name)
+                            .font(TerminalFont.data(9))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(CosmicTheme.cardBackground)
+                            .clipShape(Capsule())
+                    }
                 }
-                Text("+3 more")
+                Text("+ any positions CSV with Symbol and Quantity columns")
                     .font(TerminalFont.data(9))
                     .foregroundColor(CosmicTheme.gold)
             }
@@ -140,200 +134,38 @@ struct ImportPortfolioView: View {
         )
     }
 
-    // MARK: - Broker Instructions
+    // MARK: - Import Buttons
 
-    private var brokerInstructions: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("EXPORT INSTRUCTIONS BY BROKER")
-                    .font(TerminalFont.data(10, weight: .semibold))
-                    .foregroundColor(CosmicTheme.textMuted)
-                    .tracking(1)
-
-                Spacer()
-            }
-            .padding(12)
-
-            Rectangle()
-                .fill(CosmicTheme.border)
-                .frame(height: 1)
-
-            ForEach(CSVFormat.allCases.filter { $0 != .generic }, id: \.self) { format in
-                brokerRow(format)
-
-                if format != .tdAmeritrade {
-                    Rectangle()
-                        .fill(CosmicTheme.border.opacity(0.5))
-                        .frame(height: 1)
-                }
-            }
-        }
-        .background(CosmicTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(CosmicTheme.border, lineWidth: 1)
-        )
-    }
-
-    private func brokerRow(_ format: CSVFormat) -> some View {
-        let isExpanded = expandedFormat == format
-
-        return VStack(alignment: .leading, spacing: 0) {
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    expandedFormat = isExpanded ? nil : format
-                }
-            }) {
-                HStack {
-                    // Broker icon
-                    brokerIcon(for: format)
-                        .frame(width: 24, height: 24)
-
-                    Text(format.rawValue)
-                        .font(TerminalFont.data(12, weight: .medium))
-                        .foregroundColor(CosmicTheme.textPrimary)
-
-                    Spacer()
-
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption)
-                        .foregroundColor(CosmicTheme.textMuted)
-                }
-                .padding(12)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(PlainButtonStyle())
-
-            if isExpanded {
-                VStack(alignment: .leading, spacing: 8) {
-                    // Steps
-                    ForEach(exportSteps(for: format).indices, id: \.self) { index in
-                        HStack(alignment: .top, spacing: 8) {
-                            Text("\(index + 1).")
-                                .font(TerminalFont.data(11, weight: .semibold))
-                                .foregroundColor(CosmicTheme.gold)
-                                .frame(width: 16)
-
-                            Text(exportSteps(for: format)[index])
-                                .font(TerminalFont.data(11))
-                                .foregroundColor(CosmicTheme.textSecondary)
-                        }
-                    }
-
-                    // Path hint
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.right.circle")
-                            .font(.caption2)
-                            .foregroundColor(CosmicTheme.textMuted)
-
-                        Text(format.exportInstructions)
-                            .font(TerminalFont.data(10))
-                            .foregroundColor(CosmicTheme.textMuted)
-                            .italic()
-                    }
-                    .padding(.top, 4)
-                }
-                .padding(.horizontal, 12)
-                .padding(.bottom, 12)
-                .background(CosmicTheme.background.opacity(0.5))
-            }
-        }
-    }
-
-    private func brokerIcon(for format: CSVFormat) -> some View {
-        let (icon, color): (String, Color) = switch format {
-        case .robinhood: ("leaf.fill", .green)
-        case .fidelity: ("building.columns.fill", .blue)
-        case .schwab: ("s.circle.fill", .cyan)
-        case .etrade: ("e.circle.fill", .purple)
-        case .tdAmeritrade: ("t.circle.fill", .green)
-        case .generic: ("doc.text.fill", CosmicTheme.textMuted)
-        }
-
-        return Image(systemName: icon)
-            .font(.system(size: 14))
-            .foregroundColor(color)
-    }
-
-    private func exportSteps(for format: CSVFormat) -> [String] {
-        switch format {
-        case .robinhood:
-            return [
-                "Open Robinhood app or web",
-                "Go to Account → Statements & History",
-                "Select 'Export' or 'Download'",
-                "Choose CSV format"
-            ]
-        case .fidelity:
-            return [
-                "Log in to Fidelity.com",
-                "Go to Accounts → Positions",
-                "Click 'Download' button",
-                "Select CSV format"
-            ]
-        case .schwab:
-            return [
-                "Log in to Schwab.com",
-                "Navigate to Accounts → Positions",
-                "Click 'Export' in the top right",
-                "Choose CSV download"
-            ]
-        case .etrade:
-            return [
-                "Log in to E*TRADE",
-                "Go to Accounts → Positions",
-                "Click 'Download' icon",
-                "Select CSV format"
-            ]
-        case .tdAmeritrade:
-            return [
-                "Log in to TD Ameritrade",
-                "Go to My Account → Positions",
-                "Click 'Export' button",
-                "Download as CSV"
-            ]
-        case .generic:
-            return ["Export your positions as CSV from your broker"]
-        }
-    }
-
-    // MARK: - Import Button
-
-    private var importButton: some View {
+    private var importButtons: some View {
         VStack(spacing: 12) {
-            // Screenshot Import (Primary - Recommended)
+            // Positions CSV (primary: works for most brokers)
             Button(action: {
-                isShowingScreenshotImport = true
+                isShowingFilePicker = true
             }) {
                 HStack(spacing: 10) {
-                    Image(systemName: "camera.viewfinder")
+                    Image(systemName: "doc.badge.plus")
                         .font(.title3)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Text("SCREENSHOT IMPORT")
-                                .font(TerminalFont.data(12, weight: .semibold))
-                                .tracking(1)
+                        Text("IMPORT POSITIONS CSV")
+                            .font(TerminalFont.data(12, weight: .semibold))
+                            .tracking(1)
 
-                            Text("Recommended")
-                                .font(TerminalFont.data(8, weight: .semibold))
-                                .foregroundColor(CosmicTheme.background)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(CosmicTheme.gold)
-                                .clipShape(Capsule())
-                        }
-
-                        Text("Fast setup from a broker holdings screen")
+                        Text("Most brokers. Review rows, then append or replace")
                             .font(TerminalFont.data(10))
                             .opacity(0.7)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
 
                     Spacer()
 
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
+                    if isImporting {
+                        ProgressView()
+                            .tint(CosmicTheme.gold)
+                    } else {
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                    }
                 }
                 .foregroundColor(CosmicTheme.gold)
                 .padding(16)
@@ -345,21 +177,23 @@ struct ImportPortfolioView: View {
                 )
             }
             .buttonStyle(PlainButtonStyle())
+            .disabled(isImporting)
+            .accessibilityIdentifier("importPortfolio.csvImport")
 
-            // CSV File Import (Secondary)
+            // Screenshot import (Schwab mobile positions screens only)
             Button(action: {
-                isShowingFilePicker = true
+                isShowingScreenshotImport = true
             }) {
                 HStack(spacing: 10) {
-                    Image(systemName: "doc.badge.plus")
+                    Image(systemName: "camera.viewfinder")
                         .font(.title3)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("IMPORT CSV FROM THINKORSWIM OR SCHWAB")
+                        Text("SCREENSHOT IMPORT")
                             .font(TerminalFont.data(12, weight: .semibold))
                             .tracking(1)
 
-                        Text("Review rows, then append or replace")
+                        Text("Schwab mobile positions screens")
                             .font(TerminalFont.data(10))
                             .opacity(0.7)
                     }
@@ -379,6 +213,7 @@ struct ImportPortfolioView: View {
                 )
             }
             .buttonStyle(PlainButtonStyle())
+            .accessibilityIdentifier("importPortfolio.screenshotImport")
 
             #if DEBUG
             // Debug-only sample import. Production import paths must use real user files.
@@ -398,164 +233,17 @@ struct ImportPortfolioView: View {
         }
     }
 
-    // MARK: - Import Preview
+    // MARK: - Broker Export Guides
 
-    private func importPreview(_ result: PortfolioImportResult) -> some View {
-        VStack(spacing: 16) {
-            // Summary card
-            summaryCard(result)
-
-            // Warnings
-            if !result.warnings.isEmpty {
-                warningsCard(result.warnings)
-            }
-
-            // Holdings list
-            holdingsList(result.holdings)
-
-            // Options
-            optionsSection
-        }
-    }
-
-    private func summaryCard(_ result: PortfolioImportResult) -> some View {
-        VStack(spacing: 12) {
-            // Success header
-            HStack(spacing: 8) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(CosmicTheme.positive)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("FILE PARSED SUCCESSFULLY")
-                        .font(TerminalFont.data(11, weight: .semibold))
-                        .foregroundColor(CosmicTheme.positive)
-                        .tracking(1)
-
-                    Text("Detected format: \(result.format.rawValue)")
-                        .font(TerminalFont.data(10))
-                        .foregroundColor(CosmicTheme.textMuted)
-                }
-
-                Spacer()
-            }
-
-            Rectangle()
-                .fill(CosmicTheme.border)
-                .frame(height: 1)
-
-            // Stats
-            HStack(spacing: 20) {
-                statItem(
-                    value: "\(result.holdings.count)",
-                    label: "STOCKS",
-                    icon: "chart.bar.fill"
-                )
-
-                statItem(
-                    value: String(format: "%.0f", result.totalShares),
-                    label: "SHARES",
-                    icon: "square.stack.3d.up.fill"
-                )
-
-                statItem(
-                    value: formatValue(result.totalValue),
-                    label: "EST. VALUE",
-                    icon: "dollarsign.circle.fill"
-                )
-            }
-
-            // Skipped rows note
-            if result.skippedRows > 0 {
-                HStack(spacing: 6) {
-                    Image(systemName: "info.circle")
-                        .font(.caption2)
-                        .foregroundColor(CosmicTheme.textMuted)
-
-                    Text("\(result.skippedRows) rows skipped (headers, empty rows, or invalid data)")
-                        .font(TerminalFont.data(10))
-                        .foregroundColor(CosmicTheme.textMuted)
-                }
-            }
-        }
-        .padding(16)
-        .background(CosmicTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(CosmicTheme.positive.opacity(0.3), lineWidth: 1)
-        )
-    }
-
-    private func statItem(value: String, label: String, icon: String) -> some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.caption2)
-                    .foregroundColor(CosmicTheme.gold)
-
-                Text(value)
-                    .font(TerminalFont.price(18))
-                    .foregroundColor(CosmicTheme.textPrimary)
-            }
-
-            Text(label)
-                .font(TerminalFont.data(9))
-                .foregroundColor(CosmicTheme.textMuted)
-                .tracking(0.5)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func warningsCard(_ warnings: [ImportWarning]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundColor(.orange)
-
-                Text("WARNINGS (\(warnings.count))")
-                    .font(TerminalFont.data(10, weight: .semibold))
-                    .foregroundColor(.orange)
-                    .tracking(1)
-            }
-
-            ForEach(warnings) { warning in
-                HStack(alignment: .top, spacing: 8) {
-                    Text("•")
-                        .font(TerminalFont.data(11))
-                        .foregroundColor(.orange.opacity(0.7))
-
-                    Text(warning.message)
-                        .font(TerminalFont.data(11))
-                        .foregroundColor(CosmicTheme.textSecondary)
-                }
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.orange.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-        )
-    }
-
-    private func holdingsList(_ holdings: [ImportedHolding]) -> some View {
+    private var brokerGuides: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
             HStack {
-                Text("HOLDINGS TO IMPORT")
+                Text("EXPORT INSTRUCTIONS BY BROKER")
                     .font(TerminalFont.data(10, weight: .semibold))
                     .foregroundColor(CosmicTheme.textMuted)
                     .tracking(1)
 
                 Spacer()
-
-                Text("\(holdings.filter { $0.isRecognized }.count)/\(holdings.count) recognized")
-                    .font(TerminalFont.data(10))
-                    .foregroundColor(CosmicTheme.textMuted)
             }
             .padding(12)
 
@@ -563,32 +251,10 @@ struct ImportPortfolioView: View {
                 .fill(CosmicTheme.border)
                 .frame(height: 1)
 
-            // Table header
-            HStack(spacing: 0) {
-                Text("SYMBOL")
-                    .frame(width: 70, alignment: .leading)
-                Text("QTY")
-                    .frame(width: 60, alignment: .trailing)
-                Text("AVG COST")
-                    .frame(width: 80, alignment: .trailing)
-                Text("STATUS")
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .font(TerminalFont.data(9))
-            .foregroundColor(CosmicTheme.textMuted)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(CosmicTheme.background)
+            ForEach(BrokerExportGuide.all) { guide in
+                brokerRow(guide)
 
-            Rectangle()
-                .fill(CosmicTheme.border)
-                .frame(height: 1)
-
-            // Rows
-            ForEach(holdings) { holding in
-                holdingRow(holding)
-
-                if holding.id != holdings.last?.id {
+                if guide.id != BrokerExportGuide.all.last?.id {
                     Rectangle()
                         .fill(CosmicTheme.border.opacity(0.5))
                         .frame(height: 1)
@@ -603,106 +269,69 @@ struct ImportPortfolioView: View {
         )
     }
 
-    private func holdingRow(_ holding: ImportedHolding) -> some View {
-        HStack(spacing: 0) {
-            // Symbol with zodiac if recognized
-            HStack(spacing: 6) {
-                Text(holding.symbol)
-                    .font(TerminalFont.data(12, weight: .semibold))
-                    .foregroundColor(CosmicTheme.textPrimary)
+    private func brokerRow(_ guide: BrokerExportGuide) -> some View {
+        let isExpanded = expandedGuideID == guide.id
 
-                if let sign = holding.matchedStock?.zodiacSign {
-                    ZodiacMark(sign: sign, size: .tiny, style: .element)
-                } else if holding.matchedStock != nil {
-                    Text("?")
-                        .font(TerminalFont.data(10, weight: .bold))
-                        .foregroundColor(CosmicTheme.textMuted)
-                        .accessibilityLabel("unknown sign")
-                }
-            }
-            .frame(width: 70, alignment: .leading)
-
-            // Quantity
-            Text(holding.formattedQuantity)
-                .font(TerminalFont.data(12))
-                .foregroundColor(CosmicTheme.textSecondary)
-                .frame(width: 60, alignment: .trailing)
-
-            // Average cost
-            Text(holding.formattedAverageCost ?? "-")
-                .font(TerminalFont.data(12))
-                .foregroundColor(CosmicTheme.textSecondary)
-                .frame(width: 80, alignment: .trailing)
-
-            // Status
-            HStack(spacing: 4) {
-                if holding.isRecognized {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.caption2)
-                        .foregroundColor(CosmicTheme.positive)
-                    Text("Ready")
-                        .font(TerminalFont.data(10))
-                        .foregroundColor(CosmicTheme.positive)
-                } else {
-                    Image(systemName: "questionmark.circle")
-                        .font(.caption2)
-                        .foregroundColor(.orange)
-                    Text("Unknown")
-                        .font(TerminalFont.data(10))
-                        .foregroundColor(.orange)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .trailing)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-    }
-
-    // MARK: - Options Section
-
-    private var optionsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("IMPORT OPTIONS")
-                .font(TerminalFont.data(10, weight: .semibold))
-                .foregroundColor(CosmicTheme.textMuted)
-                .tracking(1)
-
-            Toggle(isOn: $replaceExisting) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Replace existing portfolio")
-                        .font(TerminalFont.data(12))
-                        .foregroundColor(CosmicTheme.textPrimary)
-
-                    Text("Clear current holdings before importing")
-                        .font(TerminalFont.data(10))
-                        .foregroundColor(CosmicTheme.textMuted)
-                }
-            }
-            .toggleStyle(SwitchToggleStyle(tint: CosmicTheme.gold))
-
-            // Clear preview button
+        return VStack(alignment: .leading, spacing: 0) {
             Button(action: {
-                withAnimation {
-                    importResult = nil
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    expandedGuideID = isExpanded ? nil : guide.id
                 }
             }) {
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.counterclockwise")
-                        .font(.caption)
+                HStack {
+                    Image(systemName: guide.icon)
+                        .font(.system(size: 14))
+                        .foregroundColor(guide.iconColor)
+                        .frame(width: 24, height: 24)
 
-                    Text("Choose Different File")
-                        .font(TerminalFont.data(11))
+                    Text(guide.name)
+                        .font(TerminalFont.data(12, weight: .medium))
+                        .foregroundColor(CosmicTheme.textPrimary)
+
+                    Spacer()
+
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .foregroundColor(CosmicTheme.textMuted)
                 }
-                .foregroundColor(CosmicTheme.textMuted)
+                .padding(12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(guide.steps.indices, id: \.self) { index in
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("\(index + 1).")
+                                .font(TerminalFont.data(11, weight: .semibold))
+                                .foregroundColor(CosmicTheme.gold)
+                                .frame(width: 16)
+
+                            Text(guide.steps[index])
+                                .font(TerminalFont.data(11))
+                                .foregroundColor(CosmicTheme.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.right.circle")
+                            .font(.caption2)
+                            .foregroundColor(CosmicTheme.textMuted)
+
+                        Text(guide.pathHint)
+                            .font(TerminalFont.data(10))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .italic()
+                    }
+                    .padding(.top, 4)
+                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
+                .background(CosmicTheme.background.opacity(0.5))
             }
         }
-        .padding(12)
-        .background(CosmicTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(CosmicTheme.border, lineWidth: 1)
-        )
     }
 
     // MARK: - Actions
@@ -765,18 +394,98 @@ struct ImportPortfolioView: View {
         }
     }
     #endif
+}
 
-    // MARK: - Helpers
+// MARK: - Broker Export Guide
 
-    private func formatValue(_ value: Double) -> String {
-        if value >= 1_000_000 {
-            return String(format: "$%.1fM", value / 1_000_000)
-        } else if value >= 1_000 {
-            return String(format: "$%.1fK", value / 1_000)
-        } else {
-            return String(format: "$%.0f", value)
-        }
-    }
+// Static how-to content only. Which files actually parse is decided by the
+// registered BrokerCSVParser implementations; keep these guides in step with
+// them so the screen never teaches an export the engine rejects.
+private struct BrokerExportGuide: Identifiable {
+    let id: String
+    let name: String
+    let icon: String
+    let iconColor: Color
+    let steps: [String]
+    let pathHint: String
+
+    static let all: [BrokerExportGuide] = [
+        BrokerExportGuide(
+            id: "schwab",
+            name: "Charles Schwab",
+            icon: "s.circle.fill",
+            iconColor: .cyan,
+            steps: [
+                "Log in to Schwab.com",
+                "Go to Accounts, then Positions",
+                "Select Export in the top right",
+                "Choose CSV download"
+            ],
+            pathHint: "Accounts, Positions, Export"
+        ),
+        BrokerExportGuide(
+            id: "thinkorswim",
+            name: "thinkorswim",
+            icon: "t.circle.fill",
+            iconColor: .green,
+            steps: [
+                "Open thinkorswim desktop",
+                "Go to the Monitor tab, Activity and Positions",
+                "Open the Position Statement section menu",
+                "Choose Export to File"
+            ],
+            pathHint: "Monitor, Position Statement, Export to File"
+        ),
+        BrokerExportGuide(
+            id: "fidelity",
+            name: "Fidelity",
+            icon: "building.columns.fill",
+            iconColor: .blue,
+            steps: [
+                "Log in to Fidelity.com",
+                "Go to Accounts, then Positions",
+                "Select the Download icon above the positions table",
+                "The positions CSV downloads directly"
+            ],
+            pathHint: "Accounts, Positions, Download"
+        ),
+        BrokerExportGuide(
+            id: "etrade",
+            name: "E*TRADE",
+            icon: "e.circle.fill",
+            iconColor: .purple,
+            steps: [
+                "Log in to E*TRADE",
+                "Go to Portfolios, then Positions",
+                "Select the Download link",
+                "Choose the spreadsheet (CSV) option"
+            ],
+            pathHint: "Portfolios, Positions, Download"
+        ),
+        BrokerExportGuide(
+            id: "robinhood",
+            name: "Robinhood",
+            icon: "leaf.fill",
+            iconColor: .green,
+            steps: [
+                "Robinhood does not currently offer a positions CSV export; its reports are transaction history, which is not a positions file",
+                "Use ADD HOLDING on the Portfolio tab to enter positions manually"
+            ],
+            pathHint: "No positions export available"
+        ),
+        BrokerExportGuide(
+            id: "other",
+            name: "Other brokers",
+            icon: "doc.text.fill",
+            iconColor: CosmicTheme.textMuted,
+            steps: [
+                "Export your positions (not transaction history) as CSV",
+                "Make sure the file includes Symbol and Quantity or Shares columns",
+                "Market Value and Cost Basis columns improve the review screen when present"
+            ],
+            pathHint: "Any positions CSV with Symbol and Quantity columns"
+        )
+    ]
 }
 
 // MARK: - Preview
