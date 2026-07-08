@@ -403,34 +403,4 @@ final class VisionOCRService {
         ]
         return commonWords.contains(word)
     }
-
-    // MARK: - Conversion to ImportedHolding
-
-    /// Convert OCR holdings to ImportedHolding format for import
-    func convertToImportedHoldings(_ ocrHoldings: [OCRExtractedHolding]) -> [ImportedHolding] {
-        return ocrHoldings.compactMap { ocr in
-            // Only convert if we have at least a quantity
-            guard let quantity = ocr.quantity, quantity > 0 else {
-                // If no quantity but recognized, assume 1 share for review
-                if ocr.isRecognized {
-                    return ImportedHolding(
-                        symbol: ocr.symbol,
-                        quantity: 1,
-                        averageCost: ocr.price,
-                        currentPrice: ocr.price,
-                        totalValue: ocr.totalValue
-                    )
-                }
-                return nil
-            }
-
-            return ImportedHolding(
-                symbol: ocr.symbol,
-                quantity: quantity,
-                averageCost: ocr.price,
-                currentPrice: ocr.price,
-                totalValue: ocr.totalValue
-            )
-        }
-    }
 }
