@@ -178,9 +178,14 @@ enum PortfolioImportService {
         SchwabMobileParser()
     ]
 
+    // Ordered specialized-first: the generic fallback's confidence is capped
+    // below the specialized parsers' full-signal scores (see
+    // GenericPositionsCSVParser) so broker-specific formats keep routing to
+    // their own parser.
     private static let csvParsers: [BrokerCSVParser] = [
         ThinkOrSwimPositionStatementParser(),
-        SchwabWebPositionsParser()
+        SchwabWebPositionsParser(),
+        GenericPositionsCSVParser()
     ]
 
     // MARK: - Main Import
