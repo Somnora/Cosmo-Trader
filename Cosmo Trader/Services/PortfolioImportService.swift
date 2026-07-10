@@ -69,8 +69,8 @@ enum PortfolioImportService {
 
     /// Parse a brokerage screenshot into structured holdings using registered broker parsers.
     static func parseScreenshot(_ image: UIImage) async throws -> ParsedPortfolio {
-        let ocrPortfolio = try await VisionOCRService.shared.extractPortfolio(from: image)
-        let rawLines = ocrPortfolio.rawText.components(separatedBy: .newlines)
+        let rawText = try await VisionOCRService.shared.recognizeText(from: image)
+        let rawLines = rawText.components(separatedBy: .newlines)
 
         guard let bestParser = screenshotParsers
             .map({ parser in (parser: parser, confidence: parser.canParse(rawLines)) })
