@@ -78,8 +78,36 @@ jobs:
       # breaks `xcodebuild archive` at ship time. Device target, no signing,
       # so it needs no certs. Catches Release-only build breaks in CI instead
       # of at archive.
+      #
+      # The Release config has a "Copy Firebase Plist (Release Required)"
+      # build phase that hard-fails when GoogleService-Info.plist is absent.
+      # That file is a gitignored per-environment Firebase config, so it is
+      # not in CI. Its CONTENTS are read only at runtime (FirebaseApp.configure);
+      # the build phase merely copies the file, so a throwaway placeholder with
+      # obviously-fake values satisfies the compile check. This build only
+      # compiles (no archive, no distribution), so the placeholder never ships.
       - name: Release build (device, unsigned)
         run: |
+          cat > "GoogleService-Info.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>API_KEY</key><string>ci-placeholder-not-a-real-key</string>
+            <key>GCM_SENDER_ID</key><string>000000000000</string>
+            <key>BUNDLE_ID</key><string>com.Somnora.Cosmo-Trader</string>
+            <key>PROJECT_ID</key><string>ci-placeholder</string>
+            <key>STORAGE_BUCKET</key><string>ci-placeholder.appspot.com</string>
+            <key>GOOGLE_APP_ID</key><string>1:000000000000:ios:0000000000000000000000</string>
+            <key>IS_ADS_ENABLED</key><false/>
+            <key>IS_ANALYTICS_ENABLED</key><false/>
+            <key>IS_APPINVITE_ENABLED</key><true/>
+            <key>IS_GCM_ENABLED</key><true/>
+            <key>IS_SIGNIN_ENABLED</key><true/>
+            <key>PLIST_VERSION</key><string>1</string>
+          </dict>
+          </plist>
+          PLIST
           xcodebuild \
             -project "Cosmo Trader.xcodeproj" \
             -scheme "Cosmo Trader" \
@@ -87,3 +115,4 @@ jobs:
             -destination "generic/platform=iOS" \
             CODE_SIGNING_ALLOWED=NO \
             build
+          rm -f "GoogleService-Info.plist"
