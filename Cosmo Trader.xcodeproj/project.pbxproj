@@ -71,6 +71,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				README.md,
 			);
 			target = 23E23B792FE5A6D60010D53E /* Cosmo Trader WidgetExtension */;
 		};

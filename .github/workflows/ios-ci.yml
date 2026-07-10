@@ -72,3 +72,18 @@ jobs:
             -destination "generic/platform=iOS Simulator" \
             CODE_SIGNING_ALLOWED=NO \
             clean build
+
+      # Release compiles code the Debug/test builds skip (e.g. #Preview
+      # blocks that reference DEBUG-only samples), which is exactly what
+      # breaks `xcodebuild archive` at ship time. Device target, no signing,
+      # so it needs no certs. Catches Release-only build breaks in CI instead
+      # of at archive.
+      - name: Release build (device, unsigned)
+        run: |
+          xcodebuild \
+            -project "Cosmo Trader.xcodeproj" \
+            -scheme "Cosmo Trader" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            CODE_SIGNING_ALLOWED=NO \
+            build

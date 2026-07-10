@@ -108,7 +108,7 @@ if [ -z "$SCAN_ROOT" ] || [ ! -d "$SCAN_ROOT" ]; then
 fi
 
 echo "verify_no_secrets: scanning app bundle: $APP_PATH"
-echo "verify_no_secrets: provisioning policy allows only app-root embedded.mobileprovision"
+echo "verify_no_secrets: provisioning policy allows app-root and per-.appex embedded.mobileprovision"
 
 ISSUES=0
 
@@ -206,6 +206,22 @@ EOF
     fi
 }
 
+# A signed iOS app carries an app-root embedded.mobileprovision, and each
+# bundled app extension (.appex, e.g. the widget) carries its own at its
+# bundle root — both are normal signing payload created by the export. This
+# still fails on profiles copied into Resources, source-like folders, or any
+# other nonstandard location.
+is_allowed_profile() {
+    profile_path="$1"
+    if [ "$profile_path" = "${APP_PATH%/}/embedded.mobileprovision" ]; then
+        return 0
+    fi
+    case "$profile_path" in
+        *.appex/embedded.mobileprovision) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 check_provisioning_profiles() {
     allowed_profile="${APP_PATH%/}/embedded.mobileprovision"
     matches=$(find "$SCAN_ROOT" -type f \( -name "*.mobileprovision" -o -name "*.provisionprofile" \) -print 2>/dev/null)
@@ -215,7 +231,7 @@ check_provisioning_profiles() {
 
     unsafe_matches=""
     while IFS= read -r profile_path; do
-        if [ "$profile_path" = "$allowed_profile" ]; then
+        if is_allowed_profile "$profile_path"; then
             continue
         fi
         unsafe_matches="${unsafe_matches}${profile_path}
