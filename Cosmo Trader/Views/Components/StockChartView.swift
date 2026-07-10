@@ -755,6 +755,7 @@ struct StockKeyStatsView: View {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview("Stock Chart") {
     ZStack {
         CosmicTheme.background.ignoresSafeArea()
@@ -775,3 +776,4 @@ struct StockKeyStatsView: View {
     }
     .preferredColorScheme(.dark)
 }
+#endif
