@@ -6,6 +6,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ios:
     name: iOS checks
@@ -14,6 +18,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Cache Swift Package Manager
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
+            ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
 
       - name: Xcode version
         run: xcodebuild -version
@@ -43,8 +57,8 @@ jobs:
       # Smoke-only UI pass: launch, tab navigation, onboarding test-safe
       # path, and the offline backend-status fallback. The suite is fully
       # network-free (--uitesting --disable-firebase) so it is CI-safe;
-      # the broader UI test classes stay local-only for now. Retries absorb
-      # UI-timing noise on slow runners: a real break still fails all three
+      # the broader UI test classes stay local-only for now. One retry absorbs
+      # UI-timing noise on slow runners: a real break still fails both
       # attempts.
       - name: Smoke UI tests
         env:
@@ -60,10 +74,16 @@ jobs:
             -parallel-testing-enabled NO \
             -maximum-concurrent-test-simulator-destinations 1 \
             -retry-tests-on-failure \
-            -test-iterations 3 \
+            -test-iterations 2 \
             -only-testing:"Cosmo TraderUITests/SmokeUITests"
 
+      # Clean build + Release build are compile-only safety nets, not part of
+      # the PR gate proper (Scripts/*.sh + the unit/UI test steps above cover
+      # that). They only run on merge to main, since running them on every PR
+      # push doubled macOS-runner minutes for checks that don't verify
+      # behavior, just compileability.
       - name: Clean Debug build
+        if: github.event_name == 'push'
         run: |
           xcodebuild \
             -project "Cosmo Trader.xcodeproj" \
@@ -87,6 +107,7 @@ jobs:
       # obviously-fake values satisfies the compile check. This build only
       # compiles (no archive, no distribution), so the placeholder never ships.
       - name: Release build (device, unsigned)
+        if: github.event_name == 'push'
         run: |
           cat > "GoogleService-Info.plist" <<'PLIST'
           <?xml version="1.0" encoding="UTF-8"?>
