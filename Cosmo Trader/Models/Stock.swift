@@ -1263,6 +1263,12 @@ enum ChartTimeframe: String, CaseIterable, Identifiable, Hashable {
     case year = "1Y"
     case twoYear = "2Y"
     case all = "ALL"
+    /// Deep daily history for astrological event statistics, which need
+    /// hundreds of occurrences rather than the dozen a single year contains.
+    /// Analysis only: deliberately absent from `stockDetailHistoricalCases` and
+    /// from every user-facing picker, because the payload is far larger than
+    /// any chart screen should pull.
+    case twentyYear = "20Y"
 
     var id: String { rawValue }
 
@@ -1285,6 +1291,7 @@ enum ChartTimeframe: String, CaseIterable, Identifiable, Hashable {
         case .year: return "Past Year"
         case .twoYear: return "Past 2 Years"
         case .all: return "All Time"
+        case .twentyYear: return "Past 20 Years"
         }
     }
 
@@ -1299,6 +1306,7 @@ enum ChartTimeframe: String, CaseIterable, Identifiable, Hashable {
         case .year: return 252
         case .twoYear: return 504
         case .all: return 1260  // 5 years
+        case .twentyYear: return 5030  // 20 years of US trading days
         }
     }
 }

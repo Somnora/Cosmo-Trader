@@ -52,6 +52,132 @@ nonisolated enum HistoricalDatasetFreshness: Equatable {
     }
 }
 
+nonisolated enum HistoricalCandleResolution: String, CaseIterable, Codable {
+    case oneMinute = "1"
+    case fiveMinute = "5"
+    case fifteenMinute = "15"
+    case thirtyMinute = "30"
+    case hour = "60"
+    case day = "D"
+    case week = "W"
+    case month = "M"
+
+    /// Provider granularity label that corresponds to this resolution. Yahoo
+    /// echoes the granularity it actually served in `meta.dataGranularity`, so
+    /// an exact mismatch against this value is a silent downgrade.
+    var providerGranularity: String {
+        switch self {
+        case .oneMinute: return "1m"
+        case .fiveMinute: return "5m"
+        case .fifteenMinute: return "15m"
+        case .thirtyMinute: return "30m"
+        case .hour: return "1h"
+        case .day: return "1d"
+        case .week: return "1wk"
+        case .month: return "1mo"
+        }
+    }
+
+    /// Roughly how many candles a full year at this resolution contains, using
+    /// 252 US trading days and a 6.5 hour session.
+    var expectedCandlesPerYear: Double {
+        switch self {
+        case .oneMinute: return 252 * 390
+        case .fiveMinute: return 252 * 78
+        case .fifteenMinute: return 252 * 26
+        case .thirtyMinute: return 252 * 13
+        case .hour: return 252 * 7
+        case .day: return 252
+        case .week: return 52
+        case .month: return 12
+        }
+    }
+
+    /// Daily or finer bars. Yahoo answers an unbounded range with monthly
+    /// candles regardless of the interval it was asked for, so these are the
+    /// resolutions that must never be paired with that range.
+    var isDailyOrFiner: Bool {
+        switch self {
+        case .oneMinute, .fiveMinute, .fifteenMinute, .thirtyMinute, .hour, .day:
+            return true
+        case .week, .month:
+            return false
+        }
+    }
+
+    /// Unknown tokens fall back to daily, matching the historical provider
+    /// adapter's default interval.
+    init(token: String) {
+        self = HistoricalCandleResolution(rawValue: token) ?? .day
+    }
+
+    /// Minutes per bar for a provider granularity token such as `1d` or `60m`.
+    /// Granularities are compared by duration rather than by spelling because
+    /// providers use more than one label for the same bar size, and reading
+    /// `60m` as a downgrade of `1h` would silence honest data.
+    static func barMinutes(forGranularity granularity: String) -> Int? {
+        let normalized = granularity.lowercased().trimmingCharacters(in: .whitespaces)
+        let digits = normalized.prefix(while: \.isNumber)
+        guard let count = Int(digits), count > 0 else { return nil }
+
+        switch normalized.dropFirst(digits.count) {
+        case "m":        return count
+        case "h":        return count * 60
+        case "d":        return count * 24 * 60
+        case "w", "wk":  return count * 7 * 24 * 60
+        case "mo":       return count * 30 * 24 * 60
+        case "y":        return count * 365 * 24 * 60
+        default:         return nil
+        }
+    }
+}
+
+/// What the provider said about the payload it returned, as opposed to what the
+/// candles themselves show. Yahoo reports both fields in `chart.result[].meta`.
+nonisolated struct HistoricalCandleMetadata: Codable, Equatable {
+    /// The bar size the provider says it served (Yahoo `meta.dataGranularity`).
+    let reportedGranularity: String?
+    /// The first day the symbol ever traded (Yahoo `meta.firstTradeDate`).
+    let firstTradeDate: Date?
+
+    static let unknown = HistoricalCandleMetadata()
+
+    init(reportedGranularity: String? = nil, firstTradeDate: Date? = nil) {
+        self.reportedGranularity = reportedGranularity
+        self.firstTradeDate = firstTradeDate
+    }
+}
+
+/// The resolution the app asked for paired with what the provider reported
+/// back. Completeness otherwise only sees span coverage, which cannot tell a
+/// twenty year daily series from the twenty year monthly series a provider
+/// substitutes when it quietly downgrades a request.
+nonisolated struct HistoricalDatasetExpectation: Equatable {
+    let resolution: HistoricalCandleResolution
+    let metadata: HistoricalCandleMetadata
+
+    init(resolution: HistoricalCandleResolution, metadata: HistoricalCandleMetadata = .unknown) {
+        self.resolution = resolution
+        self.metadata = metadata
+    }
+
+    /// A reported granularity that disagrees with the requested resolution is a
+    /// downgrade: the payload is well formed and the transport succeeded, only
+    /// the bar size is wrong. A provider that reports nothing is not evidence
+    /// either way, so it is left to the density backstop.
+    var hasResolutionDowngrade: Bool {
+        guard let reportedGranularity = metadata.reportedGranularity else { return false }
+
+        let requestedGranularity = resolution.providerGranularity
+        guard let reportedMinutes = HistoricalCandleResolution.barMinutes(forGranularity: reportedGranularity),
+              let requestedMinutes = HistoricalCandleResolution.barMinutes(forGranularity: requestedGranularity) else {
+            return reportedGranularity.caseInsensitiveCompare(requestedGranularity) != .orderedSame
+        }
+
+        return reportedMinutes != requestedMinutes
+    }
+}
+
 nonisolated struct HistoricalChartDataQuality: Equatable {
     let canRenderChart: Bool
     let provenance: FinancialDataProvenance
@@ -173,6 +299,14 @@ nonisolated struct HistoricalPricePoint: Codable, Equatable {
 nonisolated struct HistoricalPriceDataset: Codable, Equatable {
     static let defaultStaleInterval: TimeInterval = FinancialDataProvenance.defaultCachedStaleInterval
 
+    private static let secondsPerYear: TimeInterval = 365.25 * 24 * 60 * 60
+    /// Candle density only becomes a reliable signal once a request spans
+    /// several years, so shorter windows are left to coverage scoring.
+    private static let minimumDensityMeasurementDuration: TimeInterval = 3 * secondsPerYear
+    /// Real daily history lands near 1.0 of the expected density, a weekly
+    /// substitution near 0.2, and a monthly one near 0.05.
+    private static let minimumResolutionDensityRatio: Double = 0.4
+
     let symbol: String
     let candles: [HistoricalPricePoint]
     let provider: String
@@ -222,7 +356,8 @@ nonisolated struct HistoricalPriceDataset: Codable, Equatable {
         provider: String,
         fetchedAt: Date,
         requestedRange: DateInterval,
-        provenance: FinancialDataProvenance
+        provenance: FinancialDataProvenance,
+        expectation: HistoricalDatasetExpectation? = nil
     ) -> HistoricalPriceDataset {
         let normalized = candles
             .filter { candle in
@@ -235,19 +370,21 @@ nonisolated struct HistoricalPriceDataset: Codable, Equatable {
             .sorted { $0.date < $1.date }
 
         let actualRange = Self.actualRange(for: normalized)
+        let scoredRange = Self.rangeClampedToFirstTrade(requestedRange, expectation: expectation)
 
         return HistoricalPriceDataset(
             symbol: symbol.uppercased(),
             candles: normalized.map(HistoricalPricePoint.init(candle:)),
             provider: provider,
             fetchedAt: fetchedAt,
-            requestedRange: requestedRange,
+            requestedRange: scoredRange,
             actualRange: actualRange,
             provenance: provenance,
             completeness: Self.completeness(
                 candleCount: normalized.count,
-                requestedRange: requestedRange,
-                actualRange: actualRange
+                requestedRange: scoredRange,
+                actualRange: actualRange,
+                expectation: expectation
             )
         )
     }
@@ -270,13 +407,76 @@ nonisolated struct HistoricalPriceDataset: Codable, Equatable {
         return DateInterval(start: min(first, last), end: max(first, last))
     }
 
+    /// Coverage is measured against the window the symbol could actually have
+    /// traded in. A listing that opened partway through the requested range
+    /// otherwise scores as a fraction of a range that never existed for it, and
+    /// a perfect daily series gets silenced for being young rather than thin.
+    private static func rangeClampedToFirstTrade(
+        _ requestedRange: DateInterval,
+        expectation: HistoricalDatasetExpectation?
+    ) -> DateInterval {
+        guard let firstTradeDate = expectation?.metadata.firstTradeDate,
+              firstTradeDate > requestedRange.start,
+              firstTradeDate < requestedRange.end else {
+            return requestedRange
+        }
+
+        return DateInterval(start: firstTradeDate, end: requestedRange.end)
+    }
+
+    /// Backstop for the granularity check: a provider that downgrades without
+    /// saying so still betrays itself in candle density, because a daily
+    /// request covering a year returns roughly 252 candles while the monthly
+    /// substitution returns about 12. Limited to deep daily requests, which is
+    /// where the silent downgrade actually happens. Shorter windows and
+    /// intraday resolutions are legitimately sparse, so measuring them here
+    /// would suppress honest data.
+    private static func resolutionDensityFailureReason(
+        candleCount: Int,
+        requestedRange: DateInterval,
+        resolution: HistoricalCandleResolution
+    ) -> String? {
+        guard resolution == .day,
+              requestedRange.duration >= minimumDensityMeasurementDuration else {
+            return nil
+        }
+
+        let years = requestedRange.duration / secondsPerYear
+        guard years > 0 else { return nil }
+
+        let observedCandlesPerYear = Double(candleCount) / years
+        guard observedCandlesPerYear / resolution.expectedCandlesPerYear < minimumResolutionDensityRatio else {
+            return nil
+        }
+
+        return "Provider returned fewer candles than the requested resolution allows"
+    }
+
     private static func completeness(
         candleCount: Int,
         requestedRange: DateInterval,
-        actualRange: DateInterval?
+        actualRange: DateInterval?,
+        expectation: HistoricalDatasetExpectation?
     ) -> HistoricalDatasetCompleteness {
         guard candleCount >= 2 else {
             return .insufficient(reason: "Provider returned fewer than two historical candles")
+        }
+
+        if let expectation {
+            if expectation.hasResolutionDowngrade {
+                let reported = expectation.metadata.reportedGranularity ?? "unknown"
+                return .insufficient(
+                    reason: "Provider returned \(reported) candles instead of the requested \(expectation.resolution.providerGranularity)"
+                )
+            }
+
+            if let reason = resolutionDensityFailureReason(
+                candleCount: candleCount,
+                requestedRange: requestedRange,
+                resolution: expectation.resolution
+            ) {
+                return .insufficient(reason: reason)
+            }
         }
 
         guard requestedRange.duration > 0,

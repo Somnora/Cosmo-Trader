@@ -347,6 +347,7 @@ final class HistoricalAstroChartViewModel {
             case .year: return 180
             case .twoYear: return 504
             case .all: return 365
+            case .twentyYear: return 5030
             }
         }()
 

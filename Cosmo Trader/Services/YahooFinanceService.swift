@@ -84,11 +84,23 @@ final class YahooFinanceService {
 
         let chartResponse = try JSONDecoder().decode(YahooChartResponse.self, from: data)
 
-        guard let result = chartResponse.chart.result?.first,
-              let timestamps = result.timestamp,
-              let quote = result.indicators.quote.first else {
+        guard let result = chartResponse.chart.result?.first else {
             log("⚠️ [Yahoo] No data for \(symbol)")
             return FinnhubCandleResponse(s: "no_data", t: nil, o: nil, h: nil, l: nil, c: nil, v: nil)
+        }
+
+        // Yahoo can answer a daily request with coarser candles at HTTP 200 and
+        // no error field, so the only evidence of a downgrade is in `meta`.
+        // Carry it forward instead of discarding it with the rest of the meta.
+        let metadata = HistoricalCandleMetadata(
+            reportedGranularity: result.meta?.dataGranularity,
+            firstTradeDate: result.meta?.firstTradeDate.map { Date(timeIntervalSince1970: Double($0)) }
+        )
+
+        guard let timestamps = result.timestamp,
+              let quote = result.indicators.quote.first else {
+            log("⚠️ [Yahoo] No data for \(symbol)")
+            return FinnhubCandleResponse(s: "no_data", t: nil, o: nil, h: nil, l: nil, c: nil, v: nil, metadata: metadata)
         }
 
         // Convert to FinnhubCandleResponse format
@@ -117,7 +129,7 @@ final class YahooFinanceService {
             volumes.append(quote.volume?[safe: i].flatMap { $0 } ?? 0)
         }
 
-        log("✅ [Yahoo] Fetched \(validTimestamps.count) candles for \(symbol)")
+        log("✅ [Yahoo] Fetched \(validTimestamps.count) candles for \(symbol) (granularity: \(metadata.reportedGranularity ?? "unreported"))")
 
         return FinnhubCandleResponse(
             s: validTimestamps.isEmpty ? "no_data" : "ok",
@@ -126,31 +138,51 @@ final class YahooFinanceService {
             h: highs,
             l: lows,
             c: closes,
-            v: volumes
+            v: volumes,
+            metadata: metadata
         )
     }
 
     // MARK: - Resolution Mapping
 
+    /// Yahoo's unbounded range token. Never sent at daily or finer resolution:
+    /// `range=max&interval=1d` answers HTTP 200 with a well formed body of
+    /// monthly candles and `meta.dataGranularity: "1mo"`, so the request does
+    /// not fail, it just returns useless resolution.
+    static let unboundedRange = "max"
+
+    /// Deepest bounded range this service will request. Measured against the
+    /// live endpoint: `range=20y&interval=1d` returns full trading day density.
+    static let deepestDailyRange = "20y"
+
     /// Map Finnhub resolution strings to Yahoo Finance intervals
     private func mapResolution(_ resolution: String) -> String {
-        switch resolution {
-        case "1":   return "1m"
-        case "5":   return "5m"
-        case "15":  return "15m"
-        case "30":  return "30m"
-        case "60":  return "1h"
-        case "D":   return "1d"
-        case "W":   return "1wk"
-        case "M":   return "1mo"
-        default:    return "1d"
-        }
+        HistoricalCandleResolution(token: resolution).providerGranularity
     }
 
     /// Map date range to Yahoo Finance range parameter
-    private func mapRange(from: Date, to: Date, resolution: String) -> String {
+    func mapRange(from: Date, to: Date, resolution: String) -> String {
         let days = Calendar.current.dateComponents([.day], from: from, to: to).day ?? 0
+        return Self.rangeEnforcingDailyResolution(
+            unenforcedRange(days: days, resolution: resolution),
+            resolution: resolution
+        )
+    }
 
+    /// Standing invariant for `mapRange`: a daily or finer request must never
+    /// carry the unbounded range. Written as a substitution rather than a
+    /// comment on the ladder below so a later edit to that ladder cannot
+    /// reintroduce the silent downgrade.
+    nonisolated static func rangeEnforcingDailyResolution(_ range: String, resolution: String) -> String {
+        guard range == unboundedRange,
+              HistoricalCandleResolution(token: resolution).isDailyOrFiner else {
+            return range
+        }
+
+        return deepestDailyRange
+    }
+
+    private func unenforcedRange(days: Int, resolution: String) -> String {
         // For intraday resolutions, use shorter ranges
         switch resolution {
         case "1", "5":
@@ -166,7 +198,8 @@ final class YahooFinanceService {
             if days <= 180 { return "6mo" }
             if days <= 365 { return "1y" }
             if days <= 730 { return "2y" }
-            return "5y"
+            if days <= 1_830 { return "5y" }
+            return Self.deepestDailyRange
         }
     }
 
@@ -207,6 +240,11 @@ struct YahooChartMeta: Decodable {
     let symbol: String?
     let regularMarketPrice: Double?
     let previousClose: Double?
+    /// Bar size Yahoo actually served, which is not always the interval that
+    /// was requested.
+    let dataGranularity: String?
+    /// Epoch seconds of the symbol's first ever trade.
+    let firstTradeDate: Int?
 }
 
 struct YahooIndicators: Decodable {
