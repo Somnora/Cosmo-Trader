@@ -244,9 +244,9 @@ final class PortfolioCosmicCorrelationService {
             }
 
             let returns = portfolioReactions.map(\.returnPercent)
-            let eventVolatility = standardDeviation(returns)
+            let averageVolatility = average(portfolioReactions.map(\.volatilityPercent))
             let baselineVolatility = baselinePortfolioVolatility(for: eligibleHoldings, includedValue: includedValue)
-            let volatilityRatio = baselineVolatility > 0 ? eventVolatility / baselineVolatility : nil
+            let volatilityRatio = baselineVolatility > 0 ? averageVolatility / baselineVolatility : nil
 
             return PortfolioCosmicCorrelationSummary(
                 id: kind.rawValue,

@@ -99,21 +99,6 @@ enum VolumeSignal: String, CaseIterable {
         }
     }
 
-    var cosmicInterpretation: String {
-        switch self {
-        case .surging:
-            return "Exceptional energy alignment. The cosmos are focusing attention on this asset. Major moves may be imminent."
-        case .elevated:
-            return "Strong cosmic interest. Above-average activity suggests growing attention from market participants."
-        case .normal:
-            return "Steady cosmic flow. Standard trading activity indicates balanced energy."
-        case .quiet:
-            return "Subdued cosmic presence. Below-average interest may signal a period of consolidation."
-        case .dormant:
-            return "Minimal cosmic attention. Very low activity - a sleeping giant or fading star?"
-        }
-    }
-
     static func from(ratio: Double) -> VolumeSignal {
         switch ratio {
         case 3.0...: return .surging

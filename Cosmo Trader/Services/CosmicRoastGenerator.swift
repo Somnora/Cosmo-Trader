@@ -297,7 +297,7 @@ final class CosmicRoastGenerator {
 
             "As a \(userSign.displayName), you expected the stars to shower you with gains. They sent a drizzle. Take what you can get.",
 
-            "Your portfolio is up, which means you're doing better than \(Int.random(in: 40...60))% of people who also trusted the cosmos. Low bar, but noted.",
+            "Your portfolio is up, which the cosmos will take full credit for. Low bar, but noted.",
 
             "The \(Int(percentage))% \(element.displayName) allocation is working... for now. Don't let this modest success go to your head. That's a \(userSign.displayName) trait."
         ]

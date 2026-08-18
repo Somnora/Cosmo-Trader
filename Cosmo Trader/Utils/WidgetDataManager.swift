@@ -82,7 +82,6 @@ final class WidgetDataManager {
             signSymbol: sign.textSymbol,
             signElement: sign.element.displayName,
             horoscopeText: horoscopeText,
-            luckyNumber: Int.random(in: 1...9),
             compatibility: sign.compatibleSigns.prefix(2).map { $0.displayName }.joined(separator: ", ")
         )
 
@@ -241,7 +240,6 @@ struct WidgetHoroscopeData: Codable {
     let signSymbol: String
     let signElement: String
     let horoscopeText: String
-    let luckyNumber: Int
     let compatibility: String
 
     static let placeholder = WidgetHoroscopeData(
@@ -250,7 +248,6 @@ struct WidgetHoroscopeData: Codable {
         signSymbol: "♏",
         signElement: "Water",
         horoscopeText: "Venus favors bold moves in your financial sector.",
-        luckyNumber: 7,
         compatibility: "Cancer, Pisces"
     )
 }

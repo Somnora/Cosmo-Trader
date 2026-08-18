@@ -141,7 +141,7 @@ struct StockDetailView: View {
 
     /// Current effective framing level for this stock
     private var effectiveFramingLevel: SignalFramingLevel {
-        user?.framingLevel(for: stock.symbol) ?? .balanced
+        user?.framingLevel(for: stock.symbol) ?? .leanRational
     }
 
     /// Whether this stock has a custom framing override

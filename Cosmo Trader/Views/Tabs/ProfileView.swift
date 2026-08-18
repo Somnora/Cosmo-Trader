@@ -39,7 +39,7 @@ struct ProfileView: View {
     /// Binding to user's signal framing level (persisted via AppState)
     private var signalFramingBinding: Binding<SignalFramingLevel> {
         Binding(
-            get: { appState.currentUser?.signalFramingLevel ?? .balanced },
+            get: { appState.currentUser?.signalFramingLevel ?? .leanRational },
             set: { appState.updateSignalFramingLevel($0) }
         )
     }

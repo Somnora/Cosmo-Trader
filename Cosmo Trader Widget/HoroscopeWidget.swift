@@ -196,16 +196,6 @@ struct MediumHoroscopeWidget: View {
                 // Bottom row (only show astrology features in mystical mode)
                 if useMysticalLanguage {
                     HStack {
-                        // Lucky number
-                        HStack(spacing: 4) {
-                            Image(systemName: "star.fill")
-                                .font(.system(size: 9))
-                                .foregroundColor(WidgetTheme.gold)
-                            Text("LUCKY: \(data.luckyNumber)")
-                                .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                                .foregroundColor(WidgetTheme.gold)
-                        }
-
                         Spacer()
 
                         // Best match

@@ -152,7 +152,7 @@ struct PortfolioView: View {
 
     /// User's signal framing level
     private var framingLevel: SignalFramingLevel {
-        appState.currentUser?.signalFramingLevel ?? .balanced
+        appState.currentUser?.signalFramingLevel ?? .leanRational
     }
 
     /// Framed section header for cosmic health
