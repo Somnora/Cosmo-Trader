@@ -156,7 +156,7 @@ struct StockFramingOverrideSheet: View {
 
     private func enableCustomFraming() {
         // Initialize with global setting
-        let globalLevel = user?.signalFramingLevel ?? .balanced
+        let globalLevel = user?.signalFramingLevel ?? .leanRational
         appState.setStockFramingOverride(symbol: stock.symbol, level: globalLevel)
     }
 }

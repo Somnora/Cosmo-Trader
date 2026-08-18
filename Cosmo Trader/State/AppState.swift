@@ -420,7 +420,9 @@ class AppState {
             watchlist: user.watchlist,
             skippedStocks: user.skippedStocks,
             memberSince: user.memberSince,
-            preferredCurrency: user.preferredCurrency
+            preferredCurrency: user.preferredCurrency,
+            signalFramingLevel: user.signalFramingLevel,
+            stockFramingOverrides: user.stockFramingOverrides
         )
 
         currentUser = updatedUser
@@ -473,7 +475,7 @@ class AppState {
 
     /// Get the effective framing level for a stock (uses override or global)
     func framingLevel(for symbol: String) -> SignalFramingLevel {
-        currentUser?.framingLevel(for: symbol) ?? .balanced
+        currentUser?.framingLevel(for: symbol) ?? .leanRational
     }
 
     // MARK: - Portfolio Management

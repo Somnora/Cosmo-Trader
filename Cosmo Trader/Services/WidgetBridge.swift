@@ -71,7 +71,6 @@ final class WidgetBridge {
             signSymbol: signSymbol,
             signElement: signElement,
             horoscopeText: horoscopeText,
-            luckyNumber: Int.random(in: 1...9),
             compatibility: ""
         )
 
@@ -184,7 +183,6 @@ private struct WidgetHoroscopePayload: Codable {
     let signSymbol: String
     let signElement: String
     let horoscopeText: String
-    let luckyNumber: Int
     let compatibility: String
 }
 

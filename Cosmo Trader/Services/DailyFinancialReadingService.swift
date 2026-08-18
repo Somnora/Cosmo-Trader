@@ -12,7 +12,7 @@ final class DailyFinancialReadingService {
             return emptyReading(
                 headline: "Portfolio setup needed for a real reading",
                 impact: "Add your holdings to generate a daily financial astrology reading. Start with 3-5 tickers or import a broker screenshot, then Today can map exposure, concentration, and names to watch.",
-                framingLevel: .balanced
+                framingLevel: .leanRational
             )
         }
 

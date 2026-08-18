@@ -56,7 +56,7 @@ struct StockCardView: View {
     // MARK: - Framing
 
     private var framingLevel: SignalFramingLevel {
-        appState.currentUser?.framingLevel(for: card.stock.symbol) ?? .balanced
+        appState.currentUser?.framingLevel(for: card.stock.symbol) ?? .leanRational
     }
 
     private var signalRatingLabel: String {

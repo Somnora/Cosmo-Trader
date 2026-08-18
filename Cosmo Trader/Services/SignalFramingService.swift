@@ -107,8 +107,8 @@ final class SignalFramingService {
             // Mostly rational with slight softening
             return rational
         case .balanced:
-            // Could alternate or use a blended style
-            return Bool.random() ? rational : mystical
+            // Deterministic: the same market state must render the same copy.
+            return rational
         case .leanMystical:
             return mystical
         case .mystical:
@@ -1482,8 +1482,8 @@ final class SignalFramingService {
             // Mostly rational
             return rational
         case .balanced:
-            // Could blend or alternate
-            return Bool.random() ? rational : mystical
+            // Deterministic: the same market state must render the same copy.
+            return rational
         case .leanMystical:
             return mystical
         case .mystical:

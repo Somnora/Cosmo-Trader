@@ -30,6 +30,36 @@ struct PortfolioCosmicCorrelationServiceTests {
         #expect(!isClose(summary?.averagePortfolioReturn ?? 0, 9.8, tolerance: 0.2))
     }
 
+    @Test("Volatility ratio reads 1.0 when within-window volatility matches baseline volatility")
+    func volatilityRatioIsOneWhenWindowVolatilityMatchesBaseline() {
+        // Zero real astrological effect: every event window has exactly the
+        // same day-to-day return volatility as the full price history. A
+        // dimensionally sound ratio must read ~1.0 here at the default
+        // (unset) 3-day event window, not the inflated value produced by
+        // taking the stdev of window-to-window returns (which scales with
+        // window length) over a single-day baseline stdev.
+        let flat = stock(symbol: "FLAT", currentPrice: 100, sharesOwned: 10)
+        let events = [
+            pointEvent(kind: .fullMoon, on: "2025-01-06"),
+            pointEvent(kind: .fullMoon, on: "2025-01-11"),
+            pointEvent(kind: .fullMoon, on: "2025-01-16")
+        ]
+
+        let summaries = PortfolioCosmicCorrelationService.shared.summaries(
+            holdings: [flat],
+            priceHistoryBySymbol: ["FLAT": constantDailyVolatilityPrices(days: 21)],
+            provenanceBySymbol: providerProvenance(["FLAT"]),
+            events: events,
+            filterState: AstroOverlayFilterState(enabledKinds: [.fullMoon], showEstimatedEvents: true),
+            minimumSampleSize: 3
+        )
+
+        let summary = summaries.first { $0.eventType == .fullMoon }
+        #expect(isMarketBacked(summary))
+        #expect(summary?.sampleSize == 3)
+        #expect(isClose(summary?.volatilityRatio ?? 0, 1))
+    }
+
     @Test("Low total portfolio coverage withholds numeric portfolio claims")
     func lowTotalPortfolioCoverageWithholdsNumericClaims() {
         let verified = stock(symbol: "LIVE", currentPrice: 10, sharesOwned: 10)
@@ -823,6 +853,19 @@ struct PortfolioCosmicCorrelationServiceTests {
                 volume: 1_000
             )
         }
+    }
+
+    /// A synthetic series whose daily-return magnitude never changes: every
+    /// day is +/-`dailyReturnPercent`, alternating. Any window sampled from
+    /// it has the same day-to-day volatility as the full series, isolating
+    /// the volatility-ratio formula from any real astrological effect.
+    private func constantDailyVolatilityPrices(days: Int, dailyReturnPercent: Double = 5) -> [OHLCData] {
+        var closes: [Double] = [100]
+        for day in 1..<days {
+            let multiplier = day.isMultiple(of: 2) ? (1 - dailyReturnPercent / 100) : (1 + dailyReturnPercent / 100)
+            closes.append(closes[day - 1] * multiplier)
+        }
+        return prices(closes)
     }
 
     private func historicalDataset(

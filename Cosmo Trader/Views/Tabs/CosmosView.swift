@@ -35,7 +35,7 @@ struct CosmosView: View {
 
     /// User's signal framing level
     private var framingLevel: SignalFramingLevel {
-        appState.currentUser?.signalFramingLevel ?? .balanced
+        appState.currentUser?.signalFramingLevel ?? .leanRational
     }
 
     /// Framed section title for the horoscope card

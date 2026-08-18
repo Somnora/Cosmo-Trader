@@ -119,7 +119,6 @@ struct WidgetHoroscopeData: Codable {
     let signSymbol: String
     let signElement: String
     let horoscopeText: String
-    let luckyNumber: Int
     let compatibility: String
 
     /// Placeholder data for previews
@@ -129,7 +128,6 @@ struct WidgetHoroscopeData: Codable {
         signSymbol: "♏\u{FE0E}",
         signElement: "Water",
         horoscopeText: "Venus favors bold moves in your financial sector. Consider reviewing Fire sign stocks today.",
-        luckyNumber: 7,
         compatibility: "Cancer, Pisces"
     )
 }

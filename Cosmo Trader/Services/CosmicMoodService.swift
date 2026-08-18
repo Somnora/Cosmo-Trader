@@ -7,7 +7,7 @@ import SwiftUI
 // - Moon phase influence
 // - Provider-backed market performance when connected
 // - Provider-backed volatility readings when connected
-// - Planetary positions (Mercury retrograde, Jupiter transit, etc.)
+// - Planetary positions (Mercury retrograde)
 
 @Observable
 final class CosmicMoodService {
@@ -19,6 +19,7 @@ final class CosmicMoodService {
     // MARK: - Dependencies
 
     private let moonService = MoonPhaseService.shared
+    private let retrogradeProvider = MercuryRetrogradeEphemerisProvider.shared
     private let minimumMarketCoverageForScore = 0.50
 
     // MARK: - State
@@ -157,19 +158,16 @@ final class CosmicMoodService {
         // 2. Mercury Retrograde Factor
         factors.append(calculateMercuryRetrogradeFactor())
 
-        // 3. Jupiter Transit Factor
-        factors.append(calculateJupiterTransitFactor())
-
-        // 4. Market Performance Factor
+        // 3. Market Performance Factor
         factors.append(calculateMarketPerformanceFactor())
 
-        // 5. Volatility Factor
+        // 4. Volatility Factor
         factors.append(calculateVolatilityFactor())
 
-        // 6. Market Breadth Factor
+        // 5. Market Breadth Factor
         factors.append(calculateMarketBreadthFactor())
 
-        // 7. Momentum Factor
+        // 6. Momentum Factor
         factors.append(calculateMomentumFactor())
 
         return factors
@@ -225,10 +223,8 @@ final class CosmicMoodService {
         )
     }
 
-    /// Mercury retrograde effect (simulated)
+    /// Mercury retrograde effect, backed by the curated ephemeris table
     private func calculateMercuryRetrogradeFactor() -> MoodFactor {
-        // Simulate mercury retrograde periods
-        // In reality, Mercury is retrograde about 3 times per year for ~3 weeks
         let isRetrograde = isMercuryRetrograde()
 
         let value: Int
@@ -249,37 +245,6 @@ final class CosmicMoodService {
             weight: 0.10,
             description: description,
             icon: isRetrograde ? "arrow.uturn.backward.circle.fill" : "arrow.right.circle.fill",
-            provenance: .sample(reason: "Cosmic context only")
-        )
-    }
-
-    /// Jupiter transit effect (simulated)
-    private func calculateJupiterTransitFactor() -> MoodFactor {
-        // Jupiter = expansion, optimism
-        // Simulate favorable Jupiter aspects periodically
-        let jupiterInfluence = calculateJupiterInfluence()
-
-        let value: Int
-        let description: String
-
-        if jupiterInfluence > 0.5 {
-            value = 20
-            description = "Jupiter favorable — expansion energy reads constructive"
-        } else if jupiterInfluence > 0.3 {
-            value = 10
-            description = "Jupiter moderate — mild optimism in the cosmos"
-        } else {
-            value = 0
-            description = "Jupiter neutral — standard cosmic conditions"
-        }
-
-        return MoodFactor(
-            name: "Jupiter",
-            category: .cosmic,
-            value: value,
-            weight: 0.10,
-            description: description,
-            icon: "circle.hexagonpath.fill",
             provenance: .sample(reason: "Cosmic context only")
         )
     }
@@ -336,38 +301,13 @@ final class CosmicMoodService {
         )
     }
 
-    // MARK: - Simulation Helpers
+    // MARK: - Ephemeris Helpers
 
-    /// Simulate Mercury retrograde based on approximate cycles
+    /// Mercury retrograde status from the curated ephemeris table (2021-2030).
+    /// Outside that range the provider returns no windows, which reads as
+    /// direct rather than fabricating an extrapolated cycle.
     private func isMercuryRetrograde() -> Bool {
-        // Mercury retrograde occurs roughly 3 times per year
-        // Each retrograde lasts about 3 weeks
-        // This is a simplified simulation based on day of year
-
-        let dayOfYear = Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 1
-
-        // Simulate retrograde periods around days 45-65, 150-170, 255-275
-        let retrogradePeriods: [ClosedRange<Int>] = [
-            45...65,    // Mid-February to early March
-            150...170,  // Late May to mid-June
-            255...275   // Mid-September to early October
-        ]
-
-        return retrogradePeriods.contains { $0.contains(dayOfYear) }
-    }
-
-    /// Calculate Jupiter influence based on simulated transit
-    private func calculateJupiterInfluence() -> Double {
-        // Jupiter takes ~12 years to orbit, spends ~1 year in each sign
-        // Simulate favorable periods based on month
-        let month = Calendar.current.component(.month, from: Date())
-
-        // More favorable during certain months (simplified)
-        switch month {
-        case 1, 4, 7, 10: return 0.6  // Start of quarters = expansion
-        case 12:          return 0.7  // Year-end optimism
-        default:          return 0.3
-        }
+        !retrogradeProvider.windows(from: Date(), to: Date()).isEmpty
     }
 
     private func scoreProvenance(from marketFactors: [MoodFactor]) -> FinancialDataProvenance {

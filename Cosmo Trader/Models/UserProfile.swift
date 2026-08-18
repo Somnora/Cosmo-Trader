@@ -232,7 +232,7 @@ struct UserProfile: Identifiable, Codable, Equatable {
         skippedStocks: [String] = [],
         memberSince: Date = Date(),
         preferredCurrency: String = "USD",
-        signalFramingLevel: SignalFramingLevel = .balanced,
+        signalFramingLevel: SignalFramingLevel = .leanRational,
         stockFramingOverrides: [String: SignalFramingLevel] = [:]
     ) {
         self.id = id
@@ -267,7 +267,7 @@ struct UserProfile: Identifiable, Codable, Equatable {
         skippedStocks: [String] = [],
         memberSince: Date = Date(),
         preferredCurrency: String = "USD",
-        signalFramingLevel: SignalFramingLevel = .balanced,
+        signalFramingLevel: SignalFramingLevel = .leanRational,
         stockFramingOverrides: [String: SignalFramingLevel] = [:]
     ) {
         self.id = id
