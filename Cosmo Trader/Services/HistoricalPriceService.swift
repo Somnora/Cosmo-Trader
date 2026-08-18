@@ -48,7 +48,8 @@ final class HistoricalPriceService {
     typealias CandleFetcher = (String, String, Date, Date) async throws -> FinnhubCandleResponse
 
     private var memoryCache: [String: HistoricalPriceDataset] = [:]
-    private let cacheDuration: TimeInterval
+    private let defaultCacheDuration: TimeInterval
+    private let deepHistoryCacheDuration: TimeInterval
     private let historicalPriceCache: HistoricalPriceCache
     private let nowProvider: () -> Date
     private let candleFetcher: CandleFetcher
@@ -61,6 +62,7 @@ final class HistoricalPriceService {
     private init(
         historicalPriceCache: HistoricalPriceCache = .shared,
         cacheDuration: TimeInterval = 3600,
+        deepHistoryCacheDuration: TimeInterval = FinancialDataProvenance.defaultCachedStaleInterval,
         nowProvider: @escaping () -> Date = Date.init,
         providerName: String = FinancialDataProvenance.yahooProvider,
         candleFetcher: @escaping CandleFetcher = { symbol, resolution, from, to in
@@ -75,7 +77,8 @@ final class HistoricalPriceService {
         }
     ) {
         self.historicalPriceCache = historicalPriceCache
-        self.cacheDuration = cacheDuration
+        self.defaultCacheDuration = cacheDuration
+        self.deepHistoryCacheDuration = deepHistoryCacheDuration
         self.nowProvider = nowProvider
         self.providerName = providerName
         self.candleFetcher = candleFetcher
@@ -84,6 +87,7 @@ final class HistoricalPriceService {
     static func testingInstance(
         historicalPriceCache: HistoricalPriceCache,
         cacheDuration: TimeInterval = 3600,
+        deepHistoryCacheDuration: TimeInterval = FinancialDataProvenance.defaultCachedStaleInterval,
         nowProvider: @escaping () -> Date = Date.init,
         providerName: String = FinancialDataProvenance.yahooProvider,
         candleFetcher: @escaping CandleFetcher
@@ -91,6 +95,7 @@ final class HistoricalPriceService {
         HistoricalPriceService(
             historicalPriceCache: historicalPriceCache,
             cacheDuration: cacheDuration,
+            deepHistoryCacheDuration: deepHistoryCacheDuration,
             nowProvider: nowProvider,
             providerName: providerName,
             candleFetcher: candleFetcher
@@ -113,9 +118,10 @@ final class HistoricalPriceService {
         let requestedRange = DateInterval(start: min(request.from, request.to), end: max(request.from, request.to))
         let key = cacheKey(symbol: normalizedSymbol, timeframe: timeframe, resolution: request.resolution)
         let now = nowProvider()
+        let maximumCacheAge = cacheDuration(for: timeframe)
 
         if let memoryDataset = memoryCache[key],
-           now.timeIntervalSince(memoryDataset.fetchedAt) < cacheDuration {
+           now.timeIntervalSince(memoryDataset.fetchedAt) < maximumCacheAge {
             return HistoricalPriceResult(
                 dataset: memoryDataset.withProvenance(
                     .cached(provider: memoryDataset.provider, fetchedAt: memoryDataset.fetchedAt, now: now)
@@ -131,7 +137,7 @@ final class HistoricalPriceService {
             now: now
         )
         if let durableDataset,
-           now.timeIntervalSince(durableDataset.fetchedAt) < cacheDuration {
+           now.timeIntervalSince(durableDataset.fetchedAt) < maximumCacheAge {
             memoryCache[key] = durableDataset
             return HistoricalPriceResult(dataset: durableDataset, source: .cache)
         }
@@ -169,15 +175,24 @@ final class HistoricalPriceService {
                 provider: providerName,
                 fetchedAt: fetchedAt,
                 requestedRange: requestedRange,
-                provenance: .live(provider: providerName, fetchedAt: fetchedAt)
+                provenance: .live(provider: providerName, fetchedAt: fetchedAt),
+                expectation: HistoricalDatasetExpectation(
+                    resolution: HistoricalCandleResolution(token: request.resolution),
+                    metadata: response.metadata ?? .unknown
+                )
             )
 
             memoryCache[key] = dataset
-            try? historicalPriceCache.store(
-                dataset: dataset,
-                timeframe: timeframe,
-                resolution: request.resolution
-            )
+            // A payload the provider downgraded is not worth persisting: keeping
+            // it on disk would hold the wrong candle shape for the whole cache
+            // window instead of letting the next call try again.
+            if dataset.completeness.isUsableForCorrelation {
+                try? historicalPriceCache.store(
+                    dataset: dataset,
+                    timeframe: timeframe,
+                    resolution: request.resolution
+                )
+            }
 
             return HistoricalPriceResult(dataset: dataset, source: .provider)
         } catch {
@@ -223,6 +238,23 @@ final class HistoricalPriceService {
             return ("D", calendar.date(byAdding: .year, value: -2, to: to) ?? to, to)
         case .all:
             return ("W", calendar.date(byAdding: .year, value: -5, to: to) ?? to, to)
+        case .twentyYear:
+            return ("D", calendar.date(byAdding: .year, value: -20, to: to) ?? to, to)
+        }
+    }
+
+    /// Deep history is a large, near immutable payload: twenty years of daily
+    /// candles runs to roughly half a megabyte and gains one bar a day, so
+    /// refetching it on the hourly cadence the shallow timeframes use would
+    /// move all of it for nothing. It holds for a day instead, the same window
+    /// `FinancialDataProvenance` already treats as the point cached market data
+    /// goes stale.
+    private func cacheDuration(for timeframe: ChartTimeframe) -> TimeInterval {
+        switch timeframe {
+        case .twentyYear:
+            return deepHistoryCacheDuration
+        case .day, .week, .month, .threeMonth, .sixMonth, .year, .twoYear, .all:
+            return defaultCacheDuration
         }
     }
 

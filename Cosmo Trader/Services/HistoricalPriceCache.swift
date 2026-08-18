@@ -234,6 +234,8 @@ nonisolated enum ProviderBackedChartFixtureSeeder {
             return ("D", calendar.date(byAdding: .year, value: -2, to: now) ?? now, now)
         case .all:
             return ("W", calendar.date(byAdding: .year, value: -5, to: now) ?? now, now)
+        case .twentyYear:
+            return ("D", calendar.date(byAdding: .year, value: -20, to: now) ?? now, now)
         }
     }
 
@@ -289,6 +291,12 @@ nonisolated enum ProviderBackedChartFixtureSeeder {
         case .twoYear:
             return 256
         case .all:
+            return 260
+        case .twentyYear:
+            // Matches the `.all` fixture depth rather than the real 5,030
+            // candle series: no UI surface offers this timeframe, and seeding a
+            // twenty year fixture per symbol on every fixture launch would cost
+            // far more than the coverage it buys.
             return 260
         }
     }

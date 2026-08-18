@@ -93,6 +93,31 @@ nonisolated struct FinnhubCandleResponse: Codable {
     let c: [Double]?    // Closes
     let v: [Int]?       // Volumes
 
+    /// What the provider said about the payload's shape. Absent from the
+    /// Finnhub wire format; the Yahoo adapter fills it so a silent resolution
+    /// downgrade stays visible after the candles are flattened into this type.
+    let metadata: HistoricalCandleMetadata?
+
+    init(
+        s: String,
+        t: [Int]?,
+        o: [Double]?,
+        h: [Double]?,
+        l: [Double]?,
+        c: [Double]?,
+        v: [Int]?,
+        metadata: HistoricalCandleMetadata? = nil
+    ) {
+        self.s = s
+        self.t = t
+        self.o = o
+        self.h = h
+        self.l = l
+        self.c = c
+        self.v = v
+        self.metadata = metadata
+    }
+
     /// Convert to array of OHLCData
     func toOHLCData() -> [OHLCData] {
         guard s == "ok",

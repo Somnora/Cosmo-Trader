@@ -653,7 +653,7 @@ struct StockChartView: View {
             formatter.dateFormat = "E h:mm a"
         case .month, .threeMonth, .sixMonth:
             formatter.dateFormat = "MMM d"
-        case .year, .twoYear, .all:
+        case .year, .twoYear, .all, .twentyYear:
             formatter.dateFormat = "MMM d, yyyy"
         }
         return formatter.string(from: date)
