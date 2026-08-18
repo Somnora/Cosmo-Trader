@@ -183,6 +183,138 @@ struct PredictionLedgerStoreTests {
         #expect(store.allRecords().map(\.tradingDay) == ["2026-07-02", "2026-07-01"])
     }
 
+    // MARK: - Schema migration
+
+    @Test("A v1 ledger on disk decodes as schema 1 instead of being wiped")
+    func v1LedgerDecodesAsSchemaOne() throws {
+        let directoryURL = temporaryDirectoryURL()
+        try writeLedgerFile(Self.v1LedgerJSON, to: directoryURL)
+
+        let store = PredictionLedgerStore(directoryURL: directoryURL)
+        defer { try? store.removeAll() }
+
+        let records = store.allRecords()
+        #expect(records.count == 2)
+        #expect(records.allSatisfy { $0.schemaVersion == 1 })
+        #expect(records.allSatisfy { $0.predatesActiveDriverJoin })
+        #expect(records.map(\.tradingDay) == ["2026-07-07", "2026-07-06"])
+
+        // The whole record decoded, not just its envelope.
+        let resolved = try #require(store.record(forTradingDay: "2026-07-06"))
+        let claim = try #require(resolved.claims.first)
+        #expect(claim.subject == .market)
+        #expect(claim.direction == .bullish)
+        #expect(claim.cosmicDriver == "Full Moon")
+        #expect(claim.driverKind == AstroOverlayEventKind.fullMoon.rawValue)
+        #expect(claim.confidence == .moderate)
+        #expect(claim.outcome?.result == .hit)
+        #expect(claim.outcome?.actualReturnPercent == 0.51)
+        #expect(claim.outcome?.provenance.provider == FinancialDataProvenance.yahooProvider)
+
+        // The July 7 record is the no-call day; it must survive as one.
+        #expect(store.record(forTradingDay: "2026-07-07")?.isNoCall == true)
+    }
+
+    @Test("Inserting a v2 record preserves the existing v1 ledger")
+    func insertingV2RecordPreservesV1Records() throws {
+        let directoryURL = temporaryDirectoryURL()
+        try writeLedgerFile(Self.v1LedgerJSON, to: directoryURL)
+
+        let store = PredictionLedgerStore(directoryURL: directoryURL)
+        defer { try? store.removeAll() }
+
+        #expect(store.insert(record(tradingDay: "2026-07-08", claims: [marketClaim()])))
+
+        // A fresh instance re-reads the rewritten file: the migration has to
+        // survive the round trip, not just the in-memory decode.
+        let reloaded = PredictionLedgerStore(directoryURL: directoryURL)
+        let records = reloaded.allRecords()
+        #expect(records.map(\.tradingDay) == ["2026-07-08", "2026-07-07", "2026-07-06"])
+        #expect(reloaded.record(forTradingDay: "2026-07-06")?.schemaVersion == 1)
+        #expect(reloaded.record(forTradingDay: "2026-07-07")?.schemaVersion == 1)
+        #expect(reloaded.record(forTradingDay: "2026-07-08")?.schemaVersion
+            == PredictionRecord.currentSchemaVersion)
+        #expect(reloaded.record(forTradingDay: "2026-07-06")?.claims.first?.outcome?.result == .hit)
+    }
+
+    @Test("New records are written at the current schema version")
+    func newRecordsCarryCurrentSchemaVersion() throws {
+        let store = PredictionLedgerStore(directoryURL: temporaryDirectoryURL())
+        defer { try? store.removeAll() }
+
+        store.insert(record(tradingDay: "2026-07-06", claims: [marketClaim()]))
+
+        #expect(store.record(forTradingDay: "2026-07-06")?.schemaVersion == 2)
+        #expect(store.record(forTradingDay: "2026-07-06")?.predatesActiveDriverJoin == false)
+    }
+
+    /// A frozen, literal ledger file exactly as shipped builds wrote it:
+    /// ISO-8601 dates, sorted keys, and no `schemaVersion` key anywhere.
+    /// Do not regenerate this from the current encoder — its whole job is to
+    /// be the old format.
+    private static let v1LedgerJSON = """
+    [
+      {
+        "claims" : [
+          {
+            "confidence" : "moderate",
+            "cosmicDriver" : "Full Moon",
+            "direction" : "bullish",
+            "driverKind" : "fullMoon",
+            "historicalEdge" : 0.40000000000000002,
+            "historicalWinRate" : 0.62,
+            "id" : "1E1B0C64-6D6E-4E5F-9A2B-4C8F2A7D1E01",
+            "outcome" : {
+              "actualReturnPercent" : 0.51000000000000001,
+              "provenance" : {
+                "fetchedAt" : "2026-07-07T20:15:00Z",
+                "kind" : "live",
+                "provider" : "Yahoo Finance"
+              },
+              "resolvedAt" : "2026-07-07T20:15:00Z",
+              "result" : "hit"
+            },
+            "subject" : {
+              "kind" : "market"
+            }
+          },
+          {
+            "confidence" : "thin",
+            "cosmicDriver" : "Mercury Rx",
+            "direction" : "bearish",
+            "driverKind" : "mercuryRetrograde",
+            "historicalEdge" : -0.75,
+            "historicalWinRate" : 0.41999999999999998,
+            "id" : "1E1B0C64-6D6E-4E5F-9A2B-4C8F2A7D1E02",
+            "subject" : {
+              "kind" : "stock",
+              "symbol" : "AAPL"
+            }
+          }
+        ],
+        "id" : "1E1B0C64-6D6E-4E5F-9A2B-4C8F2A7D1E00",
+        "recordedAfterClose" : false,
+        "recordedAt" : "2026-07-06T13:35:00Z",
+        "tradingDay" : "2026-07-06"
+      },
+      {
+        "claims" : [
+
+        ],
+        "id" : "1E1B0C64-6D6E-4E5F-9A2B-4C8F2A7D1E10",
+        "recordedAfterClose" : false,
+        "recordedAt" : "2026-07-07T13:31:00Z",
+        "tradingDay" : "2026-07-07"
+      }
+    ]
+    """
+
+    private func writeLedgerFile(_ json: String, to directoryURL: URL) throws {
+        let fileManager = FileManager.default
+        try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        try Data(json.utf8).write(to: directoryURL.appendingPathComponent("prediction-ledger.json"))
+    }
+
     // MARK: - Fixtures
 
     private func temporaryDirectoryURL() -> URL {

@@ -871,7 +871,10 @@ final class MarketWeatherService {
         return String(format: "%.0f%%", value * 100)
     }
 
-    private static let marketProxyStock = Stock(
+    /// Stand-in "stock" the overlay generator needs for market-level event
+    /// queries. Shared with the prediction ledger's active-driver snapshot so
+    /// both ask the same generator the same question.
+    static let marketProxyStock = Stock(
         symbol: "SPY",
         name: "V1 Market Basket",
         currentPrice: 0,

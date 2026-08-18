@@ -145,7 +145,21 @@ nonisolated struct PredictionClaim: Codable, Equatable, Identifiable {
 }
 
 nonisolated struct PredictionRecord: Codable, Equatable, Identifiable {
+    /// Schema version new records are written with. v1 recorded the
+    /// highest-confidence event from year-long summaries whether or not that
+    /// event was occurring; v2 records only claims whose cosmic driver was
+    /// actually active on the trading day.
+    static let currentSchemaVersion = 2
+    /// Earliest schema whose claims may enter accuracy stats. v1 records
+    /// measured a different experiment, so they are retained and shown but
+    /// never counted — deleting them would be the only irreversible option.
+    static let earliestScoreableSchemaVersion = 2
+
     let id: UUID
+    /// Version of the ledger schema this record was written with. Ledger
+    /// files written before the active-driver join carry no key for it and
+    /// decode as v1.
+    let schemaVersion: Int
     /// ET calendar day the prediction applies to, "yyyy-MM-dd". Ledger key:
     /// at most one record exists per trading day.
     let tradingDay: String
@@ -160,21 +174,53 @@ nonisolated struct PredictionRecord: Codable, Equatable, Identifiable {
 
     init(
         id: UUID = UUID(),
+        schemaVersion: Int = PredictionRecord.currentSchemaVersion,
         tradingDay: String,
         recordedAt: Date,
         recordedAfterClose: Bool,
         claims: [PredictionClaim]
     ) {
         self.id = id
+        self.schemaVersion = schemaVersion
         self.tradingDay = tradingDay
         self.recordedAt = recordedAt
         self.recordedAfterClose = recordedAfterClose
         self.claims = claims
     }
 
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case schemaVersion
+        case tradingDay
+        case recordedAt
+        case recordedAfterClose
+        case claims
+    }
+
+    /// Decoding is hand-written for one reason: a v1 ledger on disk has no
+    /// `schemaVersion` key, and synthesized decoding would throw on it.
+    /// `PredictionLedgerStore.loadRecords()` swallows a decode failure into
+    /// an empty ledger, and the next insert would then overwrite the user's
+    /// entire history with a single record. An absent version means v1.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+        self.tradingDay = try container.decode(String.self, forKey: .tradingDay)
+        self.recordedAt = try container.decode(Date.self, forKey: .recordedAt)
+        self.recordedAfterClose = try container.decode(Bool.self, forKey: .recordedAfterClose)
+        self.claims = try container.decode([PredictionClaim].self, forKey: .claims)
+    }
+
     var isNoCall: Bool { claims.isEmpty }
 
     var isFullyResolved: Bool { claims.allSatisfy { $0.outcome != nil } }
+
+    /// True for records written before claims were joined to an actually
+    /// active cosmic driver. Shown in history, excluded from accuracy.
+    var predatesActiveDriverJoin: Bool {
+        schemaVersion < PredictionRecord.earliestScoreableSchemaVersion
+    }
 }
 
 // `CorrelationConfidence` is a String-backed enum; ledger records persist it

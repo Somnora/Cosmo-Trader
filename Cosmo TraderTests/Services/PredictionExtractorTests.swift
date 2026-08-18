@@ -6,6 +6,11 @@ import Testing
 struct PredictionExtractorTests {
 
     private let extractor = PredictionExtractor()
+    /// Every fixture below cites Full Moon, so the driver join has to report
+    /// it as occurring before any claim can exist. The suites that are about
+    /// something else (display mode, thresholds, ET boundaries) pass this so
+    /// they keep testing that one thing.
+    private let activeFullMoon: Set<AstroOverlayEventKind> = [.fullMoon]
 
     // MARK: - Direction derivation
 
@@ -13,6 +18,7 @@ struct PredictionExtractorTests {
     func positiveEdgeAtBullishThresholdReadsBullish() throws {
         let record = extractor.makeRecord(
             date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: activeFullMoon,
             marketWeather: marketWeather(events: [
                 weatherEvent(averageReturn: 0.9, baselineReturn: 0.3, winRate: 0.55)
             ]),
@@ -34,6 +40,7 @@ struct PredictionExtractorTests {
     func positiveEdgeBelowBullishThresholdReadsNeutral() {
         let record = extractor.makeRecord(
             date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: activeFullMoon,
             marketWeather: marketWeather(events: [
                 weatherEvent(averageReturn: 0.9, baselineReturn: 0.3, winRate: 0.54)
             ]),
@@ -49,6 +56,7 @@ struct PredictionExtractorTests {
     func negativeEdgeAtBearishThresholdReadsBearish() {
         let record = extractor.makeRecord(
             date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: activeFullMoon,
             marketWeather: marketWeather(events: [
                 weatherEvent(averageReturn: -0.4, baselineReturn: 0.2, winRate: 0.45)
             ]),
@@ -64,6 +72,7 @@ struct PredictionExtractorTests {
     func negativeEdgeAboveBearishThresholdReadsNeutral() {
         let record = extractor.makeRecord(
             date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: activeFullMoon,
             marketWeather: marketWeather(events: [
                 weatherEvent(averageReturn: -0.4, baselineReturn: 0.2, winRate: 0.46)
             ]),
@@ -79,6 +88,7 @@ struct PredictionExtractorTests {
     func zeroEdgeReadsNeutral() {
         let record = extractor.makeRecord(
             date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: activeFullMoon,
             marketWeather: marketWeather(events: [
                 weatherEvent(averageReturn: 0.5, baselineReturn: 0.5, winRate: 0.95)
             ]),
@@ -106,6 +116,7 @@ struct PredictionExtractorTests {
     func nonMarketBackedWeatherCreatesNoClaim(displayMode: CorrelationDisplayMode) {
         let record = extractor.makeRecord(
             date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: activeFullMoon,
             marketWeather: marketWeather(events: [
                 weatherEvent(
                     averageReturn: 0.9,
@@ -127,6 +138,7 @@ struct PredictionExtractorTests {
     func noInputsProduceNoCallRecord() {
         let record = extractor.makeRecord(
             date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: activeFullMoon,
             marketWeather: nil,
             portfolioSummaries: [],
             portfolioHoldings: [],
@@ -144,6 +156,7 @@ struct PredictionExtractorTests {
     func higherConfidenceEventWins() {
         let record = extractor.makeRecord(
             date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: [.fullMoon, .mercuryRetrograde],
             marketWeather: marketWeather(events: [
                 weatherEvent(
                     eventName: "Mercury Retrograde",
@@ -175,6 +188,7 @@ struct PredictionExtractorTests {
     func equalConfidenceTieBreaksOnEdge() {
         let record = extractor.makeRecord(
             date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: [.fullMoon, .newMoon],
             marketWeather: marketWeather(events: [
                 weatherEvent(
                     eventName: "Full Moon",
@@ -208,6 +222,7 @@ struct PredictionExtractorTests {
     func beforeCloseIsNotFlagged() {
         let record = extractor.makeRecord(
             date: easternDate("2026-07-06T15:59:00"),
+            activeDriverKinds: activeFullMoon,
             marketWeather: nil,
             portfolioSummaries: [],
             portfolioHoldings: [],
@@ -221,6 +236,7 @@ struct PredictionExtractorTests {
     func atOrAfterCloseIsFlagged() {
         let atClose = extractor.makeRecord(
             date: easternDate("2026-07-06T16:00:00"),
+            activeDriverKinds: activeFullMoon,
             marketWeather: nil,
             portfolioSummaries: [],
             portfolioHoldings: [],
@@ -228,6 +244,7 @@ struct PredictionExtractorTests {
         )
         let afterClose = extractor.makeRecord(
             date: easternDate("2026-07-06T16:01:00"),
+            activeDriverKinds: activeFullMoon,
             marketWeather: nil,
             portfolioSummaries: [],
             portfolioHoldings: [],
@@ -243,6 +260,7 @@ struct PredictionExtractorTests {
         // 11:30 p.m. ET on July 6 is already July 7 in UTC.
         let record = extractor.makeRecord(
             date: easternDate("2026-07-06T23:30:00"),
+            activeDriverKinds: activeFullMoon,
             marketWeather: nil,
             portfolioSummaries: [],
             portfolioHoldings: [],
@@ -258,6 +276,7 @@ struct PredictionExtractorTests {
     func portfolioClaimFreezesWeights() throws {
         let record = extractor.makeRecord(
             date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: activeFullMoon,
             marketWeather: nil,
             portfolioSummaries: [
                 portfolioSummary(averageReturn: 1.0, baselineReturn: 0.2, winRate: 0.7)
@@ -281,6 +300,7 @@ struct PredictionExtractorTests {
     func portfolioClaimRequiresOwnedHoldings() {
         let record = extractor.makeRecord(
             date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: activeFullMoon,
             marketWeather: nil,
             portfolioSummaries: [
                 portfolioSummary(averageReturn: 1.0, baselineReturn: 0.2, winRate: 0.7)
@@ -308,6 +328,7 @@ struct PredictionExtractorTests {
 
         let record = extractor.makeRecord(
             date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: activeFullMoon,
             marketWeather: nil,
             portfolioSummaries: [],
             portfolioHoldings: [],
@@ -333,6 +354,7 @@ struct PredictionExtractorTests {
 
         let record = extractor.makeRecord(
             date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: activeFullMoon,
             marketWeather: marketWeather(events: [
                 weatherEvent(averageReturn: 0.9, baselineReturn: 0.3, winRate: 0.6)
             ]),
@@ -350,6 +372,133 @@ struct PredictionExtractorTests {
         ])
     }
 
+    // MARK: - Active cosmic driver join
+
+    @Test("Fully market-backed summaries abstain when no driver is active")
+    func noActiveDriverProducesNoCallRecord() {
+        let record = extractor.makeRecord(
+            date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: [],
+            marketWeather: marketWeather(events: [
+                weatherEvent(averageReturn: 0.9, baselineReturn: 0.3, winRate: 0.7)
+            ]),
+            portfolioSummaries: [
+                portfolioSummary(averageReturn: 1.0, baselineReturn: 0.2, winRate: 0.7)
+            ],
+            portfolioHoldings: [stock(symbol: "AAPL", sharesOwned: 2)],
+            stockCandidate: fullMoonStockCandidate()
+        )
+
+        // All three builders decline, and the day is still recorded.
+        #expect(record.claims.isEmpty)
+        #expect(record.isNoCall)
+        #expect(record.tradingDay == "2026-07-06")
+        #expect(!record.recordedAfterClose)
+    }
+
+    @Test("The same summaries claim once their driver is active")
+    func activeDriverProducesClaims() {
+        let record = extractor.makeRecord(
+            date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: [.fullMoon],
+            marketWeather: marketWeather(events: [
+                weatherEvent(averageReturn: 0.9, baselineReturn: 0.3, winRate: 0.7)
+            ]),
+            portfolioSummaries: [
+                portfolioSummary(averageReturn: 1.0, baselineReturn: 0.2, winRate: 0.7)
+            ],
+            portfolioHoldings: [stock(symbol: "AAPL", sharesOwned: 2)],
+            stockCandidate: fullMoonStockCandidate()
+        )
+
+        #expect(!record.isNoCall)
+        #expect(record.claims.map(\.subject) == [
+            .market,
+            .portfolio,
+            .stock(symbol: "AAPL")
+        ])
+        #expect(record.claims.allSatisfy { $0.driverKind == AstroOverlayEventKind.fullMoon.rawValue })
+    }
+
+    @Test("A driver outside the active set never claims, even unopposed")
+    func inactiveSoleDriverNeverClaims() {
+        let record = extractor.makeRecord(
+            date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: [.mercuryRetrograde],
+            marketWeather: marketWeather(events: [
+                weatherEvent(averageReturn: 0.9, baselineReturn: 0.3, winRate: 0.9)
+            ]),
+            portfolioSummaries: [],
+            portfolioHoldings: [],
+            stockCandidate: nil
+        )
+
+        #expect(record.isNoCall)
+    }
+
+    @Test("Best event is selected among active drivers only")
+    func bestEventIsSelectedAmongActiveDriversOnly() throws {
+        // Mercury Rx carries the stronger sample, but it is not occurring, so
+        // the claim must fall to the active Full Moon rather than cite an
+        // event that is not happening.
+        let record = extractor.makeRecord(
+            date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: [.fullMoon],
+            marketWeather: marketWeather(events: [
+                weatherEvent(
+                    eventName: "Mercury Rx",
+                    eventType: .mercuryRetrograde,
+                    averageReturn: 3.0,
+                    baselineReturn: 0.1,
+                    winRate: 0.85,
+                    confidence: .strong
+                ),
+                weatherEvent(
+                    eventName: "Full Moon",
+                    eventType: .fullMoon,
+                    averageReturn: 0.6,
+                    baselineReturn: 0.2,
+                    winRate: 0.6,
+                    confidence: .moderate
+                ),
+                weatherEvent(
+                    eventName: "New Moon",
+                    eventType: .newMoon,
+                    averageReturn: -2.5,
+                    baselineReturn: 0.2,
+                    winRate: 0.2,
+                    confidence: .strong
+                )
+            ]),
+            portfolioSummaries: [],
+            portfolioHoldings: [],
+            stockCandidate: nil
+        )
+
+        let claim = try #require(record.claims.first)
+        #expect(record.claims.count == 1)
+        #expect(claim.cosmicDriver == "Full Moon")
+        #expect(claim.driverKind == AstroOverlayEventKind.fullMoon.rawValue)
+        #expect(claim.direction == .bullish)
+    }
+
+    @Test("Records carry the current ledger schema version")
+    func recordsCarryCurrentSchemaVersion() {
+        let record = extractor.makeRecord(
+            date: easternDate("2026-07-06T09:35:00"),
+            activeDriverKinds: activeFullMoon,
+            marketWeather: marketWeather(events: [
+                weatherEvent(averageReturn: 0.9, baselineReturn: 0.3, winRate: 0.7)
+            ]),
+            portfolioSummaries: [],
+            portfolioHoldings: [],
+            stockCandidate: nil
+        )
+
+        #expect(record.schemaVersion == PredictionRecord.currentSchemaVersion)
+        #expect(!record.predatesActiveDriverJoin)
+    }
+
     // MARK: - Fixtures
 
     private func easternDate(_ value: String) -> Date {
@@ -362,6 +511,18 @@ struct PredictionExtractorTests {
             return Date(timeIntervalSince1970: 0)
         }
         return date
+    }
+
+    private func fullMoonStockCandidate() -> TodayStockCandidate {
+        TodayStockCandidate(
+            stock: stock(symbol: "AAPL", sharesOwned: 0),
+            summaries: [
+                stockSummary(averageReturn: 0.9, baselineReturn: 0.1, winRate: 0.7)
+            ],
+            provenance: liveProvenance(),
+            completeness: .complete,
+            source: .watchlist
+        )
     }
 
     private func liveProvenance() -> FinancialDataProvenance {

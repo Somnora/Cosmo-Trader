@@ -365,7 +365,7 @@ final class AstroCorrelationService {
         let fullAverageVolume = averageVolume(sortedPrices)
 
         return events.compactMap { event in
-            let window = priceWindow(for: event, filterState: filterState)
+            let window = Self.priceWindow(for: event, filterState: filterState, calendar: calendar)
             let candles = sortedPrices.filter { candle in
                 candle.date >= window.start && candle.date <= window.end
             }
@@ -400,9 +400,19 @@ final class AstroCorrelationService {
         }
     }
 
-    private func priceWindow(
+    /// The interval an event contributes to the historical statistics:
+    /// range events (Mercury retrograde) span their own dates, point events
+    /// (moon phases) span the day before the marker through the configured
+    /// event window after it.
+    ///
+    /// Shared rather than private because "is this driver active today?" has
+    /// to be the same question as "which candles did this driver's sample
+    /// come from?" — if the two definitions drift, the ledger scores claims
+    /// against a window the statistics were never computed over.
+    static func priceWindow(
         for event: AstroOverlayEvent,
-        filterState: AstroOverlayFilterState
+        filterState: AstroOverlayFilterState,
+        calendar: Calendar = .current
     ) -> DateInterval {
         if event.isRange, let endDate = event.endDate {
             return DateInterval(start: event.startDate, end: endDate)

@@ -170,6 +170,7 @@ struct ComplianceCopyGuardTests {
             "FULL SCORECARD",
             "LAST SCORED CLOSE · JUL 6",
             "AFTER CLOSE — NOT SCORED",
+            "DRIVER NOT VERIFIED — NOT SCORED",
             "PENDING",
             "The cosmos abstained today. No market-backed cosmic pattern was active at reading time.",
             "Abstained — no market-backed cosmic pattern was active.",
