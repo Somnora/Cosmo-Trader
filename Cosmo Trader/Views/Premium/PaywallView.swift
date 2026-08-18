@@ -144,7 +144,7 @@ struct PaywallView: View {
                     .foregroundColor(CosmicTheme.gold)
                     .tracking(4)
 
-                Text("The full curated reading - without limits")
+                Text("The Cosmic Correlation Lab, unlocked")
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundColor(CosmicTheme.textSecondary)
             }
@@ -640,11 +640,11 @@ struct CompactPaywallView: View {
 
             // Quick benefits
             VStack(alignment: .leading, spacing: 8) {
-                quickBenefit("Unlimited Discover swipes")
-                quickBenefit("Refresh your reading anytime")
-                quickBenefit("Track more portfolio holdings")
-                quickBenefit("Generate more Cosmic Roasts")
-                quickBenefit("Moon-in-sign local alert")
+                quickBenefit("Cosmic Correlation Lab")
+                quickBenefit("Portfolio correlation timeline")
+                quickBenefit("Unlimited Cosmic Roasts")
+                quickBenefit("Moon-in-your-sign local alert")
+                quickBenefit("Per-stock signal framing")
             }
             .padding(16)
             .background(
