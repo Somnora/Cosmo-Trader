@@ -10,6 +10,13 @@ import Foundation
 /// create scored claims. Sample, partial, stale, and insufficient data never
 /// become predictions — the same rule the UI follows for showing numbers.
 ///
+/// Second, independent gate: the summaries cover a full year of history, so a
+/// market-backed Full Moon summary exists on every trading day. A claim may
+/// only cite a driver whose window actually contains today
+/// (`ActiveCosmicDriverSnapshot`); otherwise the ledger would score "is the
+/// market up today" under a cosmic label. When nothing is active the record
+/// is an honest no-call.
+///
 /// Main-actor like the composer: its inputs are the main-actor correlation
 /// summary types. The records it produces are `nonisolated` models.
 struct PredictionExtractor {
@@ -41,23 +48,30 @@ struct PredictionExtractor {
     }
 
     /// Builds the prediction record for `date` (an ET trading day).
-    /// Returns a no-call record (empty claims) when nothing market-backed is
-    /// active — silence is recorded honestly, never invented.
+    /// `activeDriverKinds` is the set of cosmic drivers whose window contains
+    /// `date`; an empty set means nothing is happening, and every builder
+    /// declines. Returns a no-call record (empty claims) when nothing
+    /// market-backed is active — silence is recorded honestly, never invented.
     func makeRecord(
         date: Date,
+        activeDriverKinds: Set<AstroOverlayEventKind>,
         marketWeather: MarketWeatherSummary?,
         portfolioSummaries: [PortfolioCosmicCorrelationSummary],
         portfolioHoldings: [Stock],
         stockCandidate: TodayStockCandidate?
     ) -> PredictionRecord {
         var claims: [PredictionClaim] = []
-        if let market = marketClaim(from: marketWeather) {
+        if let market = marketClaim(from: marketWeather, activeDriverKinds: activeDriverKinds) {
             claims.append(market)
         }
-        if let portfolio = portfolioClaim(from: portfolioSummaries, holdings: portfolioHoldings) {
+        if let portfolio = portfolioClaim(
+            from: portfolioSummaries,
+            holdings: portfolioHoldings,
+            activeDriverKinds: activeDriverKinds
+        ) {
             claims.append(portfolio)
         }
-        if let stock = stockClaim(from: stockCandidate) {
+        if let stock = stockClaim(from: stockCandidate, activeDriverKinds: activeDriverKinds) {
             claims.append(stock)
         }
 
@@ -80,7 +94,10 @@ struct PredictionExtractor {
 
     // MARK: - Claims
 
-    private func marketClaim(from summary: MarketWeatherSummary?) -> PredictionClaim? {
+    private func marketClaim(
+        from summary: MarketWeatherSummary?,
+        activeDriverKinds: Set<AstroOverlayEventKind>
+    ) -> PredictionClaim? {
         guard let summary else { return nil }
 
         let candidates = summary.eventSummaries.compactMap { event -> ScoredEvent? in
@@ -90,6 +107,10 @@ struct PredictionExtractor {
                   let winRate = event.winRate else {
                 return nil
             }
+            // Kept separate from the market-backed gate: a summary can be
+            // fully market-backed and still describe an event that is not
+            // occurring today.
+            guard activeDriverKinds.contains(event.eventType) else { return nil }
             return ScoredEvent(
                 eventName: event.eventName,
                 eventKind: event.eventType,
@@ -104,7 +125,8 @@ struct PredictionExtractor {
 
     private func portfolioClaim(
         from summaries: [PortfolioCosmicCorrelationSummary],
-        holdings: [Stock]
+        holdings: [Stock],
+        activeDriverKinds: Set<AstroOverlayEventKind>
     ) -> PredictionClaim? {
         // Weights are frozen at recording time so later portfolio edits can
         // never rewrite what a prediction was about.
@@ -123,6 +145,7 @@ struct PredictionExtractor {
                   let winRate = summary.winRate else {
                 return nil
             }
+            guard activeDriverKinds.contains(summary.eventType) else { return nil }
             return ScoredEvent(
                 eventName: summary.eventName,
                 eventKind: summary.eventType,
@@ -137,7 +160,10 @@ struct PredictionExtractor {
         }
     }
 
-    private func stockClaim(from candidate: TodayStockCandidate?) -> PredictionClaim? {
+    private func stockClaim(
+        from candidate: TodayStockCandidate?,
+        activeDriverKinds: Set<AstroOverlayEventKind>
+    ) -> PredictionClaim? {
         guard let candidate else { return nil }
         let symbol = candidate.stock.symbol.uppercased()
 
@@ -148,6 +174,7 @@ struct PredictionExtractor {
                   let winRate = summary.winRate else {
                 return nil
             }
+            guard activeDriverKinds.contains(summary.eventType) else { return nil }
             return ScoredEvent(
                 eventName: summary.eventName,
                 eventKind: summary.eventType,

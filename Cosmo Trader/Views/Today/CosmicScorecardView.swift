@@ -205,9 +205,12 @@ struct CosmicScorecardView: View {
     }
 
     private func historyRow(_ record: PredictionRecord) -> some View {
-        // After-close and market-closed days stay visible but muted: shown
-        // for the record, excluded from the stats.
+        // After-close, market-closed, and pre-active-driver-join days stay
+        // visible but muted: shown for the record, excluded from the stats.
+        // Without the badge the header's scored count visibly disagrees with
+        // the rows below it.
         let isMuted = record.recordedAfterClose
+            || record.predatesActiveDriverJoin
             || record.claims.allSatisfy { $0.outcome?.result == .marketClosed }
 
         return VStack(alignment: .leading, spacing: 4) {
@@ -216,8 +219,8 @@ struct CosmicScorecardView: View {
                     .font(TerminalFont.data(9, weight: .bold))
                     .foregroundColor(isMuted ? CosmicTheme.textMuted : CosmicTheme.textSecondary)
 
-                if record.recordedAfterClose {
-                    Text("AFTER CLOSE — NOT SCORED")
+                if let badge = excludedBadge(for: record) {
+                    Text(badge)
                         .font(TerminalFont.data(8, weight: .semibold))
                         .foregroundColor(CosmicTheme.textMuted)
                         .tracking(0.5)
@@ -271,6 +274,18 @@ struct CosmicScorecardView: View {
                 .background(CosmicTheme.divider)
         }
         .padding(.vertical, 2)
+    }
+
+    /// Why a history row is excluded from the accuracy stats, or nil when it
+    /// counts. After-close wins when both apply: it is the stronger claim.
+    private func excludedBadge(for record: PredictionRecord) -> String? {
+        if record.recordedAfterClose {
+            return "AFTER CLOSE — NOT SCORED"
+        }
+        if record.predatesActiveDriverJoin {
+            return "DRIVER NOT VERIFIED — NOT SCORED"
+        }
+        return nil
     }
 
     private func directionColor(_ direction: PredictionDirection) -> Color {

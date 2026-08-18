@@ -121,6 +121,55 @@ struct PredictionScorecardTests {
         #expect(scorecard.provenance == staleCached)
     }
 
+    @Test("Schema v1 records are retained but never enter accuracy stats")
+    func schemaV1RecordsAreExcluded() {
+        let scorecard = PredictionScorecard.make(from: [
+            record(day: "2026-06-29", results: [.hit, .hit, .hit], schemaVersion: 1),
+            record(day: "2026-06-30", results: [.miss], schemaVersion: 1),
+            record(day: "2026-07-01", results: [.hit]),
+            record(day: "2026-07-02", results: [.miss]),
+            record(day: "2026-07-03", results: [.hit])
+        ])
+
+        // Only the three v2 claims count: the v1 hits would otherwise inflate
+        // the rate to 5/7.
+        #expect(scorecard.scoredCount == 3)
+        #expect(scorecard.hitCount == 2)
+        #expect(scorecard.currentStreak == 1)
+        let hitRate = scorecard.hitRate
+        #expect(hitRate != nil)
+        if let hitRate {
+            #expect(abs(hitRate - (2.0 / 3.0)) < 0.0001)
+        }
+    }
+
+    @Test("Per-driver rollup counts v2 claims only")
+    func perDriverRollupExcludesSchemaV1() {
+        let scorecard = PredictionScorecard.make(from: [
+            record(day: "2026-07-01", results: [.hit, .hit], driverKind: .mercuryRetrograde, schemaVersion: 1),
+            record(day: "2026-07-02", results: [.hit], driverKind: .fullMoon),
+            record(day: "2026-07-03", results: [.miss], driverKind: .fullMoon)
+        ])
+
+        #expect(scorecard.perDriverKind[AstroOverlayEventKind.mercuryRetrograde.rawValue] == nil)
+        #expect(scorecard.perDriverKind[AstroOverlayEventKind.fullMoon.rawValue]
+            == PredictionScorecard.DriverStats(hits: 1, scored: 2))
+    }
+
+    @Test("After-close exclusion still applies alongside the schema filter")
+    func afterCloseAndSchemaExclusionsCompose() {
+        let scorecard = PredictionScorecard.make(from: [
+            record(day: "2026-07-01", results: [.hit], schemaVersion: 1),
+            record(day: "2026-07-02", results: [.hit, .hit], afterClose: true),
+            record(day: "2026-07-03", results: [.hit], afterClose: true, schemaVersion: 1),
+            record(day: "2026-07-04", results: [.miss])
+        ])
+
+        #expect(scorecard.scoredCount == 1)
+        #expect(scorecard.hitCount == 0)
+        #expect(scorecard.currentStreak == -1)
+    }
+
     // MARK: - Fixtures
 
     private func record(
@@ -128,7 +177,8 @@ struct PredictionScorecardTests {
         results: [PredictionResult],
         afterClose: Bool = false,
         driverKind: AstroOverlayEventKind = .fullMoon,
-        provenance: FinancialDataProvenance? = nil
+        provenance: FinancialDataProvenance? = nil,
+        schemaVersion: Int = PredictionRecord.currentSchemaVersion
     ) -> PredictionRecord {
         let outcomeProvenance = provenance ?? .live(
             provider: FinancialDataProvenance.yahooProvider,
@@ -152,6 +202,7 @@ struct PredictionScorecardTests {
             )
         }
         return PredictionRecord(
+            schemaVersion: schemaVersion,
             tradingDay: day,
             recordedAt: date(day),
             recordedAfterClose: afterClose,

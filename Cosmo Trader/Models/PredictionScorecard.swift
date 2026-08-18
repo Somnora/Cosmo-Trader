@@ -7,6 +7,12 @@ import Foundation
 /// close enter the accuracy stats. `flat` (a push), `unresolved`,
 /// `marketClosed`, and every claim on an after-close record are excluded —
 /// the ledger never pads its accuracy with pushes or hindsight.
+///
+/// Schema v1 records are excluded too. Those claims were emitted from
+/// year-long summaries without checking that the cosmic driver was actually
+/// occurring, so they measure a different experiment. They are retained and
+/// still shown in history — deleting them is the one irreversible option, and
+/// the app genuinely did make those calls — they simply do not count.
 nonisolated struct PredictionScorecard: Equatable {
     struct DriverStats: Equatable {
         let hits: Int
@@ -41,9 +47,11 @@ nonisolated struct PredictionScorecard: Equatable {
 
     static func make(from records: [PredictionRecord]) -> PredictionScorecard {
         // Chronological, so the streak walks newest-last; after-close records
-        // are display-only and never enter stats.
+        // and pre-active-driver-join records are display-only and never enter
+        // stats.
         let scoreableRecords = records
             .filter { !$0.recordedAfterClose }
+            .filter { $0.schemaVersion >= PredictionRecord.earliestScoreableSchemaVersion }
             .sorted { $0.tradingDay < $1.tradingDay }
 
         var scored = 0

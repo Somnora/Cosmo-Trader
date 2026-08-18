@@ -58,6 +58,7 @@ final class TodayMarketHoroscopeViewModel {
         mercury.refreshStatus()
         let mood = CosmicMoodService.shared.getCurrentMood()
         let activeEvents = AstroAlertService.shared.activeEvents.map(\.title)
+        let driverSnapshot = activeDriverSnapshot(on: Date())
 
         let portfolioSummaries: [PortfolioCosmicCorrelationSummary]
         let stockCandidate: TodayStockCandidate?
@@ -98,6 +99,7 @@ final class TodayMarketHoroscopeViewModel {
         if !AppState.isScreenshotMode && !AppState.isUITesting {
             recordDailyPrediction(
                 user: user,
+                driverSnapshot: driverSnapshot,
                 marketWeather: marketWeather,
                 portfolioSummaries: portfolioSummaries,
                 stockCandidate: stockCandidate
@@ -109,17 +111,44 @@ final class TodayMarketHoroscopeViewModel {
         isLoading = false
     }
 
+    /// Which cosmic drivers are actually occurring, from the same generator
+    /// and the same window definition the historical statistics were computed
+    /// from. A single query over the lookback range: moon markers are emitted
+    /// on phase transitions, so the marker owning today's window can sit weeks
+    /// back in the lunation.
+    ///
+    /// Deliberately not `AstroAlertService`: its events are seeded from
+    /// `MockCosmicEvents`, dated relative to `Date()`, and therefore always
+    /// "active" — joining real statistics to that mock would be worse than no
+    /// join at all.
+    private func activeDriverSnapshot(on date: Date) -> ActiveCosmicDriverSnapshot {
+        let interval = ActiveCosmicDriverSnapshot.queryInterval(around: date)
+        let events = overlayEventService.events(
+            for: MarketWeatherService.marketProxyStock,
+            from: interval.start,
+            to: interval.end,
+            filters: filterState
+        )
+        return ActiveCosmicDriverSnapshot.make(
+            date: date,
+            candidateEvents: events,
+            filterState: filterState
+        )
+    }
+
     /// Silently records today's market-backed claims as an immutable
     /// prediction (specs/prediction-ledger-mvp.md). The store keeps at most
     /// one record per ET trading day, so repeated loads are no-ops.
     private func recordDailyPrediction(
         user: UserProfile?,
+        driverSnapshot: ActiveCosmicDriverSnapshot,
         marketWeather: MarketWeatherSummary?,
         portfolioSummaries: [PortfolioCosmicCorrelationSummary],
         stockCandidate: TodayStockCandidate?
     ) {
         let record = predictionExtractor.makeRecord(
             date: Date(),
+            activeDriverKinds: driverSnapshot.activeKinds,
             marketWeather: marketWeather,
             portfolioSummaries: portfolioSummaries,
             portfolioHoldings: user?.portfolio.filter(\.isOwned) ?? [],
