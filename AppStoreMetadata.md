@@ -1,5 +1,13 @@
 # Cosmo Trader - App Store Metadata
 
+> **DRAFT. Nothing in this file ships.** App Store Connect is the system of
+> record for the listing. Every block below has to be pasted into ASC by hand
+> before a reviewer ever sees it, so editing this file changes nothing on the
+> store. Keep it in sync with the in-app paywall copy
+> (`OracleTierBenefits.all` in `Cosmo Trader/Services/SubscriptionManager.swift`):
+> IAP first submission requires a paywall screenshot, and the reviewer reads
+> that screenshot next to this description.
+
 ## 1. App Name
 
 **Primary Choice:** `Cosmo Trader`
@@ -73,11 +81,11 @@ Do not make investment decisions based on this app. We're not registered investm
 Stock data is provided by Finnhub and may be delayed up to 15 minutes.
 
 PREMIUM: ORACLE TIER
-• Unlimited Discover swipes
-• Refresh your daily reading anytime
-• Track more portfolio holdings
-• More Cosmic Roast generations
-• Moon-in-sign local alerts
+• Cosmic Correlation Lab: a stock's price history overlaid with moon phases, Mercury retrograde windows, and company founding cycles
+• Portfolio correlation timeline: the same overlays across everything you hold
+• Unlimited Cosmic Roasts (the free tier gets one per day)
+• A local alert when the Moon enters your sun sign
+• Per-stock signal framing that overrides your global setting
 • Monthly, yearly, and lifetime plans available
 
 Whether you're a Capricorn who loves diversified ETFs or a Sagittarius who YOLOs into meme stocks, Cosmo Trader adds a little magic to your market watching.
@@ -85,7 +93,7 @@ Whether you're a Capricorn who loves diversified ETFs or a Sagittarius who YOLOs
 Download now. The stars are aligning. (They're always aligning. That's what stars do.)
 ```
 
-**Character Count:** ~2,847 characters
+**Character Count:** 3,306 characters (4,000 max)
 
 ---
 

@@ -96,9 +96,12 @@ struct PremiumFeatureTests {
 
 struct OracleTierBenefitsTests {
 
-    @Test("Oracle tier has all benefits defined")
+    @Test("Oracle tier lists exactly the benefits the app enforces")
     func oracleTierHasAllBenefits() {
-        #expect(OracleTierBenefits.all.count >= 8)
+        // Exact pin on purpose: the paywall renders this list verbatim, and an
+        // entry the free tier already gets is an App Review problem. Changing
+        // this number means a real gate was added or removed.
+        #expect(OracleTierBenefits.all.count == 5)
     }
 
     @Test("Each benefit has a title and description")

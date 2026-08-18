@@ -188,12 +188,11 @@ struct FeatureUpgradeSheet: View {
                 .tracking(1)
 
             VStack(alignment: .leading, spacing: 6) {
-                benefitRow("Unlimited Discovery swipes")
-                benefitRow("Refresh your reading anytime")
-                benefitRow("Track more portfolio holdings")
-                benefitRow("Cosmic Correlation Lab")
-                benefitRow("Generate more Cosmic Roasts")
-                benefitRow("Moon-in-sign local alert")
+                benefitRow("Cosmic Correlation Lab on any stock")
+                benefitRow("Portfolio correlation timeline")
+                benefitRow("Unlimited Cosmic Roasts (free: 1/day)")
+                benefitRow("Moon-in-your-sign local alert")
+                benefitRow("Per-stock signal framing override")
             }
         }
         .padding(16)

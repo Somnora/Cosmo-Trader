@@ -493,7 +493,7 @@ enum SubscriptionTier: String, CaseIterable {
 enum PremiumFeature: String, CaseIterable {
     // Data Features
     case realTimeData = "Finnhub quote stream"
-    case delayedData = "End-of-day prices"
+    case delayedData = "Finnhub quotes, may be delayed"
 
     // Discovery
     case unlimitedSwipes = "Unlimited Discovery swipes"
@@ -519,6 +519,9 @@ enum PremiumFeature: String, CaseIterable {
     // Analytics
     case fearGreedIndex = "Cosmic Mood Index"
     case historicalAstroOverlay = "Historical astro overlays"
+
+    // Signal Framing
+    case signalFramingOverride = "Per-stock signal framing"
 
     // Experience
     case adFree = "Clean app experience"
@@ -557,6 +560,8 @@ enum PremiumFeature: String, CaseIterable {
             return "gauge.with.needle.fill"
         case .historicalAstroOverlay:
             return "chart.xyaxis.line"
+        case .signalFramingOverride:
+            return "slider.horizontal.3"
         case .adFree:
             return "xmark.circle.fill"
         }
@@ -583,6 +588,8 @@ enum PremiumFeature: String, CaseIterable {
             return "The Cosmic Mood Index is part of Oracle Tier"
         case .historicalAstroOverlay:
             return "Historical astro overlays require Oracle Tier"
+        case .signalFramingOverride:
+            return "Per-stock signal framing requires Oracle Tier"
         case .adFree:
             return "Oracle Tier unlocks the full reading set"
         default:
@@ -595,56 +602,34 @@ enum PremiumFeature: String, CaseIterable {
 
 struct OracleTierBenefits {
 
+    /// The paywall renders this list verbatim, so every entry must name a
+    /// capability the app actually withholds from the free tier. Anything the
+    /// free tier already gets does not belong here.
     static let all: [OracleBenefit] = [
-        OracleBenefit(
-            feature: .unlimitedSwipes,
-            title: "Unlimited Discovery",
-            description: "Swipe through unlimited stocks daily"
-        ),
-        OracleBenefit(
-            feature: .advancedHoroscope,
-            title: "Advanced Horoscopes",
-            description: "Refresh anytime, more detailed readings"
-        ),
-        OracleBenefit(
-            feature: .unlimitedStocks,
-            title: "Unlimited Portfolio",
-            description: "Track as many stocks as you want"
-        ),
-        OracleBenefit(
-            feature: .moonSignAlerts,
-            title: "Moon-In-Sign Notifications",
-            description: "A local alert when the Moon enters your sun sign"
-        ),
         OracleBenefit(
             feature: .historicalAstroOverlay,
             title: "Cosmic Correlation Lab",
-            description: "Overlay market charts with moon phases, retrogrades, and company birth cycles"
+            description: "Moon, retrograde, and company founding overlays"
+        ),
+        OracleBenefit(
+            feature: .historicalAstroOverlay,
+            title: "Portfolio Correlation Timeline",
+            description: "The same overlays across your whole portfolio"
         ),
         OracleBenefit(
             feature: .unlimitedRoasts,
-            title: "Unlimited Roasts",
-            description: "Generate a Cosmic Roast as often as you want"
+            title: "Unlimited Cosmic Roasts",
+            description: "Roast anytime. Free tier gets one per day"
         ),
         OracleBenefit(
-            feature: .realTimeData,
-            title: "Live Quotes",
-            description: "Real-time provider quotes instead of end-of-day prices"
+            feature: .moonSignAlerts,
+            title: "Moon In Your Sign",
+            description: "A local alert when the Moon enters your sun sign"
         ),
         OracleBenefit(
-            feature: .moonNotifications,
-            title: "Moon Phase Notifications",
-            description: "Local alerts when the moon enters a new phase"
-        ),
-        OracleBenefit(
-            feature: .fearGreedIndex,
-            title: "Cosmic Mood Index",
-            description: "Market-backed cosmic mood readings, updated daily"
-        ),
-        OracleBenefit(
-            feature: .adFree,
-            title: "Clean Experience",
-            description: "A distraction-free terminal, nothing in the way"
+            feature: .signalFramingOverride,
+            title: "Per-Stock Signal Framing",
+            description: "Override your global framing level on a holding"
         )
     ]
 }
