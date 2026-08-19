@@ -400,6 +400,10 @@ require_present "Cosmo Trader/Services/MarketStateService.swift" "minimumMatched
 require_present "Cosmo Trader/Services/MarketStateService.swift" "isDistinguishableFromOrdinary"
 require_present "Cosmo Trader/Services/MarketStateService.swift" "matched.count / horizon"
 require_present "Cosmo Trader/Services/TodayMarketHoroscopeComposer.swift" "reads as an ordinary session"
+# A hardcoded date table silently stops firing the moment it expires, so the
+# scheduler has to keep asking the curated dataset instead.
+require_present "Cosmo Trader/Services/NotificationService.swift" "upcomingRetrogradeWindows"
+require_present "Cosmo Trader/Services/NotificationService.swift" "MercuryRetrogradeEphemerisProvider"
 require_present "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" "marketBlock(summary.marketContext, promotedAction: summary.primaryAction)"
 require_present "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" "MARKET WEATHER"
 require_present "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" "MarketStatusIndicator(showDetails: false"

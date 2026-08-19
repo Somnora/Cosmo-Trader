@@ -49,6 +49,10 @@ require_absent "Cosmo Trader/Services/MoonPhaseService.swift" "a good time to re
 require_absent "Cosmo Trader/Services/MoonPhaseService.swift" "Consider what positions you'd like to initiate"
 require_absent "Cosmo Trader/Services/MoonPhaseService.swift" "peak volatility expected"
 require_absent "Cosmo Trader/Services/MoonPhaseService.swift" "prepare for volatility"
+# The same rule, one file over: a lock screen is the wrong place to assure
+# someone that a legal commitment is safe, on astrological grounds. The rest of
+# the retrograde copy stays astrological; the assurance does not.
+require_absent "Cosmo Trader/Services/NotificationService.swift" "Safe to sign contracts"
 
 if [[ "$failures" -gt 0 ]]; then
   echo "compliance_copy_guard: source scan failed with ${failures} issue(s)" >&2

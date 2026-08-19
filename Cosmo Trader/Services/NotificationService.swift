@@ -332,40 +332,56 @@ final class NotificationService {
 
     // MARK: - Mercury Retrograde Alerts
 
-    private func scheduleMercuryRetrogradeAlerts() async {
-        // Mercury retrograde periods for 2025 (approximate dates)
-        // These would ideally come from an astronomical API
-        let retrogradePeriods: [(start: DateComponents, end: DateComponents)] = [
-            (DateComponents(year: 2025, month: 3, day: 14), DateComponents(year: 2025, month: 4, day: 7)),
-            (DateComponents(year: 2025, month: 7, day: 18), DateComponents(year: 2025, month: 8, day: 11)),
-            (DateComponents(year: 2025, month: 11, day: 9), DateComponents(year: 2025, month: 11, day: 29))
-        ]
+    /// The retrograde windows worth scheduling from `now`.
+    ///
+    /// Pure and static so the horizon logic can be tested without standing up
+    /// the notification singleton. `limit` exists because iOS only keeps 64
+    /// pending requests per app and this is one of six schedulers competing
+    /// for them; four windows is roughly eighteen months of coverage, and
+    /// `scheduleAllNotifications` re-runs on every settings change anyway.
+    nonisolated static func upcomingRetrogradeWindows(
+        from now: Date,
+        provider: MercuryRetrogradeEphemerisProvider = .shared,
+        limit: Int = 4
+    ) -> [MercuryRetrogradeWindow] {
+        let horizon = Calendar.current.date(byAdding: .year, value: 3, to: now) ?? now
+        return provider
+            .windows(from: now, to: horizon)
+            .filter { $0.endDate > now }
+            .sorted { $0.startDate < $1.startDate }
+            .prefix(limit)
+            .map { $0 }
+    }
 
-        let calendar = Calendar.current
+    private func scheduleMercuryRetrogradeAlerts() async {
+        // This used to carry its own hardcoded table of 2025 windows, which
+        // meant every alert silently stopped firing the moment 2025 ended --
+        // the dates were all in the past, the `startDate > now` guard rejected
+        // them, and a switched-on feature quietly did nothing. The app already
+        // owns MercuryRetrogradeEphemerisProvider, curated out to 2030 and
+        // wired into the mood engine in #72; this is the one caller that pass
+        // missed. A dataset the app already has beats a second copy that has
+        // to be remembered.
         let now = Date()
 
-        for (index, period) in retrogradePeriods.enumerated() {
-            // Start date notification
-            if let startDate = calendar.date(from: period.start),
-               startDate > now {
+        for window in Self.upcomingRetrogradeWindows(from: now) {
+            if window.startDate > now {
                 await scheduleNotification(
-                    id: "\(NotificationID.mercuryRetrogradePrefix)start.\(index)",
+                    id: "\(NotificationID.mercuryRetrogradePrefix)start.\(window.id)",
                     title: "Mercury Retrograde Begins",
-                    body: "Double-check everything. Communication mishaps likely.",
-                    date: startDate,
+                    body: Self.retrogradeBeginsBody(for: window),
+                    date: window.startDate,
                     hour: 9,
                     minute: 0
                 )
             }
 
-            // End date notification
-            if let endDate = calendar.date(from: period.end),
-               endDate > now {
+            if window.endDate > now {
                 await scheduleNotification(
-                    id: "\(NotificationID.mercuryRetrogradePrefix)end.\(index)",
+                    id: "\(NotificationID.mercuryRetrogradePrefix)end.\(window.id)",
                     title: "Mercury Direct",
-                    body: "Communication clarity returns. Safe to sign contracts.",
-                    date: endDate,
+                    body: Self.retrogradeEndsBody(for: window),
+                    date: window.endDate,
                     hour: 9,
                     minute: 0
                 )
@@ -373,7 +389,35 @@ final class NotificationService {
         }
     }
 
-    // MARK: - Weekly Summary
+    /// Says when the window runs and leaves it there.
+    ///
+    /// The retired pair warned of likely communication mishaps and then, on
+    /// the way out, told the reader it had become safe to sign contracts --
+    /// an assurance about a legal commitment, on astrological grounds, from a
+    /// lock screen. Astrological framing is the app's content and stays; an
+    /// assurance about a real-world decision is not framing. The exact retired
+    /// wording lives in the guard pin rather than here, so quoting it back
+    /// cannot mask a reintroduction.
+    nonisolated static func retrogradeBeginsBody(for window: MercuryRetrogradeWindow) -> String {
+        let through = windowDateFormatter.string(from: window.endDate)
+        if let sign = window.signName, !sign.isEmpty {
+            return "Mercury turns retrograde today in \(sign), through \(through). Traditionally a stretch for double-checking details."
+        }
+        return "Mercury turns retrograde today, through \(through). Traditionally a stretch for double-checking details."
+    }
+
+    nonisolated static func retrogradeEndsBody(for window: MercuryRetrogradeWindow) -> String {
+        let began = windowDateFormatter.string(from: window.startDate)
+        return "Mercury stations direct today. The retrograde that began \(began) is over."
+    }
+
+    nonisolated static let windowDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "MMM d"
+        return formatter
+    }()
 
     private func scheduleWeeklySummary() async {
         let content = UNMutableNotificationContent()
