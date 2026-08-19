@@ -40,6 +40,11 @@ struct TodayMarketHoroscopeView: View {
             firstRunSetupBlock(summary.firstRunSetup)
             loopSnapshot(summary)
             oneGlanceActionPanel(summary)
+
+            if let marketState = summary.marketState {
+                MarketStateCardView(context: marketState)
+            }
+
             marketBlock(summary.marketContext, promotedAction: summary.primaryAction)
             portfolioBlock(summary.portfolioContext, promotedAction: summary.primaryAction)
 
@@ -603,7 +608,10 @@ struct TodayMarketHoroscopeView: View {
                     .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
             )
 
-            labelExplainerDisclosure(coverage.explainers)
+            TodayDataLabelGuideView(
+                explainers: coverage.explainers,
+                isExpanded: $isLabelGuideExpanded
+            )
         }
     }
 
@@ -1000,87 +1008,6 @@ struct TodayMarketHoroscopeView: View {
             .replacingOccurrences(of: "/", with: ".")
             .split { !$0.isLetter && !$0.isNumber }
             .joined(separator: ".")
-    }
-
-    private func labelExplainerDisclosure(_ explainers: [TodayDataLabelExplainer]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.18)) {
-                    isLabelGuideExpanded.toggle()
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Text("LABEL GUIDE")
-                        .font(TerminalFont.data(8, weight: .bold))
-                        .foregroundColor(CosmicTheme.gold)
-                        .tracking(0.7)
-
-                    Text("Tap for data label meanings")
-                        .font(TerminalFont.data(8))
-                        .foregroundColor(CosmicTheme.textMuted)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-
-                    Spacer(minLength: 8)
-
-                    Image(systemName: isLabelGuideExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundColor(CosmicTheme.textMuted)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .background(CosmicTheme.panelElevated.opacity(0.8))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
-                )
-            }
-            .buttonStyle(.plain)
-
-            if isLabelGuideExpanded {
-                labelExplainerGrid(explainers)
-            }
-        }
-    }
-
-    private func labelExplainerGrid(_ explainers: [TodayDataLabelExplainer]) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("LABEL GUIDE")
-                .font(TerminalFont.data(8, weight: .bold))
-                .foregroundColor(CosmicTheme.gold)
-                .tracking(0.7)
-
-            LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), spacing: 8),
-                    GridItem(.flexible(), spacing: 8)
-                ],
-                spacing: 8
-            ) {
-                ForEach(explainers) { item in
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(item.label.uppercased())
-                            .font(TerminalFont.data(8, weight: .bold))
-                            .foregroundColor(CosmicTheme.textSecondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.72)
-
-                        Text(item.detail)
-                            .font(TerminalFont.data(8))
-                            .foregroundColor(CosmicTheme.textMuted)
-                            .lineSpacing(2)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 70, alignment: .topLeading)
-                    .padding(8)
-                    .background(CosmicTheme.panelElevated.opacity(0.8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
-                    )
-                }
-            }
-        }
     }
 
     private func action(for title: String?) -> (() -> Void)? {
