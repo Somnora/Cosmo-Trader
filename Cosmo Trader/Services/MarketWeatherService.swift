@@ -11,6 +11,10 @@ struct MarketWeatherSummary: Equatable {
     let symbols: [MarketWeatherSymbol]
     let eventSummaries: [MarketWeatherEventSummary]
     let sectorBreadth: MarketSectorBreadthSummary?
+    /// Where the broad market stands right now, measured against its own
+    /// record. Anchored to SPY because a state reading has to describe one
+    /// series -- averaging four indices' drawdowns describes nothing.
+    let marketState: MarketStateSnapshot?
     let includedSymbols: [String]
     let excludedSymbols: [String]
     let staleSymbols: [String]
@@ -90,6 +94,10 @@ final class MarketWeatherService {
         MarketWeatherSymbol(symbol: "DIA", displayName: "Dow Industrials"),
         MarketWeatherSymbol(symbol: "IWM", displayName: "Russell 2000")
     ]
+
+    /// The series the state card describes. Broad, liquid, and the deepest
+    /// history the provider gives us.
+    static let stateAnchorSymbol = "SPY"
 
     static let sectorSymbols: [MarketWeatherSymbol] = [
         MarketWeatherSymbol(symbol: "XLK", displayName: "Technology"),
@@ -228,6 +236,7 @@ final class MarketWeatherService {
             symbols: Self.v1Symbols,
             eventSummaries: eventSummaries,
             sectorBreadth: sectorBreadth,
+            marketState: marketState(from: eligible),
             includedSymbols: includedSymbols,
             excludedSymbols: excludedSymbols,
             staleSymbols: staleSymbols,
@@ -236,6 +245,22 @@ final class MarketWeatherService {
             coverage: coverage,
             provenance: provenance,
             disclaimer: "Historical market context only. Correlation does not imply causation and this is not financial advice."
+        )
+    }
+
+    /// The state snapshot for the broad-market anchor.
+    ///
+    /// SPY only, and nil when SPY is not eligible. Falling back to whichever
+    /// index happens to be available would silently change what "the market"
+    /// means between one launch and the next.
+    private func marketState(from eligible: [EligibleMarketDataset]) -> MarketStateSnapshot? {
+        guard let anchor = eligible.first(where: { $0.symbol == Self.stateAnchorSymbol }) else {
+            return nil
+        }
+        return MarketStateService.snapshot(
+            symbol: anchor.symbol,
+            prices: anchor.prices,
+            provenance: anchor.provenance
         )
     }
 

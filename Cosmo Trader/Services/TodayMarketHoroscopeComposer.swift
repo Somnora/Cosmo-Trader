@@ -26,6 +26,7 @@ final class TodayMarketHoroscopeComposer {
             activeEventTitles: activeEventTitles
         )
         let marketContext = makeMarketContext(summary: marketWeather)
+        let marketState = makeMarketStateContext(snapshot: marketWeather?.marketState)
         let portfolioContext = makePortfolioContext(
             user: user,
             summaries: portfolioSummaries
@@ -59,6 +60,7 @@ final class TodayMarketHoroscopeComposer {
         return TodayMarketHoroscopeSummary(
             date: date,
             cosmicContext: cosmicContext,
+            marketState: marketState,
             marketContext: marketContext,
             portfolioContext: portfolioContext,
             stockContext: stockContext,
@@ -126,6 +128,83 @@ final class TodayMarketHoroscopeComposer {
 
         return TodayFirstRunSetupState(isSkipped: isSkipped, steps: steps)
     }
+
+    /// Renders the market-state snapshot into display copy.
+    ///
+    /// Every sentence here describes something that already happened. There is
+    /// no forward-looking claim, because two twenty-year sweeps could not find
+    /// one worth making -- and the verdict line says so out loud rather than
+    /// letting a reader infer an edge from a gap that is inside its own noise.
+    func makeMarketStateContext(snapshot: MarketStateSnapshot?) -> TodayMarketStateContext? {
+        guard let snapshot else { return nil }
+
+        let sessions = Self.wholeNumberFormatter.string(from: NSNumber(value: snapshot.sessionCount))
+            ?? "\(snapshot.sessionCount)"
+        let firstYear = Calendar.current.component(.year, from: snapshot.firstSessionDate)
+
+        let readings = snapshot.readings.map { reading in
+            TodayMarketStateReading(
+                id: reading.id,
+                label: reading.label,
+                value: reading.value,
+                context: reading.context
+            )
+        }
+
+        var historyHeadline: String?
+        var historyDetail: String?
+        var verdict: String?
+
+        if let history = snapshot.history {
+            let matched = Self.wholeNumberFormatter.string(from: NSNumber(value: history.matchedSessions))
+                ?? "\(history.matchedSessions)"
+            historyHeadline = "\(snapshot.symbol) has been \(history.conditionLabel) on \(matched) sessions since \(firstYear)."
+            historyDetail = String(
+                format: "The next %d sessions averaged %+.2f%% from there, against %+.2f%% from every other session. Higher %.0f%% of the time, against %.0f%%.",
+                history.horizonSessions,
+                history.matchedAveragePercent,
+                history.ordinaryAveragePercent,
+                history.matchedUpRate * 100,
+                history.ordinaryUpRate * 100
+            )
+            verdict = history.isDistinguishableFromOrdinary
+                ? String(
+                    format: "That %+.2f%% gap is wider than its %.2f%% margin of error. Still history, still not advice.",
+                    history.differencePercent,
+                    history.differenceHalfWidthPercent
+                )
+                : String(
+                    format: "That %+.2f%% gap sits inside its own %.2f%% margin of error, so this reads as an ordinary session.",
+                    history.differencePercent,
+                    history.differenceHalfWidthPercent
+                )
+        }
+
+        return TodayMarketStateContext(
+            symbol: snapshot.symbol,
+            headline: stateHeadline(for: snapshot),
+            detail: "Measured across \(sessions) sessions since \(firstYear).",
+            readings: readings,
+            historyHeadline: historyHeadline,
+            historyDetail: historyDetail,
+            verdict: verdict,
+            provenance: snapshot.provenance
+        )
+    }
+
+    private func stateHeadline(for snapshot: MarketStateSnapshot) -> String {
+        guard let drawdown = snapshot.readings.first(where: { $0.id == "drawdown20" }) else {
+            return "\(snapshot.symbol) market state"
+        }
+        return "\(snapshot.symbol) is \(drawdown.value) from its 20-day high"
+    }
+
+    private static let wholeNumberFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+        return formatter
+    }()
 
     func makeMarketContext(summary: MarketWeatherSummary?) -> TodayMarketContext {
         guard let summary,

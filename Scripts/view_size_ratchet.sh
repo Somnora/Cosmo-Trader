@@ -52,7 +52,7 @@ check_max_lines "Cosmo Trader/Views/StockDetailView.swift" 1914
 # (its two now-dead helpers deleted) and collapsed the diagnostics grid.
 check_max_lines "Cosmo Trader/Views/Tabs/PortfolioView.swift" 1972
 check_max_lines "Cosmo Trader/Views/Tabs/CosmosView.swift" 1902
-check_max_lines "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" 1211
+check_max_lines "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" 1138
 check_max_lines "Cosmo Trader/Views/Onboarding/OnboardingView.swift" 1203
 check_max_lines "Cosmo Trader/Views/Tabs/DiscoverView.swift" 1125
 
