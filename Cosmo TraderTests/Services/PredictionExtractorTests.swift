@@ -583,6 +583,7 @@ struct PredictionExtractorTests {
             symbols: MarketWeatherService.v1Symbols,
             eventSummaries: events,
             sectorBreadth: nil,
+            marketState: nil,
             includedSymbols: ["DIA", "IWM", "QQQ", "SPY"],
             excludedSymbols: [],
             staleSymbols: [],

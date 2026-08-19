@@ -192,6 +192,43 @@ struct ComplianceCopyGuardTests {
         }
     }
 
+    @Test("Market state card copy snippets stay compliance safe")
+    func marketStateCopySnippetsAreComplianceSafe() {
+        // Every user-facing string on the Today market-state card. The card
+        // describes what the market has already done and what followed
+        // comparable sessions; it never instructs and never forecasts, so the
+        // verdict line has to survive the scan alongside the readings.
+        let safeExamples = [
+            "MARKET STATE",
+            "WHAT FOLLOWED",
+            "FROM 20D HIGH",
+            "FROM 1Y HIGH",
+            "VS 50D AVERAGE",
+            "PAST WEEK",
+            "VOLATILITY",
+            "SPY is -4.2% from its 20-day high",
+            "SPY is +0.3% from its 20-day high",
+            "Measured across 5,029 sessions since 2006.",
+            "Higher than 87% of sessions since 2006.",
+            "Lower than 13% of sessions since 2006.",
+            "SPY has been more than 5% below its 20-day high on 652 sessions since 2006.",
+            "SPY has been at or near its 20-day high on 2,028 sessions since 2006.",
+            "SPY has been modestly below its 20-day high on 1,349 sessions since 2006.",
+            "The next 5 sessions averaged +0.56% from there, against +0.16% from every other session. Higher 59% of the time, against 59%.",
+            "That +0.40% gap sits inside its own 0.79% margin of error, so this reads as an ordinary session.",
+            "That +1.20% gap is wider than its 0.79% margin of error. Still history, still not advice.",
+            "Historical context only, not financial advice."
+        ]
+
+        for example in safeExamples {
+            let violations = ComplianceCopyScanner.violations(in: example)
+            if !violations.isEmpty {
+                Issue.record("Market state copy violation for '\(example)': \(violations.map { $0.label }.joined(separator: ", "))")
+            }
+            #expect(violations.isEmpty)
+        }
+    }
+
     @Test("Lunar notification copy stays compliance safe")
     func lunarNotificationCopyIsComplianceSafe() {
         // Every push-notification body MoonPhaseService can schedule, plus the

@@ -153,6 +153,7 @@ struct ProductionMockGuardTests {
                 activeEvents: [],
                 provenance: .unavailable(reason: "Provider-backed market tone unavailable")
             ),
+            marketState: nil,
             marketContext: TodayMarketContext(
                 headline: "Market Weather unavailable",
                 detail: "Provider-backed market ETF history unavailable.",

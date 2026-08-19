@@ -3,6 +3,9 @@ import Foundation
 struct TodayMarketHoroscopeSummary: Equatable {
     let date: Date
     let cosmicContext: TodayCosmicContext
+    /// Where the market stands right now, against its own record. Nil until
+    /// provider-backed history for the anchor symbol is loaded.
+    let marketState: TodayMarketStateContext?
     let marketContext: TodayMarketContext
     let portfolioContext: TodayPortfolioContext
     let stockContext: TodayStockContext?
@@ -48,6 +51,34 @@ enum TodayFirstRunSetupAction: String, Equatable {
     case importPortfolio
     case loadProviderHistory
     case reviewLabels
+}
+
+/// One measured fact about the market's present, rendered for display.
+struct TodayMarketStateReading: Equatable, Identifiable {
+    let id: String
+    let label: String
+    let value: String
+    let context: String
+}
+
+/// The state card: what the market is doing now, how unusual that is, and what
+/// happened after the sessions that looked the same.
+///
+/// Deliberately has no forecast field. Two twenty-year sweeps found no lunar
+/// or technical state that predicts the next week once overlap is discounted
+/// and multiple comparisons are corrected, so the card reports the record and
+/// says outright when the record shows nothing.
+struct TodayMarketStateContext: Equatable {
+    let symbol: String
+    let headline: String
+    let detail: String
+    let readings: [TodayMarketStateReading]
+    /// What happened after comparable sessions. Nil when too few of them exist.
+    let historyHeadline: String?
+    let historyDetail: String?
+    /// Whether the historical gap clears its own margin of error, said plainly.
+    let verdict: String?
+    let provenance: FinancialDataProvenance
 }
 
 struct TodayCosmicContext: Equatable {
