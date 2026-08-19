@@ -38,6 +38,10 @@ require_absent "Cosmo Trader Widget/SharedWidgetData.swift" "Trim underperformer
 require_absent "Cosmo Trader/Utils/WidgetDataManager.swift" "Good for new positions"
 require_absent "Cosmo Trader/Utils/WidgetDataManager.swift" "Secure your gains"
 require_absent "Cosmo Trader/Utils/WidgetDataManager.swift" "Trim underperformers"
+# A lock screen is the wrong place to assure someone that a legal commitment is
+# safe, on astrological grounds. The rest of the retrograde copy stays
+# astrological; the assurance does not.
+require_absent "Cosmo Trader/Services/NotificationService.swift" "Safe to sign contracts"
 
 if [[ "$failures" -gt 0 ]]; then
   echo "compliance_copy_guard: source scan failed with ${failures} issue(s)" >&2

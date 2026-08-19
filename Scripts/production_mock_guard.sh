@@ -390,6 +390,8 @@ require_present "Cosmo Trader/Services/TodayMarketHoroscopeComposer.swift" "Mark
 require_present "Cosmo Trader/Services/TodayMarketHoroscopeComposer.swift" "Correlation does not imply causation"
 require_present "Cosmo Trader/Services/TodayMarketHoroscopeComposer.swift" "Provider-backed market and historical datasets unavailable"
 require_present "Cosmo Trader/Models/TodayMarketHoroscopeSummary.swift" "struct TodayMarketContext"
+require_present "Cosmo Trader/Services/NotificationService.swift" "upcomingRetrogradeWindows"
+require_present "Cosmo Trader/Services/NotificationService.swift" "MercuryRetrogradeEphemerisProvider"
 require_present "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" "marketBlock(summary.marketContext, promotedAction: summary.primaryAction)"
 require_present "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" "MARKET WEATHER"
 require_present "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" "MarketStatusIndicator(showDetails: false"
