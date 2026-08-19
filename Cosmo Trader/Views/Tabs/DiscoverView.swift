@@ -45,6 +45,7 @@ struct DiscoverView: View {
 
     /// Search sheet opened from Today activation CTAs.
     @State private var showSearch: Bool = false
+    @State private var showPaywall: Bool = false
 
     private let profileHintKey = "hasShownDiscoverProfileHint"
 
@@ -135,6 +136,7 @@ struct DiscoverView: View {
             .sheet(isPresented: showingFiltersBinding) {
                 filterSheet
             }
+            .freeTierPaywall(isPresented: $showPaywall, source: FreeTierPaywallSource.dailySwipes)
             .sheet(isPresented: $showSearch) {
                 SearchView()
                     .environment(appState)
@@ -611,11 +613,20 @@ struct DiscoverView: View {
                 )
             }
 
-            if direction == .right {
-                viewModel?.likeStock(card.stock)
+            let outcome = direction == .right
+                ? viewModel?.likeStock(card.stock)
+                : viewModel?.skipStock(card.stock)
+
+            switch outcome {
+            case .recorded where direction == .right:
                 showWatchlistToast(for: card.stock.symbol)
-            } else {
-                viewModel?.skipStock(card.stock)
+            case .swipeLimitReached, .watchlistLimitReached:
+                // The card springs back and the paywall names which allowance
+                // ran out; a swipe that vanishes with no explanation reads as
+                // a bug rather than a limit.
+                showPaywall = true
+            default:
+                break
             }
 
             dragOffset = .zero
@@ -694,7 +705,11 @@ struct DiscoverView: View {
                 // Hero card area. Flex height — claims everything left.
                 ZStack {
                     if viewModel.isDeckEmpty {
-                        emptyStateView
+                        DiscoverEmptyStateView(
+                            onSearch: { showSearch = true },
+                            onClearFilters: { viewModel.clearFilters() },
+                            onResetSkipped: { viewModel.resetSkipped() }
+                        )
                     } else {
                         GeometryReader { cardGeo in
                             cardStack(
@@ -824,84 +839,6 @@ struct DiscoverView: View {
 
     // MARK: - Empty State
 
-    private var emptyStateView: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "rectangle.stack")
-                .font(.system(size: 60))
-                .foregroundStyle(CosmicTheme.goldGradient)
-
-            VStack(spacing: 8) {
-                Text("All Caught Up")
-                    .font(.system(size: 18, weight: .bold, design: .monospaced))
-                    .foregroundColor(CosmicTheme.textPrimary)
-
-                Text("Search a ticker to add it directly, or reset skipped names to rebuild the swipe deck.")
-                    .font(.system(size: 13, design: .monospaced))
-                    .foregroundColor(CosmicTheme.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(4)
-            }
-
-            VStack(spacing: 12) {
-                Button(action: {
-                    HapticFeedback.medium()
-                    showSearch = true
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                        Text("Search Symbols")
-                    }
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
-                    .foregroundColor(CosmicTheme.background)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        Capsule()
-                            .fill(CosmicTheme.gold)
-                    )
-                }
-                .accessibilityLabel("Search symbols to add to watchlist")
-
-                HStack(spacing: 12) {
-                    Button(action: {
-                        HapticFeedback.light()
-                        withAnimation {
-                            viewModel?.clearFilters()
-                        }
-                    }) {
-                        Text("Clear Filters")
-                            .font(.system(size: 13, weight: .medium, design: .monospaced))
-                            .foregroundColor(CosmicTheme.textSecondary)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 12)
-                            .background(
-                                Capsule()
-                                    .stroke(CosmicTheme.textMuted, lineWidth: 1)
-                            )
-                    }
-
-                    Button(action: {
-                        HapticFeedback.medium()
-                        withAnimation {
-                            viewModel?.resetSkipped()
-                        }
-                    }) {
-                        Text("Reset Skipped")
-                            .font(.system(size: 13, weight: .medium, design: .monospaced))
-                            .foregroundColor(CosmicTheme.gold)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 12)
-                            .background(
-                                Capsule()
-                                    .stroke(CosmicTheme.gold, lineWidth: 1)
-                            )
-                    }
-                }
-            }
-        }
-        .padding(40)
-    }
 
     // MARK: - Filter Sheet
 

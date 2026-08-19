@@ -540,9 +540,26 @@ class AppState {
 
     // MARK: - Watchlist Management
 
-    /// Add a stock to the watchlist
-    func addToWatchlist(_ symbol: String) {
-        guard var user = currentUser else { return }
+    /// Add a stock to the watchlist.
+    ///
+    /// Returns false when the free tier's watchlist limit blocks the add, so
+    /// callers can offer the upgrade instead of silently doing nothing.
+    ///
+    /// The gate lives here rather than at each call site because this is the
+    /// single choke point every path already goes through -- a limit enforced
+    /// in three places is a limit that a fourth call site quietly bypasses.
+    /// Onboarding is the one deliberate exemption: a first-run picker is
+    /// before anyone has seen what the app does, and a paywall there sells
+    /// nothing.
+    @discardableResult
+    func addToWatchlist(_ symbol: String, enforcingFreeTierLimit: Bool = true) -> Bool {
+        guard var user = currentUser else { return false }
+
+        if enforcingFreeTierLimit,
+           !user.watchlist.contains(symbol.uppercased()),
+           !SubscriptionManager.shared.canAddStock(currentCount: user.watchlist.count) {
+            return false
+        }
 
         let wasEmpty = user.watchlist.isEmpty
         user.addToWatchlist(symbol)
@@ -557,6 +574,8 @@ class AppState {
                 )
             }
         }
+
+        return true
     }
 
     /// Remove a stock from the watchlist

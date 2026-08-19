@@ -1005,7 +1005,7 @@ struct OnboardingView: View {
         // This does not create holdings, prices, or historical data.
         if let stock = selectedStock {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                appState.addToWatchlist(stock.symbol)
+                appState.addToWatchlist(stock.symbol, enforcingFreeTierLimit: false)
                 AnalyticsService.shared.trackWatchlistAdded(
                     symbol: stock.symbol,
                     source: "onboarding"
