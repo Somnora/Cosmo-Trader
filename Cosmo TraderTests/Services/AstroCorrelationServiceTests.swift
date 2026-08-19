@@ -118,7 +118,10 @@ struct AstroCorrelationServiceTests {
         #expect(summary?.averageReturn != nil)
         #expect(summary?.medianReturn != nil)
         #expect(summary?.winRate != nil)
-        #expect(summary?.baselineReturn != nil)
+        // Ten candles with three events in them has no event-free stretch to
+        // compare against, so the baseline is withheld. See
+        // `baselineAppearsOnceCleanHistoryIsLongEnough` for the other side.
+        #expect(summary?.baselineReturn == nil)
         #expect(summary?.provenance.isProviderBacked == true)
     }
 
@@ -149,7 +152,9 @@ struct AstroCorrelationServiceTests {
         #expect(summary?.medianReturn != nil)
         #expect(summary?.weakestHistoricalReturn != nil)
         #expect((summary?.bestHistoricalReturn ?? 0) >= (summary?.weakestHistoricalReturn ?? 0))
-        #expect(summary?.baselineReturn != nil)
+        // Twelve candles, four of them event days: no event-free stretch long
+        // enough to compare against, so no baseline is claimed.
+        #expect(summary?.baselineReturn == nil)
         #expect(summary?.confidence != .unavailable)
     }
 
@@ -398,6 +403,98 @@ struct AstroCorrelationServiceTests {
         #expect(summaries.first?.baselineReturn == nil)
     }
 
+    // MARK: - Event-excluded baseline
+
+    @Test("Baseline appears once there is enough history the events never touched")
+    func baselineAppearsOnceCleanHistoryIsLongEnough() {
+        let series = driftingSeries(
+            dayCount: 300,
+            ordinaryDailyPercent: -0.1,
+            eventDailyPercent: -0.1,
+            eventDayOffsets: [50, 110, 170]
+        )
+
+        let summaries = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: series.prices,
+            events: series.events,
+            filterState: AstroOverlayFilterState(eventWindowDays: 3),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-01"))
+        )
+
+        let summary = summaries.first
+        #expect(isMarketBacked(summary))
+        #expect(summary?.sampleSize == 3)
+        #expect(summary?.baselineReturn != nil)
+        #expect(summary?.baselineWinRate != nil)
+    }
+
+    @Test("Baseline excludes the event windows it is being compared against")
+    func baselineExcludesTheEventItMeasures() {
+        // The ordinary market drifts down every day; only the event windows
+        // rise. A baseline that averages the whole series is dragged upward by
+        // the very windows it is supposed to be the control for, which shrinks
+        // the measured edge. Removing them has to leave the baseline negative
+        // while the event average stays positive.
+        let series = driftingSeries(
+            dayCount: 300,
+            ordinaryDailyPercent: -0.1,
+            eventDailyPercent: 3.0,
+            eventDayOffsets: [50, 110, 170]
+        )
+
+        let summaries = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: series.prices,
+            events: series.events,
+            filterState: AstroOverlayFilterState(eventWindowDays: 3),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-01"))
+        )
+
+        let summary = summaries.first
+        #expect(isMarketBacked(summary))
+        #expect((summary?.averageReturn ?? 0) > 0)
+        #expect((summary?.baselineReturn ?? 0) < 0)
+        // Not one ordinary window closed up, so the event win rate has a real
+        // base rate to beat rather than an implied coin flip.
+        #expect(summary?.baselineWinRate == 0)
+        #expect((summary?.winRate ?? 0) > 0)
+    }
+
+    @Test("Baseline win rate reports the share of ordinary windows that closed up")
+    func baselineWinRateReportsOrdinaryUpShare() {
+        let series = driftingSeries(
+            dayCount: 300,
+            ordinaryDailyPercent: 0.1,
+            eventDailyPercent: 0.1,
+            eventDayOffsets: [50, 110, 170]
+        )
+
+        let summaries = AstroCorrelationService.shared.stockSummaries(
+            symbol: "AAPL",
+            prices: series.prices,
+            events: series.events,
+            filterState: AstroOverlayFilterState(eventWindowDays: 3),
+            provenance: .live(provider: FinancialDataProvenance.finnhubProvider, fetchedAt: date("2025-01-01"))
+        )
+
+        // Every ordinary window rises, so the event win rate of 100% is worth
+        // exactly nothing -- and the summary now carries the number that says so.
+        #expect(summaries.first?.baselineWinRate == 1)
+        #expect(summaries.first?.winRate == 1)
+    }
+
+    @Test("Confidence grades precision, not the raw observation count")
+    func confidenceGradesPrecisionNotCount() {
+        let steady = (0..<40).map { _ in 0.5 }
+        let wild = (0..<40).map { index in index.isMultiple(of: 2) ? 40.0 : -40.0 }
+
+        #expect(CorrelationBaselineCalculator.confidence(returns: steady) == .strong)
+        // Same forty observations, no idea what the average is.
+        #expect(CorrelationBaselineCalculator.confidence(returns: wild) == .thin)
+        #expect(CorrelationBaselineCalculator.confidence(returns: [1, 2]) == .insufficient)
+    }
+
     private func pointEvent(on value: String) -> AstroOverlayEvent {
         let eventDate = date(value)
         return AstroOverlayEvent(
@@ -433,6 +530,49 @@ struct AstroCorrelationServiceTests {
             source: .curatedDataset,
             isEstimated: true
         )
+    }
+
+    /// A price series that drifts at one rate on ordinary days and another
+    /// inside every event window, plus the events that mark those windows.
+    ///
+    /// `eventDayOffsets` are indices into the series; the window each event
+    /// contributes is the same one the service uses, day before through
+    /// `eventWindowDays` after.
+    private func driftingSeries(
+        dayCount: Int,
+        ordinaryDailyPercent: Double,
+        eventDailyPercent: Double,
+        eventDayOffsets: [Int],
+        eventWindowDays: Int = 3
+    ) -> (prices: [OHLCData], events: [AstroOverlayEvent]) {
+        var eventDays = Set<Int>()
+        for offset in eventDayOffsets {
+            for day in (offset - 1)...(offset + eventWindowDays) {
+                eventDays.insert(day)
+            }
+        }
+
+        var closes: [Double] = [100]
+        for day in 1..<dayCount {
+            let percent = eventDays.contains(day) ? eventDailyPercent : ordinaryDailyPercent
+            closes.append(closes[day - 1] * (1 + percent / 100))
+        }
+
+        let events = eventDayOffsets.map { offset in
+            pointEvent(on: dayString(offset))
+        }
+
+        return (prices(closes), events)
+    }
+
+    private func dayString(_ dayOffset: Int) -> String {
+        let day = Calendar.current.date(byAdding: .day, value: dayOffset, to: date("2025-01-01")) ?? date("2025-01-01")
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: day)
     }
 
     private func prices(_ closes: [Double], volume: Int = 1_000) -> [OHLCData] {

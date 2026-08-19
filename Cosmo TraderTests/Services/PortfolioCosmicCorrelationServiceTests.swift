@@ -33,11 +33,47 @@ struct PortfolioCosmicCorrelationServiceTests {
     @Test("Volatility ratio reads 1.0 when within-window volatility matches baseline volatility")
     func volatilityRatioIsOneWhenWindowVolatilityMatchesBaseline() {
         // Zero real astrological effect: every event window has exactly the
-        // same day-to-day return volatility as the full price history. A
-        // dimensionally sound ratio must read ~1.0 here at the default
+        // same day-to-day return volatility as the rest of the price history.
+        // A dimensionally sound ratio must read ~1.0 here at the default
         // (unset) 3-day event window, not the inflated value produced by
         // taking the stdev of window-to-window returns (which scales with
         // window length) over a single-day baseline stdev.
+        //
+        // The history runs long because the baseline is now measured only over
+        // candles the events never touched, and it reports no comparison at
+        // all below a floor of clean windows. Three weeks of prices with three
+        // events in them is almost entirely event.
+        let flat = stock(symbol: "FLAT", currentPrice: 100, sharesOwned: 10)
+        let events = [
+            pointEvent(kind: .fullMoon, on: "2025-01-06"),
+            pointEvent(kind: .fullMoon, on: "2025-01-11"),
+            pointEvent(kind: .fullMoon, on: "2025-01-16")
+        ]
+
+        let summaries = PortfolioCosmicCorrelationService.shared.summaries(
+            holdings: [flat],
+            priceHistoryBySymbol: ["FLAT": constantDailyVolatilityPrices(days: 200)],
+            provenanceBySymbol: providerProvenance(["FLAT"]),
+            events: events,
+            filterState: AstroOverlayFilterState(enabledKinds: [.fullMoon], showEstimatedEvents: true),
+            minimumSampleSize: 3
+        )
+
+        let summary = summaries.first { $0.eventType == .fullMoon }
+        #expect(isMarketBacked(summary))
+        #expect(summary?.sampleSize == 3)
+        // Not exact: the clean stretches carry one more up-day than down-day,
+        // which moves the baseline stdev in the fifth decimal. The bug this
+        // guards against printed 1.7x and 3.9x.
+        #expect(isClose(summary?.volatilityRatio ?? 0, 1, tolerance: 0.01))
+    }
+
+    @Test("Portfolio baseline is withheld rather than invented when clean history is thin")
+    func portfolioBaselineWithheldWhenCleanHistoryIsThin() {
+        // Twenty-one candles with three full moons in them leaves almost no
+        // stretch the events did not touch. The honest answer is no baseline,
+        // not a number assembled from the leftovers -- and the event metrics
+        // still stand on their own.
         let flat = stock(symbol: "FLAT", currentPrice: 100, sharesOwned: 10)
         let events = [
             pointEvent(kind: .fullMoon, on: "2025-01-06"),
@@ -57,7 +93,9 @@ struct PortfolioCosmicCorrelationServiceTests {
         let summary = summaries.first { $0.eventType == .fullMoon }
         #expect(isMarketBacked(summary))
         #expect(summary?.sampleSize == 3)
-        #expect(isClose(summary?.volatilityRatio ?? 0, 1))
+        #expect(summary?.averagePortfolioReturn != nil)
+        #expect(summary?.baselinePortfolioReturn == nil)
+        #expect(summary?.volatilityRatio == nil)
     }
 
     @Test("Low total portfolio coverage withholds numeric portfolio claims")

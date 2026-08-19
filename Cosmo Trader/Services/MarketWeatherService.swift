@@ -63,6 +63,12 @@ struct MarketWeatherEventSummary: Identifiable, Equatable {
     let medianMarketReturn: Double?
     let winRate: Double?
     let baselineMarketReturn: Double?
+    /// Deliberately absent at the index-basket level, for the same reason the
+    /// portfolio summary omits it: the event return averages several symbols,
+    /// and an average of per-symbol up-rates is not the rate at which the
+    /// basket itself closed up. Return and volatility average exactly; a win
+    /// rate does not.
+    let baselineWinRate: Double?
     let volatilityRatio: Double?
     let maxDrawdown: Double?
     let includedSymbols: [String]
@@ -472,9 +478,22 @@ final class MarketWeatherService {
         }
 
         let returns = reactions.map(\.returnPercent)
-        let eventVolatility = standardDeviation(returns)
-        let baselineVolatility = average(eligible.map { volatilityPercent(for: $0.prices) })
-        let volatilityRatio = baselineVolatility > 0 ? eventVolatility / baselineVolatility : nil
+        let baseline = marketBaseline(
+            for: eligible,
+            events: events,
+            filterState: filterState,
+            windowLength: averageWindowSize(for: reactions)
+        )
+        // Compare like with like. This used to divide the spread of window
+        // returns ACROSS events by the average daily volatility WITHIN the
+        // series - two different quantities, which printed ratios like 1.7x
+        // for a basket that had not moved unusually at all. Both sides are now
+        // day-to-day volatility: the average inside the event windows against
+        // the same measure over candles no event touched.
+        let averageVolatility = average(reactions.map(\.volatilityPercent))
+        let volatilityRatio = (baseline?.volatilityPercent).flatMap { baselineVolatility in
+            baselineVolatility > 0 ? averageVolatility / baselineVolatility : nil
+        }
 
         return MarketWeatherEventSummary(
             id: kind.rawValue,
@@ -486,17 +505,15 @@ final class MarketWeatherService {
             averageMarketReturn: average(returns),
             medianMarketReturn: median(returns),
             winRate: winRate(returns),
-            baselineMarketReturn: baselineMarketReturn(
-                for: eligible,
-                averageWindowSize: averageWindowSize(for: reactions)
-            ),
+            baselineMarketReturn: baseline?.averageReturnPercent,
+            baselineWinRate: nil,
             volatilityRatio: volatilityRatio,
             maxDrawdown: reactions.map(\.maxDrawdownPercent).max(),
             includedSymbols: eligible.map(\.symbol).sorted(),
             excludedSymbols: excludedSymbols,
             staleSymbols: staleSymbols,
             provenance: provenance,
-            confidence: confidence(for: reactions.count),
+            confidence: CorrelationBaselineCalculator.confidence(returns: returns),
             displayMode: .marketBackedResult,
             disclaimer: "Historical market context only. Correlation does not imply causation and this is not financial advice."
         )
@@ -531,7 +548,8 @@ final class MarketWeatherService {
                 windowEnd: reactions.map(\.windowEnd).max() ?? event.markerDate,
                 returnPercent: average(reactions.map(\.returnPercent)),
                 maxDrawdownPercent: average(reactions.map(\.maxDrawdownPercent)),
-                volatilityPercent: average(reactions.map(\.volatilityPercent))
+                volatilityPercent: average(reactions.map(\.volatilityPercent)),
+                candleCount: max(2, Int(round(average(reactions.map { Double($0.candleCount) }))))
             )
         }
     }
@@ -739,6 +757,7 @@ final class MarketWeatherService {
             medianMarketReturn: nil,
             winRate: nil,
             baselineMarketReturn: nil,
+            baselineWinRate: nil,
             volatilityRatio: nil,
             maxDrawdown: nil,
             includedSymbols: includedSymbols,
@@ -791,28 +810,41 @@ final class MarketWeatherService {
         )
     }
 
-    private func baselineMarketReturn(
+    /// What the index basket did over comparable stretches these events never
+    /// touched. Averaged across symbols the same way the event return is, so
+    /// the two numbers answer the same question.
+    private func marketBaseline(
         for datasets: [EligibleMarketDataset],
-        averageWindowSize: Int
-    ) -> Double? {
-        guard !datasets.isEmpty else { return nil }
-        return average(datasets.map { baselineReturnPercent(prices: $0.prices, averageWindowSize: averageWindowSize) })
-    }
-
-    private func baselineReturnPercent(prices: [OHLCData], averageWindowSize: Int) -> Double {
-        let dailyReturns = zip(prices, prices.dropFirst()).compactMap { previous, current -> Double? in
-            guard previous.close > 0 else { return nil }
-            return ((current.close - previous.close) / previous.close) * 100
+        events: [AstroOverlayEvent],
+        filterState: AstroOverlayFilterState,
+        windowLength: Int
+    ) -> CorrelationBaseline? {
+        let excludedIntervals = events.map { event in
+            AstroCorrelationService.priceWindow(for: event, filterState: filterState, calendar: calendar)
         }
-        return average(dailyReturns) * Double(max(1, averageWindowSize))
+
+        let baselines = datasets.compactMap { dataset in
+            CorrelationBaselineCalculator.baseline(
+                prices: dataset.prices,
+                excluding: excludedIntervals,
+                windowLength: windowLength
+            )
+        }
+
+        guard !baselines.isEmpty else { return nil }
+
+        return CorrelationBaseline(
+            averageReturnPercent: average(baselines.map(\.averageReturnPercent)),
+            winRate: nil,
+            volatilityPercent: average(baselines.map(\.volatilityPercent)),
+            windowCount: baselines.map(\.windowCount).min() ?? 0,
+            windowLength: windowLength
+        )
     }
 
     private func averageWindowSize(for reactions: [MarketEventReaction]) -> Int {
-        let counts = reactions.map { reaction in
-            let days = calendar.dateComponents([.day], from: reaction.windowStart, to: reaction.windowEnd).day ?? 1
-            return max(1, days)
-        }
-        return Int(round(average(counts.map(Double.init))))
+        guard !reactions.isEmpty else { return 2 }
+        return Int(round(average(reactions.map { Double($0.candleCount) })))
     }
 
     private func volatilityPercent(for candles: [OHLCData]) -> Double {
@@ -851,19 +883,6 @@ final class MarketWeatherService {
             partial + pow(value - mean, 2)
         } / Double(values.count)
         return sqrt(variance)
-    }
-
-    private func confidence(for sampleSize: Int) -> CorrelationConfidence {
-        switch sampleSize {
-        case 12...:
-            return .strong
-        case 6...:
-            return .moderate
-        case 3...:
-            return .thin
-        default:
-            return .insufficient
-        }
     }
 
     private func percentRate(_ value: Double) -> String {
@@ -915,6 +934,9 @@ private struct MarketEventReaction {
     let returnPercent: Double
     let maxDrawdownPercent: Double
     let volatilityPercent: Double
+    /// Trading candles in the window, so the baseline is measured over
+    /// stretches of the same length rather than the same calendar span.
+    let candleCount: Int
 }
 
 private struct SectorBreadthEventReaction {

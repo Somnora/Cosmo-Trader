@@ -26,6 +26,17 @@ struct PortfolioCosmicCorrelationSummary: Identifiable, Equatable {
     let medianPortfolioReturn: Double?
     let winRate: Double?
     let baselinePortfolioReturn: Double?
+    /// Deliberately absent at the portfolio level for now.
+    ///
+    /// Baseline return and volatility are linear in the holding weights, so a
+    /// value-weighted average of per-holding baselines is exactly the quantity
+    /// the event statistic reports. A win rate is not linear: averaging each
+    /// holding's up-rate is not the rate at which the portfolio itself closed
+    /// up, because it throws away diversification. Publishing it anyway would
+    /// put a number on screen that does not answer the question next to it, so
+    /// it stays nil until the baseline windows are evaluated at portfolio
+    /// level with the same fixed weights the event windows use.
+    let baselineWinRate: Double?
     let volatilityRatio: Double?
     let maxDrawdown: Double?
     let affectedHoldings: [PortfolioCorrelationHoldingImpact]
@@ -183,6 +194,7 @@ final class PortfolioCosmicCorrelationService {
                     medianPortfolioReturn: nil,
                     winRate: nil,
                     baselinePortfolioReturn: nil,
+            baselineWinRate: nil,
                     volatilityRatio: nil,
                     maxDrawdown: nil,
                     affectedHoldings: holdingImpacts(
@@ -230,6 +242,7 @@ final class PortfolioCosmicCorrelationService {
                     medianPortfolioReturn: nil,
                     winRate: nil,
                     baselinePortfolioReturn: nil,
+            baselineWinRate: nil,
                     volatilityRatio: nil,
                     maxDrawdown: nil,
                     affectedHoldings: impacts,
@@ -245,8 +258,16 @@ final class PortfolioCosmicCorrelationService {
 
             let returns = portfolioReactions.map(\.returnPercent)
             let averageVolatility = average(portfolioReactions.map(\.volatilityPercent))
-            let baselineVolatility = baselinePortfolioVolatility(for: eligibleHoldings, includedValue: includedValue)
-            let volatilityRatio = baselineVolatility > 0 ? averageVolatility / baselineVolatility : nil
+            let baseline = portfolioBaseline(
+                for: eligibleHoldings,
+                includedValue: includedValue,
+                kindEvents: kindEvents,
+                filterState: filterState,
+                windowLength: averageWindowSize(for: portfolioReactions)
+            )
+            let volatilityRatio = (baseline?.volatilityPercent).flatMap { baselineVolatility in
+                baselineVolatility > 0 ? averageVolatility / baselineVolatility : nil
+            }
 
             return PortfolioCosmicCorrelationSummary(
                 id: kind.rawValue,
@@ -258,11 +279,8 @@ final class PortfolioCosmicCorrelationService {
                 averagePortfolioReturn: average(returns),
                 medianPortfolioReturn: median(returns),
                 winRate: winRate(returns),
-                baselinePortfolioReturn: baselinePortfolioReturn(
-                    for: eligibleHoldings,
-                    includedValue: includedValue,
-                    averageWindowSize: averageWindowSize(for: portfolioReactions)
-                ),
+                baselinePortfolioReturn: baseline?.averageReturnPercent,
+                baselineWinRate: nil,
                 volatilityRatio: volatilityRatio,
                 maxDrawdown: portfolioReactions.map(\.maxDrawdownPercent).max(),
                 affectedHoldings: impacts,
@@ -270,7 +288,7 @@ final class PortfolioCosmicCorrelationService {
                 includedPortfolioWeight: includedPortfolioWeight,
                 excludedPortfolioWeight: excludedPortfolioWeight,
                 provenance: providerProvenance,
-                confidence: confidence(for: portfolioReactions.count),
+                confidence: CorrelationBaselineCalculator.confidence(returns: returns),
                 displayMode: .marketBackedResult,
                 disclaimer: "Historical portfolio context only. Correlation does not imply causation and this is not financial advice."
             )
@@ -306,6 +324,7 @@ final class PortfolioCosmicCorrelationService {
             medianPortfolioReturn: nil,
             winRate: nil,
             baselinePortfolioReturn: nil,
+            baselineWinRate: nil,
             volatilityRatio: nil,
             maxDrawdown: nil,
             affectedHoldings: eligibleHoldings.map { holding in
@@ -419,6 +438,7 @@ final class PortfolioCosmicCorrelationService {
             var contributingValue = 0.0
             var windowStart: Date?
             var windowEnd: Date?
+            var candleCounts: [Double] = []
 
             for holding in eligibleHoldings {
                 guard let reaction = reactionsBySymbol[holding.symbol]?[event.id] else { continue }
@@ -426,6 +446,7 @@ final class PortfolioCosmicCorrelationService {
                 weightedDrawdown += reaction.maxDrawdownPercent * holding.marketValue
                 weightedVolatility += reaction.volatilityPercent * holding.marketValue
                 contributingValue += holding.marketValue
+                candleCounts.append(Double(reaction.candleCount))
                 windowStart = minDate(windowStart, reaction.windowStart)
                 windowEnd = maxDate(windowEnd, reaction.windowEnd)
             }
@@ -442,7 +463,8 @@ final class PortfolioCosmicCorrelationService {
                 returnPercent: weightedReturn / contributingValue,
                 maxDrawdownPercent: weightedDrawdown / contributingValue,
                 volatilityPercent: weightedVolatility / contributingValue,
-                contributingWeight: contributingValue / includedValue
+                contributingWeight: contributingValue / includedValue,
+                candleCount: max(2, Int(round(average(candleCounts))))
             )
         }
     }
@@ -477,7 +499,9 @@ final class PortfolioCosmicCorrelationService {
                     medianReturn: hasSufficientSample ? median(returns) : nil,
                     winRate: hasSufficientSample ? winRate(returns) : nil,
                     provenance: holding.provenance,
-                    confidence: hasSufficientSample ? confidence(for: returns.count) : .insufficient,
+                    confidence: hasSufficientSample
+                        ? CorrelationBaselineCalculator.confidence(returns: returns)
+                        : .insufficient,
                     displayMode: hasSufficientSample ? .marketBackedResult : .insufficientSample
                 )
             }
@@ -524,6 +548,7 @@ final class PortfolioCosmicCorrelationService {
             medianPortfolioReturn: nil,
             winRate: nil,
             baselinePortfolioReturn: nil,
+            baselineWinRate: nil,
             volatilityRatio: nil,
             maxDrawdown: nil,
             affectedHoldings: [],
@@ -537,43 +562,59 @@ final class PortfolioCosmicCorrelationService {
         )
     }
 
-    private func baselinePortfolioReturn(
+    /// What the portfolio did over comparable stretches this event never
+    /// touched, weighted the same way the event windows are weighted.
+    ///
+    /// Return and volatility are linear in the weights, so a value-weighted
+    /// average of per-holding baselines is exactly the quantity the event
+    /// statistic reports. Holdings without enough clean history drop out and
+    /// the remaining weights renormalize, so a single short series no longer
+    /// silently contributes a zero.
+    private func portfolioBaseline(
         for holdings: [EligibleHolding],
         includedValue: Double,
-        averageWindowSize: Int
-    ) -> Double? {
+        kindEvents: [AstroOverlayEvent],
+        filterState: AstroOverlayFilterState,
+        windowLength: Int
+    ) -> CorrelationBaseline? {
         guard includedValue > 0 else { return nil }
-        let weighted = holdings.reduce(0.0) { partial, holding in
-            partial + baselineReturnPercent(prices: holding.prices, averageWindowSize: averageWindowSize) * holding.marketValue
-        }
-        return weighted / includedValue
-    }
 
-    private func baselinePortfolioVolatility(
-        for holdings: [EligibleHolding],
-        includedValue: Double
-    ) -> Double {
-        guard includedValue > 0 else { return 0 }
-        let weighted = holdings.reduce(0.0) { partial, holding in
-            partial + volatilityPercent(for: holding.prices) * holding.marketValue
+        let excludedIntervals = kindEvents.map { event in
+            AstroCorrelationService.priceWindow(for: event, filterState: filterState, calendar: calendar)
         }
-        return weighted / includedValue
-    }
 
-    private func baselineReturnPercent(prices: [OHLCData], averageWindowSize: Int) -> Double {
-        let dailyReturns = zip(prices, prices.dropFirst()).compactMap { previous, current -> Double? in
-            guard previous.close > 0 else { return nil }
-            return ((current.close - previous.close) / previous.close) * 100
+        var contributingValue = 0.0
+        var weightedReturn = 0.0
+        var weightedVolatility = 0.0
+        var windowCount = 0
+
+        for holding in holdings {
+            guard let baseline = CorrelationBaselineCalculator.baseline(
+                prices: holding.prices,
+                excluding: excludedIntervals,
+                windowLength: windowLength
+            ) else { continue }
+
+            contributingValue += holding.marketValue
+            weightedReturn += baseline.averageReturnPercent * holding.marketValue
+            weightedVolatility += baseline.volatilityPercent * holding.marketValue
+            windowCount = max(windowCount, baseline.windowCount)
         }
-        return average(dailyReturns) * Double(max(1, averageWindowSize))
+
+        guard contributingValue > 0 else { return nil }
+
+        return CorrelationBaseline(
+            averageReturnPercent: weightedReturn / contributingValue,
+            winRate: nil,
+            volatilityPercent: weightedVolatility / contributingValue,
+            windowCount: windowCount,
+            windowLength: windowLength
+        )
     }
 
     private func averageWindowSize(for reactions: [PortfolioEventReaction]) -> Int {
-        let counts = reactions.map { reaction in
-            let days = calendar.dateComponents([.day], from: reaction.windowStart, to: reaction.windowEnd).day ?? 1
-            return max(1, days)
-        }
-        return Int(round(average(counts.map(Double.init))))
+        guard !reactions.isEmpty else { return 2 }
+        return Int(round(average(reactions.map { Double($0.candleCount) })))
     }
 
     private func volatilityPercent(for candles: [OHLCData]) -> Double {
@@ -612,19 +653,6 @@ final class PortfolioCosmicCorrelationService {
             partial + pow(value - mean, 2)
         } / Double(values.count)
         return sqrt(variance)
-    }
-
-    private func confidence(for sampleSize: Int) -> CorrelationConfidence {
-        switch sampleSize {
-        case 12...:
-            return .strong
-        case 6...:
-            return .moderate
-        case 3...:
-            return .thin
-        default:
-            return .insufficient
-        }
     }
 
     private func minDate(_ lhs: Date?, _ rhs: Date) -> Date {
@@ -666,4 +694,8 @@ private struct PortfolioEventReaction {
     let maxDrawdownPercent: Double
     let volatilityPercent: Double
     let contributingWeight: Double
+    /// Trading candles the contributing holdings actually saw in this window,
+    /// so the baseline is measured over stretches of the same length. Calendar
+    /// days would stretch every window by roughly the weekends inside it.
+    let candleCount: Int
 }
