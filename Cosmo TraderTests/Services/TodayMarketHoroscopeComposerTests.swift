@@ -1080,6 +1080,7 @@ extension AppStatePersistenceSuites {
                     )
                 ],
                 sectorBreadth: nil,
+                marketState: nil,
                 includedSymbols: coverage >= 1 ? ["DIA", "IWM", "QQQ", "SPY"] : ["DIA", "QQQ", "SPY"],
                 excludedSymbols: coverage >= 1 ? [] : ["IWM"],
                 staleSymbols: [],

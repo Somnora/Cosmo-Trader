@@ -192,6 +192,84 @@ struct ComplianceCopyGuardTests {
         }
     }
 
+    @Test("Market state card copy snippets stay compliance safe")
+    func marketStateCopySnippetsAreComplianceSafe() {
+        // Every user-facing string on the Today market-state card. The card
+        // describes what the market has already done and what followed
+        // comparable sessions; it never instructs and never forecasts, so the
+        // verdict line has to survive the scan alongside the readings.
+        let safeExamples = [
+            "MARKET STATE",
+            "WHAT FOLLOWED",
+            "FROM 20D HIGH",
+            "FROM 1Y HIGH",
+            "VS 50D AVERAGE",
+            "PAST WEEK",
+            "VOLATILITY",
+            "SPY is -4.2% from its 20-day high",
+            "SPY is +0.3% from its 20-day high",
+            "Measured across 5,029 sessions since 2006.",
+            "Higher than 87% of sessions since 2006.",
+            "Lower than 13% of sessions since 2006.",
+            "SPY has been more than 5% below its 20-day high on 652 sessions since 2006.",
+            "SPY has been at or near its 20-day high on 2,028 sessions since 2006.",
+            "SPY has been modestly below its 20-day high on 1,349 sessions since 2006.",
+            "The next 5 sessions averaged +0.56% from there, against +0.16% from every other session. Higher 59% of the time, against 59%.",
+            "That +0.40% gap sits inside its own 0.79% margin of error, so this reads as an ordinary session.",
+            "That +1.20% gap is wider than its 0.79% margin of error. Still history, still not advice.",
+            "Historical context only, not financial advice."
+        ]
+
+        for example in safeExamples {
+            let violations = ComplianceCopyScanner.violations(in: example)
+            if !violations.isEmpty {
+                Issue.record("Market state copy violation for '\(example)': \(violations.map { $0.label }.joined(separator: ", "))")
+            }
+            #expect(violations.isEmpty)
+        }
+    }
+
+    @Test("Lunar notification copy stays compliance safe")
+    func lunarNotificationCopyIsComplianceSafe() {
+        // Every push-notification body MoonPhaseService can schedule, plus the
+        // significant-lunar-day reasons. A notification is read on a lock
+        // screen with no disclaimer, no provenance label and no chart next to
+        // it, so nothing here may forecast a market move or suggest an action.
+        let safeExamples = [
+            "The moon enters your sign today. A personally significant lunar day in your chart.",
+            "The full moon is exact tomorrow. Open Today to see where the market actually stands.",
+            "Tonight's full moon is exact. Today has the market's own numbers, measured against its record.",
+            "A new lunar cycle begins today. Today has the market's own numbers, measured against its record.",
+            "The new moon arrives tomorrow, opening a fresh cycle in the lunar calendar.",
+            "Full Moon Tomorrow",
+            "Full Moon Today",
+            "New Moon Today",
+            "New Moon Tomorrow",
+            "Full moon today",
+            "Full moon tomorrow",
+            "New moon today",
+            "New moon tomorrow"
+        ]
+
+        for example in safeExamples {
+            let violations = ComplianceCopyScanner.violations(in: example)
+            if !violations.isEmpty {
+                Issue.record("Lunar notification copy violation for '\(example)': \(violations.map { $0.label }.joined(separator: ", "))")
+            }
+            #expect(violations.isEmpty)
+        }
+    }
+
+    @Test("The retired lunar notification copy would still be caught")
+    func retiredLunarNotificationCopyIsRejected() {
+        // The two that instructed outright. If a future rewrite reaches for
+        // this register again, the scanner has to fail rather than shrug --
+        // "positions" alone was not a banned pattern, which is how these
+        // survived every earlier compliance pass.
+        #expect(!ComplianceCopyScanner.violations(in: "Consider reducing position sizes tomorrow.").isEmpty)
+        #expect(!ComplianceCopyScanner.violations(in: "Avoid starting new high-risk positions.").isEmpty)
+    }
+
     @Test("Shares editor copy snippets stay compliance safe")
     func sharesEditorCopySnippetsAreComplianceSafe() {
         // Every user-facing string on the manual holdings editor
