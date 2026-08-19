@@ -240,7 +240,7 @@ final class MoonPhaseService {
         scheduleNotification(
             identifier: "moonInSignAlert",
             title: "Moon in \(sign.displayName)",
-            body: "The moon enters your sign today. Your \(sign.element.displayName) sector is activated. A personally significant lunar day.",
+            body: "The moon enters your sign today. A personally significant lunar day in your chart.",
             date: nextEntry
         )
     }
@@ -253,7 +253,7 @@ final class MoonPhaseService {
             scheduleNotification(
                 identifier: "fullMoonEve",
                 title: "Full Moon Tomorrow",
-                body: "Expect heightened market volatility. The market's emotions may run high.",
+                body: "The full moon is exact tomorrow. Open Today to see where the market actually stands.",
                 date: dayBefore
             )
         }
@@ -262,7 +262,7 @@ final class MoonPhaseService {
         scheduleNotification(
             identifier: "fullMoonAlert",
             title: "Full Moon Today",
-            body: "Peak lunar energy. Some traders watch for increased price swings around full moons.",
+            body: "Tonight's full moon is exact. Today has the market's own numbers, measured against its record.",
             date: nextFull
         )
     }
@@ -274,7 +274,7 @@ final class MoonPhaseService {
         scheduleNotification(
             identifier: "newMoonAlert",
             title: "New Moon Today",
-            body: "Fresh lunar cycle beginning. Some traders view this as a good time to research new positions.",
+            body: "A new lunar cycle begins today. Today has the market's own numbers, measured against its record.",
             date: nextNew
         )
 
@@ -283,7 +283,7 @@ final class MoonPhaseService {
             scheduleNotification(
                 identifier: "newMoonEve",
                 title: "New Moon Tomorrow",
-                body: "New cycle begins tomorrow. Consider what positions you'd like to initiate.",
+                body: "The new moon arrives tomorrow, opening a fresh cycle in the lunar calendar.",
                 date: dayBefore
             )
         }
@@ -420,13 +420,13 @@ extension MoonPhaseService {
         let data = getCurrentLunarData()
 
         if data.phase == .fullMoon {
-            return (true, "Full moon — peak volatility expected")
+            return (true, "Full moon today")
         } else if data.phase == .newMoon {
-            return (true, "New moon — fresh cycle beginning")
+            return (true, "New moon today")
         } else if data.daysUntilFullMoon == 1 {
-            return (true, "Full moon tomorrow — prepare for volatility")
+            return (true, "Full moon tomorrow")
         } else if data.daysUntilNewMoon == 1 {
-            return (true, "New moon tomorrow — cycle ending")
+            return (true, "New moon tomorrow")
         }
 
         return (false, nil)
