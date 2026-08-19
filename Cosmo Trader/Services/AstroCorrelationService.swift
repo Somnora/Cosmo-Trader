@@ -63,6 +63,9 @@ struct StockCosmicCorrelationSummary: Identifiable, Equatable {
     let medianReturn: Double?
     let winRate: Double?
     let baselineReturn: Double?
+    /// Share of comparable event-free windows that closed up. The base rate the
+    /// event win rate has to beat; nil when there is not enough clean history.
+    let baselineWinRate: Double?
     let volatilityRatio: Double?
     let maxDrawdown: Double?
     let bestHistoricalReturn: Double?
@@ -85,6 +88,7 @@ struct StockCosmicCorrelationSummary: Identifiable, Equatable {
         medianReturn: Double?,
         winRate: Double?,
         baselineReturn: Double?,
+        baselineWinRate: Double? = nil,
         volatilityRatio: Double?,
         maxDrawdown: Double?,
         bestHistoricalReturn: Double? = nil,
@@ -106,6 +110,7 @@ struct StockCosmicCorrelationSummary: Identifiable, Equatable {
         self.medianReturn = medianReturn
         self.winRate = winRate
         self.baselineReturn = baselineReturn
+        self.baselineWinRate = baselineWinRate
         self.volatilityRatio = volatilityRatio
         self.maxDrawdown = maxDrawdown
         self.bestHistoricalReturn = bestHistoricalReturn
@@ -126,13 +131,16 @@ struct AstroCorrelationSummary: Identifiable, Equatable {
     let medianReturn: Double
     let winRate: Double
     let averageVolatility: Double
-    let baselineAverageReturn: Double
-    let baselineVolatility: Double
+    /// Nil when the clean history is too thin to compare against. Never zero
+    /// as a stand-in — that would read as "no edge" instead of "no baseline".
+    let baselineAverageReturn: Double?
+    let baselineWinRate: Double?
+    let baselineVolatility: Double?
     let strongestEvent: AstroEventPriceReaction?
     let weakestEvent: AstroEventPriceReaction?
 
-    var returnDeltaVsBaseline: Double {
-        averageReturn - baselineAverageReturn
+    var returnDeltaVsBaseline: Double? {
+        baselineAverageReturn.map { averageReturn - $0 }
     }
 }
 
@@ -147,6 +155,11 @@ struct AstroEventPriceReaction: Identifiable, Equatable {
     let maxDrawdownPercent: Double
     let volatilityPercent: Double
     let volumeRatio: Double?
+    /// Candles actually inside the window. The baseline has to be measured
+    /// over stretches of the same length, and calendar days are not trading
+    /// days — a "-1D to +3D" window is about four calendar days but only
+    /// three candles, so counting calendar days stretched every baseline.
+    let candleCount: Int
 }
 
 final class AstroCorrelationService {
@@ -169,7 +182,12 @@ final class AstroCorrelationService {
 
             let returns = kindReactions.map(\.returnPercent)
             let volatilities = kindReactions.map(\.volatilityPercent)
-            let baseline = baselineReturnPercent(prices: prices, averageWindowSize: averageCandleCount(for: kindReactions))
+            let baseline = eventExcludedBaseline(
+                prices: prices,
+                events: events.filter { $0.kind == kind },
+                reactions: kindReactions,
+                filterState: filterState
+            )
 
             return AstroCorrelationSummary(
                 id: kind.rawValue,
@@ -179,8 +197,9 @@ final class AstroCorrelationService {
                 medianReturn: median(returns),
                 winRate: winRate(returns),
                 averageVolatility: average(volatilities),
-                baselineAverageReturn: baseline,
-                baselineVolatility: volatilityPercent(for: prices),
+                baselineAverageReturn: baseline?.averageReturnPercent,
+                baselineWinRate: baseline?.winRate,
+                baselineVolatility: baseline?.volatilityPercent,
                 strongestEvent: kindReactions.max { $0.returnPercent < $1.returnPercent },
                 weakestEvent: kindReactions.min { $0.returnPercent < $1.returnPercent }
             )
@@ -287,7 +306,6 @@ final class AstroCorrelationService {
 
         let reactions = eventReactions(prices: sortedPrices, events: events, filterState: filterState)
         let groupedReactions = Dictionary(grouping: reactions) { $0.event.kind }
-        let baselineVolatility = volatilityPercent(for: sortedPrices)
 
         return sortedKinds.map { kind in
             let kindEvents = groupedEvents[kind] ?? []
@@ -317,14 +335,16 @@ final class AstroCorrelationService {
 
             let returns = kindReactions.map(\.returnPercent)
             let volatilities = kindReactions.map(\.volatilityPercent)
-            let baselineReturn = baselineReturnPercent(
+            let baseline = eventExcludedBaseline(
                 prices: sortedPrices,
-                averageWindowSize: averageCandleCount(for: kindReactions)
+                events: kindEvents,
+                reactions: kindReactions,
+                filterState: filterState
             )
             let averageVolatility = average(volatilities)
-            let volatilityRatio = baselineVolatility > 0
-                ? averageVolatility / baselineVolatility
-                : nil
+            let volatilityRatio = (baseline?.volatilityPercent).flatMap { baselineVolatility in
+                baselineVolatility > 0 ? averageVolatility / baselineVolatility : nil
+            }
 
             return StockCosmicCorrelationSummary(
                 id: "\(symbol.uppercased())-\(kind.rawValue)",
@@ -337,14 +357,15 @@ final class AstroCorrelationService {
                 averageReturn: average(returns),
                 medianReturn: median(returns),
                 winRate: winRate(returns),
-                baselineReturn: baselineReturn,
+                baselineReturn: baseline?.averageReturnPercent,
+                baselineWinRate: baseline?.winRate,
                 volatilityRatio: volatilityRatio,
                 maxDrawdown: kindReactions.map(\.maxDrawdownPercent).max(),
                 bestHistoricalReturn: returns.max(),
                 weakestHistoricalReturn: returns.min(),
                 provenance: provenance,
                 dataCompleteness: completeness,
-                confidence: confidence(for: kindReactions.count),
+                confidence: CorrelationBaselineCalculator.confidence(returns: returns),
                 displayMode: .marketBackedResult,
                 disclaimer: "Historical context only. Correlation does not imply causation and this is not financial advice."
             )
@@ -395,7 +416,8 @@ final class AstroCorrelationService {
                 returnPercent: returnPercent,
                 maxDrawdownPercent: maxDrawdownPercent(for: candles),
                 volatilityPercent: volatilityPercent(for: candles),
-                volumeRatio: volumeRatio
+                volumeRatio: volumeRatio,
+                candleCount: candles.count
             )
         }
     }
@@ -423,26 +445,29 @@ final class AstroCorrelationService {
         return DateInterval(start: start, end: end)
     }
 
-    private func baselineReturnPercent(prices: [OHLCData], averageWindowSize: Int) -> Double {
-        let sorted = prices.sorted { $0.date < $1.date }
-        guard sorted.count > 1,
-              let first = sorted.first,
-              first.close > 0 else { return 0 }
-
-        let dailyReturns = zip(sorted, sorted.dropFirst()).compactMap { previous, current -> Double? in
-            guard previous.close > 0 else { return nil }
-            return ((current.close - previous.close) / previous.close) * 100
-        }
-
-        return average(dailyReturns) * Double(max(1, averageWindowSize))
+    /// What this market did over comparable stretches the event never touched.
+    ///
+    /// Shared with the portfolio and market-weather services so all three ask
+    /// the question the same way; see `CorrelationBaseline` for why the old
+    /// whole-series average was wrong.
+    func eventExcludedBaseline(
+        prices: [OHLCData],
+        events: [AstroOverlayEvent],
+        reactions: [AstroEventPriceReaction],
+        filterState: AstroOverlayFilterState
+    ) -> CorrelationBaseline? {
+        CorrelationBaselineCalculator.baseline(
+            prices: prices,
+            excluding: events.map {
+                Self.priceWindow(for: $0, filterState: filterState, calendar: calendar)
+            },
+            windowLength: averageCandleCount(for: reactions)
+        )
     }
 
     private func averageCandleCount(for reactions: [AstroEventPriceReaction]) -> Int {
-        let counts = reactions.map { reaction in
-            let days = calendar.dateComponents([.day], from: reaction.windowStart, to: reaction.windowEnd).day ?? 1
-            return max(1, days)
-        }
-        return Int(round(average(counts.map(Double.init))))
+        guard !reactions.isEmpty else { return 2 }
+        return Int(round(average(reactions.map { Double($0.candleCount) })))
     }
 
     private func maxDrawdownPercent(for candles: [OHLCData]) -> Double {
@@ -531,18 +556,5 @@ final class AstroCorrelationService {
             displayMode: displayMode,
             disclaimer: disclaimer
         )
-    }
-
-    private func confidence(for sampleSize: Int) -> CorrelationConfidence {
-        switch sampleSize {
-        case 12...:
-            return .strong
-        case 6...:
-            return .moderate
-        case 3...:
-            return .thin
-        default:
-            return .insufficient
-        }
     }
 }
