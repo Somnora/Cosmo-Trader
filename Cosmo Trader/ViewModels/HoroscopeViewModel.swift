@@ -36,10 +36,21 @@ class HoroscopeViewModel {
     /// Animation trigger for refresh
     var refreshTrigger: Bool = false
 
+    /// Free-tier allowances. Injected so the limit can be tested without
+    /// mutating the shared manager's stored daily counters.
+    private let subscriptionManager: SubscriptionManager
+
+    /// Whether another reading is available today on the current tier.
+    var canRefreshHoroscope: Bool { subscriptionManager.canRefreshHoroscope() }
+
     // MARK: - Initialization
 
-    init(appState: AppState = AppState.shared) {
+    init(
+        appState: AppState = AppState.shared,
+        subscriptionManager: SubscriptionManager = .shared
+    ) {
         self.appState = appState
+        self.subscriptionManager = subscriptionManager
         self.cosmicWeather = CosmicWeather.current
         self.planetaryEvents = PlanetaryEvent.featuredEvents
 
@@ -151,9 +162,19 @@ class HoroscopeViewModel {
 
     // MARK: - Actions
 
-    /// Regenerate the horoscope
-    func regenerateHoroscope() {
-        guard let user = user else { return }
+    /// Regenerate the horoscope.
+    ///
+    /// Returns false when the free tier's daily allowance is spent, so the
+    /// view can offer the upgrade instead of spinning and returning the same
+    /// reading. The count is recorded before generation rather than after:
+    /// the allowance is for asking, and a generation that fails halfway
+    /// should not hand back a free retry.
+    @discardableResult
+    func regenerateHoroscope() -> Bool {
+        guard let user = user else { return false }
+        guard subscriptionManager.canRefreshHoroscope() else { return false }
+
+        subscriptionManager.recordHoroscopeRefresh()
         isLoading = true
         refreshTrigger.toggle()
 
@@ -166,6 +187,8 @@ class HoroscopeViewModel {
             self.planetaryEvents = PlanetaryEvent.featuredEvents
             self.isLoading = false
         }
+
+        return true
     }
 
     /// Refresh cosmic weather

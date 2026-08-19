@@ -131,6 +131,7 @@ struct CosmosView: View {
     @State private var showAllEvents: Bool = false
     @State private var showLunarDetail: Bool = false
     @State private var showZodiacLeaderboard: Bool = false
+    @State private var showPaywall: Bool = false
 
     /// Animation states
     @State private var cardOpacity: Double = 0
@@ -233,6 +234,7 @@ struct CosmosView: View {
             }
             .toolbarBackground(CosmicTheme.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
+            .freeTierPaywall(isPresented: $showPaywall, source: FreeTierPaywallSource.dailyReading)
             .sheet(item: $selectedEvent) { event in
                 CosmicEventDetailSheet(event: event)
                     .presentationDetents([.medium, .large])
@@ -464,7 +466,7 @@ struct CosmosView: View {
             }
 
             if let sectorBreadth {
-                sectorBreadthCosmosPanel(sectorBreadth)
+                CosmosSectorBreadthPanel(breadth: sectorBreadth)
             }
         }
         .padding(14)
@@ -472,76 +474,6 @@ struct CosmosView: View {
         .terminalPanel(.navy)
     }
 
-    private func sectorBreadthCosmosPanel(_ breadth: MarketSectorBreadthSummary) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("SECTOR BREADTH")
-                    .font(TerminalFont.data(8, weight: .bold))
-                    .foregroundColor(CosmicTheme.gold)
-                    .tracking(0.5)
-
-                Spacer(minLength: 8)
-
-                DataSourceIndicator(provenance: breadth.provenance, size: .compact)
-            }
-
-            Text(sectorBreadthHeadline(for: breadth))
-                .font(TerminalFont.data(11, weight: .semibold))
-                .foregroundColor(CosmicTheme.textPrimary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text(sectorBreadthDetail(for: breadth))
-                .font(TerminalFont.data(9))
-                .foregroundColor(CosmicTheme.textMuted)
-                .lineSpacing(3)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 8) {
-                marketWeatherPill(label: "SECTORS", value: percentRate(breadth.coverage))
-                marketWeatherPill(label: "EVENT", value: breadth.eventName ?? "Pending")
-                marketWeatherPill(label: "SAMPLE", value: "\(breadth.sampleSize)")
-            }
-
-            if canShowSectorBreadthMetrics(breadth) {
-                HStack(spacing: 8) {
-                    marketWeatherPill(label: "AVG SECTOR", value: percent(breadth.averageSectorReturn))
-                    marketWeatherPill(label: "ADVANCING", value: percentRate(breadth.advancingSectorRate))
-                    marketWeatherPill(label: "WINDOW", value: breadth.window.displayName)
-                }
-
-                if !breadth.strongestSectors.isEmpty {
-                    compactMarketWeatherSymbols(
-                        label: "Firmest",
-                        symbols: breadth.strongestSectors.map { "\($0.symbol) \(percent($0.returnPercent))" },
-                        color: CosmicTheme.positive
-                    )
-                }
-
-                if !breadth.weakestSectors.isEmpty {
-                    compactMarketWeatherSymbols(
-                        label: "Softest",
-                        symbols: breadth.weakestSectors.map { "\($0.symbol) \(percent($0.returnPercent))" },
-                        color: CosmicTheme.textMuted
-                    )
-                }
-            }
-
-            if !breadth.staleSymbols.isEmpty {
-                compactMarketWeatherSymbols(label: "Stale sectors", symbols: breadth.staleSymbols, color: CosmicTheme.gold)
-            }
-
-            if !breadth.excludedSymbols.isEmpty {
-                compactMarketWeatherSymbols(label: "Unavailable sectors", symbols: breadth.excludedSymbols, color: CosmicTheme.textMuted)
-            }
-        }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(CosmicTheme.panelElevated.opacity(0.78))
-        .overlay(
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
-        )
-    }
 
     // MARK: - Lunar Alert Section
 
@@ -995,9 +927,19 @@ struct CosmosView: View {
     private var regenerateButton: some View {
         Button(action: {
             HapticFeedback.medium()
+
+            var generated = false
             withAnimation(.spring(response: 0.4)) {
-                viewModel.regenerateHoroscope()
+                generated = viewModel.regenerateHoroscope()
             }
+
+            // The free tier gets one reading a day. Offer the upgrade rather
+            // than spinning and handing back the reading already on screen.
+            guard generated else {
+                showPaywall = true
+                return
+            }
+
             // Track horoscope refresh
             if let user = appState.currentUser {
                 AnalyticsService.shared.trackHoroscopeRefreshed(sunSign: user.sunSign.displayName)
@@ -1241,43 +1183,8 @@ struct CosmosView: View {
         return false
     }
 
-    private func canShowSectorBreadthMetrics(_ breadth: MarketSectorBreadthSummary) -> Bool {
-        guard breadth.coverage >= 1 else { return false }
-        if case .marketBackedResult = breadth.displayMode {
-            return breadth.provenance.isProviderBacked && !breadth.provenance.isCachedStale()
-        }
-        return false
-    }
 
-    private func sectorBreadthHeadline(for breadth: MarketSectorBreadthSummary) -> String {
-        switch breadth.displayMode {
-        case .marketBackedResult:
-            return "Sector breadth context is ready"
-        case .partialCoverage, .partialDataset:
-            return "Sector breadth is partial context only"
-        case .insufficientSample:
-            return "Sector breadth needs more observations"
-        case .insufficientDataset:
-            return "Sector breadth history is insufficient"
-        case .sampleOnly:
-            return "Sample sector history is labeled"
-        case .unavailable:
-            return "Sector breadth unavailable"
-        }
-    }
 
-    private func sectorBreadthDetail(for breadth: MarketSectorBreadthSummary) -> String {
-        switch breadth.displayMode {
-        case .marketBackedResult:
-            return "Sector ETFs use complete provider-backed history for \(breadth.eventName ?? "the selected event"). Historical context only, not a prediction."
-        case .partialCoverage, .partialDataset:
-            return "Provider-backed sector coverage is \(percentRate(breadth.coverage)). Full sector coverage is required before sector metrics appear."
-        case .insufficientSample:
-            return "Sector ETF history exists, but this event does not have enough observations for a sector metric."
-        case .insufficientDataset, .sampleOnly, .unavailable:
-            return breadth.disclaimer
-        }
-    }
 
     private func marketWeatherHeadline(for event: MarketWeatherEventSummary?) -> String {
         guard let event else { return "Broad market lens pending" }

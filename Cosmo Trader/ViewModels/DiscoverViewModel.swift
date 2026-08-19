@@ -1,4 +1,15 @@
 import Foundation
+
+/// What a Discover swipe actually did.
+///
+/// A limit the user cannot see is indistinguishable from a broken card, so
+/// the view model reports which allowance stopped the swipe and the view
+/// offers the upgrade for it.
+enum DiscoverSwipeOutcome: Equatable {
+    case recorded
+    case swipeLimitReached
+    case watchlistLimitReached
+}
 import SwiftUI
 
 // MARK: - DiscoverViewModel
@@ -96,15 +107,31 @@ class DiscoverViewModel {
     /// Work item for debouncing filter changes.
     private var filterDebounceWork: DispatchWorkItem?
 
+    /// Free-tier allowances. Injected so the limits can be tested without
+    /// mutating the shared manager's stored daily counters.
+    private let subscriptionManager: SubscriptionManager
+
     // MARK: - Initialization
 
     /// Creates a new discover view model.
     ///
     /// - Parameter appState: The app state to use for persistence. Defaults to shared instance.
-    init(appState: AppState = AppState.shared) {
+    init(
+        appState: AppState = AppState.shared,
+        subscriptionManager: SubscriptionManager = .shared
+    ) {
         self.appState = appState
+        self.subscriptionManager = subscriptionManager
         rebuildDeck()
     }
+
+    // MARK: - Free tier
+
+    /// Swipes left in today's free allowance. `.max` for subscribers.
+    var swipesRemaining: Int { subscriptionManager.swipesRemaining }
+
+    /// Whether today's free swipes are used up.
+    var swipesExhausted: Bool { subscriptionManager.swipesExhausted }
 
     // MARK: - Computed Properties
 
@@ -257,9 +284,17 @@ class DiscoverViewModel {
 
     // MARK: - Swipe Actions
 
-    /// Swipe right - add to watchlist
-    func likeStock(_ stock: Stock) {
-        appState.addToWatchlist(stock.symbol)
+    /// Swipe right - add to watchlist.
+    ///
+    /// Returns what actually happened so the view can present the upgrade
+    /// rather than animating a card away into nothing. A swipe that silently
+    /// fails reads as a bug, not as a limit.
+    @discardableResult
+    func likeStock(_ stock: Stock) -> DiscoverSwipeOutcome {
+        guard !swipesExhausted else { return .swipeLimitReached }
+        guard appState.addToWatchlist(stock.symbol) else { return .watchlistLimitReached }
+
+        subscriptionManager.recordSwipe()
         removeTopCard()
 
         // Track swipe right (like)
@@ -270,10 +305,16 @@ class DiscoverViewModel {
             compatibility: user?.compatibility(with: stock).score ?? 0
         )
         AnalyticsService.shared.trackWatchlistAdded(symbol: stock.symbol, source: "discover_swipe")
+
+        return .recorded
     }
 
-    /// Swipe left - skip stock
-    func skipStock(_ stock: Stock) {
+    /// Swipe left - skip stock.
+    @discardableResult
+    func skipStock(_ stock: Stock) -> DiscoverSwipeOutcome {
+        guard !swipesExhausted else { return .swipeLimitReached }
+
+        subscriptionManager.recordSwipe()
         appState.skipStock(stock.symbol)
         removeTopCard()
 
@@ -284,6 +325,8 @@ class DiscoverViewModel {
             zodiacSign: stock.zodiacSign?.displayName ?? "Unknown",
             compatibility: user?.compatibility(with: stock).score ?? 0
         )
+
+        return .recorded
     }
 
     /// View detail
