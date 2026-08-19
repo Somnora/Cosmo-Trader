@@ -838,10 +838,11 @@ extension AstroOverlayEventKind {
 
 struct HistoricalAstroOverlayLockedCard: View {
     @State private var showUpgradeSheet = false
+    @State private var showPaywall = false
+    @State private var isUpgradeRequested = false
 
     var body: some View {
         Button {
-            AnalyticsService.shared.trackPaywallViewed(source: "historical_astro_overlay")
             showUpgradeSheet = true
         } label: {
             VStack(alignment: .leading, spacing: 12) {
@@ -894,11 +895,29 @@ struct HistoricalAstroOverlayLockedCard: View {
             )
         }
         .buttonStyle(.plain)
-        .sheet(isPresented: $showUpgradeSheet) {
-            FeatureUpgradeSheet(feature: .historicalAstroOverlay)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
+        .sheet(isPresented: $showUpgradeSheet, onDismiss: presentPaywallIfRequested) {
+            FeatureUpgradeSheet(
+                feature: .historicalAstroOverlay,
+                onUpgrade: {
+                    isUpgradeRequested = true
+                    showUpgradeSheet = false
+                }
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
         }
+        .freeTierPaywall(isPresented: $showPaywall, source: "historical_astro_overlay")
         .accessibilityLabel("Unlock Cosmic Correlation Lab with Oracle")
+    }
+
+    /// Presents the paywall once the teaser sheet has finished dismissing.
+    ///
+    /// Setting both flags in the button action races the dismissal animation
+    /// and the paywall silently never appears, which is the failure mode that
+    /// looks exactly like the bug this fixes.
+    private func presentPaywallIfRequested() {
+        guard isUpgradeRequested else { return }
+        isUpgradeRequested = false
+        showPaywall = true
     }
 }

@@ -405,6 +405,13 @@ require_present "Cosmo Trader/ViewModels/HoroscopeViewModel.swift" "recordHorosc
 require_present "Cosmo Trader/Services/SubscriptionManager.swift" "feature: .unlimitedSwipes"
 require_present "Cosmo Trader/Services/SubscriptionManager.swift" "feature: .unlimitedStocks"
 require_present "Cosmo Trader/Services/SubscriptionManager.swift" "feature: .advancedHoroscope"
+# FeatureUpgradeSheet.onUpgrade is optional, so omitting it compiles cleanly and
+# leaves the UPGRADE button on the app's only enforced premium feature doing
+# nothing. Both lock screens must pass a handler and reach the real paywall.
+require_present "Cosmo Trader/Views/Components/HistoricalAstroChartView.swift" "onUpgrade: {"
+require_present "Cosmo Trader/Views/Components/HistoricalAstroChartView.swift" "freeTierPaywall(isPresented:"
+require_present "Cosmo Trader/Views/Components/PortfolioCosmicCorrelationView.swift" "onUpgrade: {"
+require_present "Cosmo Trader/Views/Components/PortfolioCosmicCorrelationView.swift" "freeTierPaywall(isPresented:"
 require_present "Cosmo Trader/Views/Tabs/DiscoverView.swift" "freeTierPaywall(isPresented:"
 require_present "Cosmo Trader/Views/Tabs/CosmosView.swift" "freeTierPaywall(isPresented:"
 require_present "Cosmo Trader/Views/StockDetailView.swift" "freeTierPaywall(isPresented:"
