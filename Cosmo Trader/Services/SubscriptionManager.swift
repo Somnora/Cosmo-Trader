@@ -500,8 +500,8 @@ enum PremiumFeature: String, CaseIterable {
     case limitedSwipes = "5 Discovery swipes/day"
 
     // Portfolio
-    case unlimitedStocks = "Unlimited portfolio stocks"
-    case limitedStocks = "Up to 10 portfolio stocks"
+    case unlimitedStocks = "Unlimited watchlist symbols"
+    case limitedStocks = "Up to 10 watchlist symbols"
 
     // Horoscope
     case advancedHoroscope = "Advanced horoscopes (refresh anytime)"
@@ -575,7 +575,7 @@ enum PremiumFeature: String, CaseIterable {
         case .unlimitedSwipes:
             return "Daily swipes exhausted. Reset at midnight or upgrade."
         case .unlimitedStocks:
-            return "Free tier limited to 10 holdings"
+            return "Free tier watchlist holds 10 symbols"
         case .advancedHoroscope:
             return "Unlimited horoscope refreshes with Oracle Tier"
         case .moonNotifications:
@@ -630,6 +630,25 @@ struct OracleTierBenefits {
             feature: .signalFramingOverride,
             title: "Per-Stock Signal Framing",
             description: "Override your global framing level on a holding"
+        ),
+        // The three below were stripped in #74 because nothing enforced them.
+        // #81 wired the limits up, so they name real capabilities again --
+        // and a limit the paywall never mentions is one the user only meets
+        // by hitting it.
+        OracleBenefit(
+            feature: .unlimitedSwipes,
+            title: "Unlimited Discovery Swipes",
+            description: "Swipe all day. Free tier gets five"
+        ),
+        OracleBenefit(
+            feature: .unlimitedStocks,
+            title: "Unlimited Watchlist",
+            description: "Follow any number of symbols. Free tier holds ten"
+        ),
+        OracleBenefit(
+            feature: .advancedHoroscope,
+            title: "Readings On Demand",
+            description: "Refresh anytime. Free tier gets one a day"
         )
     ]
 }

@@ -83,6 +83,9 @@ Stock data is provided by Finnhub and may be delayed up to 15 minutes.
 PREMIUM: ORACLE TIER
 • Cosmic Correlation Lab: a stock's price history overlaid with moon phases, Mercury retrograde windows, and company founding cycles
 • Portfolio correlation timeline: the same overlays across everything you hold
+• Unlimited Discovery swipes (the free tier gets five a day)
+• Unlimited watchlist (the free tier holds ten symbols)
+• Readings on demand (the free tier gets one a day)
 • Unlimited Cosmic Roasts (the free tier gets one per day)
 • A local alert when the Moon enters your sun sign
 • Per-stock signal framing that overrides your global setting
@@ -93,7 +96,7 @@ Whether you're a Capricorn who loves diversified ETFs or a Sagittarius who YOLOs
 Download now. The stars are aligning. (They're always aligning. That's what stars do.)
 ```
 
-**Character Count:** 3,306 characters (4,000 max)
+**Character Count:** 3,475 characters (4,000 max)
 
 ---
 
@@ -111,7 +114,7 @@ astrology,zodiac,stocks,portfolio,horoscope,investing,finance,trading,moon,cosmi
 
 ---
 
-## 5. What's New (Version 0.1.0)
+## 5. What's New (Version 1.0)
 
 ```
 Initial Release
