@@ -38,6 +38,17 @@ require_absent "Cosmo Trader Widget/SharedWidgetData.swift" "Trim underperformer
 require_absent "Cosmo Trader/Utils/WidgetDataManager.swift" "Good for new positions"
 require_absent "Cosmo Trader/Utils/WidgetDataManager.swift" "Secure your gains"
 require_absent "Cosmo Trader/Utils/WidgetDataManager.swift" "Trim underperformers"
+# Push notifications are the least supervised copy in the app: a lock screen
+# carries no disclaimer, no provenance label, and no chart beside it. Four of
+# the five bodies forecast or instructed outright, and this file appeared in no
+# guard at all -- "positions" alone is not a scanner pattern, which is how they
+# survived every earlier compliance pass.
+require_absent "Cosmo Trader/Services/MoonPhaseService.swift" "Expect heightened market volatility"
+require_absent "Cosmo Trader/Services/MoonPhaseService.swift" "Some traders watch for increased price swings"
+require_absent "Cosmo Trader/Services/MoonPhaseService.swift" "a good time to research new positions"
+require_absent "Cosmo Trader/Services/MoonPhaseService.swift" "Consider what positions you'd like to initiate"
+require_absent "Cosmo Trader/Services/MoonPhaseService.swift" "peak volatility expected"
+require_absent "Cosmo Trader/Services/MoonPhaseService.swift" "prepare for volatility"
 
 if [[ "$failures" -gt 0 ]]; then
   echo "compliance_copy_guard: source scan failed with ${failures} issue(s)" >&2
