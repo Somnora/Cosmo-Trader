@@ -101,7 +101,21 @@ struct OracleTierBenefitsTests {
         // Exact pin on purpose: the paywall renders this list verbatim, and an
         // entry the free tier already gets is an App Review problem. Changing
         // this number means a real gate was added or removed.
-        #expect(OracleTierBenefits.all.count == 5)
+        //
+        // Was 5. #81 enforced the swipe, watchlist and daily-reading limits
+        // that had been declared and never called, so the three benefits #74
+        // stripped for being fiction describe real capabilities again.
+        #expect(OracleTierBenefits.all.count == 8)
+    }
+
+    @Test("Every advertised benefit names something the free tier is denied")
+    func advertisedBenefitsAreWithheldFromFreeTier() {
+        // The rule the list exists under, enforced rather than commented: a
+        // paywall entry the free tier already gets is the exact defect #74
+        // removed seven of.
+        for benefit in OracleTierBenefits.all {
+            #expect(!benefit.feature.availableInFreeTier)
+        }
     }
 
     @Test("Each benefit has a title and description")
