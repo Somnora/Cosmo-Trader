@@ -64,13 +64,17 @@ final class TodayMarketHoroscopeViewModel {
         let stockCandidate: TodayStockCandidate?
         let marketWeather: MarketWeatherSummary?
 
-        // Screenshot mode renders staged content; UI-test mode must not
+        // Screenshot mode renders staged content. UI-test mode must not
         // depend on third-party providers (smoke tests run network-free on
-        // CI). Both skip the provider loads — the composer renders its
-        // honest unavailable states instead.
-        if AppState.isScreenshotMode || AppState.isUITesting {
+        // CI), but it should still name a local watchlist/holding candidate
+        // so Today does not pretend the user has no tickers.
+        if AppState.isScreenshotMode {
             portfolioSummaries = []
             stockCandidate = nil
+            marketWeather = nil
+        } else if AppState.isUITesting {
+            portfolioSummaries = []
+            stockCandidate = offlineStockCandidate(for: user)
             marketWeather = nil
         } else {
             let holdings = user?.portfolio.filter(\.isOwned) ?? []
@@ -261,6 +265,20 @@ final class TodayMarketHoroscopeViewModel {
         }
 
         return nil
+    }
+
+
+    /// Network-free stock lens candidate for UI tests: metadata only, with
+    /// unavailable provenance. Never invents candles or quotes.
+    private func offlineStockCandidate(for user: UserProfile?) -> TodayStockCandidate? {
+        guard let fallback = candidateStocks(from: user).first else { return nil }
+        return TodayStockCandidate(
+            stock: fallback.stock,
+            summaries: [],
+            provenance: .unavailable(reason: "Provider-backed historical prices unavailable"),
+            completeness: .insufficient(reason: "Provider-backed historical prices unavailable"),
+            source: fallback.source
+        )
     }
 
     func candidateStocks(from user: UserProfile?) -> [(stock: Stock, source: TodayStockCandidateSource)] {

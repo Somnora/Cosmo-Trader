@@ -541,7 +541,7 @@ struct StockDetailView: View {
 
     @ViewBuilder
     private var priceValue: some View {
-        if isLoadingPrice && lastPriceUpdate == nil {
+        if isLoadingPrice && lastPriceUpdate == nil && liveStock.currentPrice <= 0 {
             VStack(alignment: .leading, spacing: 6) {
                 Text("$----.--")
                     .font(TerminalFont.price(36))

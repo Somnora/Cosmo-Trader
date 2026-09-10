@@ -296,7 +296,7 @@ struct PortfolioView: View {
                     .iPadReadableContent(maxWidth: 980)
                 }
                 .contentShape(Rectangle())
-                .tabBarSafeBottomPadding()
+                .tabBarSafeBottomPadding(extra: AppLayout.bottomTabBarExtraClearance)
                 .refreshable {
                     await fetchLivePrices()
                 }
