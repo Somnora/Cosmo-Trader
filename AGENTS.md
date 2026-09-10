@@ -1,4 +1,18 @@
 # Cosmo Trader — Agent & Contributor Guide
+## Project context
+
+Project: Cosmo Trader
+Expected repository root: /Users/jamesmcshane/Desktop/Cosmo_Trader/Cosmo Trader
+Canonical Obsidian context file: /Users/jamesmcshane/Desktop/obsidian-vault/the-eye/Projects/Cosmo_Trader/claude-context.md
+
+Before planning or editing:
+
+1. Confirm the repository root with git rev-parse --show-toplevel.
+2. Read the canonical Obsidian context file above.
+3. Report the repository root and context file in the first response.
+4. Treat the context file as project memory and provenance, not current code truth. Verify current behavior in this repository.
+5. If the path is missing or the repository root does not match this mapping, report Vault context link failed and do not guess another context folder.
+
 
 Cosmo Trader is a SwiftUI iOS app that correlates stock movement with
 astrological events ("Co-Star inside a Bloomberg terminal"). All displayed
