@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 
 // MARK: - Feature Gate
 // ====================
@@ -103,6 +104,7 @@ struct FeatureUpgradeSheet: View {
     var onUpgrade: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
+    private let storeKitManager = StoreKitManager.shared
 
     var body: some View {
         ZStack {
@@ -233,10 +235,12 @@ struct FeatureUpgradeSheet: View {
                     Text("UPGRADE")
                         .font(.system(size: 12, weight: .bold, design: .monospaced))
                         .tracking(2)
-                    Text("·")
-                        .foregroundColor(CosmicTheme.gold.opacity(0.5))
-                    Text(SubscriptionManager.oracleTierPrice)
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    if let price = storeKitManager.monthlyProduct?.displayPrice {
+                        Text("·")
+                            .foregroundColor(CosmicTheme.gold.opacity(0.5))
+                        Text(price)
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    }
                 }
                 .foregroundColor(CosmicTheme.terminalBlack)
                 .frame(maxWidth: .infinity)

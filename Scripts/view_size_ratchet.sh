@@ -56,7 +56,7 @@ check_max_lines "Cosmo Trader/Views/Tabs/CosmosView.swift" 1902
 # TodayMarketHoroscopeView raised 1138→1180 for pure view cold-history
 # empty-state branching (collapse repeated UNAVAILABLE blocks).
 check_max_lines "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" 1180
-check_max_lines "Cosmo Trader/Views/Onboarding/OnboardingView.swift" 1203
+check_max_lines "Cosmo Trader/Views/Onboarding/OnboardingView.swift" 1184
 check_max_lines "Cosmo Trader/Views/Tabs/DiscoverView.swift" 1125
 
 if (( failures > 0 )); then

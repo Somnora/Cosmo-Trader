@@ -86,7 +86,7 @@ struct CosmicScorecardView: View {
     }
 
     private var hitRateDisplay: String {
-        guard let hitRate = viewModel.scorecard.hitRate else { return "—" }
+        guard let hitRate = viewModel.scorecard.hitRate else { return "n/a" }
         return String(format: "%.0f%%", hitRate * 100)
     }
 
@@ -94,7 +94,7 @@ struct CosmicScorecardView: View {
         let streak = viewModel.scorecard.currentStreak
         if streak > 0 { return "\(streak) HIT" + (streak > 1 ? "S" : "") }
         if streak < 0 { return "\(-streak) MISS" + (streak < -1 ? "ES" : "") }
-        return "—"
+        return "n/a"
     }
 
     private func statLine(_ label: String, _ value: String) -> some View {

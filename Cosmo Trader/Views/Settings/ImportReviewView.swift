@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ImportReviewView: View {
     let parsedPortfolio: ParsedPortfolio
@@ -70,12 +71,21 @@ struct ImportReviewView: View {
                     }
                     .padding(16)
                 }
+                .scrollDismissesKeyboard(.interactively)
 
                 bottomActions
             }
         }
         .navigationTitle("Review Import")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+            }
+        }
         .task {
             await fetchLivePrices()
         }
@@ -243,7 +253,7 @@ struct ImportReviewView: View {
                 .font(TerminalFont.data(14, weight: .semibold))
                 .foregroundColor(CosmicTheme.textPrimary)
 
-            Text("Try a positions export from thinkorswim or Schwab with Symbol/Instrument and Quantity columns visible.")
+            Text("Try any positions CSV with Symbol and Quantity columns, or a Schwab mobile positions screenshot.")
                 .font(TerminalFont.data(11))
                 .foregroundColor(CosmicTheme.textSecondary)
                 .multilineTextAlignment(.center)
@@ -383,7 +393,7 @@ private struct ImportReviewHoldingRow: View {
     }
 
     private var liveMarketValueText: String {
-        guard let shares, shares > 0, let livePrice, livePrice > 0 else { return "—" }
+        guard let shares, shares > 0, let livePrice, livePrice > 0 else { return "n/a" }
         return Self.formatCurrency(shares * livePrice)
     }
 

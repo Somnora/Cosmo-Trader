@@ -1536,7 +1536,7 @@ struct PortfolioView: View {
         let hasDisplayablePrice = stock.currentPrice > 0
 
         return VStack(alignment: .trailing, spacing: 2) {
-            Text(hasDisplayablePrice ? stock.formattedPrice : "—")
+            Text(hasDisplayablePrice ? stock.formattedPrice : "n/a")
                 .font(TerminalFont.price(11))
                 .foregroundColor(hasDisplayablePrice ? CosmicTheme.textPrimary : CosmicTheme.textMuted)
 
@@ -1566,7 +1566,7 @@ struct PortfolioView: View {
             || stock.percentageChange != 0
 
         return VStack(alignment: .trailing, spacing: 2) {
-            Text(hasDisplayableChange ? stock.formattedPercentageChange : "—")
+            Text(hasDisplayableChange ? stock.formattedPercentageChange : "n/a")
                 .font(TerminalFont.price(11))
                 .foregroundColor(hasDisplayableChange ? (stock.isPositive ? CosmicTheme.positive : CosmicTheme.negative) : CosmicTheme.textMuted)
 

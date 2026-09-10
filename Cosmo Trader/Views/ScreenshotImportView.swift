@@ -95,7 +95,7 @@ struct ScreenshotImportView: View {
                     .tracking(1)
             }
 
-            Text("Take a screenshot of a supported brokerage positions view. You will review every parsed row before choosing append or replace.")
+            Text("Schwab mobile positions screens only for now. You will review every parsed row before choosing append or replace.")
                 .font(TerminalFont.data(12))
                 .foregroundColor(CosmicTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -285,6 +285,9 @@ struct ScreenshotImportView: View {
         } catch {
             errorMessage = error.localizedDescription
             showError = true
+            // Clear picker so the user can choose another screenshot.
+            selectedItem = nil
+            selectedImage = nil
         }
 
         isProcessing = false

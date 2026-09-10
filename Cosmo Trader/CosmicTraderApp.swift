@@ -196,6 +196,7 @@ struct CosmicTraderApp: App {
             RootView()
                 .environment(appState)
                 .preferredColorScheme(.dark)
+                .background(CosmicTheme.background.ignoresSafeArea())
         }
     }
 
@@ -217,6 +218,9 @@ struct CosmicTraderApp: App {
         UINavigationBar.appearance().standardAppearance = navAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
         UINavigationBar.appearance().compactAppearance = navAppearance
+
+        // Avoid a brief system-white flash before SwiftUI paints dark chrome.
+        UIWindow.appearance().backgroundColor = UIColor(CosmicTheme.background)
     }
 }
 
@@ -232,6 +236,8 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
+            CosmicTheme.background.ignoresSafeArea()
+
             // Main content (behind launch screen)
             Group {
                 if appState.hasCompletedOnboarding {

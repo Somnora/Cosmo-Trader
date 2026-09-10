@@ -11,6 +11,13 @@ struct DataSourceIndicator: View {
         provenance?.indicatorLabel ?? (source ?? monitor.currentSource).label
     }
 
+    /// Compact pills sit in narrow grids (Today snapshot cards). Keep the provider
+    /// when possible, but prefer a shorter form so "Yahoo Finance live" does not
+    /// truncate mid-word.
+    private var compactResolvedLabel: String {
+        provenance?.compactIndicatorLabel ?? resolvedLabel
+    }
+
     private var resolvedAccessibilityLabel: String {
         provenance?.accessibilityLabel ?? (source ?? monitor.currentSource).accessibilityLabel
     }
@@ -25,11 +32,12 @@ struct DataSourceIndicator: View {
                 .fill(resolvedColor)
                 .frame(width: size.dotSize, height: size.dotSize)
 
-            Text(resolvedLabel)
+            Text(size == .compact ? compactResolvedLabel : resolvedLabel)
                 .font(TerminalFont.data(size.fontSize, weight: .semibold))
                 .foregroundColor(resolvedColor)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(size == .compact ? 0.55 : 0.8)
+                .allowsTightening(true)
         }
         .padding(.horizontal, size.horizontalPadding)
         .padding(.vertical, size.verticalPadding)
@@ -143,6 +151,24 @@ private extension DataSourceState {
 }
 
 extension FinancialDataProvenance {
+    var compactIndicatorLabel: String {
+        switch self {
+        case .live(let provider, _):
+            return "\(Self.compactProviderName(provider)) live"
+        case .cached(let provider, _, _):
+            let name = Self.compactProviderName(provider)
+            return isCachedStale() ? "\(name) stale" : "\(name) cached"
+        case .mixed, .unavailable, .sample:
+            return indicatorLabel
+        }
+    }
+
+    private static func compactProviderName(_ provider: String) -> String {
+        if provider.localizedCaseInsensitiveContains("Yahoo") { return "Yahoo" }
+        if provider.localizedCaseInsensitiveContains("Finnhub") { return "Finnhub" }
+        return provider
+    }
+
     var indicatorLabel: String {
         switch self {
         case .live(let provider, _):

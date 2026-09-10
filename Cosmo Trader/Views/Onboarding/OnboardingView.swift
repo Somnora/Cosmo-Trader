@@ -132,7 +132,7 @@ struct OnboardingView: View {
             // Cosmic background
             cosmicBackground
 
-            // Content
+            // Content: scroll so name field / stock cards clear the keyboard and bottom CTA
             VStack(spacing: 0) {
                 // Page indicator (hide on welcome, quote, disclaimer, and complete)
                 if currentStep != .welcome && currentStep != .quote && currentStep != .disclaimer && currentStep != .complete {
@@ -140,13 +140,13 @@ struct OnboardingView: View {
                         .padding(.top, 20)
                 }
 
-                Spacer()
-
-                // Step content
-                stepContent
-                    .padding(.horizontal, 32)
-
-                Spacer()
+                ScrollView {
+                    stepContent
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 24)
+                        .frame(maxWidth: .infinity)
+                }
+                .scrollDismissesKeyboard(.interactively)
 
                 // Bottom button (hide on quote and disclaimer steps - they have their own buttons)
                 if currentStep != .complete && currentStep != .quote && currentStep != .disclaimer {
@@ -763,7 +763,7 @@ struct OnboardingView: View {
         case .air:
             return "Air signs are analytical, diversified investors. You process information quickly, adapt to market changes, and excel at portfolio balancing."
         case .water:
-            return "Water signs are intuitive, protective investors. You sense market shifts before they happen and prioritize preserving gains over chasing trends."
+            return "Water signs are intuitive, protective investors. You favor caution, preservation, and reading mood over chasing momentum."
         }
     }
 
@@ -1168,25 +1168,6 @@ struct StaticStarsBackground: View {
     private func pseudoRandom(seed: Int) -> CGFloat {
         let x = sin(Double(seed) * 12.9898 + 78.233) * 43758.5453
         return CGFloat(x - floor(x))
-    }
-}
-
-// MARK: - Animated Stars Background (kept for compatibility)
-
-struct AnimatedStarsBackground: View {
-    let isAnimating: Bool
-
-    var body: some View {
-        StaticStarsBackground()
-    }
-}
-
-// MARK: - Floating Particles (kept for compatibility, but simplified)
-
-struct FloatingParticles: View {
-    var body: some View {
-        // Removed floating particles - too magical for terminal aesthetic
-        EmptyView()
     }
 }
 
