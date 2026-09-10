@@ -50,9 +50,12 @@ check_max_lines "Cosmo Trader/Views/StockDetailView.swift" 1914
 # view-owned .task fetch that cannot move to a view model). Lowered →1972
 # in the positions-first reorg: removed the duplicate HISTORY STATUS list
 # (its two now-dead helpers deleted) and collapsed the diagnostics grid.
-check_max_lines "Cosmo Trader/Views/Tabs/PortfolioView.swift" 1972
+# PortfolioView raised 1972→1979 for pure view Daily P/L empty-state copy.
+check_max_lines "Cosmo Trader/Views/Tabs/PortfolioView.swift" 1979
 check_max_lines "Cosmo Trader/Views/Tabs/CosmosView.swift" 1902
-check_max_lines "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" 1138
+# TodayMarketHoroscopeView raised 1138→1180 for pure view cold-history
+# empty-state branching (collapse repeated UNAVAILABLE blocks).
+check_max_lines "Cosmo Trader/Views/Components/TodayMarketHoroscopeView.swift" 1180
 check_max_lines "Cosmo Trader/Views/Onboarding/OnboardingView.swift" 1203
 check_max_lines "Cosmo Trader/Views/Tabs/DiscoverView.swift" 1125
 

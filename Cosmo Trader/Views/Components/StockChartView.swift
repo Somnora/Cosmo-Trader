@@ -158,16 +158,6 @@ struct StockChartView: View {
         return String(format: "%@$%.2f (%@%.2f%%)", sign, abs(change), sign, percentChange)
     }
 
-    private var sourceText: String? {
-        switch chartLoadState {
-        case .loaded(let provenance):
-            return "\(provenance.detailText) • \(chartCompleteness.label)"
-        case .unavailable(_, _, let message):
-            return message
-        case .idle, .loading:
-            return nil
-        }
-    }
 
     private var chartQualityText: String? {
         switch chartLoadState {
@@ -289,71 +279,30 @@ struct StockChartView: View {
     // MARK: - Chart Header
 
     private var chartHeader: some View {
-        HStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: 2) {
-                if let point = selectedPoint {
-                    // Show selected point info
-                    Text(formatPrice(point.price))
-                        .font(TerminalFont.price(24))
-                        .foregroundColor(CosmicTheme.textPrimary)
+        // Price/sign/source live in the stock hero header and chartSourceFooter.
+        // This strip is scrub readout / timeframe performance only.
+        VStack(alignment: .leading, spacing: 4) {
+            if let point = selectedPoint {
+                Text(formatPrice(point.price))
+                    .font(TerminalFont.price(22))
+                    .foregroundColor(CosmicTheme.textPrimary)
 
-                    Text(formatDate(point.date))
-                        .font(TerminalFont.data(11))
-                        .foregroundColor(CosmicTheme.textMuted)
-                } else {
-                    // Show current price
-                    Text(stock.formattedPrice)
-                        .font(TerminalFont.price(24))
-                        .foregroundColor(CosmicTheme.textPrimary)
+                Text(formatDate(point.date))
+                    .font(TerminalFont.data(11))
+                    .foregroundColor(CosmicTheme.textMuted)
+            } else if !performanceText.isEmpty {
+                HStack(spacing: 6) {
+                    Text(performanceText)
+                        .font(TerminalFont.data(13, weight: .medium))
+                        .foregroundColor(chartColor)
 
-                    if !performanceText.isEmpty {
-                        HStack(spacing: 6) {
-                            Text(performanceText)
-                                .font(TerminalFont.data(12, weight: .medium))
-                                .foregroundColor(chartColor)
-
-                            Text(selectedTimeframe.description)
-                                .font(TerminalFont.data(10))
-                                .foregroundColor(CosmicTheme.textMuted)
-                        }
-                    }
-
-                    if let chartProvenance {
-                        HStack(spacing: 6) {
-                            DataSourceIndicator(provenance: chartProvenance, size: .compact)
-
-                            if let sourceText {
-                                Text(sourceText)
-                                    .font(TerminalFont.data(9))
-                                    .foregroundColor(CosmicTheme.textMuted)
-                                    .lineLimit(1)
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer()
-
-            // Zodiac indicator
-            VStack(alignment: .trailing, spacing: 4) {
-                if let foundedZodiacSign = stock.foundedZodiacSign {
-                    ZodiacSymbolView(
-                        sign: foundedZodiacSign,
-                        size: 20,
-                        color: CosmicTheme.gold
-                    )
-                } else {
-                    Image(systemName: "questionmark.circle")
-                        .font(.system(size: 18, weight: .medium))
+                    Text(selectedTimeframe.description.uppercased())
+                        .font(TerminalFont.data(10))
                         .foregroundColor(CosmicTheme.textMuted)
                 }
-
-                Text(stock.foundedZodiacSign?.displayName ?? "Unknown")
-                    .font(TerminalFont.data(10))
-                    .foregroundColor(CosmicTheme.textSecondary)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 4)
     }
 
@@ -496,18 +445,17 @@ struct StockChartView: View {
     @ViewBuilder
     private var chartSourceFooter: some View {
         if let chartProvenance {
-            HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
                 DataSourceIndicator(provenance: chartProvenance, size: .compact)
 
                 if let chartQualityText {
-                    Text(chartQualityText.uppercased())
-                        .font(TerminalFont.data(8, weight: .bold))
+                    Text(chartQualityText)
+                        .font(TerminalFont.data(9))
                         .foregroundColor(CosmicTheme.textMuted)
-                        .tracking(0.6)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-
-                Spacer()
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 4)
             .accessibilityLabel("Chart source and freshness")
         }

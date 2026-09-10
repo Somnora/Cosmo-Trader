@@ -104,7 +104,7 @@ struct LunarCycleView: View {
             dataRow(
                 label: "MOON SIGN",
                 value: lunarData.moonSign.displayName,
-                detail: "(\(lunarData.moonSign.element.displayName) Sector)",
+                detail: "(Transit moon / \(lunarData.moonSign.element.displayName) sector)",
                 valueColor: elementColor(for: lunarData.moonSign.element)
             )
         }

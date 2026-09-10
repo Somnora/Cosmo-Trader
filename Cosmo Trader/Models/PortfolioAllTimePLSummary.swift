@@ -49,7 +49,7 @@ struct PortfolioAllTimePLSummary: Equatable {
     }
 
     var formattedProfitLoss: String {
-        guard let totalProfitLoss else { return "—" }
+        guard let totalProfitLoss else { return "Unavailable" }
         let sign = totalProfitLoss >= 0 ? "+" : ""
         return sign + Self.formatCurrency(totalProfitLoss)
     }

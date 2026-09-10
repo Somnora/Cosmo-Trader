@@ -61,16 +61,23 @@ struct PortfolioView: View {
     }
 
     private var portfolioDailyPLProvenance: FinancialDataProvenance {
-        aggregateQuoteProvenance(
+        let aggregated = aggregateQuoteProvenance(
             for: holdings,
             storedReason: "Stored daily P/L and change percent until provider quote refresh succeeds",
             unavailableReason: "No holdings available for daily P/L"
         )
+        if aggregated.isProviderBacked { return aggregated }
+        if holdings.isEmpty {
+            return .unavailable(reason: "No holdings available for daily P/L")
+        }
+        // Row changes may still be stored; headline daily P/L stays unavailable
+        // until provider-backed quotes cover the aggregate.
+        return .unavailable(reason: "Daily P/L waits on provider-backed quotes")
     }
 
-    private var canShowDailyPL: Bool {
-        portfolioDailyPLProvenance.isProviderBacked
-    }
+    private var canShowDailyPL: Bool { portfolioDailyPLProvenance.isProviderBacked }
+
+    private var dailyPLEmptyLabel: String { holdings.isEmpty ? "No holdings" : "Unavailable" }
 
     private var allTimePLSummary: PortfolioAllTimePLSummary {
         PortfolioAllTimePLSummary.make(
@@ -294,9 +301,9 @@ struct PortfolioView: View {
                         footerSection
                     }
                     .iPadReadableContent(maxWidth: 980)
+                    .tabBarSafeBottomPadding(extra: AppLayout.bottomTabBarExtraClearance)
                 }
                 .contentShape(Rectangle())
-                .tabBarSafeBottomPadding(extra: AppLayout.bottomTabBarExtraClearance)
                 .refreshable {
                     await fetchLivePrices()
                 }
@@ -503,7 +510,7 @@ struct PortfolioView: View {
                     .tracking(1)
 
                 HStack(spacing: 4) {
-                    Text(canShowDailyPL ? safeUser.formattedDailyChange : "—")
+                    Text(canShowDailyPL ? safeUser.formattedDailyChange : dailyPLEmptyLabel)
                         .font(TerminalFont.price(18))
                     if canShowDailyPL {
                         Text("(\(safeUser.formattedDailyChangePercent))")

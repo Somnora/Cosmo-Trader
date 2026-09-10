@@ -213,8 +213,8 @@ struct CosmosView: View {
                     .padding(.horizontal, AppLayout.screenHorizontalPadding)
                     .padding(.top, 4)
                     .iPadReadableContent(maxWidth: 980)
+                    .tabBarSafeBottomPadding(extra: AppLayout.bottomTabBarExtraClearance)
                 }
-                .tabBarSafeBottomPadding(extra: AppLayout.bottomTabBarExtraClearance)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -319,13 +319,13 @@ struct CosmosView: View {
                 .fontWeight(.bold)
                 .foregroundColor(CosmicTheme.textPrimary)
 
-            // User sign badge (only if user exists)
+            // User sun-sign badge (label distinguishes from moon sign below)
             if let user = viewModel.user {
                 HStack(spacing: 6) {
                     ZodiacSymbolView(sign: user.sunSign, size: 20, color: CosmicTheme.gold)
 
-                    Text(user.sunSign.displayName)
-                        .font(TerminalFont.data(13))
+                    Text("SUN \(user.sunSign.displayName.uppercased())")
+                        .font(TerminalFont.data(12))
                         .fontWeight(.semibold)
                         .foregroundColor(CosmicTheme.gold)
                 }

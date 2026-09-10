@@ -112,9 +112,9 @@ struct ProfileView: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 4)
                         .iPadReadableContent(maxWidth: 980)
+                        .tabBarSafeBottomPadding(extra: AppLayout.bottomTabBarExtraClearance)
                     }
                     .contentShape(Rectangle())
-                    .tabBarSafeBottomPadding(extra: AppLayout.bottomTabBarExtraClearance)
                 } else if user == nil {
                     // No user - show empty state
                     CosmicEmptyStateView(
