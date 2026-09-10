@@ -108,14 +108,26 @@ struct ImportPortfolioView: View {
 
             // Formats with dedicated parsers or verified generic support
             VStack(alignment: .leading, spacing: 6) {
+                // Two rows so capsules do not clip on narrow phones
                 HStack(spacing: 8) {
-                    ForEach(["Schwab", "thinkorswim", "Fidelity", "E*TRADE"], id: \.self) { name in
+                    ForEach(["Schwab", "thinkorswim"], id: \.self) { name in
                         Text(name)
                             .font(TerminalFont.data(9))
                             .foregroundColor(CosmicTheme.textMuted)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(CosmicTheme.cardBackground)
+                            .background(CosmicTheme.cardBackground.opacity(0.65))
+                            .clipShape(Capsule())
+                    }
+                }
+                HStack(spacing: 8) {
+                    ForEach(["Fidelity", "E*TRADE"], id: \.self) { name in
+                        Text(name)
+                            .font(TerminalFont.data(9))
+                            .foregroundColor(CosmicTheme.textMuted)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(CosmicTheme.cardBackground.opacity(0.65))
                             .clipShape(Capsule())
                     }
                 }

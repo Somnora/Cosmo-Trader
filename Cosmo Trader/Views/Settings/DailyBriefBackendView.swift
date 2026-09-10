@@ -87,6 +87,7 @@ struct DailyBriefBackendView: View {
             .padding(.horizontal, AppLayout.screenHorizontalPadding)
             .padding(.top, 4)
             .iPadReadableContent(maxWidth: 980)
+            .tabBarSafeBottomPadding(extra: AppLayout.bottomTabBarExtraClearance)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -101,7 +102,6 @@ struct DailyBriefBackendView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .accessibilityIdentifier("today.dailyBrief")
         .background(CosmicTheme.background)
-        .tabBarSafeBottomPadding(extra: AppLayout.bottomTabBarExtraClearance)
         .refreshable {
             await reloadTodayContext()
             await refreshBrief()

@@ -119,22 +119,16 @@ struct OnboardingQuoteStepView: View {
     var onContinue: () -> Void
 
     var body: some View {
-        VStack(spacing: 60) {
-            Spacer()
-
-            // The quote with fade-in
+        VStack(spacing: 40) {
             JPMorganQuoteView(size: .full, opacity: quoteOpacity)
-                .padding(.horizontal, 32)
+                .padding(.top, 24)
 
-            Spacer()
-
-            // Continue button (appears after delay)
             if showContinue {
                 Button(action: onContinue) {
                     Text("Continue")
                         .font(.system(size: 14, weight: .medium, design: .monospaced))
                         .foregroundColor(CosmicTheme.gold)
-                        .padding(.horizontal, 32)
+                        .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(
                             RoundedRectangle(cornerRadius: 8)
@@ -144,10 +138,8 @@ struct OnboardingQuoteStepView: View {
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("onboarding.quoteContinueButton")
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                .padding(.bottom, 24)
             }
-
-            Spacer()
-                .frame(height: 80)
         }
         .onAppear {
             // Fade in quote
@@ -177,34 +169,26 @@ struct OnboardingDisclaimerStepView: View {
     private let disclaimerText = "Cosmo Trader is for informational and entertainment purposes only and does not constitute financial advice. Always consult a qualified financial advisor before making investment decisions."
 
     var body: some View {
-        VStack(spacing: 32) {
-            Spacer()
-
-            // Warning icon
+        VStack(spacing: 28) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 48, weight: .light))
                 .foregroundColor(CosmicTheme.gold)
                 .opacity(contentOpacity)
+                .padding(.top, 24)
 
-            // Title
             Text("IMPORTANT")
                 .font(.system(size: 14, weight: .bold, design: .monospaced))
                 .foregroundColor(CosmicTheme.gold)
                 .tracking(4)
                 .opacity(contentOpacity)
 
-            // Disclaimer text
             Text(disclaimerText)
                 .font(.system(size: 14, weight: .regular, design: .monospaced))
                 .foregroundColor(CosmicTheme.textSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(6)
-                .padding(.horizontal, 24)
                 .opacity(contentOpacity)
 
-            Spacer()
-
-            // "I Understand" button
             if showButton {
                 Button(action: {
                     AnalyticsService.shared.trackOnboardingDisclaimerAccepted()
@@ -214,7 +198,7 @@ struct OnboardingDisclaimerStepView: View {
                         .font(.system(size: 14, weight: .semibold, design: .monospaced))
                         .foregroundColor(CosmicTheme.terminalBlack)
                         .tracking(1)
-                        .padding(.horizontal, 40)
+                        .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
                         .background(
                             RoundedRectangle(cornerRadius: 8)
@@ -224,10 +208,8 @@ struct OnboardingDisclaimerStepView: View {
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("onboarding.disclaimerAcceptButton")
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                .padding(.bottom, 24)
             }
-
-            Spacer()
-                .frame(height: 80)
         }
         .onAppear {
             // Fade in content

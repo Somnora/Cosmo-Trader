@@ -45,7 +45,7 @@ struct PortfolioAllTimePLRow: View {
 
                 DataSourceIndicator(provenance: summary.provenance, size: .compact)
             } else {
-                Text("—")
+                Text("Unavailable")
                     .font(TerminalFont.price(14))
                     .foregroundColor(CosmicTheme.textMuted)
 

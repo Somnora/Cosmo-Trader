@@ -246,7 +246,7 @@ struct DiscoverView: View {
             Capsule()
                 .stroke(CosmicTheme.gold.opacity(0.3), lineWidth: 1)
         )
-        .padding(.top, 120)
+        .padding(.top, 176)
         .padding(.horizontal, 20)
     }
 

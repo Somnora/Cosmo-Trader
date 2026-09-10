@@ -66,7 +66,7 @@ struct StockPositionSummaryView: View {
 
                 positionStat(
                     label: "COST BASIS",
-                    value: costBasisPerShare.map { String(format: "$%.2f", $0) } ?? "—",
+                    value: costBasisPerShare.map { String(format: "$%.2f", $0) } ?? "n/a",
                     color: costBasisPerShare == nil ? CosmicTheme.textMuted : CosmicTheme.textPrimary
                 )
 
@@ -95,7 +95,7 @@ struct StockPositionSummaryView: View {
     }
 
     private var profitLossText: String {
-        guard let profitLoss else { return "—" }
+        guard let profitLoss else { return "n/a" }
         var text = (profitLoss >= 0 ? "+" : "-") + String(format: "$%.2f", abs(profitLoss))
         if let percent = profitLossPercent {
             text += String(format: " (%@%.1f%%)", percent >= 0 ? "+" : "-", abs(percent))

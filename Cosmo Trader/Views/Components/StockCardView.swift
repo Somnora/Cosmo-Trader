@@ -301,12 +301,21 @@ struct StockCardView: View {
                 )
             }
 
-            HStack(spacing: 6) {
-                Text(card.priceProvenance.shortLabel.uppercased())
-                    .font(TerminalFont.data(8, weight: .bold))
-                    .foregroundColor(card.priceProvenance.color)
-                    .tracking(0.8)
+            // Avoid "SAMPLE CURATED SAMPLE PRICE" when the move chip already labels the source.
+            if moveDisplay.isProviderPerformance {
+                HStack(spacing: 6) {
+                    Text(card.priceProvenance.shortLabel.uppercased())
+                        .font(TerminalFont.data(8, weight: .bold))
+                        .foregroundColor(card.priceProvenance.color)
+                        .tracking(0.8)
 
+                    Text(card.priceProvenance.detailText.uppercased())
+                        .font(TerminalFont.data(8))
+                        .foregroundColor(CosmicTheme.textMuted)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+            } else {
                 Text(card.priceProvenance.detailText.uppercased())
                     .font(TerminalFont.data(8))
                     .foregroundColor(CosmicTheme.textMuted)

@@ -35,25 +35,34 @@ struct TodayMarketHoroscopeView: View {
     }
 
     private func summaryContent(_ summary: TodayMarketHoroscopeSummary) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            header(summary)
+        let historyCold = isProviderHistoryCold(summary)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            header(summary, hideProvenanceBadge: historyCold)
             firstRunSetupBlock(summary.firstRunSetup)
-            loopSnapshot(summary)
-            oneGlanceActionPanel(summary)
 
-            if let marketState = summary.marketState {
-                MarketStateCardView(context: marketState)
+            if historyCold {
+                // One empty state + primary FETCH beats repeating UNAVAILABLE.
+                oneGlanceActionPanel(summary)
+                cosmicBlock(summary.cosmicContext)
+            } else {
+                loopSnapshot(summary)
+                oneGlanceActionPanel(summary)
+
+                if let marketState = summary.marketState {
+                    MarketStateCardView(context: marketState)
+                }
+
+                marketBlock(summary.marketContext, promotedAction: summary.primaryAction)
+                portfolioBlock(summary.portfolioContext, promotedAction: summary.primaryAction)
+
+                if let stockContext = summary.stockContext {
+                    stockBlock(stockContext, promotedAction: summary.primaryAction)
+                }
+
+                cosmicBlock(summary.cosmicContext)
+                dataCoverageBlock(summary.dataCoverage)
             }
-
-            marketBlock(summary.marketContext, promotedAction: summary.primaryAction)
-            portfolioBlock(summary.portfolioContext, promotedAction: summary.primaryAction)
-
-            if let stockContext = summary.stockContext {
-                stockBlock(stockContext, promotedAction: summary.primaryAction)
-            }
-
-            cosmicBlock(summary.cosmicContext)
-            dataCoverageBlock(summary.dataCoverage)
 
             Text(summary.disclaimer)
                 .font(TerminalFont.data(9))
@@ -67,6 +76,19 @@ struct TodayMarketHoroscopeView: View {
             RoundedRectangle(cornerRadius: 4)
                 .stroke(CosmicTheme.borderDim, lineWidth: 0.75)
         )
+    }
+
+    private func isProviderHistoryCold(_ summary: TodayMarketHoroscopeSummary) -> Bool {
+        let marketCold = summary.marketContext.displayMode == .unavailable
+        let portfolioCold: Bool = {
+            switch summary.portfolioContext.displayMode {
+            case .unavailable, .setupRequired: return true
+            default: return false
+            }
+        }()
+        let stockMode = summary.stockContext?.displayMode
+        let stockCold = stockMode == nil || stockMode == .unavailable || stockMode == .insufficientDataset
+        return marketCold && portfolioCold && stockCold
     }
 
     @ViewBuilder
@@ -178,7 +200,7 @@ struct TodayMarketHoroscopeView: View {
         )
     }
 
-    private func header(_ summary: TodayMarketHoroscopeSummary) -> some View {
+    private func header(_ summary: TodayMarketHoroscopeSummary, hideProvenanceBadge: Bool = false) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("TODAY MARKET HOROSCOPE")
@@ -197,7 +219,9 @@ struct TodayMarketHoroscopeView: View {
 
             shareButton(summary)
 
-            DataSourceIndicator(provenance: summary.provenance, size: .compact)
+            if !hideProvenanceBadge {
+                DataSourceIndicator(provenance: summary.provenance, size: .compact)
+            }
         }
     }
 
@@ -335,8 +359,12 @@ struct TodayMarketHoroscopeView: View {
                 .lineLimit(2)
                 .minimumScaleFactor(0.72)
 
-            DataSourceIndicator(provenance: provenance, size: .compact)
-                .padding(.top, 1)
+            if case .unavailable = provenance {
+                EmptyView()
+            } else {
+                DataSourceIndicator(provenance: provenance, size: .compact)
+                    .padding(.top, 1)
+            }
         }
         .frame(maxWidth: .infinity, minHeight: 76, alignment: .topLeading)
         .padding(8)
@@ -1041,7 +1069,7 @@ struct TodayMarketHoroscopeView: View {
         case .insufficientSample:
             return "THIN"
         case .unavailable:
-            return "UNAVAILABLE"
+            return "PENDING"
         case .sampleOnly:
             return "SAMPLE"
         }
@@ -1060,7 +1088,7 @@ struct TodayMarketHoroscopeView: View {
         case .insufficientSample:
             return "THIN"
         case .unavailable:
-            return "UNAVAILABLE"
+            return "PENDING"
         case .sampleOnly:
             return "SAMPLE"
         }
@@ -1077,7 +1105,7 @@ struct TodayMarketHoroscopeView: View {
         case .insufficientSample:
             return "Thin sample"
         case .unavailable:
-            return "Unavailable"
+            return "Pending"
         case .sampleOnly:
             return "Sample"
         }

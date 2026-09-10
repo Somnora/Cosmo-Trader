@@ -291,7 +291,7 @@ struct StockDetailView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
-                .padding(.bottom, CosmicTheme.tabBarClearance + 24)
+                .padding(.bottom, CosmicTheme.tabBarClearance + AppLayout.bottomTabBarExtraClearance + 24)
                 .iPadReadableContent(maxWidth: 920)
             }
             .background(backgroundGradient)
@@ -541,12 +541,12 @@ struct StockDetailView: View {
 
     @ViewBuilder
     private var priceValue: some View {
-        if isLoadingPrice && lastPriceUpdate == nil {
+        if isLoadingPrice && lastPriceUpdate == nil && liveStock.currentPrice <= 0 {
             VStack(alignment: .leading, spacing: 6) {
-                Text("$----.--")
-                    .font(TerminalFont.price(36))
+                Text("Loading quote")
+                    .font(TerminalFont.price(28))
                     .foregroundColor(CosmicTheme.textMuted)
-                Text("---.-- (--.--%)")
+                Text("Waiting on provider")
                     .font(TerminalFont.data(14))
                     .foregroundColor(CosmicTheme.textMuted)
             }

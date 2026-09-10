@@ -441,7 +441,7 @@ class DiscoverViewModel {
 
     private func portfolioRole(for stock: Stock, holdings: [Stock]) -> String {
         guard let element = stock.foundedElement else {
-            return "has unknown company-date exposure; verify fundamentals before saving."
+            return "Has unknown company-date exposure; verify fundamentals before saving."
         }
         let verifiedHoldings = holdings.filter { $0.foundedElement != nil }
         let sameElementWeight = exposureWeight(
@@ -453,18 +453,18 @@ class DiscoverViewModel {
         let sectorCount = holdings.filter { $0.sector == stock.sector }.count
 
         if elementShare >= 0.45 {
-            return "intensifies \(element.displayName.lowercased())-heavy exposure; lean reading."
+            return "Intensifies \(element.displayName.lowercased())-heavy exposure; lean reading."
         }
 
         if !hasElement {
-            return "adds \(element.displayName.lowercased()) exposure your portfolio does not carry yet."
+            return "Adds \(element.displayName.lowercased()) exposure your portfolio does not carry yet."
         }
 
         if sectorCount > 0 {
-            return "adds another \(stock.sector.lowercased()) name; compare concentration before saving."
+            return "Adds another \(stock.sector.lowercased()) name; compare concentration before saving."
         }
 
-        return "broadens the mix with \(stock.sector.lowercased()) exposure."
+        return "Broadens the mix with \(stock.sector.lowercased()) exposure."
     }
 
     private func exposureWeight(_ holdings: [Stock]) -> Double {

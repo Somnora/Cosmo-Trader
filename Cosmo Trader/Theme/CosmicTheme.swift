@@ -117,9 +117,9 @@ struct CosmicTheme {
     // MARK: - Tab Bar / Layout
 
     /// Clearance below scrollable content so it never sits beneath the
-    /// floating system tab bar. Covers a 49pt tab bar + worst-case home
-    /// indicator inset plus a small breathing room.
-    static let tabBarClearance: CGFloat = 120
+    /// floating system tab bar. iOS 26 floating tab chrome is taller than
+    /// the classic 49pt bar; keep spare room above the home indicator.
+    static let tabBarClearance: CGFloat = 168
 
     // MARK: - Legacy Aliases
 
@@ -182,7 +182,7 @@ enum AppLayout {
     static let screenHorizontalPadding: CGFloat = 16
     static let cardHorizontalPadding: CGFloat = 14
     static let sectionSpacing: CGFloat = 14
-    static let bottomTabBarExtraClearance: CGFloat = 16
+    static let bottomTabBarExtraClearance: CGFloat = 36
 }
 
 // MARK: - Color Extension for Hex
@@ -372,12 +372,11 @@ extension View {
     }
 
     /// Adds breathing room below scrollable tab content so it never
-    /// sits flush against — or beneath — the system tab bar. Apply once
-    /// at the ScrollView/List level. Use `extra` to fine-tune.
+    /// sits flush against or beneath the floating system tab bar.
+    /// Apply to the content stack INSIDE a ScrollView/List (not the
+    /// ScrollView wrapper). Use `extra` to fine-tune.
     func tabBarSafeBottomPadding(extra: CGFloat = 0) -> some View {
-        self.safeAreaInset(edge: .bottom, spacing: 0) {
-            Color.clear.frame(height: CosmicTheme.tabBarClearance + extra)
-        }
+        self.padding(.bottom, CosmicTheme.tabBarClearance + extra)
     }
 
     /// NO scanlines - too decorative

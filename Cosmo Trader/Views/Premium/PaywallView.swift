@@ -49,6 +49,11 @@ struct PaywallView: View {
         return selectedSubscriptionHasIntroOffer ? "START FREE TRIAL" : "SUBSCRIBE"
     }
 
+    /// StoreKit returned no sellable products (common when ASC IAP metadata is incomplete).
+    private var productsUnavailable: Bool {
+        !storeKitManager.isLoading && storeKitManager.products.isEmpty
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -241,66 +246,6 @@ struct PaywallView: View {
                 Spacer()
             }
 
-            // Plan options - show real prices from StoreKit or fallback
-            VStack(spacing: 12) {
-                if let yearly = storeKitManager.yearlyProduct {
-                    let savingsText = storeKitManager.yearlySavingsPercentage().map { "SAVE \($0)%" }
-                    planOption(
-                        plan: .yearly,
-                        title: "YEARLY",
-                        price: yearly.displayPrice,
-                        period: "/year",
-                        savings: savingsText
-                    )
-                } else {
-                    planOption(
-                        plan: .yearly,
-                        title: "YEARLY",
-                        price: SubscriptionManager.oracleTierYearlyPrice,
-                        period: "/year",
-                        savings: "SAVE 33%"
-                    )
-                }
-
-                // Lifetime plan option
-                if let lifetime = storeKitManager.lifetimeProduct {
-                    planOption(
-                        plan: .lifetime,
-                        title: "LIFETIME",
-                        price: lifetime.displayPrice,
-                        period: "once",
-                        savings: "BEST VALUE"
-                    )
-                } else {
-                    planOption(
-                        plan: .lifetime,
-                        title: "LIFETIME",
-                        price: SubscriptionManager.oracleTierLifetimePrice,
-                        period: "once",
-                        savings: "BEST VALUE"
-                    )
-                }
-
-                if let monthly = storeKitManager.monthlyProduct {
-                    planOption(
-                        plan: .monthly,
-                        title: "MONTHLY",
-                        price: monthly.displayPrice,
-                        period: "/month",
-                        savings: nil
-                    )
-                } else {
-                    planOption(
-                        plan: .monthly,
-                        title: "MONTHLY",
-                        price: SubscriptionManager.oracleTierPrice,
-                        period: "/month",
-                        savings: nil
-                    )
-                }
-            }
-
-            // Loading indicator
             if storeKitManager.isLoading {
                 HStack(spacing: 8) {
                     ProgressView()
@@ -310,8 +255,78 @@ struct PaywallView: View {
                         .font(.system(size: 10, design: .monospaced))
                         .foregroundColor(CosmicTheme.textSecondary)
                 }
+            } else if productsUnavailable {
+                productsUnavailableCard
+            } else {
+                // Only render StoreKit-backed prices. Never invent fallback SKUs or amounts.
+                VStack(spacing: 12) {
+                    if let yearly = storeKitManager.yearlyProduct {
+                        let savingsText = storeKitManager.yearlySavingsPercentage().map { "SAVE \($0)%" }
+                        planOption(
+                            plan: .yearly,
+                            title: "YEARLY",
+                            price: yearly.displayPrice,
+                            period: "/year",
+                            savings: savingsText
+                        )
+                    }
+
+                    if let lifetime = storeKitManager.lifetimeProduct {
+                        planOption(
+                            plan: .lifetime,
+                            title: "LIFETIME",
+                            price: lifetime.displayPrice,
+                            period: "once",
+                            savings: "BEST VALUE"
+                        )
+                    }
+
+                    if let monthly = storeKitManager.monthlyProduct {
+                        planOption(
+                            plan: .monthly,
+                            title: "MONTHLY",
+                            price: monthly.displayPrice,
+                            period: "/month",
+                            savings: nil
+                        )
+                    }
+                }
             }
         }
+    }
+
+    private var productsUnavailableCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("PURCHASES UNAVAILABLE")
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .foregroundColor(CosmicTheme.gold)
+                .tracking(1)
+
+            Text("Oracle Tier products are not sellable yet. App Store product metadata is incomplete, so StoreKit returned no prices. Restore Purchases still works if you already own access.")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(CosmicTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                Task { await storeKitManager.loadProducts() }
+            } label: {
+                Text("Retry loading products")
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundColor(CosmicTheme.gold)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 4)
+                .fill(CosmicTheme.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .strokeBorder(CosmicTheme.gold.opacity(0.35), lineWidth: 1)
+                )
+        )
+        .accessibilityIdentifier("paywall.productsUnavailable")
     }
 
     private func planOption(
@@ -397,7 +412,7 @@ struct PaywallView: View {
 
     private var actionSection: some View {
         VStack(spacing: 16) {
-            // Subscribe button
+            // Subscribe button (or honest blocked CTA when StoreKit has no products)
             Button {
                 processSubscription()
             } label: {
@@ -407,21 +422,21 @@ struct PaywallView: View {
                             .progressViewStyle(CircularProgressViewStyle(tint: CosmicTheme.terminalBlack))
                             .scaleEffect(0.8)
                     } else {
-                        Text(purchaseButtonTitle)
+                        Text(productsUnavailable ? "PURCHASES UNAVAILABLE" : purchaseButtonTitle)
                             .font(.system(size: 14, weight: .bold, design: .monospaced))
                             .tracking(2)
                     }
                 }
-                .foregroundColor(CosmicTheme.terminalBlack)
+                .foregroundColor(productsUnavailable ? CosmicTheme.textMuted : CosmicTheme.terminalBlack)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
                 .background(
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(CosmicTheme.gold)
+                        .fill(productsUnavailable ? CosmicTheme.cardBackground : CosmicTheme.gold)
                 )
             }
             .buttonStyle(.plain)
-            .disabled(isProcessing || selectedProduct == nil)
+            .disabled(isProcessing || selectedProduct == nil || productsUnavailable)
 
             // Restore purchases + manage subscription
             HStack(spacing: 16) {
@@ -619,9 +634,13 @@ struct CompactPaywallView: View {
 
     private let storeKitManager = StoreKitManager.shared
 
-    /// Display price - uses StoreKit product if available, falls back to constant
-    private var displayPrice: String {
-        storeKitManager.monthlyProduct?.displayPrice ?? SubscriptionManager.oracleTierPrice
+    private var productsUnavailable: Bool {
+        !storeKitManager.isLoading && storeKitManager.products.isEmpty
+    }
+
+    /// StoreKit-backed monthly price only. Never invent a fallback amount.
+    private var displayPrice: String? {
+        storeKitManager.monthlyProduct?.displayPrice
     }
 
     var body: some View {
@@ -655,19 +674,30 @@ struct CompactPaywallView: View {
                     )
             )
 
-            // Price
+            // Price or honest unavailable state
             VStack(spacing: 6) {
-                HStack(alignment: .lastTextBaseline, spacing: 4) {
+                if storeKitManager.isLoading {
+                    Text("Loading prices...")
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundColor(CosmicTheme.textSecondary)
+                } else if let displayPrice {
                     Text(displayPrice)
                         .font(.system(size: 24, weight: .bold, design: .monospaced))
                         .foregroundColor(CosmicTheme.gold)
-                }
 
-                // Optionally show "Lifetime available"
-                if storeKitManager.lifetimeProduct != nil {
-                    Text("Lifetime available")
+                    if storeKitManager.lifetimeProduct != nil {
+                        Text("Lifetime available")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(CosmicTheme.textSecondary)
+                    }
+                } else {
+                    Text("Purchases unavailable")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .foregroundColor(CosmicTheme.gold)
+                    Text("App Store product metadata is incomplete")
                         .font(.system(size: 10, design: .monospaced))
                         .foregroundColor(CosmicTheme.textSecondary)
+                        .multilineTextAlignment(.center)
                 }
             }
 
@@ -676,7 +706,7 @@ struct CompactPaywallView: View {
                 Button {
                     onUpgrade?()
                 } label: {
-                    Text("UPGRADE")
+                    Text(productsUnavailable ? "VIEW DETAILS" : "UPGRADE")
                         .font(.system(size: 12, weight: .bold, design: .monospaced))
                         .tracking(2)
                         .foregroundColor(CosmicTheme.terminalBlack)
